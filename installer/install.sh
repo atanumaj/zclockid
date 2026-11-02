@@ -113,10 +113,19 @@ if getent group winbindd_priv >/dev/null; then
     usermod -aG winbindd_priv freerad || true
 fi
 
-# Chrony access to MS-SNTP signing socket
+# Chrony access to MS-SNTP signing socket & NTP Server configuration
 mkdir -p /var/lib/samba/ntp_signd
 chown -R root:_chrony /var/lib/samba/ntp_signd || true
 chmod 750 /var/lib/samba/ntp_signd || true
+
+mkdir -p /etc/chrony/conf.d /etc/chrony/sources.d
+if [[ -f "${SCRIPT_DIR}/config-templates/chrony/zclockid-ntp-server.conf" ]]; then
+    cp "${SCRIPT_DIR}/config-templates/chrony/zclockid-ntp-server.conf" /etc/chrony/conf.d/
+fi
+if [[ -f "${SCRIPT_DIR}/config-templates/chrony/zclockid-upstream.sources" ]]; then
+    cp "${SCRIPT_DIR}/config-templates/chrony/zclockid-upstream.sources" /etc/chrony/sources.d/
+fi
+systemctl restart chrony || true
 
 # BIND access to Samba DLZ databases
 mkdir -p /var/lib/samba/private

@@ -57,6 +57,9 @@
                 <button onclick="showTab('domain')" id="nav-domain" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-network-wired w-4"></i> Domain & Forest Config
                 </button>
+                <button onclick="showTab('ntp')" id="nav-ntp" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-clock w-4"></i> NTP Time Server
+                </button>
                 <button onclick="showTab('users')" id="nav-users" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-users w-4"></i> Users & Security Groups
                 </button>
@@ -295,33 +298,52 @@
 
             <!-- ==================== TAB 2: DOMAIN & FOREST CONFIG ==================== -->
             <section id="tab-domain" class="space-y-6 hidden">
-                <!-- Domain Identity Card -->
+                <!-- Domain & Server Identity Card (Zentyal Style) -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-network-wired text-indigo-400"></i> Active Directory Domain & Forest Identity
+                                <i class="fa-solid fa-network-wired text-indigo-400"></i> Active Directory Domain & Server Identity
                             </h3>
-                            <p class="text-xs text-slate-400">Core parameters, domain SID, and Kerberos realm settings</p>
+                            <p class="text-xs text-slate-400">Server role, Kerberos realm, NetBIOS computer name, system hostname, and domain SID</p>
                         </div>
+                        <button onclick="openIdentityModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                            <i class="fa-solid fa-pen-to-square"></i> Edit Identity & Hostname
+                        </button>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase">Primary Realm (FQDN)</span>
-                            <div id="domain-realm-val" class="text-white font-bold text-sm">INET.NET</div>
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Server Role</span>
+                            <div id="domain-role-val" class="text-emerald-400 font-bold text-xs truncate">Primary Domain Controller</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase">NetBIOS Domain</span>
-                            <div id="domain-netbios-val" class="text-indigo-400 font-bold text-sm">INET</div>
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Primary Realm (FQDN)</span>
+                            <div id="domain-realm-val" class="text-white font-bold text-xs">INET.NET</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase">Functional Levels</span>
-                            <div class="text-slate-300 font-bold text-sm">Win2008R2 / Win2012R2</div>
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">NetBIOS Domain Name</span>
+                            <div id="domain-netbios-val" class="text-indigo-400 font-bold text-xs">INET</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase">Domain SID</span>
-                            <div id="domain-sid-val" class="text-cyan-400 font-bold text-xs truncate">S-1-5-21-...</div>
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">NetBIOS Computer Name</span>
+                            <div id="domain-netbios-name-val" class="text-white font-bold text-xs">INET-ZCLOCKID</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">System Hostname & FQDN</span>
+                            <div id="domain-fqdn-val" class="text-cyan-400 font-bold text-xs truncate">inet-zclockid.inet.net</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Server Description</span>
+                            <div id="domain-desc-val" class="text-slate-300 font-sans text-xs truncate">ZclockID Active Directory Domain Controller</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Functional Levels</span>
+                            <div class="text-slate-300 font-bold text-xs">Win2008R2 / Win2012R2</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Domain SID</span>
+                            <div id="domain-sid-val" class="text-amber-400 font-bold text-xs truncate">S-1-5-21-...</div>
                         </div>
                     </div>
                 </div>
@@ -400,6 +422,193 @@
                         </button>
                     </div>
                     <pre id="drs-output" class="text-[11px] font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-300 max-h-48 overflow-y-auto custom-scroll">Loading DRS replication status...</pre>
+                </div>
+            </section>
+
+            <!-- ==================== TAB NTP: AUTHORITATIVE NTP TIME SERVER ==================== -->
+            <section id="tab-ntp" class="space-y-6 hidden">
+                <!-- Header Banner -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-amber-400"></i> Authoritative NTP Time Server & Clock Sync
+                            </h3>
+                            <p class="text-xs text-slate-400">Microsoft MS-SNTP signed time synchronization for Windows Active Directory clients and LAN network devices</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="triggerNtpSyncNow()" id="btn-ntp-step" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-amber-900/50">
+                                <i class="fa-solid fa-bolt"></i> Step Clock Now
+                            </button>
+                            <button onclick="controlService('chrony', 'restart')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrows-rotate"></i> Restart Chrony
+                            </button>
+                            <button onclick="openLogViewer('chrony', 'Chrony NTP Service')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-terminal text-indigo-400"></i> Live Logs
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Telemetry Metrics Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">NTP Server Status</span>
+                            <div class="flex items-center gap-2">
+                                <span id="ntp-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span id="ntp-status-text" class="text-emerald-400 font-bold text-xs truncate">SERVING (PORT 123)</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Active Directory MS-SNTP</span>
+                            <div id="ntp-signd-val" class="text-emerald-400 font-bold text-xs truncate">ACTIVE (ntp_signd)</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Clock Stratum & Reference</span>
+                            <div id="ntp-stratum-val" class="text-cyan-400 font-bold text-xs truncate">Stratum 3</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">System Clock Offset</span>
+                            <div id="ntp-offset-val" class="text-white font-bold text-xs truncate">+0.00 ms</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two Column Layout: Configuration & Live Sources -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Column 1: NTP Configuration Form (6 cols) -->
+                    <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-5">
+                        <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+                            <div>
+                                <h4 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-sliders text-amber-400"></i> NTP Server Settings
+                                </h4>
+                                <p class="text-xs text-slate-400">Manage time broadcast, client access rules, and upstream sources</p>
+                            </div>
+                            <span class="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded font-mono">UDP 123</span>
+                        </div>
+
+                        <form id="ntp-config-form" onsubmit="saveNtpConfig(event)" class="space-y-4 text-xs">
+                            <!-- NTP Server Switch -->
+                            <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                                <div>
+                                    <label for="ntp-cfg-server-enabled" class="font-medium text-slate-200 cursor-pointer block">Act as Authoritative Local NTP Server</label>
+                                    <p class="text-[11px] text-slate-400">Answer incoming NTP queries from LAN computers and domain members</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ntp-cfg-server-enabled" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- MS-SNTP Toggle -->
+                            <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                                <div>
+                                    <label for="ntp-cfg-ms-sntp" class="font-medium text-slate-200 cursor-pointer block">Active Directory MS-SNTP Time Signing</label>
+                                    <p class="text-[11px] text-slate-400">Cryptographically signs NTP packets for Windows domain workstations via <code class="text-amber-300">/var/lib/samba/ntp_signd</code></p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ntp-cfg-ms-sntp" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- Allowed Subnets -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">Allowed Client Subnets / Networks</label>
+                                <input type="text" id="ntp-cfg-subnets" required placeholder="e.g. 0.0.0.0/0, ::/0 or 192.168.1.0/24, 10.10.0.0/16"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-amber-500 transition text-xs">
+                                <p class="text-[10px] text-slate-500">Comma-separated IPv4 and IPv6 subnets permitted to synchronize time</p>
+                            </div>
+
+                            <!-- Upstream NTP Servers -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">Upstream NTP Servers (Time Sources)</label>
+                                <textarea id="ntp-cfg-upstreams" rows="3" required placeholder="time.google.com&#10;pool.ntp.org&#10;time.windows.com"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-amber-500 transition text-xs custom-scroll"></textarea>
+                                <p class="text-[10px] text-slate-500">One NTP hostname or IP address per line (e.g. time.google.com, 0.pool.ntp.org)</p>
+                            </div>
+
+                            <!-- System Timezone -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">Appliance Timezone</label>
+                                <select id="ntp-cfg-timezone" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-500 transition text-xs">
+                                    <option value="Asia/Kolkata">Asia/Kolkata (IST +05:30)</option>
+                                    <option value="UTC">UTC (Universal Coordinated Time)</option>
+                                    <option value="America/New_York">America/New_York (EST/EDT)</option>
+                                    <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                                    <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                                    <option value="Europe/London">Europe/London (GMT/BST)</option>
+                                    <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                                    <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                                    <option value="Asia/Dubai">Asia/Dubai (GST +04:00)</option>
+                                    <option value="Asia/Singapore">Asia/Singapore (SGT +08:00)</option>
+                                    <option value="Asia/Tokyo">Asia/Tokyo (JST +09:00)</option>
+                                    <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                                </select>
+                                <p class="text-[10px] text-slate-500">System timezone updated via <code class="text-amber-300">timedatectl</code></p>
+                            </div>
+
+                            <div class="pt-2 flex items-center justify-end gap-3">
+                                <button type="button" onclick="fetchNtpConfig()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">
+                                    Reset
+                                </button>
+                                <button type="submit" id="btn-save-ntp-cfg" class="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-amber-900/50">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save NTP Settings
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Column 2: Active NTP Sources & Peers Table (6 cols) -->
+                    <div class="lg:col-span-6 space-y-5">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-satellite-dish text-cyan-400"></i> Active NTP Time Sources & Peers
+                                    </h4>
+                                    <p class="text-xs text-slate-400">Real-time telemetry parsed from <code class="text-cyan-300">chronyc sources -v</code></p>
+                                </div>
+                                <button onclick="fetchNtpStatus()" class="text-slate-400 hover:text-white transition text-xs" title="Refresh">
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-left text-slate-300">
+                                    <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                        <tr>
+                                            <th class="px-3 py-2">State</th>
+                                            <th class="px-3 py-2">Source Host/IP</th>
+                                            <th class="px-3 py-2">Stratum</th>
+                                            <th class="px-3 py-2">Reach</th>
+                                            <th class="px-3 py-2">Offset</th>
+                                            <th class="px-3 py-2">Last Rx</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ntp-sources-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                        <tr><td colspan="6" class="px-3 py-4 text-center font-sans text-slate-500">Querying active NTP sources...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Kerberos Clock Skew Warning Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                            <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-rose-400"></i> Kerberos 5-Minute Maximum Clock Skew Tolerance
+                            </h4>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Active Directory Kerberos V5 tickets (<code class="text-slate-200">KRB_AP_REQ</code>) include an encrypted timestamp. If a client workstation's clock drifts by more than <strong class="text-white">300 seconds (5 minutes)</strong> from this Domain Controller, Kerberos authentication is immediately rejected with <code class="text-rose-400">KRB_AP_ERR_SKEW</code>.
+                            </p>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Windows clients joined to the domain should point their Windows Time service to this appliance:
+                            </p>
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-[11px] font-mono text-cyan-300">
+                                w32tm /config /manualpeerlist:"192.168.1.41" /syncfromflags:manual /reliable:YES /update
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -1110,6 +1319,45 @@
         </div>
     </div>
 
+    <!-- Edit System & Domain Identity Modal (Zentyal Style) -->
+    <div id="modal-identity" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Edit Server Identity & Hostname
+                </h3>
+                <button onclick="closeIdentityModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="saveSystemIdentity(event)" class="space-y-3.5 text-xs">
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">Server Description (smb.conf server string)</label>
+                    <input id="ident-desc-input" type="text" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-sans focus:outline-none focus:border-indigo-500 transition" placeholder="ZclockID Active Directory Domain Controller">
+                    <p class="text-[10px] text-slate-500 mt-1">Network description broadcast across the local LAN</p>
+                </div>
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">System Static Hostname</label>
+                    <input id="ident-hostname-input" type="text" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono focus:outline-none focus:border-indigo-500 transition" placeholder="dc or inet-zclockid">
+                    <p class="text-[10px] text-slate-500 mt-1">Linux hostname updated via <code class="text-indigo-300">hostnamectl</code> and /etc/hosts</p>
+                </div>
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">NetBIOS Computer Name</label>
+                    <input id="ident-netbios-input" type="text" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono uppercase focus:outline-none focus:border-indigo-500 transition" placeholder="DC or INET-ZCLOCKID">
+                    <p class="text-[10px] text-slate-500 mt-1">NetBIOS machine name in smb.conf (restarts samba-ad-dc)</p>
+                </div>
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1 text-[11px] text-slate-400">
+                    <strong class="text-slate-300 block">Active Directory Domain Realm Note:</strong>
+                    <p>The Forest Root realm (<code class="text-indigo-300" id="ident-realm-note">INET.NET</code>) is permanently bound to the AD security database. To add additional domain names for user logins and email accounts (e.g. <span class="text-emerald-300">@inetcsc.net</span>), use the <strong>Alternate Domain & UPN Suffixes</strong> manager.</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeIdentityModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" id="btn-save-ident" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Identity
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Add Alternate UPN Suffix Modal -->
     <div id="upn-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
@@ -1400,7 +1648,7 @@
 
         // Tab Navigation
         function showTab(tabId) {
-            const tabs = ['dashboard', 'domain', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports'];
+            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports'];
             tabs.forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const nav = document.getElementById(`nav-${t}`);
@@ -1421,6 +1669,7 @@
 
             // Lazy load tab data
             if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); }
+            else if (tabId === 'ntp') { fetchNtpStatus(); fetchNtpConfig(); }
             else if (tabId === 'users') { fetchUsers(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
             else if (tabId === 'radius') { fetchRadiusClients(); fetchRadiusSessions(); }
@@ -1542,15 +1791,23 @@
             currentActiveLogService = '';
         }
 
-        // 2. Domain & UPN Management
+        // 2. Domain & Identity Management (Zentyal Style)
+        let currentSystemIdentity = {};
+
         async function fetchDomainInfo() {
             try {
                 const res = await fetch(`${API_BASE}/domain/info`);
                 const data = await res.json();
-                document.getElementById('header-domain').innerText = data.realm || 'INET.NET';
-                document.getElementById('domain-realm-val').innerText = data.realm || 'INET.NET';
-                document.getElementById('domain-netbios-val').innerText = data.domain_netbios || 'INET';
-                document.getElementById('domain-sid-val').innerText = data.domain_sid || 'S-1-5-21-...';
+                currentSystemIdentity = data;
+
+                if (document.getElementById('header-domain')) document.getElementById('header-domain').innerText = data.realm || 'INET.NET';
+                if (document.getElementById('domain-realm-val')) document.getElementById('domain-realm-val').innerText = data.realm || 'INET.NET';
+                if (document.getElementById('domain-netbios-val')) document.getElementById('domain-netbios-val').innerText = data.domain_netbios || 'INET';
+                if (document.getElementById('domain-sid-val')) document.getElementById('domain-sid-val').innerText = data.domain_sid || 'S-1-5-21-...';
+                if (document.getElementById('domain-role-val')) document.getElementById('domain-role-val').innerText = data.server_role || 'Primary Domain Controller';
+                if (document.getElementById('domain-netbios-name-val')) document.getElementById('domain-netbios-name-val').innerText = data.netbios_name || 'INET-ZCLOCKID';
+                if (document.getElementById('domain-desc-val')) document.getElementById('domain-desc-val').innerText = data.server_description || 'ZclockID Active Directory Domain Controller';
+                if (document.getElementById('domain-fqdn-val')) document.getElementById('domain-fqdn-val').innerText = data.fqdn || `${data.hostname || 'inet-zclockid'}.${(data.realm || 'inet.net').toLowerCase()}`;
 
                 // FSMO Roles Table
                 const tbody = document.getElementById('fsmo-table-body');
@@ -1577,6 +1834,184 @@
                 }
             } catch (err) {
                 console.error('Error fetching domain info:', err);
+            }
+        }
+
+        function openIdentityModal() {
+            document.getElementById('ident-desc-input').value = currentSystemIdentity.server_description || '';
+            document.getElementById('ident-hostname-input').value = currentSystemIdentity.hostname || '';
+            document.getElementById('ident-netbios-input').value = currentSystemIdentity.netbios_name || '';
+            document.getElementById('ident-realm-note').innerText = currentSystemIdentity.realm || 'INET.NET';
+            document.getElementById('modal-identity').classList.remove('hidden');
+        }
+
+        function closeIdentityModal() {
+            document.getElementById('modal-identity').classList.add('hidden');
+        }
+
+        async function saveSystemIdentity(e) {
+            if (e) e.preventDefault();
+            const btn = document.getElementById('btn-save-ident');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+            const payload = {
+                server_description: document.getElementById('ident-desc-input').value.trim(),
+                hostname: document.getElementById('ident-hostname-input').value.trim(),
+                netbios_name: document.getElementById('ident-netbios-input').value.trim().toUpperCase()
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/system/identity`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to update system identity');
+
+                alert(`System Identity Updated Successfully!\n\n${data.actions.join('\n')}`);
+                closeIdentityModal();
+                await fetchDomainInfo();
+            } catch (err) {
+                alert(`Error saving identity: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+
+        // ==================== NTP SERVER & CLOCK SYNC JS ====================
+        async function fetchNtpStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/ntp/status`);
+                const data = await res.json();
+
+                const statusText = document.getElementById('ntp-status-text');
+                const statusDot = document.getElementById('ntp-status-dot');
+                const signdVal = document.getElementById('ntp-signd-val');
+                const stratumVal = document.getElementById('ntp-stratum-val');
+                const offsetVal = document.getElementById('ntp-offset-val');
+                const tbody = document.getElementById('ntp-sources-table-body');
+
+                if (data.server_listening) {
+                    statusText.innerText = 'SERVING (PORT 123)';
+                    statusText.className = 'text-emerald-400 font-bold text-xs truncate';
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
+                } else {
+                    statusText.innerText = 'CLIENT ONLY';
+                    statusText.className = 'text-slate-400 font-bold text-xs truncate';
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
+                }
+
+                signdVal.innerText = data.service_active ? 'ACTIVE (ntp_signd)' : 'INACTIVE';
+                stratumVal.innerText = `Stratum ${data.stratum} (${data.reference_id || 'Local'})`;
+                offsetVal.innerText = data.last_offset || '+0.00 ms';
+
+                if (tbody && data.sources) {
+                    if (data.sources.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-500 font-sans">No NTP peer sources configured.</td></tr>';
+                    } else {
+                        tbody.innerHTML = data.sources.map(s => {
+                            const isBest = s.state.includes('Best');
+                            const stateBadge = isBest
+                                ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>'
+                                : (s.state.includes('Combined')
+                                    ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-800">PEER</span>'
+                                    : '<span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-400">CANDIDATE</span>');
+                            return `
+                                <tr class="hover:bg-slate-800/30">
+                                    <td class="px-3 py-2">${stateBadge}</td>
+                                    <td class="px-3 py-2 font-bold text-white">${s.address}</td>
+                                    <td class="px-3 py-2 text-cyan-300">Stratum ${s.stratum}</td>
+                                    <td class="px-3 py-2 text-slate-400">${s.reach}</td>
+                                    <td class="px-3 py-2 text-amber-300">${s.offset}s</td>
+                                    <td class="px-3 py-2 text-slate-500">${s.last_rx}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching NTP status:', err);
+            }
+        }
+
+        async function fetchNtpConfig() {
+            try {
+                const res = await fetch(`${API_BASE}/ntp/config`);
+                const data = await res.json();
+
+                document.getElementById('ntp-cfg-server-enabled').checked = Boolean(data.ntp_server_enabled);
+                document.getElementById('ntp-cfg-ms-sntp').checked = Boolean(data.ms_sntp_enabled);
+                document.getElementById('ntp-cfg-subnets').value = data.allowed_subnets || '0.0.0.0/0, ::/0';
+                document.getElementById('ntp-cfg-upstreams').value = (data.upstream_servers || []).join('\n');
+                if (data.timezone) {
+                    document.getElementById('ntp-cfg-timezone').value = data.timezone;
+                }
+            } catch (err) {
+                console.error('Error fetching NTP config:', err);
+            }
+        }
+
+        async function saveNtpConfig(e) {
+            if (e) e.preventDefault();
+            const btn = document.getElementById('btn-save-ntp-cfg');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+            const upstreams = document.getElementById('ntp-cfg-upstreams').value
+                .split('\n')
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            const payload = {
+                ntp_server_enabled: document.getElementById('ntp-cfg-server-enabled').checked,
+                ms_sntp_enabled: document.getElementById('ntp-cfg-ms-sntp').checked,
+                allowed_subnets: document.getElementById('ntp-cfg-subnets').value.trim(),
+                upstream_servers: upstreams,
+                timezone: document.getElementById('ntp-cfg-timezone').value
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/ntp/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to update NTP config');
+
+                alert('NTP Authoritative Time Server settings saved and Chrony restarted successfully.');
+                await fetchNtpConfig();
+                await fetchNtpStatus();
+            } catch (err) {
+                alert(`Error saving NTP settings: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+
+        async function triggerNtpSyncNow() {
+            const btn = document.getElementById('btn-ntp-step');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Stepping Clock...';
+
+            try {
+                const res = await fetch(`${API_BASE}/ntp/sync-now`, { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to step clock');
+                alert(`Clock Step Successful!\n\n${data.message}`);
+                await fetchNtpStatus();
+            } catch (err) {
+                alert(`Error stepping clock: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
             }
         }
 

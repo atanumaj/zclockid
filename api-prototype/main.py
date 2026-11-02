@@ -341,6 +341,18 @@ class AzureTestConnectionRequest(BaseModel):
     client_id: Optional[str] = None
     client_secret: Optional[str] = None
 
+class SystemIdentityUpdateRequest(BaseModel):
+    server_description: Optional[str] = None
+    hostname: Optional[str] = None
+    netbios_name: Optional[str] = None
+
+class NtpConfigRequest(BaseModel):
+    ntp_server_enabled: bool = True
+    allowed_subnets: str = "0.0.0.0/0, ::/0"
+    ms_sntp_enabled: bool = True
+    upstream_servers: List[str] = ["time.google.com", "pool.ntp.org", "time.windows.com"]
+    timezone: Optional[str] = None
+
 # ----------------- First-Time Setup Wizard Endpoints -----------------
 
 @app.get("/api/v1/setup/status")
@@ -582,7 +594,7 @@ def control_service(service_name: str, req: ServiceActionRequest):
 
 @app.get("/api/v1/domain/info")
 def get_domain_info():
-    """Returns domain NetBIOS, Realm, Forest level, SID, and FSMO role holders."""
+    """Returns domain NetBIOS, Realm, Forest level, SID, Hostname, Description, and FSMO role holders."""
     code, stdout, stderr = run_cmd(["samba-tool", "fsmo", "show"], timeout=10)
     fsmo = {
         "SchemaMaster": "Unassigned",
@@ -595,6 +607,9 @@ def get_domain_info():
     }
     realm = "NOT_PROVISIONED"
     domain = "NOT_PROVISIONED"
+    netbios_name = "INET-ZCLOCKID"
+    server_desc = "ZclockID Active Directory Domain Controller"
+    server_role = "Active Directory Domain Controller"
 
     if os.path.exists("/etc/samba/smb.conf"):
         with open("/etc/samba/smb.conf") as f:
@@ -603,6 +618,12 @@ def get_domain_info():
                     realm = line.split("=")[1].strip()
                 elif "workgroup =" in line:
                     domain = line.split("=")[1].strip()
+                elif "netbios name =" in line:
+                    netbios_name = line.split("=")[1].strip()
+                elif "server string =" in line:
+                    server_desc = line.split("=")[1].strip()
+                elif "server role =" in line:
+                    server_role = line.split("=")[1].strip().title()
 
     if code == 0:
         for line in stdout.splitlines():
@@ -621,14 +642,81 @@ def get_domain_info():
             if "SID for domain" in line and ":" in line:
                 domain_sid = line.split(":", 1)[1].strip()
 
+    code_hn, out_hn, _ = run_cmd(["hostname", "-s"])
+    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "inet-zclockid"
+    code_fqdn, out_fqdn, _ = run_cmd(["hostname", "-f"])
+    raw_fqdn = out_fqdn.strip() if code_fqdn == 0 else ""
+    fqdn = raw_fqdn if "." in raw_fqdn else f"{hostname}.{realm.lower()}"
+
     return {
         "realm": realm,
         "domain_netbios": domain,
+        "netbios_name": netbios_name,
+        "server_role": server_role,
+        "server_description": server_desc,
+        "hostname": hostname,
+        "fqdn": fqdn,
         "domain_sid": domain_sid,
         "forest_functional_level": "Windows Server 2008 R2 / 2012 R2",
         "domain_functional_level": "Windows Server 2008 R2 / 2012 R2",
         "fsmo_roles": fsmo
     }
+
+@app.post("/api/v1/system/identity")
+def update_system_identity(req: SystemIdentityUpdateRequest):
+    """Updates server description, hostname, and NetBIOS computer name."""
+    actions_taken = []
+    
+    # 1. Server description (server string) in smb.conf
+    if req.server_description is not None and os.path.exists("/etc/samba/smb.conf"):
+        desc = req.server_description.strip()
+        with open("/etc/samba/smb.conf", "r") as f:
+            content = f.read()
+        if "server string =" in content:
+            content = re.sub(r'server string\s*=.*', f'server string = {desc}', content)
+        else:
+            content = re.sub(r'\[global\]', f'[global]\n\tserver string = {desc}', content)
+        with open("/tmp/smb.conf.tmp", "w") as f:
+            f.write(content)
+        run_cmd(["cp", "/tmp/smb.conf.tmp", "/etc/samba/smb.conf"])
+        run_cmd(["smbcontrol", "all", "reload-config"])
+        actions_taken.append(f"Server description updated to '{desc}'")
+
+    # 2. Hostname change
+    if req.hostname is not None and req.hostname.strip():
+        new_hn = req.hostname.strip().lower()
+        code, _, err = run_cmd(["hostnamectl", "set-hostname", new_hn])
+        if code == 0:
+            if os.path.exists("/etc/hosts"):
+                with open("/etc/hosts", "r") as f:
+                    hosts_content = f.read()
+                realm = "inet.net"
+                if os.path.exists("/etc/samba/smb.conf"):
+                    with open("/etc/samba/smb.conf") as f:
+                        for l in f:
+                            if "realm =" in l:
+                                realm = l.split("=")[1].strip().lower()
+                hosts_content = re.sub(r'127\.0\.1\.1\s+.*', f'127.0.1.1\t{new_hn}.{realm}\t{new_hn}', hosts_content)
+                with open("/tmp/hosts.tmp", "w") as f:
+                    f.write(hosts_content)
+                run_cmd(["cp", "/tmp/hosts.tmp", "/etc/hosts"])
+            actions_taken.append(f"System hostname changed to '{new_hn}'")
+
+    # 3. NetBIOS computer name
+    if req.netbios_name is not None and req.netbios_name.strip():
+        new_nb = req.netbios_name.strip().upper()
+        if os.path.exists("/etc/samba/smb.conf"):
+            with open("/etc/samba/smb.conf", "r") as f:
+                content = f.read()
+            content = re.sub(r'netbios name\s*=.*', f'netbios name = {new_nb}', content)
+            with open("/tmp/smb.conf.tmp", "w") as f:
+                f.write(content)
+            run_cmd(["cp", "/tmp/smb.conf.tmp", "/etc/samba/smb.conf"])
+            run_cmd(["systemctl", "restart", "samba-ad-dc"])
+            actions_taken.append(f"NetBIOS computer name changed to '{new_nb}' (samba-ad-dc restarted)")
+
+    log_audit("SYSTEM_IDENTITY_UPDATED", "admin", "system", "SUCCESS", {"actions": actions_taken})
+    return {"status": "success", "actions": actions_taken, "message": "System identity updated successfully."}
 
 @app.get("/api/v1/domain/upn")
 def get_upn_suffixes():
@@ -1591,6 +1679,200 @@ def trigger_azure_sync_now():
         "output": stdout.strip(),
         "error": stderr.strip() if code != 0 else None
     }
+
+# ----------------- NTP Server & Time Synchronization -----------------
+
+CHRONY_CONF_DIR = Path("/etc/chrony/conf.d")
+CHRONY_SOURCES_DIR = Path("/etc/chrony/sources.d")
+ZCLOCK_NTP_CONF = CHRONY_CONF_DIR / "zclockid-ntp-server.conf"
+ZCLOCK_NTP_SOURCES = CHRONY_SOURCES_DIR / "zclockid-upstream.sources"
+
+@app.get("/api/v1/ntp/status")
+def get_ntp_status():
+    code_td, out_td, _ = run_cmd(["timedatectl"])
+    local_time = "-"
+    utc_time = "-"
+    tz_str = "UTC"
+    clock_synced = False
+    ntp_active = False
+
+    if code_td == 0:
+        for line in out_td.splitlines():
+            if "Local time:" in line:
+                local_time = line.split(":", 1)[1].strip()
+            elif "Universal time:" in line:
+                utc_time = line.split(":", 1)[1].strip()
+            elif "Time zone:" in line:
+                tz_str = line.split(":", 1)[1].strip()
+            elif "System clock synchronized:" in line:
+                clock_synced = "yes" in line.lower()
+            elif "NTP service:" in line:
+                ntp_active = "active" in line.lower()
+
+    code_tr, out_tr, _ = run_cmd(["chronyc", "tracking"])
+    tracking = {}
+    if code_tr == 0:
+        for line in out_tr.splitlines():
+            if ":" in line:
+                k, v = line.split(":", 1)
+                tracking[k.strip()] = v.strip()
+
+    sources = []
+    code_src, out_src, _ = run_cmd(["chronyc", "-c", "sources"])
+    if code_src == 0:
+        reader = csv.reader(io.StringIO(out_src.strip()))
+        for row in reader:
+            if len(row) >= 10:
+                m_c, s_c, addr, strat, poll, reach, rx, sample, orig, err = row[:10]
+                sources.append({
+                    "mode": "Server" if m_c == "^" else ("Peer" if m_c == "=" else "Local"),
+                    "state": "Active (Best)" if s_c == "*" else ("Combined" if s_c == "+" else ("Candidate" if s_c == "-" else s_c)),
+                    "address": addr,
+                    "stratum": int(strat) if strat.isdigit() else strat,
+                    "poll": poll,
+                    "reach": reach,
+                    "last_rx": f"{rx}s ago",
+                    "offset": sample,
+                    "est_error": err
+                })
+
+    code_ss, out_ss, _ = run_cmd(["ss", "-ulpn"])
+    is_server_listening = (code_ss == 0 and ":123 " in out_ss and "chronyd" in out_ss)
+
+    return {
+        "service_active": ntp_active,
+        "server_listening": is_server_listening,
+        "clock_synchronized": clock_synced,
+        "local_time": local_time,
+        "utc_time": utc_time,
+        "timezone": tz_str,
+        "stratum": int(tracking.get("Stratum", 0)) if str(tracking.get("Stratum", "0")).isdigit() else 0,
+        "reference_id": tracking.get("Reference ID", "-"),
+        "system_time_offset": tracking.get("System time", "-"),
+        "last_offset": tracking.get("Last offset", "-"),
+        "rms_offset": tracking.get("RMS offset", "-"),
+        "leap_status": tracking.get("Leap status", "Normal"),
+        "sources": sources
+    }
+
+@app.get("/api/v1/ntp/config")
+def get_ntp_config():
+    ntp_server_enabled = True
+    allowed_subnets = "0.0.0.0/0, ::/0"
+    ms_sntp_enabled = True
+    upstream_servers = ["time.google.com", "pool.ntp.org", "time.windows.com"]
+
+    if ZCLOCK_NTP_CONF.exists():
+        try:
+            with open(ZCLOCK_NTP_CONF) as f:
+                text = f.read()
+                ms_sntp_enabled = "ntpsigndsocket" in text
+                allows = []
+                for line in text.splitlines():
+                    if line.strip().startswith("allow"):
+                        parts = line.strip().split()
+                        if len(parts) > 1:
+                            allows.append(parts[1])
+                if allows:
+                    allowed_subnets = ", ".join(allows)
+                ntp_server_enabled = len(allows) > 0
+        except Exception:
+            pass
+
+    if ZCLOCK_NTP_SOURCES.exists():
+        try:
+            with open(ZCLOCK_NTP_SOURCES) as f:
+                pools = []
+                for line in f.splitlines():
+                    line = line.strip()
+                    if line.startswith("pool") or line.startswith("server"):
+                        parts = line.split()
+                        if len(parts) > 1:
+                            pools.append(parts[1])
+                if pools:
+                    upstream_servers = pools
+        except Exception:
+            pass
+
+    code_tz, out_tz, _ = run_cmd(["timedatectl", "show", "--property=Timezone", "--value"])
+    current_tz = out_tz.strip() if code_tz == 0 and out_tz.strip() else "UTC"
+
+    available_timezones = [
+        "Asia/Kolkata", "UTC", "America/New_York", "America/Chicago",
+        "America/Denver", "America/Los_Angeles", "Europe/London",
+        "Europe/Paris", "Europe/Berlin", "Asia/Dubai", "Asia/Singapore",
+        "Asia/Tokyo", "Australia/Sydney"
+    ]
+
+    return {
+        "ntp_server_enabled": ntp_server_enabled,
+        "allowed_subnets": allowed_subnets,
+        "ms_sntp_enabled": ms_sntp_enabled,
+        "upstream_servers": upstream_servers,
+        "timezone": current_tz,
+        "available_timezones": available_timezones
+    }
+
+@app.post("/api/v1/ntp/config")
+def update_ntp_config(req: NtpConfigRequest):
+    CHRONY_CONF_DIR.mkdir(parents=True, exist_ok=True)
+    CHRONY_SOURCES_DIR.mkdir(parents=True, exist_ok=True)
+
+    conf_lines = [
+        "# ZclockID Active Directory Authoritative NTP Server Configuration",
+        "# Managed automatically by ZclockID Management Console"
+    ]
+    if req.ms_sntp_enabled:
+        conf_lines.append("ntpsigndsocket /var/lib/samba/ntp_signd")
+
+    if req.ntp_server_enabled:
+        subnets = [s.strip() for s in req.allowed_subnets.replace(";", ",").split(",") if s.strip()]
+        if not subnets:
+            subnets = ["0.0.0.0/0", "::/0"]
+        for sub in subnets:
+            conf_lines.append(f"allow {sub}")
+        conf_lines.append("local stratum 10 orphan")
+
+    with open("/tmp/zclockid-ntp-server.conf.tmp", "w") as f:
+        f.write("\n".join(conf_lines) + "\n")
+    run_cmd(["cp", "/tmp/zclockid-ntp-server.conf.tmp", str(ZCLOCK_NTP_CONF)])
+
+    src_lines = [
+        "# ZclockID Upstream Time Sources",
+        "# Managed automatically by ZclockID Management Console"
+    ]
+    servers = [s.strip() for s in req.upstream_servers if s.strip()]
+    if not servers:
+        servers = ["time.google.com", "pool.ntp.org", "time.windows.com"]
+    for srv in servers:
+        src_lines.append(f"pool {srv} iburst maxsources 4")
+
+    with open("/tmp/zclockid-upstream.sources.tmp", "w") as f:
+        f.write("\n".join(src_lines) + "\n")
+    run_cmd(["cp", "/tmp/zclockid-upstream.sources.tmp", str(ZCLOCK_NTP_SOURCES)])
+
+    if req.timezone and req.timezone.strip():
+        run_cmd(["timedatectl", "set-timezone", req.timezone.strip()])
+
+    code, _, err = run_cmd(["systemctl", "restart", "chrony"])
+    if code != 0:
+        raise HTTPException(status_code=500, detail=f"Failed to restart chrony: {err}")
+
+    log_audit("NTP_CONFIG_UPDATED", "admin", "chrony", "SUCCESS", {
+        "ntp_server_enabled": req.ntp_server_enabled,
+        "ms_sntp_enabled": req.ms_sntp_enabled,
+        "servers": servers,
+        "timezone": req.timezone
+    })
+    return {"status": "success", "message": "NTP server and time synchronization settings updated successfully."}
+
+@app.post("/api/v1/ntp/sync-now")
+def trigger_ntp_sync_now():
+    code, out, err = run_cmd(["chronyc", "makestep"])
+    if code != 0:
+        raise HTTPException(status_code=500, detail=f"Failed to force clock step: {err or out}")
+    log_audit("NTP_MAKESTEP_TRIGGERED", "admin", "chrony", "SUCCESS", {})
+    return {"status": "success", "message": out.strip() or "Clock stepped successfully."}
 
 # ----------------- Service & Host Management -----------------
 

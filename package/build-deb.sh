@@ -20,6 +20,8 @@ mkdir -p "${BUILD_ROOT}/opt/zclockid/scripts"
 mkdir -p "${BUILD_ROOT}/opt/zclockid/web"
 mkdir -p "${BUILD_ROOT}/etc/systemd/system"
 mkdir -p "${BUILD_ROOT}/etc/nginx/sites-available"
+mkdir -p "${BUILD_ROOT}/etc/chrony/conf.d"
+mkdir -p "${BUILD_ROOT}/etc/chrony/sources.d"
 mkdir -p "${BUILD_ROOT}/etc/zclockid"
 
 # Copy package metadata
@@ -41,6 +43,10 @@ cp "${DIST_DIR}/config-templates/azure/azure-sync.json" "${BUILD_ROOT}/etc/zcloc
 
 # Copy Nginx Ingress template
 cp "${DIST_DIR}/config-templates/nginx/zclockid.conf" "${BUILD_ROOT}/etc/nginx/sites-available/"
+
+# Copy Chrony Authoritative NTP Server templates
+cp "${DIST_DIR}/config-templates/chrony/zclockid-ntp-server.conf" "${BUILD_ROOT}/etc/chrony/conf.d/"
+cp "${DIST_DIR}/config-templates/chrony/zclockid-upstream.sources" "${BUILD_ROOT}/etc/chrony/sources.d/"
 
 # Copy systemd unit files
 cp "${DIST_DIR}/systemd/zclock-api.service" "${BUILD_ROOT}/etc/systemd/system/"
