@@ -690,6 +690,101 @@
                     </div>
                 </div>
 
+                <!-- DNS-over-HTTPS (DoH) Management & Ingress URLs (RFC 8484) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-lock text-emerald-400"></i> DNS-over-HTTPS (DoH) Native Server & Ingress URLs
+                            </h3>
+                            <p class="text-xs text-slate-400">RFC 8484 encrypted DNS queries over TLS 443 with BIND 9.20 HTTP/2 and Active Directory DLZ</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openDohClientGuideModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-book text-sky-400"></i> Client Setup Guide
+                            </button>
+                            <button onclick="toggleDohTester()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                                <i class="fa-solid fa-magnifying-glass"></i> Test DoH Query
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- DoH Telemetry & Endpoints Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">DoH Service Status</span>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span class="text-emerald-400 font-bold text-xs">ACTIVE / LISTENING (HTTP/2)</span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 font-sans block pt-0.5">TLS 443 (Nginx) &rarr; Port 8053 (BIND9)</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Appliance IP DoH URL</span>
+                                <button onclick="copyToClipboard('https://192.168.1.41/dns-query', 'IP DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="text-cyan-300 font-bold text-xs truncate">https://192.168.1.41/dns-query</div>
+                            <span class="text-[10px] text-slate-500 font-sans block pt-0.5">For LAN & Direct IP configuration</span>
+                        </div>
+
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Domain FQDN DoH URL</span>
+                                <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="text-emerald-300 font-bold text-xs truncate">https://inet-zclockid.inet.net/dns-query</div>
+                            <span class="text-[10px] text-slate-500 font-sans block pt-0.5">For Browser Secure DNS & Windows 11</span>
+                        </div>
+                    </div>
+
+                    <!-- Interactive DoH Query Tester (Collapsible) -->
+                    <div id="doh-tester-container" class="hidden bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                            <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-terminal text-indigo-400"></i> Interactive RFC 8484 DoH Query Tester
+                            </h4>
+                            <span class="text-[10px] text-slate-400 font-mono">application/dns-message</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+                            <div class="sm:col-span-7">
+                                <label class="text-[11px] text-slate-400 block mb-1">Domain Name to Query</label>
+                                <input type="text" id="doh-test-qname" value="inet.net" placeholder="e.g. inet.net or _kerberos._tcp.inet.net"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
+                            </div>
+                            <div class="sm:col-span-3">
+                                <label class="text-[11px] text-slate-400 block mb-1">Query Type</label>
+                                <select id="doh-test-rtype" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
+                                    <option value="A">A (IPv4 Host)</option>
+                                    <option value="AAAA">AAAA (IPv6 Host)</option>
+                                    <option value="SRV">SRV (Active Directory)</option>
+                                    <option value="CNAME">CNAME (Alias)</option>
+                                    <option value="TXT">TXT</option>
+                                    <option value="MX">MX (Mail Exchange)</option>
+                                    <option value="SOA">SOA</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-2 flex items-end">
+                                <button type="button" onclick="executeDohTestQuery()" id="btn-run-doh-test" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-play"></i> Resolve
+                                </button>
+                            </div>
+                        </div>
+                        <div id="doh-test-result" class="hidden p-3 bg-slate-900 rounded-lg border border-slate-800 text-xs font-mono space-y-1.5">
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span id="doh-res-status" class="text-emerald-400 font-bold">200 OK (NOERROR)</span>
+                                <span id="doh-res-time" class="text-slate-400">8.8 ms</span>
+                            </div>
+                            <div id="doh-res-answers" class="text-white space-y-1 pt-1 border-t border-slate-800/80"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- DNS Forwarders & Options (Zentyal Style) -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
@@ -722,7 +817,7 @@
                 <!-- DNS Records Table with SRV & Kerberos Presets -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div class="flex items-center gap-3">
+                        <div class="flex flex-wrap items-center gap-3">
                             <select id="dns-zone-select" onchange="fetchDnsRecords()" class="bg-slate-950 border border-slate-800 text-xs text-white rounded-lg px-3 py-1.5 font-mono focus:outline-none focus:border-indigo-500">
                                 <option value="inet.net">inet.net</option>
                                 <option value="_msdcs.inet.net">_msdcs.inet.net</option>
@@ -730,10 +825,20 @@
                             <button onclick="openNewZoneModal()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition" title="Create New Zone">
                                 <i class="fa-solid fa-plus"></i> New Zone
                             </button>
+                            <span id="dns-record-count-badge" class="px-2.5 py-1 bg-slate-950 text-indigo-300 border border-slate-800 rounded-lg font-mono text-xs">
+                                0 Records
+                            </span>
                         </div>
-                        <button onclick="openDnsModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-plus"></i> Add DNS Record
-                        </button>
+                        <div class="flex items-center gap-3">
+                            <div class="relative">
+                                <input id="dns-search-input" onkeyup="filterDnsRecordsSearch()" type="text" placeholder="Filter records..."
+                                    class="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition w-44 sm:w-60">
+                                <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-slate-500 text-[11px]"></i>
+                            </div>
+                            <button onclick="openDnsModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap shadow-sm shadow-indigo-900/50">
+                                <i class="fa-solid fa-plus"></i> Add Record
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Filter Pills -->
@@ -1467,6 +1572,130 @@
                     <button type="button" onclick="closeDnsModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
                     <button type="button" onclick="submitAddDnsRecord()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Record</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DNS-over-HTTPS (DoH) Client Setup Guide Modal -->
+    <div id="modal-doh-guide" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <i class="fa-solid fa-shield-halved text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">DNS-over-HTTPS (DoH) Setup Guide</h3>
+                        <p class="text-xs text-slate-400">Configure RFC 8484 secure encrypted DNS on workstations and browsers</p>
+                    </div>
+                </div>
+                <button onclick="closeDohClientGuideModal()" class="text-slate-400 hover:text-white p-1 transition">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto custom-scroll space-y-5 text-xs">
+                <!-- Endpoint URLs Banner -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <span class="text-[11px] font-semibold text-slate-300 uppercase tracking-wider block">Target Ingress Endpoints</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
+                        <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800/80 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-500 block">LAN / IP URL</span>
+                                <span class="text-cyan-300 font-bold">https://192.168.1.41/dns-query</span>
+                            </div>
+                            <button onclick="copyToClipboard('https://192.168.1.41/dns-query', 'IP DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                        <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800/80 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-slate-500 block">FQDN / TLS URL</span>
+                                <span class="text-emerald-300 font-bold">https://inet-zclockid.inet.net/dns-query</span>
+                            </div>
+                            <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Windows 11 Native DoH -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2.5">
+                    <div class="flex items-center gap-2 text-white font-semibold">
+                        <i class="fa-brands fa-windows text-sky-400 text-sm"></i>
+                        <span>Windows 11 Native OS DNS-over-HTTPS</span>
+                    </div>
+                    <ol class="list-decimal list-inside space-y-1.5 text-slate-300 text-xs">
+                        <li>Open <strong class="text-white">Settings</strong> &rarr; <strong class="text-white">Network & internet</strong> &rarr; <strong class="text-white">Ethernet</strong> or <strong class="text-white">Wi-Fi</strong>.</li>
+                        <li>Click <strong class="text-white">Edit</strong> next to <em>DNS server assignment</em> and switch to <strong class="text-indigo-400">Manual</strong>.</li>
+                        <li>Toggle <strong class="text-white">IPv4</strong> ON. Set <em>Preferred DNS</em> to <code class="text-cyan-300 bg-slate-900 px-1 py-0.5 rounded">192.168.1.41</code>.</li>
+                        <li>Under <em>DNS encryption</em>, select <strong class="text-emerald-400">Encrypted only (DNS over HTTPS)</strong> or <strong class="text-emerald-400">Encrypted preferred</strong>.</li>
+                        <li>In the <em>DNS-over-HTTPS template</em> box, enter:
+                            <div class="mt-1 flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-300">
+                                <span class="flex-1 truncate">https://inet-zclockid.inet.net/dns-query</span>
+                                <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'Template copied!')" class="text-slate-400 hover:text-white"><i class="fa-regular fa-copy"></i></button>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+
+                <!-- Web Browsers -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Google Chrome -->
+                    <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                        <div class="flex items-center gap-2 text-white font-semibold">
+                            <i class="fa-brands fa-chrome text-amber-400"></i>
+                            <span>Google Chrome</span>
+                        </div>
+                        <ol class="list-decimal list-inside space-y-1 text-slate-400 text-[11px]">
+                            <li>Go to <code class="text-slate-300">chrome://settings/security</code></li>
+                            <li>Enable <strong class="text-white">Use secure DNS</strong></li>
+                            <li>Choose <strong class="text-indigo-400">With: Custom</strong> and paste:</li>
+                        </ol>
+                        <div class="flex items-center justify-between bg-slate-900 px-2.5 py-1.5 rounded border border-slate-800 font-mono text-[10px] text-cyan-300">
+                            <span class="truncate">https://inet-zclockid.inet.net/dns-query</span>
+                            <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'Chrome DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Mozilla Firefox -->
+                    <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                        <div class="flex items-center gap-2 text-white font-semibold">
+                            <i class="fa-brands fa-firefox-browser text-orange-400"></i>
+                            <span>Mozilla Firefox</span>
+                        </div>
+                        <ol class="list-decimal list-inside space-y-1 text-slate-400 text-[11px]">
+                            <li>Go to <strong class="text-white">Settings</strong> &rarr; <strong class="text-white">Privacy & Security</strong></li>
+                            <li>Under <em>DNS over HTTPS</em> select <strong class="text-emerald-400">Max Protection</strong></li>
+                            <li>Select Provider <strong class="text-indigo-400">Custom</strong> and enter:</li>
+                        </ol>
+                        <div class="flex items-center justify-between bg-slate-900 px-2.5 py-1.5 rounded border border-slate-800 font-mono text-[10px] text-cyan-300">
+                            <span class="truncate">https://inet-zclockid.inet.net/dns-query</span>
+                            <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'Firefox DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CLI Verification via curl -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2 text-white font-semibold">
+                            <i class="fa-solid fa-terminal text-sky-400"></i>
+                            <span>Linux & macOS curl RFC 8484 Test</span>
+                        </div>
+                        <button onclick="copyToClipboard('curl -k -H &quot;accept: application/dns-message&quot; &quot;https://192.168.1.41/dns-query?dns=AAABAAABAAAAAAAABWluZXQDbmV0AAABAAE=&quot; --output /dev/null -w &quot;HTTP %{http_code} | Time: %{time_total}s\n&quot;', 'curl command copied!')" class="text-slate-400 hover:text-white text-xs">
+                            <i class="fa-regular fa-copy"></i> Copy Command
+                        </button>
+                    </div>
+                    <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto whitespace-pre">curl -k -H "accept: application/dns-message" "https://192.168.1.41/dns-query?dns=AAABAAABAAAAAAAABWluZXQDbmV0AAABAAE=" --output /dev/null -w "HTTP %{http_code} | Time: %{time_total}s\n"</div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end">
+                <button type="button" onclick="closeDohClientGuideModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
+                    Close Guide
+                </button>
             </div>
         </div>
     </div>
@@ -2236,7 +2465,12 @@
                 const res = await fetch(`${API_BASE}/dns/records?zone=${zone}`);
                 const data = await res.json();
                 currentDnsRecords = data.records || [];
-                renderDnsTable(currentDnsRecords);
+                const searchInput = document.getElementById('dns-search-input');
+                if (searchInput && searchInput.value.trim()) {
+                    filterDnsRecordsSearch();
+                } else {
+                    renderDnsTable(currentDnsRecords);
+                }
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-rose-400">Failed to query records: ${err}</td></tr>`;
             }
@@ -2244,6 +2478,11 @@
 
         function renderDnsTable(records) {
             const tbody = document.getElementById('dns-table-body');
+            const countBadge = document.getElementById('dns-record-count-badge');
+            if (countBadge) {
+                countBadge.innerText = `${records.length} Record${records.length === 1 ? '' : 's'}`;
+            }
+
             if (records.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No records found.</td></tr>`;
                 return;
@@ -2251,11 +2490,11 @@
 
             tbody.innerHTML = records.map(r => `
                 <tr class="hover:bg-slate-800/30">
-                    <td class="px-4 py-2.5 font-bold ${r.name.includes('_tcp') || r.name.includes('_kerberos') ? 'text-indigo-400' : 'text-white'}">${r.name}</td>
+                    <td class="px-4 py-2.5 font-bold ${r.name.includes('_tcp') || r.name.includes('_kerberos') || r.name.includes('_sites') ? 'text-indigo-400' : 'text-white'} font-mono">${r.name}</td>
                     <td class="px-4 py-2.5">
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono ${r.type === 'SRV' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : 'bg-slate-800 text-slate-300'}">${r.type}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono ${r.type === 'SRV' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : r.type === 'CNAME' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-slate-800 text-slate-300'}">${r.type}</span>
                     </td>
-                    <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs">${r.data}</td>
+                    <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs font-mono">${r.data}</td>
                     <td class="px-4 py-2.5 text-slate-400">${r.type === 'SRV' ? '<span class="text-indigo-300">Port/Pri/Wgt Active</span>' : '-'}</td>
                     <td class="px-4 py-2.5 text-right">
                         ${r.name !== '@' ? `
@@ -2281,6 +2520,90 @@
             } else {
                 renderDnsTable(currentDnsRecords.filter(r => r.type === type));
             }
+        }
+
+        function filterDnsRecordsSearch() {
+            const q = document.getElementById('dns-search-input').value.toLowerCase().trim();
+            if (!q) {
+                renderDnsTable(currentDnsRecords);
+                return;
+            }
+            const filtered = currentDnsRecords.filter(r => 
+                (r.name && r.name.toLowerCase().includes(q)) ||
+                (r.type && r.type.toLowerCase().includes(q)) ||
+                (r.data && r.data.toLowerCase().includes(q))
+            );
+            renderDnsTable(filtered);
+        }
+
+        function toggleDohTester() {
+            const container = document.getElementById('doh-tester-container');
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        async function executeDohTestQuery() {
+            const qname = document.getElementById('doh-test-qname').value.trim();
+            const rtype = document.getElementById('doh-test-rtype').value;
+            const btn = document.getElementById('btn-run-doh-test');
+            const resBox = document.getElementById('doh-test-result');
+            const statusEl = document.getElementById('doh-res-status');
+            const timeEl = document.getElementById('doh-res-time');
+            const answersEl = document.getElementById('doh-res-answers');
+
+            if (!qname) return alert('Please enter a domain name to test.');
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Resolving...`;
+
+            try {
+                const startTime = performance.now();
+                const res = await fetch(`${API_BASE}/dns/doh/test`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ qname: qname, rtype: rtype })
+                });
+                const elapsed = (performance.now() - startTime).toFixed(1);
+                const data = await res.json();
+
+                resBox.classList.remove('hidden');
+                if (data.status === 'ok') {
+                    statusEl.className = 'text-emerald-400 font-bold';
+                    statusEl.innerText = `HTTP ${data.http_status} OK (RFC 8484 NOERROR)`;
+                    timeEl.innerText = `${data.latency_ms || elapsed} ms`;
+                    if (data.answers && data.answers.length > 0) {
+                        answersEl.innerHTML = data.answers.map(ans => 
+                            `<div class="flex items-center gap-2"><span class="px-1.5 py-0.5 bg-slate-800 text-sky-300 rounded text-[10px]">${data.rtype}</span><span class="text-white">${ans}</span></div>`
+                        ).join('');
+                    } else {
+                        answersEl.innerHTML = `<span class="text-slate-500 italic">No resource records returned for query.</span>`;
+                    }
+                } else {
+                    statusEl.className = 'text-rose-400 font-bold';
+                    statusEl.innerText = `Error: ${data.detail || data.status}`;
+                    timeEl.innerText = `${elapsed} ms`;
+                    answersEl.innerHTML = `<span class="text-rose-400">${data.detail || 'DNS resolution failed.'}</span>`;
+                }
+            } catch (err) {
+                resBox.classList.remove('hidden');
+                statusEl.className = 'text-rose-400 font-bold';
+                statusEl.innerText = `Network Error`;
+                answersEl.innerHTML = `<span class="text-rose-400">${err}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-play"></i> Resolve`;
+            }
+        }
+
+        function openDohClientGuideModal() {
+            document.getElementById('modal-doh-guide').classList.remove('hidden');
+        }
+
+        function closeDohClientGuideModal() {
+            document.getElementById('modal-doh-guide').classList.add('hidden');
         }
 
         function openDnsModal() {
@@ -2477,9 +2800,9 @@
             }
         }
 
-        function copyToClipboard(val) {
+        function copyToClipboard(val, msg) {
             navigator.clipboard.writeText(val);
-            alert('Secret copied to clipboard!');
+            alert(msg || 'Copied to clipboard!');
         }
 
         function openRadiusModal() {

@@ -30,6 +30,11 @@ import secrets
 import re
 import urllib.request
 import urllib.parse
+import base64
+import ssl
+import dns.message
+import dns.rdatatype
+import dns.rcode
 
 app = FastAPI(
     title="ZclockID Appliance Management API",
@@ -352,6 +357,12 @@ class NtpConfigRequest(BaseModel):
     ms_sntp_enabled: bool = True
     upstream_servers: List[str] = ["time.google.com", "pool.ntp.org", "time.windows.com"]
     timezone: Optional[str] = None
+
+class DohTestRequest(BaseModel):
+    query_name: Optional[str] = "inet.net"
+    query_type: Optional[str] = "A"
+    qname: Optional[str] = None
+    rtype: Optional[str] = None
 
 # ----------------- First-Time Setup Wizard Endpoints -----------------
 
@@ -1031,25 +1042,48 @@ def create_dns_zone(req: DnsZoneCreateRequest):
 
 @app.get("/api/v1/dns/records")
 def get_dns_records(zone: str = "inet.net"):
-    """Queries all DNS records in a zone including Kerberos SRV, A, AAAA, CNAME, MX."""
+    """Queries all DNS records in a zone hierarchically, crawling subnodes, AD SRV, and Host records."""
     admin_user, admin_pass = get_ad_creds()
     records = []
+    visited = set()
+    queue = ["@"]
 
-    # 1. Root records
-    code, stdout, _ = run_cmd(["samba-tool", "dns", "query", "127.0.0.1", zone, "@", "ALL", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
-    current_name = "@"
-    if code == 0:
+    while queue and len(visited) < 40:
+        node = queue.pop(0)
+        if node in visited:
+            continue
+        visited.add(node)
+
+        code, stdout, _ = run_cmd([
+            "samba-tool", "dns", "query", "127.0.0.1", zone, node, "ALL",
+            f"-U{admin_user}", f"--password={admin_pass}"
+        ], timeout=8)
+
+        if code != 0:
+            continue
+
+        current_name = node
         for line in stdout.splitlines():
             if line.startswith("  Name="):
-                m = re.search(r'Name=([^,]*),', line)
-                if m: current_name = m.group(1).strip() or "@"
+                m = re.search(r'Name=([^,]*), Records=(\d+), Children=(\d+)', line)
+                if m:
+                    sub_name = m.group(1).strip()
+                    num_records = int(m.group(2))
+                    num_children = int(m.group(3))
+
+                    if sub_name:
+                        full_name = f"{sub_name}.{node}" if node != "@" else sub_name
+                    else:
+                        full_name = node
+                    current_name = full_name
+
+                    if num_children > 0 and full_name not in visited and full_name not in queue:
+                        queue.append(full_name)
             elif line.startswith("    "):
                 parts = line.strip().split(":", 1)
                 if len(parts) == 2:
                     rtype = parts[0].strip()
-                    rdata = parts[1].strip()
-                    # Clean trailing flags
-                    rdata = re.sub(r'\(flags=[^)]+\)', '', rdata).strip()
+                    rdata = re.sub(r'\(flags=[^)]+\)', '', parts[1]).strip()
                     records.append({
                         "name": current_name,
                         "type": rtype,
@@ -1058,53 +1092,110 @@ def get_dns_records(zone: str = "inet.net"):
                         "is_srv": (rtype == "SRV")
                     })
 
-    # 2. _tcp records (Kerberos, LDAP, Kpasswd, GC)
-    code_tcp, stdout_tcp, _ = run_cmd(["samba-tool", "dns", "query", "127.0.0.1", zone, "_tcp", "ALL", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
-    if code_tcp == 0:
-        current_sub = ""
-        for line in stdout_tcp.splitlines():
-            if line.startswith("  Name="):
-                m = re.search(r'Name=([^,]*),', line)
-                if m: current_sub = m.group(1).strip()
-            elif line.startswith("    "):
-                parts = line.strip().split(":", 1)
-                if len(parts) == 2:
-                    rtype = parts[0].strip()
-                    rdata = parts[1].strip()
-                    rdata = re.sub(r'\(flags=[^)]+\)', '', rdata).strip()
-                    full_name = f"{current_sub}._tcp" if current_sub else "_tcp"
-                    records.append({
-                        "name": full_name,
-                        "type": rtype,
-                        "data": rdata,
-                        "zone": zone,
-                        "is_srv": True
-                    })
-
-    # 3. _udp records (Kerberos UDP)
-    code_udp, stdout_udp, _ = run_cmd(["samba-tool", "dns", "query", "127.0.0.1", zone, "_udp", "ALL", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
-    if code_udp == 0:
-        current_sub = ""
-        for line in stdout_udp.splitlines():
-            if line.startswith("  Name="):
-                m = re.search(r'Name=([^,]*),', line)
-                if m: current_sub = m.group(1).strip()
-            elif line.startswith("    "):
-                parts = line.strip().split(":", 1)
-                if len(parts) == 2:
-                    rtype = parts[0].strip()
-                    rdata = parts[1].strip()
-                    rdata = re.sub(r'\(flags=[^)]+\)', '', rdata).strip()
-                    full_name = f"{current_sub}._udp" if current_sub else "_udp"
-                    records.append({
-                        "name": full_name,
-                        "type": rtype,
-                        "data": rdata,
-                        "zone": zone,
-                        "is_srv": True
-                    })
-
     return {"zone": zone, "count": len(records), "records": records}
+
+# ----------------- DNS-over-HTTPS (DoH) Management Endpoints -----------------
+
+@app.get("/api/v1/dns/doh/status")
+def get_doh_status(request: Request):
+    """Returns DNS-over-HTTPS (DoH) listener status, URLs, and RFC 8484 compliance details."""
+    host_hdr = request.headers.get("host", "192.168.1.41").split(":")[0]
+    appliance_ip = "192.168.1.41"
+    
+    # Check if BIND is listening on 8053
+    code_ss, out_ss, _ = run_cmd(["ss", "-tlpn"])
+    is_bind_doh = (code_ss == 0 and ":8053" in out_ss and "named" in out_ss)
+
+    realm = "inet.net"
+    if os.path.exists("/etc/samba/smb.conf"):
+        with open("/etc/samba/smb.conf") as f:
+            for l in f:
+                if "realm =" in l:
+                    realm = l.split("=")[1].strip().lower()
+
+    code_hn, out_hn, _ = run_cmd(["hostname", "-s"])
+    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "inet-zclockid"
+    fqdn = f"{hostname}.{realm}"
+
+    return {
+        "status": "ACTIVE" if is_bind_doh else "INACTIVE",
+        "service": "BIND9 (named) HTTP/2 + Nginx TLS Ingress",
+        "rfc_standard": "RFC 8484 (DNS Queries over HTTPS)",
+        "ingress_port": 443,
+        "backend_port": 8053,
+        "doh_url_ip": f"https://{appliance_ip}/dns-query",
+        "doh_url_fqdn": f"https://{fqdn}/dns-query",
+        "doh_url_custom": f"https://{host_hdr}/dns-query" if host_hdr != appliance_ip else f"https://{appliance_ip}/dns-query",
+        "supported_methods": [
+            "GET /dns-query?dns={base64url}",
+            "POST /dns-query (Content-Type: application/dns-message)"
+        ],
+        "dnssec_validation": "Active Directory Native",
+        "upstream_forwarders": ["1.1.1.1", "8.8.8.8"]
+    }
+
+@app.post("/api/v1/dns/doh/test")
+def test_doh_resolution(req: DohTestRequest):
+    """Executes a live DNS-over-HTTPS (DoH) query via RFC 8484 and decodes the response wire format."""
+    target_qname = (req.qname or req.query_name or "inet.net").strip()
+    target_rtype = (req.rtype or req.query_type or "A").strip().upper()
+
+    try:
+        q = dns.message.make_query(target_qname, target_rtype)
+        wire_query = q.to_wire()
+        b64_dns = base64.urlsafe_b64encode(wire_query).decode("utf-8").rstrip("=")
+
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        start_time = time.time()
+        doh_url = f"https://127.0.0.1/dns-query?dns={b64_dns}"
+        req_obj = urllib.request.Request(doh_url, headers={"Accept": "application/dns-message"})
+
+        with urllib.request.urlopen(req_obj, context=ctx, timeout=6) as resp:
+            data = resp.read()
+            duration_ms = round((time.time() - start_time) * 1000, 2)
+            resp_msg = dns.message.from_wire(data)
+
+            raw_answers = []
+            formatted_answers = []
+            for rrset in resp_msg.answer:
+                for item in rrset:
+                    rd_text = str(item)
+                    type_str = dns.rdatatype.to_text(rrset.rdtype)
+                    raw_answers.append({
+                        "name": str(rrset.name),
+                        "type": type_str,
+                        "ttl": rrset.ttl,
+                        "data": rd_text
+                    })
+                    formatted_answers.append(f"{str(rrset.name)} {rrset.ttl}s {type_str} {rd_text}")
+
+            rcode_text = dns.rcode.to_text(resp_msg.rcode())
+            return {
+                "status": "ok",
+                "success": True,
+                "http_status": resp.status,
+                "status_code": resp.status,
+                "rcode": rcode_text,
+                "latency_ms": duration_ms,
+                "response_time_ms": duration_ms,
+                "rtype": target_rtype,
+                "answers": formatted_answers,
+                "raw_answers": raw_answers,
+                "answer_count": len(raw_answers),
+                "query": f"{target_qname} IN {target_rtype}",
+                "message": f"Successfully resolved {target_qname} via DoH in {duration_ms}ms ({len(raw_answers)} answers)."
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "success": False,
+            "detail": str(e),
+            "error": f"DoH query failed: {str(e)}",
+            "query": f"{target_qname} IN {target_rtype}"
+        }
 
 @app.post("/api/v1/dns/records")
 def add_dns_record(req: DnsRecordRequest):
