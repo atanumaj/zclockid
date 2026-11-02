@@ -668,33 +668,88 @@
                 </div>
             </section>
 
-            <!-- ==================== TAB 6: SYSVOL GUARDIAN ==================== -->
+            <!-- ==================== TAB 6: SYSVOL GUARDIAN & PEER REPLICATION ==================== -->
             <section id="tab-sysvol" class="space-y-6 hidden">
+                <!-- Status & Architecture Card -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold text-white">Sysvol File System & NTACL Guardian</h3>
-                            <p class="text-xs text-slate-400">Preserves and heals Windows NT security descriptors across multi-DC sysvol replication</p>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-folder-tree text-emerald-400"></i> Integrated Sysvol Replication & Windows NTACL Guardian
+                            </h3>
+                            <p class="text-xs text-slate-400">Native peer-to-peer SHA-256 tree sync across Domain Controllers with automated debounced NTACL healing</p>
                         </div>
-                        <button onclick="resetSysvolNtacl()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-wrench"></i> Force NTACL Reset
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="triggerSysvolSyncNow()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrows-rotate"></i> Sync All Peers
+                            </button>
+                            <button onclick="resetSysvolNtacl()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-wrench"></i> Force NTACL Reset
+                            </button>
+                            <button onclick="openSysvolPartnerModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add Partner DC
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase">Guardian Daemon</span>
-                            <div class="text-emerald-400 font-bold text-sm">zclock-sysvold (ACTIVE)</div>
+                            <span class="text-slate-500 text-[10px] uppercase">Replication Engine</span>
+                            <div class="text-emerald-400 font-bold text-xs truncate">ZclockID Native Peer Mesh</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase">Sysvol Directory</span>
-                            <div class="text-white font-bold text-xs truncate">/var/lib/samba/sysvol</div>
+                            <span class="text-slate-500 text-[10px] uppercase">NTACL Integrity Guardian</span>
+                            <div class="text-emerald-400 font-bold text-xs">zclock-sysvold (ACTIVE)</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase">Last Integrity Reset</span>
+                            <span class="text-slate-500 text-[10px] uppercase">Replication Partners</span>
+                            <div id="sysvol-partners-count" class="text-white font-bold text-xs">0 Active Peers</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Last NTACL Reconciliation</span>
                             <div id="sysvol-last-reset" class="text-slate-300 font-bold text-xs">-</div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Replicated Partner Domain Controllers Table -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired text-indigo-400"></i> Partner Domain Controllers (Replication Mesh)
+                            </h3>
+                            <p class="text-xs text-slate-400">Domain controllers synchronizing GPO policy templates and logon scripts bi-directionally</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">Domain Controller</th>
+                                    <th class="px-4 py-2.5">IP Address</th>
+                                    <th class="px-4 py-2.5">Sync State</th>
+                                    <th class="px-4 py-2.5">Last Sync Time</th>
+                                    <th class="px-4 py-2.5">Synced Files</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sysvol-partners-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No partner DCs configured. Standalone primary DC.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Architecture & GPO Guarantee Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                    <h4 class="text-xs font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-cyan-400"></i> How Integrated Sysvol Replication Works
+                    </h4>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        Unlike standard Linux sync utilities which corrupt Windows NT security descriptors, ZclockID integrates a <strong class="text-white">SHA-256 tree synchronizer</strong> and the <strong class="text-white">NTACL Guardian daemon</strong>. Whenever a policy is created in Windows RSAT (<code class="text-indigo-300">gpmc.msc</code>) on any DC, files stream over encrypted HTTPS to peer nodes, and <code class="text-emerald-300">samba-tool ntacl sysvolreset</code> is automatically fired to guarantee that Windows clients receive valid GPOs without <code class="text-rose-400">Access Denied (Event ID 1058)</code> errors.
+                    </p>
                 </div>
             </section>
 
@@ -996,6 +1051,50 @@
         </div>
     </div>
 
+    <!-- Add Sysvol Replication Partner Modal -->
+    <div id="sysvol-partner-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-folder-tree text-emerald-400"></i> Pair Sysvol Replication Partner DC
+                </h3>
+                <button onclick="closeSysvolPartnerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Partner DC Friendly Name</label>
+                    <input id="sysvol-p-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="DC2-Secondary">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Partner DC IP Address / FQDN</label>
+                    <input id="sysvol-p-ip-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="192.168.1.42">
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-slate-400">Mutual Pairing Secret</label>
+                        <button type="button" onclick="showMySysvolSecret()" class="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+                            <i class="fa-solid fa-key"></i> Show My Appliance Secret
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input id="sysvol-p-secret-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono pr-8" placeholder="Appliance Pairing Secret">
+                        <button type="button" onclick="generatePartnerSecret()" class="absolute right-2 top-2 text-slate-500 hover:text-emerald-400" title="Generate New Key">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-3 bg-slate-950 rounded-lg border border-slate-800/80 text-[11px] text-slate-400 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i>
+                    Ensure both Domain Controllers have registered each other with the same secret. The native sync engine will continuously replicate GPOs and auto-reset NTACLs.
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeSysvolPartnerModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitAddSysvolPartner()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Pair & Start Replication</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Create User Modal -->
     <div id="user-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
@@ -1106,7 +1205,7 @@
             else if (tabId === 'users') { fetchUsers(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
             else if (tabId === 'radius') { fetchRadiusClients(); fetchRadiusSessions(); }
-            else if (tabId === 'sysvol') { fetchSysvolStatus(); }
+            else if (tabId === 'sysvol') { fetchSysvolStatus(); fetchSysvolPartners(); }
             else if (tabId === 'azure') { fetchAzureStatus(); }
             else if (tabId === 'reports') { fetchAuditEvents(); }
         }
@@ -1986,15 +2085,135 @@
             }
         }
 
-        // 6. Sysvol & Azure & Reports
+        // 6. Sysvol Guardian & Integrated Replication
         async function fetchSysvolStatus() {
             try {
                 const res = await fetch(`${API_BASE}/sysvol/status`);
                 const data = await res.json();
                 const d = new Date(data.last_reset * 1000);
                 document.getElementById('sysvol-last-reset').innerText = d.toLocaleTimeString();
+                document.getElementById('sysvol-partners-count').innerText = `${data.partners_count || 0} Registered Peers`;
             } catch (err) {
-                console.error('Error fetching sysvol:', err);
+                console.error('Error fetching sysvol status:', err);
+            }
+        }
+
+        async function fetchSysvolPartners() {
+            const tbody = document.getElementById('sysvol-partners-table-body');
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/partners`);
+                const data = await res.json();
+                if (data.partners && data.partners.length > 0) {
+                    tbody.innerHTML = data.partners.map(p => {
+                        const d = p.last_sync ? new Date(p.last_sync * 1000).toLocaleTimeString() : 'Never';
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5 font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-server text-indigo-400"></i> ${p.name}
+                                </td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${p.ip_address}</td>
+                                <td class="px-4 py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] ${p.status === 'IN_SYNC' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}">${p.status}</span>
+                                </td>
+                                <td class="px-4 py-2.5 text-slate-400">${d}</td>
+                                <td class="px-4 py-2.5 text-slate-300 font-bold">${p.files_count} items</td>
+                                <td class="px-4 py-2.5 text-right space-x-2">
+                                    <button onclick="triggerSysvolSyncNow()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition" title="Sync Peer">
+                                        <i class="fa-solid fa-rotate mr-1"></i> Sync
+                                    </button>
+                                    <button onclick="deleteSysvolPartner('${p.ip_address}')" class="text-slate-500 hover:text-rose-400 transition" title="Remove Peer">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No partner DCs configured. Standalone primary DC.</td></tr>`;
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to load partners: ${err}</td></tr>`;
+            }
+        }
+
+        function openSysvolPartnerModal() {
+            document.getElementById('sysvol-partner-modal').classList.remove('hidden');
+            generatePartnerSecret();
+        }
+        function closeSysvolPartnerModal() {
+            document.getElementById('sysvol-partner-modal').classList.add('hidden');
+        }
+
+        async function generatePartnerSecret() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/secret/generate`, { method: 'POST' });
+                const data = await res.json();
+                document.getElementById('sysvol-p-secret-input').value = data.secret;
+            } catch (err) {}
+        }
+
+        async function showMySysvolSecret() {
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/local-secret`);
+                const data = await res.json();
+                document.getElementById('sysvol-p-secret-input').value = data.secret;
+                alert(`Appliance Local Pairing Key loaded:\n${data.secret}\n\nUse this secret on your secondary Domain Controller to pair.`);
+            } catch (err) {
+                alert(`Error loading secret: ${err}`);
+            }
+        }
+
+        async function submitAddSysvolPartner() {
+            const name = document.getElementById('sysvol-p-name-input').value.trim();
+            const ip = document.getElementById('sysvol-p-ip-input').value.trim();
+            const secret = document.getElementById('sysvol-p-secret-input').value.trim();
+
+            if (!name || !ip || !secret) return alert('Name, IP, and Secret are required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/partners`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name: name, ip_address: ip, shared_secret: secret })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeSysvolPartnerModal();
+                    alert(data.message);
+                    fetchSysvolStatus();
+                    fetchSysvolPartners();
+                } else {
+                    alert(`Failed to add partner DC: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error pairing partner: ${err}`);
+            }
+        }
+
+        async function deleteSysvolPartner(ip) {
+            if (!confirm(`Remove partner Domain Controller ${ip} from Sysvol replication?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/partners/${ip}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchSysvolStatus();
+                    fetchSysvolPartners();
+                } else {
+                    const data = await res.json();
+                    alert(`Failed to delete: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error removing partner: ${err}`);
+            }
+        }
+
+        async function triggerSysvolSyncNow() {
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/sync-now`, { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                fetchSysvolPartners();
+            } catch (err) {
+                alert(`Sync error: ${err}`);
             }
         }
 
