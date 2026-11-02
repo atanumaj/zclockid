@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZclockID - Administrator Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 space-y-6">
+
+        <!-- Logo & Title -->
+        <div class="text-center space-y-2">
+            <div class="inline-flex w-14 h-14 rounded-2xl bg-indigo-600 items-center justify-center text-white text-3xl shadow-lg shadow-indigo-600/30">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">ZclockID Console</h1>
+            <p class="text-xs text-slate-400">Enterprise Active Directory Appliance</p>
+        </div>
+
+        <!-- Provisioning Success Alert -->
+        <div id="setup-success-alert" class="hidden rounded-lg p-3 text-xs font-medium border bg-emerald-950/40 border-emerald-800 text-emerald-300">
+            <i class="fa-solid fa-circle-check mr-1.5"></i> Initial setup completed! Please log in with your administrator credentials.
+        </div>
+
+        <!-- Error Message Box -->
+        <div id="error-box" class="hidden rounded-lg p-3 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300"></div>
+
+        <!-- Login Form -->
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Username</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                        <i class="fa-solid fa-user"></i>
+                    </span>
+                    <input type="text" id="username" required value="admin"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Password</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                        <i class="fa-solid fa-lock"></i>
+                    </span>
+                    <input type="password" id="password" required placeholder="••••••••••••"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <button type="submit" id="login-btn"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-indigo-600/30 transition duration-150 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In to Appliance
+            </button>
+        </form>
+
+        <div class="text-center border-t border-slate-800 pt-4 flex justify-between items-center text-xs text-slate-500">
+            <span>ZclockID v1.0.0</span>
+            <a href="/register.html" class="text-indigo-400 hover:underline">Self-Registration Portal &rarr;</a>
+        </div>
+
+    </div>
+
+    <script>
+        // Check if redirected from initial setup
+        if (window.location.search.includes('provisioned=1')) {
+            document.getElementById('setup-success-alert').classList.remove('hidden');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const errBox = document.getElementById('error-box');
+            const btn = document.getElementById('login-btn');
+            errBox.classList.add('hidden');
+
+            const payload = {
+                username: document.getElementById('username').value.trim(),
+                password: document.getElementById('password').value
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Authenticating...';
+
+            try {
+                const res = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    localStorage.setItem('zclockid_token', data.token);
+                    localStorage.setItem('zclockid_user', data.username);
+                    window.location.href = '/index.html';
+                } else {
+                    errBox.innerText = data.detail || 'Authentication failed. Please verify credentials.';
+                    errBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                errBox.innerText = 'Network error: could not connect to appliance.';
+                errBox.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In to Appliance';
+            }
+        }
+    </script>
+</body>
+</html>

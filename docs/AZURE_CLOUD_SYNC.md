@@ -109,3 +109,4 @@ sudo samba-tool dsacl set --objectdn="DC=corp,DC=example,DC=com" \
 For **MVP 1**, ZclockID provides **both capabilities**:
 1. **Built-in Native Azure Sync Module** for customers wanting a 100% turnkey Linux appliance with zero Microsoft license requirements.
 2. **Full DCSync / AD Schema Compliance** for customers choosing to point Microsoft's official Windows Entra Connect agent at ZclockID.
+

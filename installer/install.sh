@@ -56,9 +56,14 @@ fi
 # 4. Install Core System Packages
 log_info "Updating apt cache and installing core engine dependencies..."
 export DEBIAN_FRONTEND=noninteractive
+echo "krb5-config krb5-config/default_realm string CORP.EXAMPLE.COM" | debconf-set-selections 2>/dev/null || true
+echo "krb5-config krb5-config/kerberos_servers string dc1.corp.example.com" | debconf-set-selections 2>/dev/null || true
+echo "krb5-config krb5-config/admin_server string dc1.corp.example.com" | debconf-set-selections 2>/dev/null || true
 apt-get update -y
 apt-get install -y --no-install-recommends \
     samba \
+    samba-ad-dc \
+    samba-ad-provision \
     samba-dsdb-modules \
     samba-vfs-modules \
     smbclient \
@@ -80,6 +85,10 @@ apt-get install -y --no-install-recommends \
     acl \
     attr \
     python3 \
+    python3-fastapi \
+    python3-uvicorn \
+    python3-pydantic \
+    python3-psutil \
     python3-pip \
     python3-venv \
     curl \
@@ -156,10 +165,9 @@ if [[ -f "${SCRIPT_DIR}/config-templates/nginx/zclockid.conf" ]]; then
     log_success "Nginx ingress proxy configured on Port 80 and 443."
 fi
 
-# Install Python requirements for API
-log_info "Setting up Python environment for ZclockID API..."
-pip3 install --break-system-packages -r "${INSTALL_DIR}/api/requirements.txt" || \
-pip3 install -r "${INSTALL_DIR}/api/requirements.txt"
+# Python requirements are provided natively via apt
+log_info "Verifying Python dependencies for ZclockID API..."
+python3 -c "import fastapi, uvicorn, pydantic, psutil; print('All Python dependencies verified.')"
 
 # Copy Systemd Services
 cp "${SCRIPT_DIR}/systemd/zclock-api.service" /etc/systemd/system/

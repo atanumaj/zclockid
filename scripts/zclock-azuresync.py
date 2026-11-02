@@ -155,3 +155,4 @@ if __name__ == "__main__":
         while True:
             syncer.sync_cycle()
             time.sleep(interval)
+

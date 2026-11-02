@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZclockID - Initial Setup Wizard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-6">
+
+    <div class="max-w-2xl w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+        
+        <!-- Top Banner -->
+        <div class="bg-gradient-to-r from-indigo-900/60 to-slate-900 border-b border-slate-800 p-6 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-600/30">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">ZclockID Initial Setup Wizard</h1>
+                    <p class="text-xs text-slate-400">Configure your purpose-built Active Directory Domain Controller</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span class="text-xs px-2.5 py-1 rounded bg-indigo-500/20 text-indigo-400 font-mono font-semibold border border-indigo-500/30">Out-of-Box Setup</span>
+            </div>
+        </div>
+
+        <!-- Stepper Indicator -->
+        <div class="bg-slate-950/60 border-b border-slate-800 px-8 py-3 flex justify-between text-xs font-medium text-slate-400">
+            <div id="step-ind-1" class="flex items-center gap-2 text-indigo-400 font-semibold">
+                <span class="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
+                <span>Admin Login</span>
+            </div>
+            <div id="step-ind-2" class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px]">2</span>
+                <span>Domain Role</span>
+            </div>
+            <div id="step-ind-3" class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px]">3</span>
+                <span>AD Parameters</span>
+            </div>
+            <div id="step-ind-4" class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-[10px]">4</span>
+                <span>Provision</span>
+            </div>
+        </div>
+
+        <!-- Wizard Forms Container -->
+        <div class="p-8">
+
+            <!-- Step 1: Admin Account -->
+            <div id="step-1" class="space-y-4">
+                <div class="space-y-1">
+                    <h2 class="text-base font-semibold text-white">Create Appliance Administrator Account</h2>
+                    <p class="text-xs text-slate-400">This account will be used to log into the ZclockID web management console.</p>
+                </div>
+
+                <div class="space-y-3 pt-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Administrator Username *</label>
+                        <input type="text" id="admin_username" value="admin" required
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Administrator Email *</label>
+                        <input type="email" id="admin_email" value="admin@corp.example.com" required
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Web Console Password *</label>
+                            <input type="password" id="admin_password" required minlength="8" placeholder="••••••••••••"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Confirm Password *</label>
+                            <input type="password" id="admin_password_confirm" required minlength="8" placeholder="••••••••••••"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-4">
+                    <button onclick="goToStep(2)" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center gap-1.5">
+                        Next: Domain Mode <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Domain Role Selection -->
+            <div id="step-2" class="space-y-4 hidden">
+                <div class="space-y-1">
+                    <h2 class="text-base font-semibold text-white">Choose Active Directory Deployment Mode</h2>
+                    <p class="text-xs text-slate-400">Select whether this appliance will establish a new forest or join an existing infrastructure.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
+                    <!-- Option A -->
+                    <label class="cursor-pointer border border-indigo-500/50 bg-indigo-950/20 hover:bg-indigo-950/40 p-4 rounded-xl flex flex-col justify-between space-y-3 transition">
+                        <div class="flex items-start justify-between">
+                            <div class="space-y-1">
+                                <span class="text-xs font-bold text-white block">Create a New AD Forest</span>
+                                <span class="text-[11px] text-slate-400 block">Deploy as the Primary Domain Controller (PDC) for a new organization or office.</span>
+                            </div>
+                            <input type="radio" name="domain_mode" value="new_domain" checked class="text-indigo-600 focus:ring-indigo-500 mt-1">
+                        </div>
+                        <span class="text-[10px] text-emerald-400 font-medium"><i class="fa-solid fa-circle-check"></i> Standard Standalone Deployment</span>
+                    </label>
+
+                    <!-- Option B -->
+                    <label class="cursor-pointer border border-slate-700 bg-slate-800/40 hover:bg-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-3 transition">
+                        <div class="flex items-start justify-between">
+                            <div class="space-y-1">
+                                <span class="text-xs font-bold text-white block">Join Existing Forest (ADC)</span>
+                                <span class="text-[11px] text-slate-400 block">Join as an Additional Domain Controller for high availability and replication.</span>
+                            </div>
+                            <input type="radio" name="domain_mode" value="join_domain" class="text-indigo-600 focus:ring-indigo-500 mt-1">
+                        </div>
+                        <span class="text-[10px] text-indigo-400 font-medium"><i class="fa-solid fa-server"></i> Multi-DC DRS Replication</span>
+                    </label>
+                </div>
+
+                <div class="flex justify-between pt-4">
+                    <button onclick="goToStep(1)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back
+                    </button>
+                    <button onclick="goToStep(3)" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center gap-1.5">
+                        Next: AD Parameters <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Domain Parameters -->
+            <div id="step-3" class="space-y-4 hidden">
+                <div class="space-y-1">
+                    <h2 class="text-base font-semibold text-white">Active Directory Configuration Parameters</h2>
+                    <p class="text-xs text-slate-400">Define the domain realm, NetBIOS name, and administrator credentials.</p>
+                </div>
+
+                <div class="space-y-3 pt-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Domain FQDN / Realm *</label>
+                            <input type="text" id="ad_realm" value="CORP.EXAMPLE.COM" required
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">NetBIOS Domain Name *</label>
+                            <input type="text" id="ad_domain_netbios" value="CORP" required
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Domain 'Administrator' Password *</label>
+                        <input type="password" id="ad_admin_password" required minlength="8" placeholder="••••••••••••"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-1">Must contain at least 8 characters with numbers and symbols (Windows RSAT compliance).</p>
+                    </div>
+
+                    <div id="join-fields" class="hidden space-y-3 p-3 bg-slate-950 rounded-lg border border-slate-800">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Existing Primary DC IP Address *</label>
+                            <input type="text" id="partner_dc_ip" placeholder="192.168.1.23"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-300 mb-1">Existing Domain Admin User *</label>
+                            <input type="text" id="ad_admin_user" value="Administrator"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Upstream DNS Forwarders</label>
+                        <input type="text" id="dns_forwarder" value="1.1.1.1 8.8.8.8"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="flex justify-between pt-4">
+                    <button onclick="goToStep(2)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back
+                    </button>
+                    <button onclick="goToStep(4)" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center gap-1.5">
+                        Review & Provision <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 4: Review & Execution -->
+            <div id="step-4" class="space-y-4 hidden">
+                <div class="space-y-1">
+                    <h2 class="text-base font-semibold text-white">Review & Initialize ZclockID</h2>
+                    <p class="text-xs text-slate-400">Confirm your settings below and launch the initialization engine.</p>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2 text-xs font-mono">
+                    <div class="flex justify-between text-slate-300">
+                        <span class="text-slate-500">Web Administrator:</span>
+                        <span id="rev-admin-user" class="text-indigo-400">admin</span>
+                    </div>
+                    <div class="flex justify-between text-slate-300">
+                        <span class="text-slate-500">Deployment Mode:</span>
+                        <span id="rev-mode" class="text-emerald-400">New Forest</span>
+                    </div>
+                    <div class="flex justify-between text-slate-300">
+                        <span class="text-slate-500">Domain Realm:</span>
+                        <span id="rev-realm" class="text-white">CORP.EXAMPLE.COM</span>
+                    </div>
+                    <div class="flex justify-between text-slate-300">
+                        <span class="text-slate-500">NetBIOS Name:</span>
+                        <span id="rev-netbios" class="text-white">CORP</span>
+                    </div>
+                    <div class="flex justify-between text-slate-300">
+                        <span class="text-slate-500">DNS Backend:</span>
+                        <span class="text-cyan-400">BIND9_DLZ + DoH</span>
+                    </div>
+                </div>
+
+                <!-- Execution Progress Area -->
+                <div id="provision-progress" class="hidden space-y-2">
+                    <div class="flex items-center justify-between text-xs font-medium text-slate-300">
+                        <span id="progress-status" class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-notch animate-spin text-indigo-400"></i> Provisioning Active Directory Domain...
+                        </span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div id="progress-bar" class="bg-indigo-600 h-2 rounded-full w-1/3 animate-pulse"></div>
+                    </div>
+                    <pre id="provision-log" class="text-[10px] bg-black/60 p-3 rounded-lg text-emerald-400 font-mono max-h-36 overflow-y-auto">Initializing Samba AD DC engine...</pre>
+                </div>
+
+                <div id="action-buttons" class="flex justify-between pt-4">
+                    <button onclick="goToStep(3)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Back
+                    </button>
+                    <button onclick="startProvisioning()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-emerald-600/30 transition flex items-center gap-2">
+                        <i class="fa-solid fa-play"></i> Initialize & Launch ZclockID
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        function goToStep(step) {
+            // Validation
+            if (step === 2) {
+                const p1 = document.getElementById('admin_password').value;
+                const p2 = document.getElementById('admin_password_confirm').value;
+                if (!p1 || p1.length < 8) {
+                    alert('Please enter an admin password of at least 8 characters.');
+                    return;
+                }
+                if (p1 !== p2) {
+                    alert('Passwords do not match.');
+                    return;
+                }
+            }
+
+            // Step 3 UI Toggle
+            if (step === 3) {
+                const mode = document.querySelector('input[name="domain_mode"]:checked').value;
+                const joinFields = document.getElementById('join-fields');
+                if (mode === 'join_domain') {
+                    joinFields.classList.remove('hidden');
+                } else {
+                    joinFields.classList.add('hidden');
+                }
+            }
+
+            // Step 4 Review Populate
+            if (step === 4) {
+                const mode = document.querySelector('input[name="domain_mode"]:checked').value;
+                document.getElementById('rev-admin-user').innerText = document.getElementById('admin_username').value;
+                document.getElementById('rev-mode').innerText = mode === 'new_domain' ? 'New Forest (Primary DC)' : 'Join Forest (Secondary DC)';
+                document.getElementById('rev-realm').innerText = document.getElementById('ad_realm').value.toUpperCase();
+                document.getElementById('rev-netbios').innerText = document.getElementById('ad_domain_netbios').value.toUpperCase();
+            }
+
+            // Toggle visibility
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`step-${i}`).classList.add('hidden');
+                const ind = document.getElementById(`step-ind-${i}`);
+                ind.className = (i === step) ? 'flex items-center gap-2 text-indigo-400 font-semibold' : 'flex items-center gap-2 text-slate-500';
+            }
+            document.getElementById(`step-${step}`).classList.remove('hidden');
+        }
+
+        async function startProvisioning() {
+            const mode = document.querySelector('input[name="domain_mode"]:checked').value;
+            const payload = {
+                admin_username: document.getElementById('admin_username').value,
+                admin_email: document.getElementById('admin_email').value,
+                admin_password: document.getElementById('admin_password').value,
+                mode: mode,
+                realm: document.getElementById('ad_realm').value.toUpperCase(),
+                domain_netbios: document.getElementById('ad_domain_netbios').value.toUpperCase(),
+                ad_admin_password: document.getElementById('ad_admin_password').value,
+                dns_forwarder: document.getElementById('dns_forwarder').value,
+                partner_dc_ip: document.getElementById('partner_dc_ip').value,
+                ad_admin_user: document.getElementById('ad_admin_user').value
+            };
+
+            document.getElementById('action-buttons').classList.add('hidden');
+            document.getElementById('provision-progress').classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/v1/setup/provision', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    document.getElementById('progress-bar').className = 'bg-emerald-500 h-2 rounded-full w-full';
+                    document.getElementById('progress-status').innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Provisioning Successful!';
+                    document.getElementById('provision-log').innerText = data.log || 'Samba Active Directory initialized successfully.';
+
+                    setTimeout(() => {
+                        window.location.href = '/login.html?provisioned=1';
+                    }, 2500);
+                } else {
+                    document.getElementById('progress-bar').className = 'bg-rose-500 h-2 rounded-full w-full';
+                    document.getElementById('progress-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Provisioning Failed';
+                    document.getElementById('provision-log').innerText = data.detail || 'An error occurred during domain provisioning.';
+                    document.getElementById('action-buttons').classList.remove('hidden');
+                }
+            } catch (err) {
+                document.getElementById('progress-status').innerText = 'Network error: could not connect to ZclockID API.';
+                document.getElementById('action-buttons').classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
