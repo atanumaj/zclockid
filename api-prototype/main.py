@@ -12,15 +12,18 @@ Provides comprehensive GUI and API control for:
 - Appliance Service & System Control (Status, Memory, PIDs, Live Journalctl Logs)
 """
 
-from fastapi import FastAPI, HTTPException, status, Query, Depends, Request, Form
+from fastapi import FastAPI, HTTPException, status, Query, Depends, Request, Form, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse, JSONResponse, RedirectResponse, FileResponse
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 import subprocess
 import os
 import time
+import datetime
+import tarfile
+import shutil
 import sqlite3
 import csv
 import io
@@ -64,6 +67,8 @@ AZURE_STATUS_FILE = Path("/var/run/zclock-azuresync.status")
 SYSVOL_HEALTH_FILE = Path("/var/run/zclock-sysvol.health")
 BIND_OPTIONS_FILE = Path("/etc/bind/named.conf.options")
 RADIUS_CLIENTS_FILE = Path("/etc/freeradius/3.0/clients.conf")
+BACKUP_DIR = Path("/var/backups/zclockid")
+BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -367,6 +372,17 @@ class DohTestRequest(BaseModel):
 class FunctionalLevelRaiseRequest(BaseModel):
     domain_level: str = "2016"
     forest_level: str = "2016"
+
+class BackupCreateRequest(BaseModel):
+    backup_type: str = "config_only"  # config_only or full
+    description: Optional[str] = "Manual appliance backup"
+
+class BackupRestoreRequest(BaseModel):
+    filename: str
+    skip_ad_restore: Optional[bool] = False
+
+class BackupInspectRequest(BaseModel):
+    filename: str
 
 # ----------------- First-Time Setup Wizard Endpoints -----------------
 
@@ -2190,3 +2206,410 @@ def export_audit_csv():
     return PlainTextResponse(output.getvalue(), media_type="text/csv", headers={
         "Content-Disposition": f"attachment; filename=zclockid_audit_{int(time.time())}.csv"
     })
+
+# ==================== BACKUP & RESTORE CONTROLLER (ZENTYAL STYLE) ====================
+
+def read_manifest_from_tar(tar_path: Path) -> Optional[dict]:
+    """Extracts manifest.json from a backup tar archive without fully extracting it."""
+    try:
+        with tarfile.open(tar_path, "r:gz") as tar:
+            for member in tar.getmembers():
+                if member.name.endswith("manifest.json") or member.name == "manifest.json":
+                    f = tar.extractfile(member)
+                    if f:
+                        return json.loads(f.read().decode("utf-8"))
+    except Exception:
+        return None
+    return None
+
+@app.get("/api/v1/backups")
+def list_backups():
+    """Lists all available appliance backups with metadata, storage metrics, and timestamps."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    backups = []
+    total_bytes = 0
+
+    for f in BACKUP_DIR.glob("*.tar.gz"):
+        stat = f.stat()
+        total_bytes += stat.st_size
+        manifest = read_manifest_from_tar(f)
+
+        b_type = "config_only"
+        if manifest and "backup_type" in manifest:
+            b_type = manifest["backup_type"]
+        elif "full" in f.name.lower():
+            b_type = "full"
+
+        backups.append({
+            "filename": f.name,
+            "filepath": str(f),
+            "size_bytes": stat.st_size,
+            "size_human": f"{stat.st_size / (1024*1024):.2f} MB" if stat.st_size >= 1024*1024 else f"{stat.st_size / 1024:.1f} KB",
+            "created_at": manifest.get("created_at") if manifest else datetime.datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            "mtime": stat.st_mtime,
+            "backup_type": b_type,
+            "description": manifest.get("description", "Appliance backup") if manifest else "Appliance backup archive",
+            "hostname": manifest.get("hostname", "inet-zclockid") if manifest else "unknown",
+            "realm": manifest.get("realm", "INET.NET") if manifest else "unknown",
+            "modules": manifest.get("modules_included", []) if manifest else [],
+            "manifest": manifest
+        })
+
+    backups.sort(key=lambda x: x["mtime"], reverse=True)
+
+    return {
+        "status": "success",
+        "backup_dir": str(BACKUP_DIR),
+        "total_backups": len(backups),
+        "total_size_bytes": total_bytes,
+        "total_size_mb": round(total_bytes / (1024 * 1024), 2),
+        "last_backup": backups[0]["created_at"] if backups else None,
+        "backups": backups
+    }
+
+@app.post("/api/v1/backups/create")
+def create_backup(req: BackupCreateRequest):
+    """Creates a complete appliance configuration or full disaster-recovery backup bundle."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    b_type = "full" if req.backup_type == "full" else "config_only"
+    archive_name = f"zclockid-{b_type}-{ts}.tar.gz"
+    dest_tar_path = BACKUP_DIR / archive_name
+
+    staging_dir = Path(f"/tmp/zclock-backup-{ts}")
+    staging_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        domain_info = get_domain_info()
+        realm = domain_info.get("realm", "INET.NET")
+        hostname = domain_info.get("hostname", "inet-zclockid")
+        domain_sid = domain_info.get("domain_sid", "Unknown")
+
+        manifest = {
+            "backup_id": ts,
+            "filename": archive_name,
+            "backup_type": b_type,
+            "description": req.description or "ZclockID backup",
+            "created_at": datetime.datetime.now().isoformat(),
+            "hostname": hostname,
+            "realm": realm,
+            "netbios_name": domain_info.get("netbios_name", "INET"),
+            "domain_sid": domain_sid,
+            "functional_levels": {
+                "domain_level": domain_info.get("domain_functional_level", "Windows Server 2016"),
+                "forest_level": domain_info.get("forest_functional_level", "Windows Server 2016")
+            },
+            "appliance_version": "1.1.0",
+            "modules_included": [
+                "appliance_db",
+                "samba_ad_dc",
+                "dns_bind9",
+                "ntp_chrony",
+                "freeradius",
+                "nginx_ingress",
+                "azure_sync",
+                "sysvol_sync"
+            ]
+        }
+
+        # 1. Stage Appliance SQLite Database (safe backup copy)
+        appliance_dir = staging_dir / "appliance"
+        appliance_dir.mkdir(parents=True, exist_ok=True)
+        if DB_PATH.exists():
+            src_conn = sqlite3.connect(DB_PATH)
+            dst_conn = sqlite3.connect(appliance_dir / "zclockid.db")
+            with dst_conn:
+                src_conn.backup(dst_conn)
+            dst_conn.close()
+            src_conn.close()
+
+        # Stage /etc/zclockid directory
+        etc_zclock = Path("/etc/zclockid")
+        if etc_zclock.exists():
+            zclock_backup_dir = appliance_dir / "etc_zclockid"
+            zclock_backup_dir.mkdir(parents=True, exist_ok=True)
+            for item in etc_zclock.iterdir():
+                if item.is_file():
+                    shutil.copy2(item, zclock_backup_dir / item.name)
+
+        # 2. Stage Configurations across all modules
+        cfg_dir = staging_dir / "configs"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+
+        if os.path.exists("/etc/samba/smb.conf"):
+            samba_cfg = cfg_dir / "samba"
+            samba_cfg.mkdir(parents=True, exist_ok=True)
+            shutil.copy2("/etc/samba/smb.conf", samba_cfg / "smb.conf")
+
+        bind_cfg = cfg_dir / "bind"
+        bind_cfg.mkdir(parents=True, exist_ok=True)
+        for b_file in ["/etc/bind/named.conf.options", "/etc/bind/named.conf.local", "/etc/bind/named.conf"]:
+            if os.path.exists(b_file):
+                shutil.copy2(b_file, bind_cfg / Path(b_file).name)
+
+        chrony_cfg = cfg_dir / "chrony"
+        chrony_cfg.mkdir(parents=True, exist_ok=True)
+        if os.path.exists("/etc/chrony/chrony.conf"):
+            shutil.copy2("/etc/chrony/chrony.conf", chrony_cfg / "chrony.conf")
+        if os.path.exists("/etc/chrony/conf.d"):
+            shutil.copytree("/etc/chrony/conf.d", chrony_cfg / "conf.d", dirs_exist_ok=True)
+        if os.path.exists("/etc/chrony/sources.d"):
+            shutil.copytree("/etc/chrony/sources.d", chrony_cfg / "sources.d", dirs_exist_ok=True)
+
+        rad_cfg = cfg_dir / "freeradius"
+        rad_cfg.mkdir(parents=True, exist_ok=True)
+        if os.path.exists("/etc/freeradius/3.0/clients.conf"):
+            shutil.copy2("/etc/freeradius/3.0/clients.conf", rad_cfg / "clients.conf")
+
+        nginx_cfg = cfg_dir / "nginx"
+        nginx_cfg.mkdir(parents=True, exist_ok=True)
+        for ng_file in ["/etc/nginx/sites-available/zclockid", "/etc/nginx/sites-enabled/zclockid"]:
+            if os.path.exists(ng_file):
+                shutil.copy2(ng_file, nginx_cfg / Path(ng_file).name)
+
+        if os.path.exists("/etc/hosts"):
+            shutil.copy2("/etc/hosts", cfg_dir / "hosts")
+
+        # 3. If Full Disaster Recovery Backup: include Active Directory database & Sysvol
+        if b_type == "full":
+            admin_user, admin_pass = get_ad_creds()
+            ad_staging = staging_dir / "ad"
+            ad_staging.mkdir(parents=True, exist_ok=True)
+
+            code, stdout, stderr = run_cmd([
+                "samba-tool", "domain", "backup", "online",
+                "--server=127.0.0.1",
+                f"--targetdir={str(ad_staging)}",
+                f"-U{admin_user}", f"--password={admin_pass}"
+            ], timeout=60)
+
+            if code != 0:
+                raise Exception(f"Samba online backup failed: {stderr or stdout}")
+
+            sysvol_path = Path("/var/lib/samba/sysvol")
+            if sysvol_path.exists():
+                shutil.copytree(sysvol_path, staging_dir / "sysvol", dirs_exist_ok=True)
+
+        # 4. Write manifest.json
+        with open(staging_dir / "manifest.json", "w") as f:
+            json.dump(manifest, f, indent=2)
+
+        # 5. Compress into .tar.gz
+        with tarfile.open(dest_tar_path, "w:gz") as tar:
+            for item in staging_dir.iterdir():
+                tar.add(item, arcname=item.name)
+
+        archive_size = dest_tar_path.stat().st_size
+        log_audit("BACKUP_CREATED", "admin", "appliance", "SUCCESS", {
+            "filename": archive_name,
+            "type": b_type,
+            "size_bytes": archive_size
+        })
+
+        return {
+            "status": "success",
+            "message": f"Successfully generated {b_type} backup archive '{archive_name}' ({archive_size / (1024*1024):.2f} MB).",
+            "filename": archive_name,
+            "size_bytes": archive_size,
+            "manifest": manifest
+        }
+    except Exception as e:
+        if dest_tar_path.exists():
+            dest_tar_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Backup creation failed: {str(e)}")
+    finally:
+        if staging_dir.exists():
+            shutil.rmtree(staging_dir, ignore_errors=True)
+
+@app.get("/api/v1/backups/download/{filename}")
+def download_backup(filename: str):
+    """Downloads a backup archive directly to the administrator's workstation."""
+    safe_name = Path(filename).name
+    target_path = BACKUP_DIR / safe_name
+    if not target_path.exists() or not target_path.is_file():
+        raise HTTPException(status_code=404, detail="Backup archive not found.")
+
+    return FileResponse(
+        path=target_path,
+        filename=safe_name,
+        media_type="application/gzip"
+    )
+
+@app.post("/api/v1/backups/upload")
+async def upload_backup(file: UploadFile = File(...)):
+    """Uploads an external backup archive into the appliance backup repository."""
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    safe_name = Path(file.filename).name
+    if not (safe_name.endswith(".tar.gz") or safe_name.endswith(".tgz")):
+        raise HTTPException(status_code=400, detail="Invalid file format. Must be a .tar.gz archive.")
+
+    target_path = BACKUP_DIR / safe_name
+    try:
+        with open(target_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        manifest = read_manifest_from_tar(target_path)
+        if not manifest:
+            if not tarfile.is_tarfile(target_path):
+                target_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=400, detail="Uploaded file is not a valid tar archive.")
+
+        log_audit("BACKUP_UPLOADED", "admin", "appliance", "SUCCESS", {
+            "filename": safe_name,
+            "size_bytes": target_path.stat().st_size
+        })
+
+        return {
+            "status": "success",
+            "message": f"Backup archive '{safe_name}' uploaded successfully.",
+            "filename": safe_name,
+            "manifest": manifest
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        target_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Failed to process uploaded backup: {str(e)}")
+
+@app.post("/api/v1/backups/inspect")
+def inspect_backup(req: BackupInspectRequest):
+    """Inspects a backup archive and returns manifest and contents without restoring."""
+    safe_name = Path(req.filename).name
+    target_path = BACKUP_DIR / safe_name
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="Backup file not found.")
+
+    manifest = read_manifest_from_tar(target_path)
+    contents = []
+    try:
+        with tarfile.open(target_path, "r:gz") as tar:
+            for m in tar.getmembers()[:60]:
+                contents.append({"name": m.name, "size": m.size, "is_dir": m.isdir()})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read backup tar: {str(e)}")
+
+    return {
+        "status": "success",
+        "filename": safe_name,
+        "size_bytes": target_path.stat().st_size,
+        "manifest": manifest,
+        "contents": contents
+    }
+
+@app.post("/api/v1/backups/restore")
+def restore_backup(req: BackupRestoreRequest):
+    """Restores entire software stack configuration and database from a backup archive."""
+    safe_name = Path(req.filename).name
+    target_path = BACKUP_DIR / safe_name
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="Backup archive not found.")
+
+    ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    restore_staging = Path(f"/tmp/zclock-restore-{ts}")
+    restore_staging.mkdir(parents=True, exist_ok=True)
+    restored_components = []
+
+    try:
+        with tarfile.open(target_path, "r:gz") as tar:
+            tar.extractall(path=restore_staging)
+
+        manifest_file = restore_staging / "manifest.json"
+        manifest = {}
+        if manifest_file.exists():
+            with open(manifest_file) as f:
+                manifest = json.load(f)
+
+        # 1. Restore Appliance Database (zclockid.db)
+        db_backup = restore_staging / "appliance" / "zclockid.db"
+        if db_backup.exists():
+            dst_conn = sqlite3.connect(DB_PATH)
+            src_conn = sqlite3.connect(db_backup)
+            with dst_conn:
+                src_conn.backup(dst_conn)
+            src_conn.close()
+            dst_conn.close()
+            restored_components.append("Appliance SQLite database (zclockid.db)")
+
+        # 2. Restore /etc/zclockid files
+        zclock_backup_dir = restore_staging / "appliance" / "etc_zclockid"
+        if zclock_backup_dir.exists():
+            Path("/etc/zclockid").mkdir(parents=True, exist_ok=True)
+            for item in zclock_backup_dir.iterdir():
+                if item.is_file():
+                    shutil.copy2(item, Path("/etc/zclockid") / item.name)
+            restored_components.append("Appliance credentials and state (/etc/zclockid)")
+
+        # 3. Restore Module Configurations
+        configs_dir = restore_staging / "configs"
+        if configs_dir.exists():
+            if (configs_dir / "samba" / "smb.conf").exists():
+                shutil.copy2(configs_dir / "samba" / "smb.conf", "/etc/samba/smb.conf")
+                restored_components.append("Samba configuration (/etc/samba/smb.conf)")
+
+            if (configs_dir / "bind").exists():
+                for b_file in (configs_dir / "bind").iterdir():
+                    if b_file.is_file():
+                        shutil.copy2(b_file, Path("/etc/bind") / b_file.name)
+                restored_components.append("BIND9 DNS configuration (/etc/bind)")
+
+            if (configs_dir / "chrony").exists():
+                ch_dir = configs_dir / "chrony"
+                if (ch_dir / "chrony.conf").exists():
+                    shutil.copy2(ch_dir / "chrony.conf", "/etc/chrony/chrony.conf")
+                if (ch_dir / "conf.d").exists():
+                    shutil.copytree(ch_dir / "conf.d", "/etc/chrony/conf.d", dirs_exist_ok=True)
+                if (ch_dir / "sources.d").exists():
+                    shutil.copytree(ch_dir / "sources.d", "/etc/chrony/sources.d", dirs_exist_ok=True)
+                restored_components.append("Chrony NTP Time Server configuration (/etc/chrony)")
+
+            if (configs_dir / "freeradius" / "clients.conf").exists():
+                shutil.copy2(configs_dir / "freeradius" / "clients.conf", "/etc/freeradius/3.0/clients.conf")
+                restored_components.append("FreeRADIUS NAS Clients configuration (/etc/freeradius)")
+
+            if (configs_dir / "nginx").exists():
+                for ng in (configs_dir / "nginx").iterdir():
+                    if ng.is_file():
+                        shutil.copy2(ng, Path("/etc/nginx/sites-available") / ng.name)
+                restored_components.append("Nginx Ingress Reverse Proxy configuration")
+
+        # 4. If Full backup: restore Sysvol
+        if not req.skip_ad_restore and (restore_staging / "sysvol").exists():
+            shutil.copytree(restore_staging / "sysvol", "/var/lib/samba/sysvol", dirs_exist_ok=True)
+            restored_components.append("Active Directory Sysvol policies (/var/lib/samba/sysvol)")
+
+        # 5. Reload and restart services
+        run_cmd(["systemctl", "reload", "nginx"], timeout=10)
+        run_cmd(["systemctl", "restart", "chrony"], timeout=10)
+        run_cmd(["rndc", "reload"], timeout=10)
+        run_cmd(["smbcontrol", "all", "reload-config"], timeout=10)
+        run_cmd(["systemctl", "restart", "freeradius"], timeout=10)
+
+        log_audit("BACKUP_RESTORED", "admin", "appliance", "SUCCESS", {
+            "filename": safe_name,
+            "restored_components": restored_components
+        })
+
+        return {
+            "status": "success",
+            "message": f"Backup '{safe_name}' restored successfully! {len(restored_components)} components updated.",
+            "filename": safe_name,
+            "restored_components": restored_components,
+            "manifest": manifest
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Restore operation failed: {str(e)}")
+    finally:
+        if restore_staging.exists():
+            shutil.rmtree(restore_staging, ignore_errors=True)
+
+@app.delete("/api/v1/backups/{filename}")
+def delete_backup(filename: str):
+    """Deletes a backup archive from the appliance repository."""
+    safe_name = Path(filename).name
+    target_path = BACKUP_DIR / safe_name
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail="Backup file not found.")
+
+    target_path.unlink()
+    log_audit("BACKUP_DELETED", "admin", "appliance", "SUCCESS", {"filename": safe_name})
+    return {"status": "success", "message": f"Backup archive '{safe_name}' deleted successfully."}

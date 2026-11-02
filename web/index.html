@@ -81,6 +81,9 @@
                 <button onclick="showTab('reports')" id="nav-reports" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-file-shield w-4"></i> Compliance & Audit Logs
                 </button>
+                <button onclick="showTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-box-archive w-4 text-emerald-400"></i> Backup & Restore
+                </button>
             </nav>
 
             <div class="pt-4 border-t border-slate-800 space-y-2 text-[11px] text-slate-500 font-mono">
@@ -1418,10 +1421,235 @@
                 </div>
             </section>
 
+            <!-- ==================== TAB 11: BACKUP & RESTORE (ZENTYAL STYLE) ==================== -->
+            <section id="tab-backup" class="space-y-6 hidden">
+                <!-- Backup Header & Action Bar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-xl p-5">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2.5">
+                            <i class="fa-solid fa-box-archive text-emerald-400"></i> Backup & Disaster Recovery (Zentyal Style)
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Complete configuration export, Active Directory database recovery, and multi-module backup archives</p>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <button onclick="fetchBackups()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5" title="Refresh List">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                        <button onclick="openUploadBackupModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-upload text-sky-400"></i> Upload Backup
+                        </button>
+                        <button onclick="openCreateBackupModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-emerald-900/50">
+                            <i class="fa-solid fa-plus"></i> Create Backup
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Backup Metric Strip -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Total Backups</span>
+                        <div id="backup-stat-count" class="text-white font-bold text-base">0</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Stored in local repository</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Repository Storage</span>
+                        <div id="backup-stat-size" class="text-emerald-400 font-bold text-base">0 MB</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Compressed .tar.gz archives</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Last Backup</span>
+                        <div id="backup-stat-last" class="text-cyan-300 font-bold text-xs truncate">Never</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Automated or manual</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Storage Path</span>
+                        <div class="text-slate-300 font-bold text-xs truncate">/var/backups/zclockid</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Persistent Linux volume</span>
+                    </div>
+                </div>
+
+                <!-- Backup Archives Table -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Appliance Backup Archives</h3>
+                            <p class="text-xs text-slate-400">Download backups for off-site disaster recovery or restore to roll back system changes</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">Archive Filename</th>
+                                    <th class="px-4 py-2.5">Backup Type</th>
+                                    <th class="px-4 py-2.5">Size</th>
+                                    <th class="px-4 py-2.5">Created At</th>
+                                    <th class="px-4 py-2.5">Realm / Host</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backups-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading backup archives...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
         </main>
     </div>
 
     <!-- ==================== MODALS ==================== -->
+
+    <!-- Create Backup Archive Modal (Zentyal Style) -->
+    <div id="modal-create-backup" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-box-archive text-emerald-400"></i> Create Appliance Backup Archive
+                </h3>
+                <button onclick="closeCreateBackupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="submitCreateBackup(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="text-slate-300 block mb-2 font-medium">Backup Scope & Type</label>
+                    <div class="grid grid-cols-1 gap-2.5">
+                        <label class="flex items-start gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer hover:border-slate-700 transition">
+                            <input type="radio" name="backup_type" value="config_only" checked class="mt-1 accent-emerald-500">
+                            <div>
+                                <span class="font-bold text-white block">Configuration & Appliance Database (Fast)</span>
+                                <span class="text-[11px] text-slate-400 block mt-0.5">Exports all service configurations (Samba, BIND9, Chrony, FreeRADIUS, Nginx, Azure sync, Sysvol peers) and the appliance SQLite state database.</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800 cursor-pointer hover:border-slate-700 transition">
+                            <input type="radio" name="backup_type" value="full" class="mt-1 accent-emerald-500">
+                            <div>
+                                <span class="font-bold text-white block">Full Disaster Recovery (Complete AD + Sysvol)</span>
+                                <span class="text-[11px] text-slate-400 block mt-0.5">Includes all configurations + complete online Active Directory LDB directory partitions snapshot + Sysvol GPO replication files.</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">Backup Note / Description (Optional)</label>
+                    <input id="backup-desc-input" type="text" placeholder="e.g. Pre-upgrade baseline or weekly backup"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-sans focus:outline-none focus:border-emerald-500 transition">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeCreateBackupModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" id="btn-submit-backup" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-900/50">
+                        <i class="fa-solid fa-box-archive"></i> Generate Backup Archive
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Backup Archive Modal -->
+    <div id="modal-upload-backup" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-upload text-sky-400"></i> Upload Backup Archive
+                </h3>
+                <button onclick="closeUploadBackupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="submitUploadBackup(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">Select .tar.gz Backup File</label>
+                    <input type="file" id="backup-file-upload" accept=".tar.gz,.tgz" required
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
+                    <p class="text-[10px] text-slate-500 mt-1">Accepts standard ZclockID or Zentyal-compatible `.tar.gz` bundles</p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeUploadBackupModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" id="btn-submit-upload" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-sky-900/50">
+                        <i class="fa-solid fa-upload"></i> Upload & Verify
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Inspect Backup Manifest Modal -->
+    <div id="modal-inspect-backup" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass text-indigo-400"></i>
+                    <h3 id="inspect-modal-title" class="text-sm font-bold text-white font-mono">Backup Manifest Inspector</h3>
+                </div>
+                <button onclick="closeInspectBackupModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto custom-scroll space-y-4 text-xs font-mono">
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5" id="inspect-meta-grid">
+                    <!-- Dynamic Metadata -->
+                </div>
+                <div>
+                    <h4 class="text-xs font-sans font-bold text-slate-300 mb-2">Raw Manifest JSON:</h4>
+                    <pre id="inspect-modal-json" class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-emerald-400 whitespace-pre-wrap break-all max-h-60 overflow-y-auto custom-scroll"></pre>
+                </div>
+                <div>
+                    <h4 class="text-xs font-sans font-bold text-slate-300 mb-2">Archive Contents (Sample):</h4>
+                    <div id="inspect-modal-contents" class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1 max-h-40 overflow-y-auto custom-scroll"></div>
+                </div>
+            </div>
+            <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-end">
+                <button onclick="closeInspectBackupModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Restore Modal -->
+    <div id="modal-confirm-restore" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-rose-900/50 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-rose-400 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Confirm Appliance Restoration
+                </h3>
+                <button onclick="closeRestoreModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3.5 text-xs">
+                <div class="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl space-y-1 text-[11px] text-rose-300">
+                    <strong class="block text-rose-200">System Overwrite Warning:</strong>
+                    <p>Restoring will overwrite current system configurations and database state with the snapshot stored inside <code class="text-white font-mono" id="restore-target-filename">archive.tar.gz</code>. All services (Samba, BIND9, Chrony, FreeRADIUS, Nginx) will be automatically reloaded/restarted.</p>
+                </div>
+
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5 font-mono text-xs">
+                    <div class="flex justify-between text-slate-400">
+                        <span>Target Archive:</span>
+                        <span id="restore-info-filename" class="text-white font-bold truncate max-w-xs">-</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                        <span>Created At:</span>
+                        <span id="restore-info-date" class="text-cyan-300">-</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                        <span>Backup Type:</span>
+                        <span id="restore-info-type" class="text-emerald-300 uppercase">-</span>
+                    </div>
+                </div>
+
+                <div class="pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                        <input type="checkbox" id="restore-skip-ad" class="accent-indigo-500 rounded">
+                        <span>Preserve current Active Directory partition (Restore configs & database only)</span>
+                    </label>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeRestoreModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" onclick="executeRestore()" id="btn-run-restore" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-rose-900/50">
+                        <i class="fa-solid fa-rotate-left"></i> Restore Appliance Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Live Journalctl Log Viewer Modal -->
     <div id="log-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
@@ -1988,7 +2216,7 @@
 
         // Tab Navigation
         function showTab(tabId) {
-            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports'];
+            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup'];
             tabs.forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const nav = document.getElementById(`nav-${t}`);
@@ -2016,6 +2244,7 @@
             else if (tabId === 'sysvol') { fetchSysvolStatus(); fetchSysvolPartners(); }
             else if (tabId === 'azure') { fetchAzureStatus(); fetchAzureConfig(); }
             else if (tabId === 'reports') { fetchAuditEvents(); }
+            else if (tabId === 'backup') { fetchBackups(); }
         }
 
         // Sub-tabs in RADIUS
@@ -3642,6 +3871,283 @@
 
         function exportAuditCsv() {
             window.location.href = `${API_BASE}/reports/export/csv`;
+        }
+
+        // ==================== BACKUP & RESTORE JAVASCRIPT CONTROLLER ====================
+        let currentBackups = [];
+        let backupToRestore = null;
+
+        async function fetchBackups() {
+            const tbody = document.getElementById('backups-table-body');
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Querying backup archives...</td></tr>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/backups`);
+                const data = await res.json();
+                currentBackups = data.backups || [];
+
+                document.getElementById('backup-stat-count').innerText = data.total_backups || 0;
+                document.getElementById('backup-stat-size').innerText = `${data.total_size_mb || 0} MB`;
+                if (data.last_backup) {
+                    const d = new Date(data.last_backup);
+                    document.getElementById('backup-stat-last').innerText = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                } else {
+                    document.getElementById('backup-stat-last').innerText = 'Never';
+                }
+
+                renderBackupsTable(currentBackups);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to load backups: ${err}</td></tr>`;
+            }
+        }
+
+        function renderBackupsTable(backups) {
+            const tbody = document.getElementById('backups-table-body');
+            if (backups.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">No backup archives found. Click "Create Backup" to generate one.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = backups.map(b => {
+                const isFull = b.backup_type === 'full';
+                const createdDate = b.created_at ? new Date(b.created_at).toLocaleString() : '-';
+                return `
+                    <tr class="hover:bg-slate-800/30">
+                        <td class="px-4 py-3">
+                            <div class="font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-file-zipper ${isFull ? 'text-amber-400' : 'text-emerald-400'}"></i>
+                                <span>${b.filename}</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 font-sans block pt-0.5">${b.description || 'Appliance backup'}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isFull ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-emerald-950 text-emerald-300 border border-emerald-800'}">
+                                ${isFull ? 'FULL DISASTER RECOVERY' : 'CONFIGURATION ONLY'}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-cyan-300 font-semibold">${b.size_human}</td>
+                        <td class="px-4 py-3 text-slate-300 text-[11px]">${createdDate}</td>
+                        <td class="px-4 py-3 text-slate-400">
+                            <div class="text-white font-semibold">${b.realm}</div>
+                            <div class="text-[10px] text-slate-500">${b.hostname}</div>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <button onclick="downloadBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition" title="Download to PC">
+                                    <i class="fa-solid fa-download"></i>
+                                </button>
+                                <button onclick="inspectBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded text-xs transition" title="Inspect Manifest">
+                                    <i class="fa-solid fa-magnifying-glass"></i>
+                                </button>
+                                <button onclick="confirmRestoreBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-rose-900/60 text-amber-400 hover:text-white rounded text-xs transition" title="Restore this Backup">
+                                    <i class="fa-solid fa-rotate-left"></i>
+                                </button>
+                                <button onclick="deleteBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-rose-800 text-slate-400 hover:text-white rounded text-xs transition" title="Delete Archive">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openCreateBackupModal() {
+            document.getElementById('modal-create-backup').classList.remove('hidden');
+        }
+
+        function closeCreateBackupModal() {
+            document.getElementById('modal-create-backup').classList.add('hidden');
+        }
+
+        async function submitCreateBackup(e) {
+            e.preventDefault();
+            const bType = document.querySelector('input[name="backup_type"]:checked').value;
+            const desc = document.getElementById('backup-desc-input').value.trim();
+            const btn = document.getElementById('btn-submit-backup');
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating Archive...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/backups/create`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ backup_type: bType, description: desc })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Backup archive created successfully!');
+                    closeCreateBackupModal();
+                    fetchBackups();
+                } else {
+                    alert(`Failed to create backup: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error creating backup: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-box-archive"></i> Generate Backup Archive`;
+            }
+        }
+
+        function downloadBackup(filename) {
+            window.location.href = `${API_BASE}/backups/download/${encodeURIComponent(filename)}`;
+        }
+
+        function openUploadBackupModal() {
+            document.getElementById('modal-upload-backup').classList.remove('hidden');
+        }
+
+        function closeUploadBackupModal() {
+            document.getElementById('modal-upload-backup').classList.add('hidden');
+        }
+
+        async function submitUploadBackup(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('backup-file-upload');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                return alert('Please select a backup archive to upload.');
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const btn = document.getElementById('btn-submit-upload');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Archive...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/backups/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Backup uploaded successfully!');
+                    closeUploadBackupModal();
+                    fileInput.value = '';
+                    fetchBackups();
+                } else {
+                    alert(`Upload failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error uploading file: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-upload"></i> Upload & Verify`;
+            }
+        }
+
+        async function inspectBackup(filename) {
+            try {
+                const res = await fetch(`${API_BASE}/backups/inspect`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename: filename })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Inspection failed');
+
+                document.getElementById('inspect-modal-title').innerText = `Manifest: ${filename}`;
+                const m = data.manifest || {};
+                const grid = document.getElementById('inspect-meta-grid');
+                grid.innerHTML = `
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div><span class="text-slate-500 text-[10px] block">TYPE</span><span class="font-bold text-emerald-400 uppercase">${m.backup_type || 'Unknown'}</span></div>
+                        <div><span class="text-slate-500 text-[10px] block">REALM</span><span class="font-bold text-white">${m.realm || 'Unknown'}</span></div>
+                        <div><span class="text-slate-500 text-[10px] block">HOSTNAME</span><span class="font-bold text-cyan-300">${m.hostname || 'Unknown'}</span></div>
+                        <div><span class="text-slate-500 text-[10px] block">VERSION</span><span class="font-bold text-indigo-300">${m.appliance_version || '1.1.0'}</span></div>
+                    </div>
+                `;
+
+                document.getElementById('inspect-modal-json').innerText = JSON.stringify(m, null, 2);
+
+                const cBox = document.getElementById('inspect-modal-contents');
+                if (data.contents && data.contents.length > 0) {
+                    cBox.innerHTML = data.contents.map(c => `
+                        <div class="flex items-center justify-between py-0.5 border-b border-slate-900">
+                            <span class="${c.is_dir ? 'text-indigo-300 font-bold' : 'text-slate-300'}">${c.name}</span>
+                            <span class="text-slate-500 text-[10px]">${c.is_dir ? 'DIR' : `${(c.size/1024).toFixed(1)} KB`}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    cBox.innerHTML = `<span class="text-slate-500">Archive file tree not available.</span>`;
+                }
+
+                document.getElementById('modal-inspect-backup').classList.remove('hidden');
+            } catch (err) {
+                alert(`Failed to inspect backup: ${err.message}`);
+            }
+        }
+
+        function closeInspectBackupModal() {
+            document.getElementById('modal-inspect-backup').classList.add('hidden');
+        }
+
+        function confirmRestoreBackup(filename) {
+            const b = currentBackups.find(x => x.filename === filename);
+            backupToRestore = filename;
+            document.getElementById('restore-target-filename').innerText = filename;
+            document.getElementById('restore-info-filename').innerText = filename;
+            document.getElementById('restore-info-date').innerText = b ? new Date(b.created_at).toLocaleString() : '-';
+            document.getElementById('restore-info-type').innerText = b ? b.backup_type : 'config_only';
+            document.getElementById('restore-skip-ad').checked = false;
+            document.getElementById('modal-confirm-restore').classList.remove('hidden');
+        }
+
+        function closeRestoreModal() {
+            document.getElementById('modal-confirm-restore').classList.add('hidden');
+            backupToRestore = null;
+        }
+
+        async function executeRestore() {
+            if (!backupToRestore) return;
+            const skipAd = document.getElementById('restore-skip-ad').checked;
+            const btn = document.getElementById('btn-run-restore');
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Restoring Appliance...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/backups/restore`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ filename: backupToRestore, skip_ad_restore: skipAd })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`Appliance Restored Successfully!\n\n${data.message}\n\nComponents restored:\n• ${data.restored_components.join('\n• ')}`);
+                    closeRestoreModal();
+                    fetchBackups();
+                    fetchSystemStatus();
+                } else {
+                    alert(`Restore failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error executing restore: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-rotate-left"></i> Restore Appliance Now`;
+            }
+        }
+
+        async function deleteBackup(filename) {
+            if (!confirm(`Delete backup archive '${filename}'?\n\nThis cannot be undone.`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/backups/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    fetchBackups();
+                } else {
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting backup: ${err}`);
+            }
         }
 
         function logout() {

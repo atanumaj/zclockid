@@ -90,6 +90,7 @@ apt-get install -y --no-install-recommends \
     python3-fastapi \
     python3-uvicorn \
     python3-pydantic \
+    python3-multipart \
     python3-psutil \
     python3-pip \
     python3-venv \
