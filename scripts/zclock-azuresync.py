@@ -144,10 +144,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="ZclockID Azure Cloud Sync")
     parser.add_argument("--dry-run", action="store_true", help="Simulate synchronization without modifying cloud")
     parser.add_argument("--sync-once", action="store_true", help="Run a single sync pass and exit")
+    parser.add_argument("--test-connection", action="store_true", help="Test Entra ID credentials without running sync")
     args = parser.parse_args()
 
     syncer = AzureCloudSync(CONFIG_PATH)
-    if args.sync_once or args.dry_run:
+    if args.test_connection:
+        token = syncer.get_graph_token()
+        if token:
+            print("SUCCESS: Successfully authenticated to Microsoft Entra ID.")
+            sys.exit(0)
+        else:
+            print("ERROR: Failed to authenticate to Microsoft Entra ID.")
+            sys.exit(1)
+    elif args.sync_once or args.dry_run:
         syncer.sync_cycle(dry_run=args.dry_run)
     else:
         logger.info("Starting zclock-azuresync daemon loop...")

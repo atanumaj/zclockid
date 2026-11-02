@@ -174,6 +174,7 @@ python3 -c "import fastapi, uvicorn, pydantic, psutil; print('All Python depende
 # Copy Systemd Services
 cp "${SCRIPT_DIR}/systemd/zclock-api.service" /etc/systemd/system/
 cp "${SCRIPT_DIR}/systemd/zclock-sysvold.service" /etc/systemd/system/
+cp "${SCRIPT_DIR}/systemd/zclock-azuresync.service" /etc/systemd/system/
 
 systemctl daemon-reload
 systemctl enable zclock-api.service

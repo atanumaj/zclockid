@@ -1,0 +1,16 @@
+[Unit]
+Description=ZclockID Microsoft Entra ID (Azure AD) Cloud Sync Daemon
+After=network.target samba-ad-dc.service
+Wants=samba-ad-dc.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /opt/zclockid/scripts/zclock-azuresync.py
+Restart=always
+RestartSec=15s
+Environment=PYTHONUNBUFFERED=1
+Environment=AZURE_SYNC_CONFIG=/etc/zclockid/azure-sync.json
+
+[Install]
+WantedBy=multi-user.target

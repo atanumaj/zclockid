@@ -755,22 +755,241 @@
 
             <!-- ==================== TAB 7: AZURE CLOUD SYNC ==================== -->
             <section id="tab-azure" class="space-y-6 hidden">
+                <!-- Header Banner -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
-                            <h3 class="text-sm font-semibold text-white">Microsoft Entra ID (Azure AD) Native Sync</h3>
-                            <p class="text-xs text-slate-400">Direct Linux-to-Cloud synchronization via Microsoft Graph API without Windows Server</p>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-brands fa-microsoft text-sky-400"></i> Microsoft Entra ID (Azure AD) Native Sync
+                            </h3>
+                            <p class="text-xs text-slate-400">Direct Linux-to-Cloud directory synchronization via Microsoft Graph REST API without Windows Server or Azure AD Connect</p>
                         </div>
-                        <button onclick="triggerAzureSync()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> Sync Now
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="testAzureConnection()" id="btn-azure-test" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plug-circle-check text-sky-400"></i> Test Connection
+                            </button>
+                            <button onclick="triggerAzureSync()" id="btn-azure-sync" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Sync Now
+                            </button>
+                            <button onclick="openLogViewer('zclock-azuresync', 'Microsoft Entra ID Sync')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-terminal text-indigo-400"></i> Live Logs
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
-                            <div class="flex justify-between"><span class="text-slate-500">Sync Status:</span> <span id="azure-status-text" class="text-amber-400">NOT CONFIGURED</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">Local AD Users:</span> <span id="azure-local-count" class="text-white">0</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">Synced to Cloud:</span> <span id="azure-synced-count" class="text-white">0</span></div>
+                    <!-- Metrics / Status Row -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Sync Engine Status</span>
+                            <div class="flex items-center gap-2">
+                                <span id="azure-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                <span id="azure-status-text" class="text-amber-400 font-bold text-xs">NOT CONFIGURED</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Last Cloud Sync</span>
+                            <div id="azure-last-sync-time" class="text-slate-300 font-bold text-xs truncate">Never</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">On-Prem AD Users</span>
+                            <div id="azure-local-count" class="text-white font-bold text-xs">0 Accounts</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Reconciled to Cloud</span>
+                            <div id="azure-synced-count" class="text-emerald-400 font-bold text-xs">0 Accounts</div>
+                        </div>
+                    </div>
+
+                    <!-- Status Notification Banner -->
+                    <div id="azure-status-banner" class="hidden p-3 rounded-lg border text-xs flex items-start gap-2.5">
+                        <i id="azure-status-banner-icon" class="fa-solid fa-circle-info text-sky-400 mt-0.5"></i>
+                        <span id="azure-status-banner-msg" class="leading-relaxed"></span>
+                    </div>
+                </div>
+
+                <!-- Main Layout: 2 Columns (Configuration Form & Setup Guide) -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Column 1: Configuration Form (7 cols) -->
+                    <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-5">
+                        <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+                            <div>
+                                <h4 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-sliders text-indigo-400"></i> Entra ID Cloud Connector Settings
+                                </h4>
+                                <p class="text-xs text-slate-400">Configure Microsoft Graph OAuth 2.0 API credentials and directory filtering</p>
+                            </div>
+                            <span class="text-[10px] bg-indigo-950/60 text-indigo-300 border border-indigo-800/60 px-2 py-0.5 rounded font-mono">Graph v1.0</span>
+                        </div>
+
+                        <form id="azure-config-form" onsubmit="saveAzureConfig(event)" class="space-y-4 text-xs">
+                            <!-- Sync Enable Switch -->
+                            <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                                <div>
+                                    <label for="azure-cfg-enabled" class="font-medium text-slate-200 cursor-pointer block">Enable Background Cloud Sync</label>
+                                    <p class="text-[11px] text-slate-400">Periodically push Samba AD accounts and groups to Microsoft Entra ID</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="azure-cfg-enabled" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+
+                            <!-- Tenant ID -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">
+                                    Directory (Tenant) ID <span class="text-rose-400">*</span>
+                                </label>
+                                <input type="text" id="azure-cfg-tenant-id" required placeholder="e.g. 84b12345-6789-abcd-ef01-234567890abc or yourcompany.onmicrosoft.com"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
+                                <p class="text-[10px] text-slate-500">Found in Microsoft Entra Admin Center &rarr; Identity &rarr; Overview</p>
+                            </div>
+
+                            <!-- Client ID -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">
+                                    Application (Client) ID <span class="text-rose-400">*</span>
+                                </label>
+                                <input type="text" id="azure-cfg-client-id" required placeholder="e.g. 11223344-5566-7788-99aa-bbccddeeff00"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
+                                <p class="text-[10px] text-slate-500">The Application ID assigned to your App Registration in Entra ID</p>
+                            </div>
+
+                            <!-- Client Secret -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">
+                                    Application Client Secret Value <span class="text-rose-400">*</span>
+                                </label>
+                                <div class="relative">
+                                    <input type="password" id="azure-cfg-client-secret" placeholder="Paste Secret Value (leave blank to keep current secret)"
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-3 pr-10 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
+                                    <button type="button" onclick="toggleAzureSecretVisibility()" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-200 transition">
+                                        <i id="azure-secret-eye-icon" class="fa-regular fa-eye text-xs"></i>
+                                    </button>
+                                </div>
+                                <p id="azure-cfg-secret-hint" class="text-[10px] text-slate-500">Client secret generated under Certificates & secrets in Azure Portal</p>
+                            </div>
+
+                            <!-- Target Domain & Sync Interval Grid -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="space-y-1">
+                                    <label class="block font-medium text-slate-300">Target Cloud UPN Domain</label>
+                                    <input type="text" id="azure-cfg-domain" placeholder="e.g. company.com or company.onmicrosoft.com"
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
+                                    <p class="text-[10px] text-slate-500">Domain suffix for cloud userPrincipalName</p>
+                                </div>
+                                <div class="space-y-1">
+                                    <label class="block font-medium text-slate-300">Synchronization Interval</label>
+                                    <select id="azure-cfg-interval" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500 transition text-xs">
+                                        <option value="300">Every 5 minutes</option>
+                                        <option value="900" selected>Every 15 minutes (Standard)</option>
+                                        <option value="1800">Every 30 minutes</option>
+                                        <option value="3600">Every 1 hour</option>
+                                        <option value="14400">Every 4 hours</option>
+                                        <option value="86400">Once Daily (Midnight)</option>
+                                    </select>
+                                    <p class="text-[10px] text-slate-500">Frequency of background daemon sync runs</p>
+                                </div>
+                            </div>
+
+                            <!-- Source OU Filter -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">Source OU / LDAP Filter (Optional)</label>
+                                <input type="text" id="azure-cfg-ou" placeholder="e.g. OU=Users,DC=inet,DC=net (Leave blank for all users)"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
+                                <p class="text-[10px] text-slate-500">Restrict sync scope to a specific Active Directory Organizational Unit</p>
+                            </div>
+
+                            <!-- Policy Checkboxes -->
+                            <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                                <span class="text-[11px] font-semibold text-slate-300 block mb-1">Reconciliation Policies</span>
+                                <label class="flex items-center gap-2.5 text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="azure-cfg-exclude-disabled" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" checked>
+                                    <span>Exclude disabled on-premises AD accounts from cloud sync</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="azure-cfg-auto-create" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0" checked>
+                                    <span>Auto-provision new accounts in Entra ID if they do not exist in cloud</span>
+                                </label>
+                                <label class="flex items-center gap-2.5 text-slate-300 cursor-pointer">
+                                    <input type="checkbox" id="azure-cfg-password-hash" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+                                    <span>Synchronize password hashes / credentials to Microsoft 365</span>
+                                </label>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="pt-2 flex items-center justify-end gap-3">
+                                <button type="button" onclick="fetchAzureConfig()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">
+                                    Discard Changes
+                                </button>
+                                <button type="submit" id="btn-save-azure-cfg" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Configuration
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Column 2: Setup Guide & Architecture (5 cols) -->
+                    <div class="lg:col-span-5 space-y-5">
+                        <!-- Prerequisites Walkthrough Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="border-b border-slate-800 pb-3">
+                                <h4 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-book-open text-sky-400"></i> Microsoft Entra Setup Guide
+                                </h4>
+                                <p class="text-xs text-slate-400">Required setup in your Microsoft 365 / Entra tenant</p>
+                            </div>
+
+                            <ol class="space-y-3 text-xs text-slate-300">
+                                <li class="flex items-start gap-2.5 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                                    <span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold flex items-center justify-center text-[10px]">1</span>
+                                    <div>
+                                        <strong class="text-white block">Register Application in Azure Portal</strong>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">Go to <a href="https://entra.microsoft.com" target="_blank" class="text-indigo-400 hover:underline">entra.microsoft.com</a> &rarr; <em>Applications</em> &rarr; <em>App registrations</em> &rarr; <strong>New registration</strong> (name it e.g. <code class="text-indigo-300">ZclockID-CloudSync</code>).</p>
+                                    </div>
+                                </li>
+                                <li class="flex items-start gap-2.5 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                                    <span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold flex items-center justify-center text-[10px]">2</span>
+                                    <div>
+                                        <strong class="text-white block">Grant Graph API Permissions</strong>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">Navigate to <em>API permissions</em> &rarr; <em>Add a permission</em> &rarr; <em>Microsoft Graph</em> &rarr; <strong>Application permissions</strong>, then check:</p>
+                                        <div class="flex flex-wrap gap-1.5 mt-1 font-mono text-[10px]">
+                                            <span class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-sky-300">User.ReadWrite.All</span>
+                                            <span class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-sky-300">Directory.ReadWrite.All</span>
+                                            <span class="bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded text-sky-300">Group.ReadWrite.All</span>
+                                        </div>
+                                        <p class="text-[10px] text-amber-400 mt-1 font-medium"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Click "Grant admin consent for tenant".</p>
+                                    </div>
+                                </li>
+                                <li class="flex items-start gap-2.5 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                                    <span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold flex items-center justify-center text-[10px]">3</span>
+                                    <div>
+                                        <strong class="text-white block">Generate Client Secret</strong>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">Under <em>Certificates & secrets</em> &rarr; <strong>New client secret</strong>. Copy the secret <strong>Value</strong> (not Secret ID) immediately.</p>
+                                    </div>
+                                </li>
+                                <li class="flex items-start gap-2.5 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+                                    <span class="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold flex items-center justify-center text-[10px]">4</span>
+                                    <div>
+                                        <strong class="text-white block">Paste & Test Connection</strong>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">Fill in the fields on the left and click <strong>Test Connection</strong> to verify token acquisition.</p>
+                                    </div>
+                                </li>
+                            </ol>
+                        </div>
+
+                        <!-- Architecture & Technical Advantages Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                            <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-diagram-project text-emerald-400"></i> Why Native Linux Sync?
+                            </h4>
+                            <div class="space-y-2 text-[11px] text-slate-400 leading-relaxed">
+                                <p>
+                                    Traditional setups require running a dedicated Windows Server VM solely to host Microsoft Azure AD Connect / Cloud Sync agent, costing thousands in Windows Server CALs.
+                                </p>
+                                <p>
+                                    <strong class="text-slate-200">ZclockID</strong> uses an asynchronous daemon (<code class="text-indigo-300">zclock-azuresync</code>) communicating directly with Microsoft Graph REST endpoints over outbound TLS 443, eliminating external Windows dependencies entirely.
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1206,7 +1425,7 @@
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
             else if (tabId === 'radius') { fetchRadiusClients(); fetchRadiusSessions(); }
             else if (tabId === 'sysvol') { fetchSysvolStatus(); fetchSysvolPartners(); }
-            else if (tabId === 'azure') { fetchAzureStatus(); }
+            else if (tabId === 'azure') { fetchAzureStatus(); fetchAzureConfig(); }
             else if (tabId === 'reports') { fetchAuditEvents(); }
         }
 
@@ -2229,26 +2448,211 @@
             }
         }
 
+        // ==================== AZURE CLOUD SYNC JS ====================
+        let currentAzureConfig = {};
+
         async function fetchAzureStatus() {
             try {
                 const res = await fetch(`${API_BASE}/azure/status`);
                 const data = await res.json();
-                document.getElementById('azure-status-text').innerText = data.status || 'NOT CONFIGURED';
-                document.getElementById('azure-local-count').innerText = data.local_users_count || 0;
-                document.getElementById('azure-synced-count').innerText = data.synced_users_count || 0;
+                
+                const statusText = document.getElementById('azure-status-text');
+                const statusDot = document.getElementById('azure-status-dot');
+                const lastSyncEl = document.getElementById('azure-last-sync-time');
+                const localCountEl = document.getElementById('azure-local-count');
+                const syncedCountEl = document.getElementById('azure-synced-count');
+                const banner = document.getElementById('azure-status-banner');
+                const bannerMsg = document.getElementById('azure-status-banner-msg');
+                const bannerIcon = document.getElementById('azure-status-banner-icon');
+
+                const status = (data.status || 'NOT CONFIGURED').toUpperCase();
+                statusText.innerText = status;
+
+                // Color code status dot and text
+                if (status === 'HEALTHY' || status === 'SYNCED') {
+                    statusText.className = 'text-emerald-400 font-bold text-xs';
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+                } else if (status === 'DISABLED') {
+                    statusText.className = 'text-slate-400 font-bold text-xs';
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
+                } else if (status === 'AUTH_ERROR' || status === 'ERROR') {
+                    statusText.className = 'text-rose-400 font-bold text-xs';
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse';
+                } else {
+                    statusText.className = 'text-amber-400 font-bold text-xs';
+                    statusDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+                }
+
+                if (data.last_sync) {
+                    const d = new Date(data.last_sync * 1000);
+                    lastSyncEl.innerText = d.toLocaleString();
+                } else {
+                    lastSyncEl.innerText = 'Never';
+                }
+
+                localCountEl.innerText = `${data.local_users_count || 0} Accounts`;
+                syncedCountEl.innerText = `${data.synced_users_count || 0} Accounts`;
+
+                if (data.message) {
+                    banner.classList.remove('hidden');
+                    bannerMsg.innerText = data.message;
+                    if (status === 'HEALTHY') {
+                        banner.className = 'p-3 rounded-lg border border-emerald-800/60 bg-emerald-950/30 text-emerald-300 text-xs flex items-start gap-2.5';
+                        bannerIcon.className = 'fa-solid fa-circle-check text-emerald-400 mt-0.5';
+                    } else if (status === 'AUTH_ERROR' || status === 'ERROR') {
+                        banner.className = 'p-3 rounded-lg border border-rose-800/60 bg-rose-950/30 text-rose-300 text-xs flex items-start gap-2.5';
+                        bannerIcon.className = 'fa-solid fa-circle-xmark text-rose-400 mt-0.5';
+                    } else {
+                        banner.className = 'p-3 rounded-lg border border-slate-800 bg-slate-950/60 text-slate-300 text-xs flex items-start gap-2.5';
+                        bannerIcon.className = 'fa-solid fa-circle-info text-sky-400 mt-0.5';
+                    }
+                } else {
+                    banner.classList.add('hidden');
+                }
             } catch (err) {
                 console.error('Error fetching azure status:', err);
             }
         }
 
+        async function fetchAzureConfig() {
+            try {
+                const res = await fetch(`${API_BASE}/azure/config`);
+                if (!res.ok) throw new Error('Failed to load azure config');
+                const cfg = await res.json();
+                currentAzureConfig = cfg;
+
+                document.getElementById('azure-cfg-enabled').checked = Boolean(cfg.enabled);
+                document.getElementById('azure-cfg-tenant-id').value = (cfg.tenant_id && cfg.tenant_id !== 'YOUR_AZURE_TENANT_ID_GUID') ? cfg.tenant_id : '';
+                document.getElementById('azure-cfg-client-id').value = (cfg.client_id && cfg.client_id !== 'YOUR_AZURE_APP_CLIENT_ID_GUID') ? cfg.client_id : '';
+                
+                const secretInput = document.getElementById('azure-cfg-client-secret');
+                const secretHint = document.getElementById('azure-cfg-secret-hint');
+                secretInput.value = '';
+                if (cfg.has_secret || (cfg.client_secret && cfg.client_secret.includes('*'))) {
+                    secretInput.placeholder = '•••••••••••••••• (Saved. Leave blank to keep current secret)';
+                    secretHint.innerText = 'Existing secret is saved securely. Enter new value only to update.';
+                } else {
+                    secretInput.placeholder = 'Paste client secret value from Azure portal';
+                    secretHint.innerText = 'Client secret generated under Certificates & secrets in Azure Portal';
+                }
+
+                document.getElementById('azure-cfg-domain').value = cfg.default_domain || 'inet.net';
+                document.getElementById('azure-cfg-ou').value = cfg.source_ou || '';
+                if (cfg.sync_interval_seconds) {
+                    document.getElementById('azure-cfg-interval').value = String(cfg.sync_interval_seconds);
+                }
+                document.getElementById('azure-cfg-exclude-disabled').checked = cfg.exclude_disabled !== false;
+                document.getElementById('azure-cfg-auto-create').checked = cfg.auto_create_users !== false;
+                document.getElementById('azure-cfg-password-hash').checked = Boolean(cfg.password_hash_sync);
+            } catch (err) {
+                console.error('Error fetching azure config:', err);
+            }
+        }
+
+        function toggleAzureSecretVisibility() {
+            const input = document.getElementById('azure-cfg-client-secret');
+            const icon = document.getElementById('azure-secret-eye-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-regular fa-eye-slash text-xs';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-regular fa-eye text-xs';
+            }
+        }
+
+        async function saveAzureConfig(e) {
+            if (e) e.preventDefault();
+            const btn = document.getElementById('btn-save-azure-cfg');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+            const payload = {
+                enabled: document.getElementById('azure-cfg-enabled').checked,
+                tenant_id: document.getElementById('azure-cfg-tenant-id').value.trim(),
+                client_id: document.getElementById('azure-cfg-client-id').value.trim(),
+                client_secret: document.getElementById('azure-cfg-client-secret').value.trim() || '********',
+                default_domain: document.getElementById('azure-cfg-domain').value.trim() || 'inet.net',
+                source_ou: document.getElementById('azure-cfg-ou').value.trim(),
+                sync_interval_seconds: parseInt(document.getElementById('azure-cfg-interval').value, 10) || 900,
+                exclude_disabled: document.getElementById('azure-cfg-exclude-disabled').checked,
+                auto_create_users: document.getElementById('azure-cfg-auto-create').checked,
+                password_hash_sync: document.getElementById('azure-cfg-password-hash').checked
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/azure/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to update configuration');
+
+                alert('Microsoft Entra ID synchronization settings saved successfully.');
+                await fetchAzureConfig();
+                await fetchAzureStatus();
+            } catch (err) {
+                alert(`Error saving Azure configuration: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+
+        async function testAzureConnection() {
+            const btn = document.getElementById('btn-azure-test');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testing...';
+
+            const payload = {
+                tenant_id: document.getElementById('azure-cfg-tenant-id').value.trim(),
+                client_id: document.getElementById('azure-cfg-client-id').value.trim(),
+                client_secret: document.getElementById('azure-cfg-client-secret').value.trim() || undefined
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/azure/test-connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Connection Successful!\n\n${data.message}\nToken Type: ${data.token_type}\nExpires In: ${data.expires_in}s`);
+                } else {
+                    alert(`Connection Failed:\n\n${data.error || data.detail || 'Could not verify credentials'}`);
+                }
+            } catch (err) {
+                alert(`Error testing Azure connection: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+
         async function triggerAzureSync() {
+            const btn = document.getElementById('btn-azure-sync');
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...';
+
             try {
                 const res = await fetch(`${API_BASE}/azure/sync`, { method: 'POST' });
                 const data = await res.json();
-                alert(`Azure sync finished with code ${data.exit_code}: ${data.output || data.error}`);
-                fetchAzureStatus();
+                if (data.status === 'success') {
+                    alert(`Azure Synchronization Triggered!\n\n${data.output || 'Sync completed successfully.'}`);
+                } else {
+                    alert(`Azure Synchronization Failed (Exit ${data.exit_code}):\n\n${data.error || data.output}`);
+                }
+                await fetchAzureStatus();
             } catch (err) {
-                alert(`Error triggering azure sync: ${err}`);
+                alert(`Error triggering Azure sync: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
             }
         }
 
