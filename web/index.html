@@ -11,10 +11,10 @@
         body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
 
     <!-- Top Navigation Bar -->
-    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center space-x-3">
             <div class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-xl text-white shadow-lg shadow-indigo-500/30">
                 <i class="fa-solid fa-shield-halved"></i>
@@ -26,11 +26,14 @@
                 <p class="text-xs text-slate-400">Enterprise Active Directory & Identity Appliance</p>
             </div>
         </div>
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-3">
+            <a href="/register.html" target="_blank" class="text-xs bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-md font-medium text-white transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-user-plus"></i> Self-Registration Portal
+            </a>
             <span id="health-badge" class="px-3 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Appliance Healthy
             </span>
-            <a href="/docs" target="_blank" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-md font-medium text-slate-200 transition">
+            <a href="/docs" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-md font-medium text-slate-200 transition">
                 <i class="fa-solid fa-book mr-1"></i> API Docs
             </a>
         </div>
@@ -40,16 +43,16 @@
     <main class="flex-1 p-6 max-w-7xl mx-auto w-full space-y-6">
 
         <!-- Banner Notice -->
-        <div class="bg-gradient-to-r from-indigo-900/40 to-slate-800/80 border border-indigo-500/30 rounded-xl p-5 shadow-sm flex items-center justify-between">
+        <div class="bg-gradient-to-r from-indigo-950/60 to-slate-900 border border-indigo-500/30 rounded-xl p-5 shadow-sm flex items-center justify-between">
             <div class="space-y-1">
-                <h2 class="text-sm font-semibold text-indigo-300">Ready for Domain Management</h2>
+                <h2 class="text-sm font-semibold text-indigo-300">Active Directory Core & User Lifecycle Engine</h2>
                 <p class="text-xs text-slate-300 max-w-3xl">
-                    ZclockID is operating as a dedicated Active Directory Domain Controller. Directory users, GPOs, and OUs can be managed natively via Microsoft Remote Server Administration Tools (RSAT) or automated through our Headless REST API.
+                    Operating as a dedicated Active Directory Domain Controller with native User Self-Registration, DRS replication, and BIND9 DNS-over-HTTPS. Directory users can be administered via Microsoft RSAT (<span class="font-mono text-indigo-400">dsa.msc</span>) or automated via our Headless REST API.
                 </p>
             </div>
             <div class="flex gap-2">
-                <button onclick="fetchStatus()" class="text-xs bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg font-medium text-white shadow transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                <button onclick="refreshAll()" class="text-xs bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded-lg font-medium text-white shadow transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrows-rotate"></i> Refresh Telemetry
                 </button>
             </div>
         </div>
@@ -57,7 +60,7 @@
         <!-- Engine Status Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Card 1: Samba AD DC -->
-            <div class="bg-slate-800 border border-slate-700/80 rounded-xl p-5 space-y-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
                 <div class="flex items-center justify-between text-slate-400">
                     <span class="text-xs font-medium uppercase tracking-wider">Directory Core</span>
                     <i class="fa-solid fa-server text-indigo-400"></i>
@@ -68,14 +71,14 @@
                         <i class="fa-solid fa-circle-check"></i> Kerberos / LDAP Active
                     </p>
                 </div>
-                <div class="text-xs text-slate-400 border-t border-slate-700/60 pt-3 flex justify-between">
+                <div class="text-xs text-slate-400 border-t border-slate-800 pt-3 flex justify-between">
                     <span>Replication (DRS)</span>
                     <span class="text-slate-200 font-mono">0 Failures</span>
                 </div>
             </div>
 
             <!-- Card 2: BIND9 DLZ & DoH -->
-            <div class="bg-slate-800 border border-slate-700/80 rounded-xl p-5 space-y-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
                 <div class="flex items-center justify-between text-slate-400">
                     <span class="text-xs font-medium uppercase tracking-wider">Encrypted DNS</span>
                     <i class="fa-solid fa-network-wired text-cyan-400"></i>
@@ -86,14 +89,14 @@
                         <i class="fa-solid fa-lock"></i> Port 53 + DoH (443)
                     </p>
                 </div>
-                <div class="text-xs text-slate-400 border-t border-slate-700/60 pt-3 flex justify-between">
+                <div class="text-xs text-slate-400 border-t border-slate-800 pt-3 flex justify-between">
                     <span>Endpoint</span>
                     <span class="text-slate-200 font-mono">/dns-query</span>
                 </div>
             </div>
 
             <!-- Card 3: FreeRADIUS -->
-            <div class="bg-slate-800 border border-slate-700/80 rounded-xl p-5 space-y-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
                 <div class="flex items-center justify-between text-slate-400">
                     <span class="text-xs font-medium uppercase tracking-wider">802.1X Access</span>
                     <i class="fa-solid fa-wifi text-amber-400"></i>
@@ -104,97 +107,121 @@
                         <i class="fa-solid fa-key"></i> ntlm_auth Enabled
                     </p>
                 </div>
-                <div class="text-xs text-slate-400 border-t border-slate-700/60 pt-3 flex justify-between">
+                <div class="text-xs text-slate-400 border-t border-slate-800 pt-3 flex justify-between">
                     <span>Auth Engine</span>
                     <span class="text-slate-200 font-mono">EAP-PEAP</span>
                 </div>
             </div>
 
-            <!-- Card 4: Sysvol Sync & NTACL -->
-            <div class="bg-slate-800 border border-slate-700/80 rounded-xl p-5 space-y-3">
+            <!-- Card 4: Self-Registration Queue -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
                 <div class="flex items-center justify-between text-slate-400">
-                    <span class="text-xs font-medium uppercase tracking-wider">Sysvol Guardian</span>
-                    <i class="fa-solid fa-arrows-spin text-purple-400"></i>
+                    <span class="text-xs font-medium uppercase tracking-wider">Self-Registration</span>
+                    <i class="fa-solid fa-users text-emerald-400"></i>
                 </div>
                 <div>
-                    <h3 class="text-xl font-bold text-white">Sysvol Engine</h3>
-                    <p class="text-xs text-emerald-400 font-medium mt-1 flex items-center gap-1.5">
-                        <i class="fa-solid fa-shield-check"></i> NTACL Auto-Healer
+                    <h3 id="stat-pending-count" class="text-xl font-bold text-white">0 Pending</h3>
+                    <p class="text-xs text-slate-400 font-medium mt-1 flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock"></i> Verification Queue
                     </p>
                 </div>
-                <div class="text-xs text-slate-400 border-t border-slate-700/60 pt-3 flex justify-between">
-                    <span>Status</span>
-                    <span class="text-slate-200 font-mono">Synchronized</span>
+                <div class="text-xs text-slate-400 border-t border-slate-800 pt-3 flex justify-between">
+                    <span>Total Registered</span>
+                    <span id="stat-total-count" class="text-slate-200 font-mono">0</span>
                 </div>
             </div>
         </div>
 
-        <!-- Telemetry & Quick Action Table -->
+        <!-- Section 1: Self-Registration Pending Queue -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user-clock text-amber-400"></i> Pending User Self-Registrations
+                    </h3>
+                    <p class="text-xs text-slate-400">Self-registered users awaiting administrator approval before Samba AD provisioning</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="fetchPendingRegistrations()" class="text-xs bg-slate-800 hover:bg-slate-700 px-2.5 py-1.5 rounded text-slate-300">
+                        <i class="fa-solid fa-arrows-rotate mr-1"></i> Refresh Queue
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left text-slate-300">
+                    <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-2.5">User</th>
+                            <th class="px-4 py-2.5">Email</th>
+                            <th class="px-4 py-2.5">Department</th>
+                            <th class="px-4 py-2.5">Justification</th>
+                            <th class="px-4 py-2.5">Submitted</th>
+                            <th class="px-4 py-2.5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                        <tr>
+                            <td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">
+                                No pending registrations in queue.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Section 2: Detailed Reporting & Audit Logs -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Service Matrix -->
-            <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-4">
-                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-microchip text-slate-400"></i> Subsystem Status & Port Allocations
-                </h3>
-                <div class="overflow-x-auto">
+            <!-- Audit Events Feed -->
+            <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-chart-line text-cyan-400"></i> Detailed Reporting & Audit Trail
+                        </h3>
+                        <p class="text-xs text-slate-400">Real-time log of registrations, approvals, and security events</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="/api/v1/reports/export/csv?report_type=registrations" target="_blank"
+                            class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded text-slate-200 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-csv text-emerald-400"></i> Export Users CSV
+                        </a>
+                        <a href="/api/v1/reports/export/csv?report_type=audit" target="_blank"
+                            class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded text-slate-200 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-csv text-cyan-400"></i> Export Audit CSV
+                        </a>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto max-h-72 overflow-y-auto">
                     <table class="w-full text-xs text-left text-slate-300">
-                        <thead class="text-slate-400 uppercase bg-slate-900/60 text-[10px] tracking-wider border-b border-slate-700">
+                        <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800 sticky top-0">
                             <tr>
-                                <th class="px-4 py-2.5">Subsystem</th>
-                                <th class="px-4 py-2.5">Daemon</th>
-                                <th class="px-4 py-2.5">Ports</th>
-                                <th class="px-4 py-2.5">State</th>
+                                <th class="px-4 py-2">Event</th>
+                                <th class="px-4 py-2">Target</th>
+                                <th class="px-4 py-2">Status</th>
+                                <th class="px-4 py-2">Timestamp</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-700/50 font-mono text-[11px]">
+                        <tbody id="audit-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
                             <tr>
-                                <td class="px-4 py-2.5 font-sans font-medium text-white">Active Directory KDC</td>
-                                <td class="px-4 py-2.5 text-slate-400">samba-ad-dc</td>
-                                <td class="px-4 py-2.5 text-indigo-400">88, 464 (Kerberos)</td>
-                                <td class="px-4 py-2.5 text-emerald-400">RUNNING</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2.5 font-sans font-medium text-white">LDAP / LDAPS Server</td>
-                                <td class="px-4 py-2.5 text-slate-400">samba-ad-dc</td>
-                                <td class="px-4 py-2.5 text-indigo-400">389, 636 (LDAP/S)</td>
-                                <td class="px-4 py-2.5 text-emerald-400">RUNNING</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2.5 font-sans font-medium text-white">DNS-over-HTTPS & RFC53</td>
-                                <td class="px-4 py-2.5 text-slate-400">bind9 / nginx</td>
-                                <td class="px-4 py-2.5 text-cyan-400">53 (UDP/TCP), 443</td>
-                                <td class="px-4 py-2.5 text-emerald-400">RUNNING</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2.5 font-sans font-medium text-white">802.1X RADIUS Engine</td>
-                                <td class="px-4 py-2.5 text-slate-400">freeradius</td>
-                                <td class="px-4 py-2.5 text-amber-400">1812, 1813 (UDP)</td>
-                                <td class="px-4 py-2.5 text-emerald-400">RUNNING</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2.5 font-sans font-medium text-white">Sysvol NTACL Daemon</td>
-                                <td class="px-4 py-2.5 text-slate-400">zclock-sysvold</td>
-                                <td class="px-4 py-2.5 text-purple-400">22000 (P2P Sync)</td>
-                                <td class="px-4 py-2.5 text-emerald-400">RUNNING</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-2.5 font-sans font-medium text-white">Headless REST API</td>
-                                <td class="px-4 py-2.5 text-slate-400">zclock-api</td>
-                                <td class="px-4 py-2.5 text-indigo-400">8000 / 443 (/api)</td>
-                                <td class="px-4 py-2.5 text-emerald-400">RUNNING</td>
+                                <td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">
+                                    Loading audit telemetry...
+                                </td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Quick Action Panel -->
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-4">
+            <!-- Maintenance & Quick Actions -->
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                 <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-wrench text-slate-400"></i> Maintenance & Tools
+                    <i class="fa-solid fa-wrench text-slate-400"></i> Maintenance & Utilities
                 </h3>
                 <div class="space-y-2.5">
-                    <button onclick="triggerNtaclReset()" class="w-full text-left bg-slate-900/80 hover:bg-slate-900 border border-slate-700/80 p-3 rounded-lg text-xs text-slate-200 transition flex items-center justify-between group">
+                    <button onclick="triggerNtaclReset()" class="w-full text-left bg-slate-950 hover:bg-slate-800/60 border border-slate-800 p-3 rounded-lg text-xs text-slate-200 transition flex items-center justify-between group">
                         <div>
                             <p class="font-medium text-white group-hover:text-indigo-400">Repair Sysvol NTACLs</p>
                             <p class="text-[11px] text-slate-400">Executes 'samba-tool ntacl sysvolreset'</p>
@@ -202,17 +229,17 @@
                         <i class="fa-solid fa-arrow-right text-slate-500 group-hover:text-indigo-400"></i>
                     </button>
 
-                    <button onclick="window.open('/docs', '_blank')" class="w-full text-left bg-slate-900/80 hover:bg-slate-900 border border-slate-700/80 p-3 rounded-lg text-xs text-slate-200 transition flex items-center justify-between group">
+                    <button onclick="window.open('/register.html', '_blank')" class="w-full text-left bg-slate-950 hover:bg-slate-800/60 border border-slate-800 p-3 rounded-lg text-xs text-slate-200 transition flex items-center justify-between group">
                         <div>
-                            <p class="font-medium text-white group-hover:text-cyan-400">OpenAPI Swagger UI</p>
-                            <p class="text-[11px] text-slate-400">Interactive REST API endpoints</p>
+                            <p class="font-medium text-white group-hover:text-emerald-400">Public Registration Page</p>
+                            <p class="text-[11px] text-slate-400">Open portal for user onboarding</p>
                         </div>
-                        <i class="fa-solid fa-up-right-from-square text-slate-500 group-hover:text-cyan-400"></i>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-slate-500 group-hover:text-emerald-400"></i>
                     </button>
 
-                    <div class="bg-indigo-950/40 border border-indigo-900/50 rounded-lg p-3 text-[11px] text-indigo-300">
-                        <p class="font-semibold mb-1">Roadmap: MVP 2.0</p>
-                        <p class="text-slate-400">Wi-Fi Hotspot captive portal, RADIUS accounting, and OTP/MFA will appear in the next update.</p>
+                    <div class="bg-indigo-950/30 border border-indigo-900/40 rounded-lg p-3 text-[11px] text-indigo-300">
+                        <p class="font-semibold mb-1">Architecture Note</p>
+                        <p class="text-slate-400">User self-registration directly provisions accounts into Samba AD with Windows-compliant NT hashes and group memberships.</p>
                     </div>
                 </div>
             </div>
@@ -221,12 +248,18 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-slate-800 border-t border-slate-700/80 px-6 py-4 text-xs text-slate-400 flex items-center justify-between">
-        <div>ZclockID &copy; 2026 Inet Secure Labs. Built for enterprise reliability.</div>
-        <div class="font-mono text-[11px]">Ubuntu LTS Base &bull; Samba AD Core</div>
+    <footer class="bg-slate-900 border-t border-slate-800 px-6 py-4 text-xs text-slate-400 flex items-center justify-between">
+        <div>ZclockID &copy; 2026 Inet Secure Labs. Purpose-built Active Directory Appliance.</div>
+        <div class="font-mono text-[11px]">Ubuntu LTS Base &bull; Samba AD Core &bull; Zero CALs</div>
     </footer>
 
     <script>
+        async function refreshAll() {
+            await fetchStatus();
+            await fetchPendingRegistrations();
+            await fetchAuditEvents();
+        }
+
         async function fetchStatus() {
             try {
                 const res = await fetch('/api/v1/system/status');
@@ -239,6 +272,87 @@
             }
         }
 
+        async function fetchPendingRegistrations() {
+            try {
+                const res = await fetch('/api/v1/registration/pending');
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById('pending-table-body');
+                document.getElementById('stat-pending-count').innerText = `${data.count} Pending`;
+
+                if (data.count === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No pending registrations in queue.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = data.pending_registrations.map(r => `
+                    <tr>
+                        <td class="px-4 py-2.5 font-medium text-white">${r.given_name} ${r.surname} <span class="text-indigo-400">(@${r.username})</span></td>
+                        <td class="px-4 py-2.5 text-slate-400">${r.email}</td>
+                        <td class="px-4 py-2.5 text-slate-300">${r.department || 'N/A'}</td>
+                        <td class="px-4 py-2.5 text-slate-400 max-w-xs truncate">${r.notes || '-'}</td>
+                        <td class="px-4 py-2.5 text-slate-500">${new Date(r.created_at * 1000).toLocaleTimeString()}</td>
+                        <td class="px-4 py-2.5 text-right space-x-1">
+                            <button onclick="approveUser(${r.id}, '${r.username}')" class="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[10px] font-sans font-semibold">Approve</button>
+                            <button onclick="rejectUser(${r.id}, '${r.username}')" class="px-2 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded text-[10px] font-sans font-semibold">Reject</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function fetchAuditEvents() {
+            try {
+                const res = await fetch('/api/v1/reports/audit-events?limit=10');
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById('audit-table-body');
+
+                if (data.count === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">No audit events recorded yet.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = data.events.map(ev => `
+                    <tr>
+                        <td class="px-4 py-2 font-medium text-indigo-300">${ev.event_type}</td>
+                        <td class="px-4 py-2 text-slate-300">${ev.target}</td>
+                        <td class="px-4 py-2"><span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 ${ev.status === 'APPROVED' ? 'text-emerald-400' : 'text-slate-400'}">${ev.status}</span></td>
+                        <td class="px-4 py-2 text-slate-500">${new Date(ev.timestamp * 1000).toLocaleTimeString()}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function approveUser(id, username) {
+            if (!confirm(`Approve user '${username}' and provision into Samba Active Directory?`)) return;
+            const res = await fetch(`/api/v1/registration/${id}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ admin_user: 'admin', notes: 'Approved via web console' })
+            });
+            const data = await res.json();
+            alert(data.message);
+            refreshAll();
+        }
+
+        async function rejectUser(id, username) {
+            const reason = prompt(`Reason for rejecting '${username}':`, 'Did not meet company policy');
+            if (reason === null) return;
+            const res = await fetch(`/api/v1/registration/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ admin_user: 'admin', notes: reason })
+            });
+            const data = await res.json();
+            alert(data.message);
+            refreshAll();
+        }
+
         async function triggerNtaclReset() {
             if (!confirm('Run Windows NTACL Sysvol repair on this Domain Controller?')) return;
             try {
@@ -249,6 +363,9 @@
                 alert('API request sent to backend.');
             }
         }
+
+        // Initial Load
+        refreshAll();
     </script>
 </body>
 </html>

@@ -138,7 +138,31 @@ All API endpoints (except `/api/v1/auth/login` and `/api/v1/status/health`) requ
 
 ---
 
-### 2.8. Disaster Recovery & Backups (`/api/v1/backup`)
+### 2.8. User Self-Registration Subsystem (`/api/v1/registration`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/registration/submit` | Public endpoint: Submit user self-registration request |
+| `GET` | `/api/v1/registration/pending` | Admin endpoint: List all pending registrations awaiting approval |
+| `GET` | `/api/v1/registration/all` | Admin endpoint: List all registration requests with status |
+| `POST` | `/api/v1/registration/{id}/approve` | Admin endpoint: Approve request and provision user into Samba AD |
+| `POST` | `/api/v1/registration/{id}/reject` | Admin endpoint: Reject request with reason and record in audit log |
+
+---
+
+### 2.9. Detail Reporting & Audit Subsystem (`/api/v1/reports`)
+
+*(Zero billing overhead — strictly focused on compliance, registration metrics, and directory audit trails)*
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/reports/summary` | High-level summary of registrations, user states, and audit counts |
+| `GET` | `/api/v1/reports/audit-events` | Query audit trail with event filtering (`event_type`) and pagination |
+| `GET` | `/api/v1/reports/export/csv` | Export detailed reports in CSV format (`?report_type=registrations` or `audit`) |
+
+---
+
+### 2.10. Disaster Recovery & Backups (`/api/v1/backup`)
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |

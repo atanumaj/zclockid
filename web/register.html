@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZclockID - User Self-Registration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 space-y-6">
+
+        <!-- Header -->
+        <div class="text-center space-y-2">
+            <div class="inline-flex w-12 h-12 rounded-xl bg-indigo-600 items-center justify-center text-white text-2xl shadow-lg shadow-indigo-500/30">
+                <i class="fa-solid fa-user-plus"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Create Domain Account</h1>
+            <p class="text-xs text-slate-400">Self-registration for corporate Wi-Fi, VPN, and directory access</p>
+        </div>
+
+        <!-- Form Status Message -->
+        <div id="status-box" class="hidden rounded-lg p-4 text-xs font-medium border"></div>
+
+        <!-- Registration Form -->
+        <form id="reg-form" onsubmit="handleRegister(event)" class="space-y-4">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">First Name *</label>
+                    <input type="text" id="given_name" required placeholder="John"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Last Name *</label>
+                    <input type="text" id="surname" required placeholder="Doe"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Corporate Email Address *</label>
+                <input type="email" id="email" required placeholder="john.doe@corp.example.com"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Desired Username * (sAMAccountName)</label>
+                <input type="text" id="username" required placeholder="john.doe"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                <p class="text-[10px] text-slate-500 mt-0.5">Letters, numbers, and dots only. Used for Windows, Wi-Fi, and VPN logon.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Password *</label>
+                    <input type="password" id="password" required minlength="8" placeholder="••••••••••••"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Confirm Password *</label>
+                    <input type="password" id="confirm_password" required minlength="8" placeholder="••••••••••••"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Department</label>
+                    <select id="department" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <option value="Engineering">Engineering</option>
+                        <option value="Operations">Operations</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Sales">Sales</option>
+                        <option value="Contractor">External Contractor</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Access Justification</label>
+                    <input type="text" id="justification" placeholder="New employee / Project onboarding"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <button type="submit" id="submit-btn"
+                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-indigo-600/30 transition duration-150 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-paper-plane"></i> Submit Registration
+            </button>
+        </form>
+
+        <div class="text-center border-t border-slate-800 pt-4">
+            <a href="/" class="text-xs text-slate-400 hover:text-indigo-400 transition">
+                <i class="fa-solid fa-arrow-left mr-1"></i> Return to Appliance Dashboard
+            </a>
+        </div>
+
+    </div>
+
+    <script>
+        async function handleRegister(e) {
+            e.preventDefault();
+            const statusBox = document.getElementById('status-box');
+            const submitBtn = document.getElementById('submit-btn');
+
+            const p1 = document.getElementById('password').value;
+            const p2 = document.getElementById('confirm_password').value;
+
+            if (p1 !== p2) {
+                statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300 block';
+                statusBox.innerText = 'Passwords do not match. Please verify and try again.';
+                return;
+            }
+
+            const payload = {
+                given_name: document.getElementById('given_name').value.trim(),
+                surname: document.getElementById('surname').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                username: document.getElementById('username').value.trim(),
+                password: p1,
+                department: document.getElementById('department').value,
+                justification: document.getElementById('justification').value.trim()
+            };
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Submitting...';
+
+            try {
+                const res = await fetch('/api/v1/registration/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    document.getElementById('reg-form').reset();
+                    statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-emerald-950/40 border-emerald-800 text-emerald-300 block';
+                    statusBox.innerHTML = `<strong>Registration Submitted!</strong><br>${data.message} (Reference ID: ${data.registration_id})`;
+                } else {
+                    statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300 block';
+                    statusBox.innerText = data.detail || 'Registration failed. Please check inputs.';
+                }
+            } catch (err) {
+                statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300 block';
+                statusBox.innerText = 'Network error: could not connect to ZclockID API.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Registration';
+            }
+        }
+    </script>
+</body>
+</html>
