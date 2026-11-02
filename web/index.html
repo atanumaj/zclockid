@@ -1367,26 +1367,108 @@
 
             <!-- ==================== TAB 8: REGISTRATIONS ==================== -->
             <section id="tab-registrations" class="space-y-6 hidden">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
+                <!-- Header Banner -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-sm">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-user-clock text-indigo-400"></i> User Self-Registration & Directory Onboarding
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Configure mobile OTP verification, automatic provisioning, and review pending domain signup requests.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="copyRegistrationLink()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public portal link">
+                            <i class="fa-solid fa-copy text-indigo-400"></i> Copy Portal Link
+                        </button>
+                        <a href="/register.html" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal
+                        </a>
+                        <button onclick="openRegistrationSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
+                            <i class="fa-solid fa-sliders text-cyan-400"></i> Settings
+                        </button>
+                        <button onclick="fetchRegistrations()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Top Metric Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
                         <div>
-                            <h3 class="text-sm font-semibold text-white">User Self-Registration Approval Queue</h3>
-                            <p class="text-xs text-slate-400">Review pending domain account self-service signups</p>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Verification Mode</div>
+                            <div class="text-xs font-bold text-white font-mono mt-0.5" id="reg-stat-mode">
+                                <span class="text-cyan-400 font-semibold"><i class="fa-solid fa-mobile-screen"></i> Mobile OTP Active</span>
+                            </div>
                         </div>
                     </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 text-lg">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Pending Approval</div>
+                            <div class="text-lg font-bold text-white font-mono" id="reg-stat-pending">0</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Auto-Provisioned (OTP)</div>
+                            <div class="text-lg font-bold text-white font-mono" id="reg-stat-auto">0</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-lg">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">SMS Gateway</div>
+                            <div class="text-xs font-bold text-white font-mono mt-0.5 uppercase" id="reg-stat-sms">SIMULATOR</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Registration Queue Table Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-900/50">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-white">Queue Filter:</span>
+                            <div class="flex flex-wrap gap-1">
+                                <button onclick="fetchRegistrations('all')" id="reg-filter-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
+                                <button onclick="fetchRegistrations('PENDING_APPROVAL')" id="reg-filter-PENDING_APPROVAL" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending Approval</button>
+                                <button onclick="fetchRegistrations('PENDING_OTP')" id="reg-filter-PENDING_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending OTP</button>
+                                <button onclick="fetchRegistrations('VERIFIED_AUTO_PROVISIONED')" id="reg-filter-VERIFIED_AUTO_PROVISIONED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Auto-Provisioned</button>
+                                <button onclick="fetchRegistrations('APPROVED')" id="reg-filter-APPROVED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Approved</button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-500 font-mono">
+                            Default Domain: <span class="text-indigo-400 font-semibold" id="reg-queue-domain">-</span>
+                        </div>
+                    </div>
+
                     <div class="overflow-x-auto">
                         <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                            <thead class="text-slate-400 uppercase bg-slate-950/60 text-[10px] font-mono tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th class="px-4 py-2.5">Requested Username</th>
-                                    <th class="px-4 py-2.5">Full Name</th>
+                                    <th class="px-4 py-2.5">Username / Name</th>
+                                    <th class="px-4 py-2.5">Mobile (OTP)</th>
+                                    <th class="px-4 py-2.5">Email</th>
                                     <th class="px-4 py-2.5">Department</th>
-                                    <th class="px-4 py-2.5">Submitted At</th>
+                                    <th class="px-4 py-2.5">Status</th>
+                                    <th class="px-4 py-2.5">Submitted</th>
                                     <th class="px-4 py-2.5 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="registrations-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No pending registrations.</td></tr>
+                                <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading registrations queue...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1781,6 +1863,205 @@
     </div>
 
     <!-- ==================== MODALS ==================== -->
+
+    <!-- Self-Registration & OTP Policy Settings Modal -->
+    <div id="modal-registration-settings" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-indigo-400"></i>
+                    <h3 class="text-sm font-bold text-white">Self-Registration & OTP Verification Settings</h3>
+                </div>
+                <button onclick="closeRegistrationSettingsModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <form onsubmit="saveRegistrationSettings(event)" class="p-5 flex-1 overflow-y-auto custom-scroll space-y-5 text-xs">
+                <!-- Registration & Approval Switches -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800">
+                        <div>
+                            <div class="font-semibold text-white">Enable User Self-Registration Portal</div>
+                            <div class="text-[11px] text-slate-400">Allow users to sign up at `/register.html` for domain accounts</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="reg-cfg-enabled" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-indigo-900/30">
+                        <div>
+                            <div class="font-semibold text-cyan-300 flex items-center gap-1.5">
+                                <i class="fa-solid fa-mobile-screen"></i> Require Mobile OTP Verification
+                            </div>
+                            <div class="text-[11px] text-slate-300 mt-0.5">
+                                When enabled, user verifies mobile OTP & accounts are <strong class="text-emerald-400">automatically approved & provisioned</strong> with zero admin review needed.
+                            </div>
+                            <div class="text-[10px] text-amber-400/90 mt-0.5">
+                                If disabled: Registration enters <span class="underline">Pending Approval</span> queue and administrator must manually approve.
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="reg-cfg-otp" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Domain & Provisioning Targets -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-slate-300 block mb-1 font-medium">Default Provisioning Domain (Primary Realm)</label>
+                        <input type="text" id="reg-cfg-domain" required
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
+                        <p class="text-[10px] text-slate-500 mt-1">Users are provisioned as `user@default_domain`</p>
+                    </div>
+                    <div>
+                        <label class="text-slate-300 block mb-1 font-medium">Default Security Group</label>
+                        <input type="text" id="reg-cfg-group" value="Domain Users" required
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
+                        <p class="text-[10px] text-slate-500 mt-1">Default: `Domain Users`</p>
+                    </div>
+                </div>
+
+                <!-- SMS Gateway Provider Configuration -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-comment-sms text-cyan-400"></i> SMS Gateway Provider</span>
+                        <span class="text-[10px] font-mono text-slate-500">OTP Dispatch Engine</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">SMS Provider Type</label>
+                            <select id="reg-cfg-sms-type" onchange="toggleSmsProviderFields()" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                                <option value="simulated">Simulated / Local Appliance Log (Development / Lab)</option>
+                                <option value="webhook">Custom Webhook / HTTP GET or POST API</option>
+                                <option value="twilio">Twilio Messaging API</option>
+                                <option value="fast2sms">Fast2SMS (Quick Transactional OTP)</option>
+                                <option value="msg91">MSG91 OTP API</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">SMS Sender ID</label>
+                            <input type="text" id="reg-cfg-sender" value="ZCLOCK" placeholder="ZCLOCK"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div id="sec-sms-ext" class="space-y-3 hidden">
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Gateway Endpoint URL / Twilio Messages URL</label>
+                            <input type="url" id="reg-cfg-sms-url" placeholder="https://api.gateway.example.com/sms/send"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">API Authorization Key / Token</label>
+                            <input type="password" id="reg-cfg-sms-key" placeholder="••••••••••••••••••••••••••••"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-slate-300 block mb-1 font-medium">SMS Template</label>
+                        <input type="text" id="reg-cfg-sms-template" value="Your ZclockID verification code is {otp}. Valid for 10 minutes."
+                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                        <p class="text-[10px] text-slate-500 mt-1">Use <code class="text-cyan-400 font-mono">{otp}</code> and <code class="text-cyan-400 font-mono">{username}</code> as dynamic tags</p>
+                    </div>
+                </div>
+
+                <!-- Email SMTP Configuration -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-envelope text-indigo-400"></i> Email Notifications (SMTP)</div>
+                            <div class="text-[11px] text-slate-400">Send confirmation and approval emails to user's registered corporate email</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="reg-cfg-smtp-enabled" onchange="toggleSmtpFields()" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <div id="sec-smtp-fields" class="space-y-3 hidden pt-2 border-t border-slate-800/80">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="md:col-span-2">
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Server Host</label>
+                                <input type="text" id="reg-cfg-smtp-host" placeholder="smtp.gmail.com or smtp.office365.com"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Port</label>
+                                <input type="number" id="reg-cfg-smtp-port" value="587"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Username / Email</label>
+                                <input type="text" id="reg-cfg-smtp-user" placeholder="no-reply@company.com"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Password</label>
+                                <input type="password" id="reg-cfg-smtp-pass" placeholder="••••••••••••"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Sender From Address</label>
+                            <input type="email" id="reg-cfg-smtp-from" placeholder="no-reply@inet.net"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                    <button type="button" onclick="closeRegistrationSettingsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" id="btn-save-reg-settings" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change User UPN Modal -->
+    <div id="modal-change-upn" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-at text-amber-400"></i> Change UserPrincipalName (UPN)
+                </h3>
+                <button onclick="closeChangeUpnModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="submitChangeUpn(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Target Active Directory User</label>
+                    <input type="text" id="upn-modal-username" readonly
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono font-bold cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Current UserPrincipalName</label>
+                    <input type="text" id="upn-modal-current" readonly
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-400 font-mono cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">New UserPrincipalName *</label>
+                    <input type="email" id="upn-modal-new" required placeholder="user@alternate-domain.com"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none">
+                    <p class="text-[10px] text-slate-500 mt-1">Updates `userPrincipalName` directly in Active Directory SAM LDB.</p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeChangeUpnModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" id="btn-submit-change-upn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-amber-900/50">
+                        <i class="fa-solid fa-check"></i> Update UPN
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <!-- Create Backup Archive Modal (Zentyal Style) -->
     <div id="modal-create-backup" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
@@ -2523,6 +2804,7 @@
             else if (tabId === 'radius') { fetchRadiusClients(); fetchRadiusSessions(); }
             else if (tabId === 'sysvol') { fetchSysvolStatus(); fetchSysvolPartners(); }
             else if (tabId === 'azure') { fetchAzureStatus(); fetchAzureConfig(); }
+            else if (tabId === 'registrations') { fetchRegistrations(); fetchRegistrationSettings(); }
             else if (tabId === 'reports') { fetchAuditEvents(); }
             else if (tabId === 'backup') { fetchBackups(); }
             else if (tabId === 'snmp') { fetchSnmpStatus(); fetchSnmpConfig(); }
@@ -3677,14 +3959,20 @@
                 if (data.users && data.users.length > 0) {
                     tbody.innerHTML = data.users.map(u => `
                         <tr class="hover:bg-slate-800/30">
-                            <td class="px-4 py-2.5 font-bold text-white">${u.username}</td>
+                            <td class="px-4 py-2.5">
+                                <div class="font-bold text-white">${u.username}</div>
+                                <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
+                            </td>
                             <td class="px-4 py-2.5 text-slate-400">${u.department || '-'}</td>
                             <td class="px-4 py-2.5">
                                 <span class="px-2 py-0.5 rounded text-[10px] ${u.status === 'active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${u.status.toUpperCase()}</span>
                             </td>
-                            <td class="px-4 py-2.5 text-right">
+                            <td class="px-4 py-2.5 text-right whitespace-nowrap">
                                 ${!u.is_built_in ? `
-                                    <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-2" title="Delete User">
+                                    <button onclick="openChangeUpnModal('${u.username}', '${u.user_principal_name || ''}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] transition mr-1.5" title="Change User Principal Name">
+                                        <i class="fa-solid fa-at"></i> UPN
+                                    </button>
+                                    <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-1" title="Delete User">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 ` : '<span class="text-slate-600 font-sans italic text-[10px]">Built-in</span>'}
@@ -4572,6 +4860,331 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-play"></i> Query / Walk`;
+            }
+        }
+
+        // ==================== Self-Registration & OTP Logic ====================
+        let currentRegFilter = 'all';
+
+        function copyRegistrationLink() {
+            const url = `${window.location.origin}/register.html`;
+            navigator.clipboard.writeText(url).then(() => {
+                alert(`Self-Registration Portal link copied to clipboard:\n\n${url}`);
+            }).catch(() => {
+                prompt("Copy registration URL:", url);
+            });
+        }
+
+        async function fetchRegistrationSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/registrations/settings`);
+                const data = await res.json();
+                if (res.ok && data.settings) {
+                    const s = data.settings;
+                    document.getElementById('reg-cfg-enabled').checked = s.enabled !== 0;
+                    document.getElementById('reg-cfg-otp').checked = s.require_mobile_otp !== 0;
+                    document.getElementById('reg-cfg-domain').value = s.default_domain || 'inet.net';
+                    document.getElementById('reg-cfg-group').value = s.default_group || 'Domain Users';
+                    document.getElementById('reg-cfg-sms-type').value = s.sms_gateway_type || 'simulated';
+                    document.getElementById('reg-cfg-sms-url').value = s.sms_gateway_url || '';
+                    document.getElementById('reg-cfg-sms-key').value = s.sms_api_key || '';
+                    document.getElementById('reg-cfg-sender').value = s.sms_sender_id || 'ZCLOCK';
+                    document.getElementById('reg-cfg-sms-template').value = s.sms_template || 'Your ZclockID verification code is {otp}. Valid for 10 minutes.';
+                    document.getElementById('reg-cfg-smtp-enabled').checked = s.email_smtp_enabled !== 0;
+                    document.getElementById('reg-cfg-smtp-host').value = s.smtp_host || '';
+                    document.getElementById('reg-cfg-smtp-port').value = s.smtp_port || 587;
+                    document.getElementById('reg-cfg-smtp-user').value = s.smtp_user || '';
+                    document.getElementById('reg-cfg-smtp-pass').value = s.smtp_pass || '';
+                    document.getElementById('reg-cfg-smtp-from').value = s.smtp_from || '';
+
+                    toggleSmsProviderFields();
+                    toggleSmtpFields();
+
+                    const modeEl = document.getElementById('reg-stat-mode');
+                    if (!s.enabled) {
+                        modeEl.innerHTML = '<span class="text-rose-400 font-semibold"><i class="fa-solid fa-ban"></i> Portal Disabled</span>';
+                    } else if (s.require_mobile_otp) {
+                        modeEl.innerHTML = '<span class="text-cyan-400 font-semibold"><i class="fa-solid fa-mobile-screen"></i> Mobile OTP Active (Auto-Approve)</span>';
+                    } else {
+                        modeEl.innerHTML = '<span class="text-amber-400 font-semibold"><i class="fa-solid fa-user-clock"></i> Manual Admin Approval</span>';
+                    }
+
+                    document.getElementById('reg-stat-sms').innerText = (s.sms_gateway_type || 'simulated').toUpperCase();
+                    document.getElementById('reg-queue-domain').innerText = s.default_domain || 'inet.net';
+                }
+            } catch (err) {
+                console.error('Error fetching registration settings:', err);
+            }
+        }
+
+        function toggleSmsProviderFields() {
+            const type = document.getElementById('reg-cfg-sms-type').value;
+            const extSec = document.getElementById('sec-sms-ext');
+            if (type === 'simulated') {
+                extSec.classList.add('hidden');
+            } else {
+                extSec.classList.remove('hidden');
+            }
+        }
+
+        function toggleSmtpFields() {
+            const enabled = document.getElementById('reg-cfg-smtp-enabled').checked;
+            const sec = document.getElementById('sec-smtp-fields');
+            if (enabled) sec.classList.remove('hidden');
+            else sec.classList.add('hidden');
+        }
+
+        function openRegistrationSettingsModal() {
+            fetchRegistrationSettings();
+            document.getElementById('modal-registration-settings').classList.remove('hidden');
+        }
+
+        function closeRegistrationSettingsModal() {
+            document.getElementById('modal-registration-settings').classList.add('hidden');
+        }
+
+        async function saveRegistrationSettings(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-reg-settings');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+
+            const payload = {
+                enabled: document.getElementById('reg-cfg-enabled').checked,
+                require_mobile_otp: document.getElementById('reg-cfg-otp').checked,
+                auto_approve_with_otp: document.getElementById('reg-cfg-otp').checked,
+                default_domain: document.getElementById('reg-cfg-domain').value.trim(),
+                default_group: document.getElementById('reg-cfg-group').value.trim(),
+                sms_gateway_type: document.getElementById('reg-cfg-sms-type').value,
+                sms_gateway_url: document.getElementById('reg-cfg-sms-url').value.trim(),
+                sms_api_key: document.getElementById('reg-cfg-sms-key').value.trim(),
+                sms_sender_id: document.getElementById('reg-cfg-sender').value.trim(),
+                sms_template: document.getElementById('reg-cfg-sms-template').value.trim(),
+                email_smtp_enabled: document.getElementById('reg-cfg-smtp-enabled').checked,
+                smtp_host: document.getElementById('reg-cfg-smtp-host').value.trim(),
+                smtp_port: parseInt(document.getElementById('reg-cfg-smtp-port').value || 587),
+                smtp_user: document.getElementById('reg-cfg-smtp-user').value.trim(),
+                smtp_pass: document.getElementById('reg-cfg-smtp-pass').value.trim(),
+                smtp_from: document.getElementById('reg-cfg-smtp-from').value.trim()
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/registrations/settings`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Registration & OTP verification policies updated successfully!');
+                    closeRegistrationSettingsModal();
+                    fetchRegistrationSettings();
+                    fetchRegistrations(currentRegFilter);
+                } else {
+                    alert(`Failed to save settings: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving settings: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Save Settings`;
+            }
+        }
+
+        async function fetchRegistrations(filter = 'all') {
+            currentRegFilter = filter;
+            ['all', 'PENDING_APPROVAL', 'PENDING_OTP', 'VERIFIED_AUTO_PROVISIONED', 'APPROVED'].forEach(f => {
+                const b = document.getElementById(`reg-filter-${f}`);
+                if (b) {
+                    if (f === filter) {
+                        b.className = 'px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30';
+                    } else {
+                        b.className = 'px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800';
+                    }
+                }
+            });
+
+            const tbody = document.getElementById('registrations-table-body');
+            try {
+                const res = await fetch(`${API_BASE}/registrations/requests?status_filter=${encodeURIComponent(filter)}`);
+                const data = await res.json();
+
+                if (res.ok && data.requests) {
+                    let pendingCount = 0;
+                    let autoCount = 0;
+                    data.requests.forEach(r => {
+                        if (r.status === 'PENDING_APPROVAL') pendingCount++;
+                        if (r.status === 'VERIFIED_AUTO_PROVISIONED') autoCount++;
+                    });
+                    document.getElementById('reg-stat-pending').innerText = pendingCount;
+                    document.getElementById('reg-stat-auto').innerText = autoCount;
+
+                    if (data.requests.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500 font-sans">No registration requests found matching filter '${filter}'.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = data.requests.map(r => {
+                        let statusBadge = '';
+                        if (r.status === 'VERIFIED_AUTO_PROVISIONED') {
+                            statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 font-semibold">OTP AUTO-PROVISIONED</span>';
+                        } else if (r.status === 'PENDING_APPROVAL') {
+                            statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-950 text-amber-300 border border-amber-800 font-semibold animate-pulse">PENDING REVIEW</span>';
+                        } else if (r.status === 'PENDING_OTP') {
+                            statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800">AWAITING OTP</span>';
+                        } else if (r.status === 'APPROVED') {
+                            statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800">APPROVED BY ADMIN</span>';
+                        } else if (r.status === 'REJECTED') {
+                            statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-300 border border-rose-800">REJECTED</span>';
+                        } else {
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">${r.status}</span>`;
+                        }
+
+                        const dateStr = r.created_at ? new Date(r.created_at * 1000).toLocaleString() : '-';
+
+                        let actionButtons = '';
+                        if (r.status === 'PENDING_APPROVAL') {
+                            actionButtons = `
+                                <button onclick="approveRegistration(${r.id}, '${r.username}')" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-semibold text-[11px] transition mr-1" title="Approve & Provision into AD">
+                                    <i class="fa-solid fa-check"></i> Approve
+                                </button>
+                                <button onclick="rejectRegistration(${r.id}, '${r.username}')" class="px-2 py-1 rounded bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-sans text-[11px] transition mr-1" title="Reject Request">
+                                    <i class="fa-solid fa-xmark"></i> Reject
+                                </button>
+                            `;
+                        } else if (r.status === 'VERIFIED_AUTO_PROVISIONED' || r.status === 'APPROVED') {
+                            actionButtons = `
+                                <button onclick="openChangeUpnModal('${r.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] transition mr-1" title="Change UserPrincipalName (UPN)">
+                                    <i class="fa-solid fa-at"></i> UPN
+                                </button>
+                            `;
+                        }
+                        actionButtons += `
+                            <button onclick="deleteRegistration(${r.id}, '${r.username}')" class="text-slate-500 hover:text-rose-400 transition ml-1" title="Delete Log Entry">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        `;
+
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-3">
+                                    <div class="font-bold text-white">${r.username}</div>
+                                    <div class="text-[10px] text-slate-400">${r.given_name || ''} ${r.surname || ''}</div>
+                                </td>
+                                <td class="px-4 py-3 text-cyan-300 font-mono text-xs">${r.mobile || '-'}</td>
+                                <td class="px-4 py-3 text-slate-300 font-sans">${r.email || '-'}</td>
+                                <td class="px-4 py-3 text-slate-400 font-sans">${r.department || '-'}</td>
+                                <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
+                                <td class="px-4 py-3 text-slate-500 font-mono text-[10px]">${dateStr}</td>
+                                <td class="px-4 py-3 text-right whitespace-nowrap">${actionButtons}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center text-rose-400">Failed to load registration queue: ${err}</td></tr>`;
+            }
+        }
+
+        async function approveRegistration(id, username) {
+            if (!confirm(`Approve registration for user '${username}'?\n\nThis will provision the user in Active Directory under primary domain and dispatch an activation confirmation.`)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/registrations/requests/${id}/approve`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ notes: "Approved by administrator" })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || `User '${username}' approved successfully!`);
+                    fetchRegistrations(currentRegFilter);
+                    fetchUsers();
+                } else {
+                    alert(`Approval failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error approving registration: ${err}`);
+            }
+        }
+
+        async function rejectRegistration(id, username) {
+            const reason = prompt(`Reject registration for user '${username}'.\nEnter rejection reason for user notification:`, "Account request did not meet security requirements.");
+            if (reason === null) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/registrations/requests/${id}/reject`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ notes: reason })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || `Request for '${username}' rejected.`);
+                    fetchRegistrations(currentRegFilter);
+                } else {
+                    alert(`Rejection failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error rejecting registration: ${err}`);
+            }
+        }
+
+        async function deleteRegistration(id, username) {
+            if (!confirm(`Delete registration record for '${username}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/registrations/requests/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchRegistrations(currentRegFilter);
+                } else {
+                    alert('Failed to delete registration record.');
+                }
+            } catch (err) {
+                alert(`Error deleting record: ${err}`);
+            }
+        }
+
+        // ==================== User Principal Name (UPN) Logic ====================
+        function openChangeUpnModal(username, currentUpn = '') {
+            document.getElementById('upn-modal-username').value = username;
+            document.getElementById('upn-modal-current').value = currentUpn || `${username}@inet.net`;
+            document.getElementById('upn-modal-new').value = currentUpn || `${username}@inet.net`;
+            document.getElementById('modal-change-upn').classList.remove('hidden');
+        }
+
+        function closeChangeUpnModal() {
+            document.getElementById('modal-change-upn').classList.add('hidden');
+        }
+
+        async function submitChangeUpn(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-change-upn');
+            const username = document.getElementById('upn-modal-username').value.trim();
+            const newUpn = document.getElementById('upn-modal-new').value.trim();
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Updating UPN...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/users/${encodeURIComponent(username)}/upn`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_principal_name: newUpn })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`UserPrincipalName updated successfully!\n\nUser: ${username}\nNew UPN: ${newUpn}`);
+                    closeChangeUpnModal();
+                    fetchUsers();
+                    fetchRegistrations(currentRegFilter);
+                } else {
+                    alert(`Failed to update UPN: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error updating UPN: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-check"></i> Update UPN`;
             }
         }
 

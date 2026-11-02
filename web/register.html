@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZclockID - User Self-Registration</title>
+    <title>ZclockID - User Self-Registration Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -13,7 +13,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 space-y-6">
+    <div class="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6">
 
         <!-- Header -->
         <div class="text-center space-y-2">
@@ -21,98 +21,243 @@
                 <i class="fa-solid fa-user-plus"></i>
             </div>
             <h1 class="text-2xl font-bold tracking-tight text-white">Create Domain Account</h1>
-            <p class="text-xs text-slate-400">Self-registration for corporate Wi-Fi, VPN, and directory access</p>
+            <p class="text-xs text-slate-400">Self-registration for corporate Windows, Wi-Fi, VPN, and directory access</p>
+            <div id="domain-badge-container" class="pt-1">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono bg-indigo-950/60 text-indigo-300 border border-indigo-800/40">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Primary Domain: <strong id="reg-primary-domain">loading...</strong>
+                </span>
+            </div>
         </div>
 
-        <!-- Form Status Message -->
-        <div id="status-box" class="hidden rounded-lg p-4 text-xs font-medium border"></div>
+        <!-- Form Status Alert Box -->
+        <div id="status-box" class="hidden rounded-xl p-4 text-xs font-medium border transition-all"></div>
 
-        <!-- Registration Form -->
-        <form id="reg-form" onsubmit="handleRegister(event)" class="space-y-4">
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">First Name *</label>
-                    <input type="text" id="given_name" required placeholder="John"
-                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+        <!-- STEP 1: REGISTRATION DETAILS FORM -->
+        <div id="step-details" class="space-y-4">
+            <form id="reg-form" onsubmit="handleInitialSubmit(event)" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">First Name *</label>
+                        <input type="text" id="given_name" required placeholder="John"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Last Name *</label>
+                        <input type="text" id="surname" required placeholder="Doe"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
                 </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Desired Username * (sAMAccountName)</label>
+                        <input type="text" id="username" required placeholder="johndoe"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-0.5">Letters, numbers, dots and dashes</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Mobile Number (For SMS OTP) *</label>
+                        <div class="relative">
+                            <input type="tel" id="mobile" required placeholder="+91 98765 43210"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                            <i class="fa-solid fa-mobile-screen absolute right-3 top-2.5 text-slate-500 text-xs"></i>
+                        </div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Mobile OTP will be sent for instant activation</p>
+                    </div>
+                </div>
+
                 <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Last Name *</label>
-                    <input type="text" id="surname" required placeholder="Doe"
-                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Corporate Email Address *</label>
+                    <input type="email" id="email" required placeholder="john.doe@company.com"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Password *</label>
+                        <input type="password" id="password" required minlength="8" placeholder="••••••••••••"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-0.5">Min 8 chars, mixed case, numbers</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Confirm Password *</label>
+                        <input type="password" id="confirm_password" required minlength="8" placeholder="••••••••••••"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Department</label>
+                        <select id="department" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                            <option value="Engineering">Engineering</option>
+                            <option value="IT Operations">IT Operations</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Human Resources">Human Resources</option>
+                            <option value="Sales & Marketing">Sales & Marketing</option>
+                            <option value="Contractor / Vendor">Contractor / Vendor</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Access Justification (Optional)</label>
+                        <input type="text" id="justification" placeholder="New employee / Project onboarding"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-indigo-600/30 transition duration-150 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> Submit Registration
+                </button>
+            </form>
+        </div>
+
+        <!-- STEP 2: MOBILE OTP VERIFICATION SCREEN -->
+        <div id="step-otp" class="hidden space-y-5">
+            <div class="p-4 bg-slate-950/80 rounded-xl border border-slate-800 text-center space-y-2">
+                <div class="inline-flex w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-400 items-center justify-center text-lg">
+                    <i class="fa-solid fa-comment-sms"></i>
+                </div>
+                <h3 class="text-sm font-bold text-white">Enter 6-Digit Verification Code</h3>
+                <p class="text-xs text-slate-400">
+                    A mobile OTP has been dispatched to <strong id="otp-mobile-display" class="font-mono text-cyan-300">+91 ••••• •4321</strong>.
+                </p>
+                <!-- Dev Simulated OTP helper badge -->
+                <div id="otp-debug-container" class="hidden pt-1">
+                    <button type="button" onclick="fillDebugOtp()" class="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-lg text-[11px] font-mono border border-amber-500/30 transition inline-flex items-center gap-1.5">
+                        <i class="fa-solid fa-flask"></i> Simulator OTP: <span id="otp-debug-value" class="font-bold underline">123456</span> (Click to auto-fill)
+                    </button>
                 </div>
             </div>
 
+            <form onsubmit="handleOtpVerify(event)" class="space-y-4">
+                <div>
+                    <label class="block text-center text-xs font-medium text-slate-300 mb-2">Security OTP Code</label>
+                    <input type="text" id="otp_input" required maxlength="6" pattern="[0-9]{6}" placeholder="••••••"
+                        class="w-full text-center tracking-[0.5em] text-2xl font-mono bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-500">
+                    <p class="text-[10px] text-center text-slate-500 mt-1">Code is valid for 10 minutes</p>
+                </div>
+
+                <button type="submit" id="btn-verify-otp"
+                    class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-cyan-600/30 transition duration-150 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-circle-check"></i> Verify Mobile & Activate Account
+                </button>
+            </form>
+
+            <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-800">
+                <button type="button" onclick="backToDetailsStep()" class="text-slate-400 hover:text-white transition flex items-center gap-1">
+                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Edit Details
+                </button>
+                <button type="button" id="btn-resend-otp" onclick="handleResendOtp()" class="text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1">
+                    <i class="fa-solid fa-rotate"></i> Resend Code (<span id="resend-countdown">60</span>s)
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 3: SUCCESS & ACTIVATION COMPLETE SCREEN -->
+        <div id="step-success" class="hidden text-center space-y-4 py-4">
+            <div class="inline-flex w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 items-center justify-center text-3xl shadow-inner">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
             <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Corporate Email Address *</label>
-                <input type="email" id="email" required placeholder="john.doe@corp.example.com"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                <h2 id="success-title" class="text-lg font-bold text-white">Domain Account Activated!</h2>
+                <p id="success-desc" class="text-xs text-slate-400 mt-1">Your credentials are now live across all Active Directory services.</p>
             </div>
 
-            <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Desired Username * (sAMAccountName)</label>
-                <input type="text" id="username" required placeholder="john.doe"
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
-                <p class="text-[10px] text-slate-500 mt-0.5">Letters, numbers, and dots only. Used for Windows, Wi-Fi, and VPN logon.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Password *</label>
-                    <input type="password" id="password" required minlength="8" placeholder="••••••••••••"
-                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+            <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 font-mono text-xs text-left space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">User Account:</span>
+                    <span id="succ-username" class="text-white font-bold">-</span>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Confirm Password *</label>
-                    <input type="password" id="confirm_password" required minlength="8" placeholder="••••••••••••"
-                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">UserPrincipalName:</span>
+                    <span id="succ-upn" class="text-indigo-400">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Directory State:</span>
+                    <span class="text-emerald-400 font-bold">Active / Auto-Approved</span>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Department</label>
-                    <select id="department" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                        <option value="Engineering">Engineering</option>
-                        <option value="Operations">Operations</option>
-                        <option value="Finance">Finance</option>
-                        <option value="Sales">Sales</option>
-                        <option value="Contractor">External Contractor</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-300 mb-1">Access Justification</label>
-                    <input type="text" id="justification" placeholder="New employee / Project onboarding"
-                        class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                </div>
+            <div class="p-3 bg-indigo-950/30 rounded-xl border border-indigo-900/40 text-[11px] text-indigo-300 text-left space-y-1">
+                <div class="font-semibold text-white flex items-center gap-1.5"><i class="fa-solid fa-key text-indigo-400"></i> Supported Services:</div>
+                <ul class="list-disc list-inside text-slate-300 space-y-0.5 pl-1">
+                    <li>Windows Domain Logon (Workstations & Laptops)</li>
+                    <li>Corporate 802.1X Wi-Fi (WPA2/WPA3 Enterprise via RADIUS)</li>
+                    <li>WireGuard & SSL-VPN Gateway</li>
+                    <li>Single Sign-On (Keycloak SAML 2.0 / OIDC)</li>
+                </ul>
             </div>
 
-            <button type="submit" id="submit-btn"
-                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg text-sm shadow-lg shadow-indigo-600/30 transition duration-150 flex items-center justify-center gap-2">
-                <i class="fa-solid fa-paper-plane"></i> Submit Registration
-            </button>
-        </form>
+            <div class="pt-2">
+                <a href="/login.html" class="inline-flex items-center justify-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 rounded-lg text-xs transition">
+                    <i class="fa-solid fa-right-to-bracket"></i> Proceed to Appliance Sign In
+                </a>
+            </div>
+        </div>
 
-        <div class="text-center border-t border-slate-800 pt-4">
-            <a href="/" class="text-xs text-slate-400 hover:text-indigo-400 transition">
-                <i class="fa-solid fa-arrow-left mr-1"></i> Return to Appliance Dashboard
+        <!-- Footer -->
+        <div class="text-center border-t border-slate-800 pt-4 flex justify-between items-center text-xs text-slate-500">
+            <a href="/login.html" class="text-slate-400 hover:text-indigo-400 transition">
+                <i class="fa-solid fa-arrow-left mr-1"></i> Sign In Portal
             </a>
+            <span>ZclockID Identity Management</span>
         </div>
 
     </div>
 
     <script>
-        async function handleRegister(e) {
+        let currentRegId = null;
+        let currentDebugOtp = null;
+        let resendTimer = null;
+        let resendSeconds = 60;
+        let publicConfig = {};
+
+        // Load registration configuration on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/v1/public/register/config');
+                const data = await res.json();
+                if (res.ok) {
+                    publicConfig = data;
+                    document.getElementById('reg-primary-domain').innerText = data.default_domain || data.primary_realm || 'inet.net';
+                    if (!data.enabled) {
+                        showStatus('error', 'User self-registration is currently disabled by administrator policy.');
+                        document.getElementById('submit-btn').disabled = true;
+                    }
+                }
+            } catch (err) {
+                document.getElementById('reg-primary-domain').innerText = 'inet.net';
+            }
+        });
+
+        function showStatus(type, msg) {
+            const box = document.getElementById('status-box');
+            box.classList.remove('hidden', 'bg-rose-950/40', 'border-rose-800', 'text-rose-300', 'bg-emerald-950/40', 'border-emerald-800', 'text-emerald-300', 'bg-amber-950/40', 'border-amber-800', 'text-amber-300');
+            if (type === 'error') {
+                box.classList.add('bg-rose-950/40', 'border-rose-800', 'text-rose-300');
+            } else if (type === 'success') {
+                box.classList.add('bg-emerald-950/40', 'border-emerald-800', 'text-emerald-300');
+            } else if (type === 'warning') {
+                box.classList.add('bg-amber-950/40', 'border-amber-800', 'text-amber-300');
+            }
+            box.innerHTML = msg;
+        }
+
+        function hideStatus() {
+            document.getElementById('status-box').classList.add('hidden');
+        }
+
+        async function handleInitialSubmit(e) {
             e.preventDefault();
-            const statusBox = document.getElementById('status-box');
+            hideStatus();
             const submitBtn = document.getElementById('submit-btn');
 
             const p1 = document.getElementById('password').value;
             const p2 = document.getElementById('confirm_password').value;
 
             if (p1 !== p2) {
-                statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300 block';
-                statusBox.innerText = 'Passwords do not match. Please verify and try again.';
+                showStatus('error', '<i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Passwords do not match. Please verify and try again.');
                 return;
             }
 
@@ -120,6 +265,7 @@
                 given_name: document.getElementById('given_name').value.trim(),
                 surname: document.getElementById('surname').value.trim(),
                 email: document.getElementById('email').value.trim(),
+                mobile: document.getElementById('mobile').value.trim(),
                 username: document.getElementById('username').value.trim(),
                 password: p1,
                 department: document.getElementById('department').value,
@@ -127,10 +273,10 @@
             };
 
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Submitting...';
+            submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Processing Registration...';
 
             try {
-                const res = await fetch('/api/v1/registration/submit', {
+                const res = await fetch('/api/v1/public/register/initiate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -138,22 +284,142 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    document.getElementById('reg-form').reset();
-                    statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-emerald-950/40 border-emerald-800 text-emerald-300 block';
-                    statusBox.innerHTML = `<strong>Registration Submitted!</strong><br>${data.message} (Reference ID: ${data.registration_id})`;
+                    if (data.status === 'otp_required') {
+                        // Transition to Step 2: OTP Verification
+                        currentRegId = data.registration_id;
+                        document.getElementById('otp-mobile-display').innerText = data.mobile_masked || payload.mobile;
+
+                        if (data.otp_debug) {
+                            currentDebugOtp = data.otp_debug;
+                            document.getElementById('otp-debug-value').innerText = data.otp_debug;
+                            document.getElementById('otp-debug-container').classList.remove('hidden');
+                        }
+
+                        document.getElementById('step-details').classList.add('hidden');
+                        document.getElementById('step-otp').classList.remove('hidden');
+                        startResendCountdown();
+                        showStatus('success', `<i class="fa-solid fa-check mr-1.5"></i> ${data.message}`);
+                    } else if (data.status === 'pending_approval') {
+                        // OTP verification was disabled by admin; user is pending admin approval
+                        document.getElementById('step-details').classList.add('hidden');
+                        showStatus('warning', `
+                            <div class="space-y-1">
+                                <div class="font-bold text-amber-200"><i class="fa-solid fa-clock mr-1.5"></i> Registration Received - Pending Administrator Approval</div>
+                                <p class="text-slate-300">${data.message}</p>
+                                <p class="text-[11px] text-slate-400">Reference ID: <strong>#${data.registration_id}</strong> | An SMS and Email notification will be sent upon activation.</p>
+                            </div>
+                        `);
+                    }
                 } else {
-                    statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300 block';
-                    statusBox.innerText = data.detail || 'Registration failed. Please check inputs.';
+                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.detail || 'Registration failed.'}`);
                 }
             } catch (err) {
-                statusBox.className = 'rounded-lg p-4 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300 block';
-                statusBox.innerText = 'Network error: could not connect to ZclockID API.';
+                showStatus('error', '<i class="fa-solid fa-circle-xmark mr-1.5"></i> Network error: could not connect to ZclockID API.');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Registration';
             }
         }
+
+        function fillDebugOtp() {
+            if (currentDebugOtp) {
+                document.getElementById('otp_input').value = currentDebugOtp;
+            }
+        }
+
+        async function handleOtpVerify(e) {
+            e.preventDefault();
+            hideStatus();
+            const btn = document.getElementById('btn-verify-otp');
+            const otpCode = document.getElementById('otp_input').value.trim();
+
+            if (!currentRegId) {
+                showStatus('error', 'Session error. Please restart registration.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Verifying & Provisioning...';
+
+            try {
+                const res = await fetch('/api/v1/public/register/verify-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ registration_id: currentRegId, otp_code: otpCode })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.status === 'success') {
+                    // Step 3: Success Screen
+                    document.getElementById('step-otp').classList.add('hidden');
+                    document.getElementById('step-success').classList.remove('hidden');
+                    document.getElementById('succ-username').innerText = data.username;
+                    document.getElementById('succ-upn').innerText = `${data.username}@${data.domain || 'inet.net'}`;
+                    showStatus('success', `<i class="fa-solid fa-circle-check mr-1.5"></i> ${data.message}`);
+                } else {
+                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.detail || 'Verification failed. Please check OTP code.'}`);
+                }
+            } catch (err) {
+                showStatus('error', '<i class="fa-solid fa-circle-xmark mr-1.5"></i> Network error during verification.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Verify Mobile & Activate Account';
+            }
+        }
+
+        function startResendCountdown() {
+            resendSeconds = 60;
+            const resendBtn = document.getElementById('btn-resend-otp');
+            const countdownEl = document.getElementById('resend-countdown');
+            resendBtn.disabled = true;
+            resendBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            if (resendTimer) clearInterval(resendTimer);
+            resendTimer = setInterval(() => {
+                resendSeconds--;
+                countdownEl.innerText = resendSeconds;
+                if (resendSeconds <= 0) {
+                    clearInterval(resendTimer);
+                    resendBtn.disabled = false;
+                    resendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    resendBtn.innerHTML = '<i class="fa-solid fa-rotate"></i> Resend Code';
+                }
+            }, 1000);
+        }
+
+        async function handleResendOtp() {
+            if (!currentRegId) return;
+            const resendBtn = document.getElementById('btn-resend-otp');
+            resendBtn.disabled = true;
+            resendBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Sending...';
+
+            try {
+                const res = await fetch('/api/v1/public/register/resend-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ registration_id: currentRegId })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    if (data.otp_debug) {
+                        currentDebugOtp = data.otp_debug;
+                        document.getElementById('otp-debug-value').innerText = data.otp_debug;
+                    }
+                    showStatus('success', `<i class="fa-solid fa-check mr-1.5"></i> ${data.message}`);
+                    startResendCountdown();
+                } else {
+                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.detail}`);
+                }
+            } catch (err) {
+                showStatus('error', 'Failed to resend OTP.');
+            }
+        }
+
+        function backToDetailsStep() {
+            document.getElementById('step-otp').classList.add('hidden');
+            document.getElementById('step-details').classList.remove('hidden');
+            hideStatus();
+        }
     </script>
 </body>
 </html>
-

@@ -22,6 +22,10 @@ import subprocess
 import os
 import time
 import datetime
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("zclockid")
 import tarfile
 import shutil
 import sqlite3
@@ -35,6 +39,10 @@ import urllib.request
 import urllib.parse
 import base64
 import ssl
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import dns.message
 import dns.rdatatype
 import dns.rcode
@@ -103,14 +111,67 @@ def init_db():
             given_name TEXT,
             surname TEXT,
             department TEXT,
-            status TEXT DEFAULT 'PENDING',
+            mobile TEXT,
+            status TEXT DEFAULT 'PENDING_OTP',
             ip_address TEXT,
             created_at REAL,
             approved_at REAL,
             approved_by TEXT,
-            notes TEXT
+            notes TEXT,
+            otp_code TEXT,
+            otp_expires_at REAL,
+            otp_verified INTEGER DEFAULT 0,
+            password_hash TEXT
         )
     """)
+    # Safe column additions if table was created in an earlier schema
+    cursor.execute("PRAGMA table_info(self_registrations)")
+    existing_cols = [row[1] for row in cursor.fetchall()]
+    cols_to_add = {
+        "mobile": "TEXT",
+        "otp_code": "TEXT",
+        "otp_expires_at": "REAL",
+        "otp_verified": "INTEGER DEFAULT 0",
+        "password_hash": "TEXT"
+    }
+    for col_name, col_type in cols_to_add.items():
+        if col_name not in existing_cols:
+            cursor.execute(f"ALTER TABLE self_registrations ADD COLUMN {col_name} {col_type}")
+
+    # Self-Registration & OTP Policy Settings
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS self_registration_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER DEFAULT 1,
+            require_mobile_otp INTEGER DEFAULT 1,
+            auto_approve_with_otp INTEGER DEFAULT 1,
+            default_domain TEXT DEFAULT 'inet.net',
+            default_group TEXT DEFAULT 'Domain Users',
+            sms_gateway_type TEXT DEFAULT 'simulated',
+            sms_gateway_url TEXT DEFAULT '',
+            sms_api_key TEXT DEFAULT '',
+            sms_sender_id TEXT DEFAULT 'ZCLOCK',
+            sms_template TEXT DEFAULT 'Your ZclockID verification code is {otp}. Valid for 10 minutes.',
+            email_smtp_enabled INTEGER DEFAULT 0,
+            smtp_host TEXT DEFAULT '',
+            smtp_port INTEGER DEFAULT 587,
+            smtp_user TEXT DEFAULT '',
+            smtp_pass TEXT DEFAULT '',
+            smtp_from TEXT DEFAULT 'no-reply@inet.net',
+            updated_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM self_registration_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO self_registration_settings (
+                id, enabled, require_mobile_otp, auto_approve_with_otp, default_domain, default_group,
+                sms_gateway_type, sms_sender_id, sms_template, updated_at
+            ) VALUES (
+                1, 1, 1, 1, 'inet.net', 'Domain Users',
+                'simulated', 'ZCLOCK', 'Your ZclockID verification code is {otp}. Valid for 10 minutes.', ?
+            )
+        """, (time.time(),))
     # Audit & Reporting Events
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS audit_events (
@@ -247,6 +308,203 @@ def log_audit(event_type: str, actor: str, target: str, status: str, details: Di
         conn.close()
     except Exception as e:
         print(f"Error logging audit: {e}")
+
+def get_primary_realm() -> str:
+    smb_conf = Path("/etc/samba/smb.conf")
+    if smb_conf.exists():
+        try:
+            for line in smb_conf.read_text().splitlines():
+                line = line.strip()
+                if line.lower().startswith("realm") and "=" in line:
+                    return line.split("=", 1)[1].strip()
+        except Exception:
+            pass
+    return "INET.NET"
+
+def get_self_registration_settings() -> dict:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM self_registration_settings WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    primary_realm = get_primary_realm().lower()
+    return {
+        "id": 1,
+        "enabled": 1,
+        "require_mobile_otp": 1,
+        "auto_approve_with_otp": 1,
+        "default_domain": primary_realm,
+        "default_group": "Domain Users",
+        "sms_gateway_type": "simulated",
+        "sms_gateway_url": "",
+        "sms_api_key": "",
+        "sms_sender_id": "ZCLOCK",
+        "sms_template": "Your ZclockID verification code is {otp}. Valid for 10 minutes.",
+        "email_smtp_enabled": 0,
+        "smtp_host": "",
+        "smtp_port": 587,
+        "smtp_user": "",
+        "smtp_pass": "",
+        "smtp_from": f"no-reply@{primary_realm}",
+        "updated_at": time.time()
+    }
+
+def dispatch_sms(mobile: str, message: str, settings: dict) -> tuple[bool, str]:
+    gw_type = settings.get("sms_gateway_type", "simulated").lower()
+    logger.info(f"Dispatching SMS via provider '{gw_type}' to '{mobile}'")
+
+    if gw_type == "simulated":
+        logger.info(f"[SMS-SIMULATED] >>> Mobile: {mobile} | Content: {message}")
+        log_audit("SMS_DISPATCHED", "system", mobile, "SUCCESS", {"provider": "simulated", "message": message})
+        return True, "SMS dispatched via local appliance simulator."
+
+    elif gw_type == "webhook":
+        url = settings.get("sms_gateway_url", "").strip()
+        if not url:
+            return False, "Custom webhook SMS gateway URL is not configured."
+        try:
+            payload = {
+                "to": mobile,
+                "message": message,
+                "sender": settings.get("sms_sender_id", "ZCLOCK"),
+                "api_key": settings.get("sms_api_key", "")
+            }
+            res = requests.post(url, json=payload, timeout=8)
+            log_audit("SMS_DISPATCHED", "system", mobile, "SUCCESS" if res.status_code < 300 else "ERROR", {"provider": "webhook", "status_code": res.status_code})
+            return res.status_code < 300, f"Webhook responded with HTTP {res.status_code}"
+        except Exception as e:
+            logger.error(f"Webhook SMS failed: {e}")
+            return False, str(e)
+
+    elif gw_type == "twilio":
+        url = settings.get("sms_gateway_url", "").strip()
+        api_key = settings.get("sms_api_key", "").strip()
+        sender = settings.get("sms_sender_id", "").strip()
+        if not url or not api_key:
+            return False, "Twilio Endpoint URL and Auth Token are required."
+        try:
+            res = requests.post(url, data={"To": mobile, "From": sender, "Body": message}, auth=tuple(api_key.split(":")), timeout=8)
+            return res.status_code in [200, 201], f"Twilio responded with HTTP {res.status_code}"
+        except Exception as e:
+            return False, str(e)
+
+    elif gw_type == "fast2sms":
+        api_key = settings.get("sms_api_key", "").strip()
+        if not api_key:
+            return False, "Fast2SMS API authorization key required."
+        try:
+            headers = {"authorization": api_key, "Content-Type": "application/json"}
+            payload = {
+                "route": "otp",
+                "variables_values": message,
+                "numbers": mobile.replace("+91", "").replace("+", "").strip()
+            }
+            res = requests.post("https://www.fast2sms.com/dev/bulkV2", json=payload, headers=headers, timeout=8)
+            return res.status_code == 200, "Fast2SMS dispatched"
+        except Exception as e:
+            return False, str(e)
+
+    elif gw_type == "msg91":
+        api_key = settings.get("sms_api_key", "").strip()
+        if not api_key:
+            return False, "MSG91 authkey required."
+        try:
+            headers = {"authkey": api_key, "Content-Type": "application/json"}
+            payload = {
+                "template_id": settings.get("sms_sender_id", ""),
+                "mobile": mobile.replace("+", "").strip(),
+                "otp": message
+            }
+            res = requests.post("https://control.msg91.com/api/v5/otp", json=payload, headers=headers, timeout=8)
+            return res.status_code == 200, "MSG91 OTP dispatched"
+        except Exception as e:
+            return False, str(e)
+
+    return True, "Simulated SMS dispatched"
+
+def dispatch_email(to_email: str, subject: str, body: str, settings: dict) -> tuple[bool, str]:
+    if not settings.get("email_smtp_enabled"):
+        logger.info(f"[EMAIL-SIMULATED] >>> To: {to_email} | Subject: {subject} | Body: {body}")
+        log_audit("EMAIL_DISPATCHED", "system", to_email, "SUCCESS", {"provider": "simulated", "subject": subject})
+        return True, "Simulated email logged."
+
+    smtp_host = settings.get("smtp_host", "").strip()
+    if not smtp_host:
+        return False, "SMTP Host is not configured."
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = settings.get("smtp_from", f"no-reply@{get_primary_realm().lower()}")
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        port = int(settings.get("smtp_port", 587))
+        user = settings.get("smtp_user", "").strip()
+        pwd = settings.get("smtp_pass", "").strip()
+
+        if port == 465:
+            server = smtplib.SMTP_SSL(smtp_host, port, timeout=10)
+        else:
+            server = smtplib.SMTP(smtp_host, port, timeout=10)
+            server.starttls()
+
+        if user and pwd:
+            server.login(user, pwd)
+
+        server.sendmail(msg["From"], [to_email], msg.as_string())
+        server.quit()
+        log_audit("EMAIL_DISPATCHED", "system", to_email, "SUCCESS", {"subject": subject})
+        return True, "Email dispatched successfully."
+    except Exception as e:
+        logger.error(f"SMTP dispatch failed: {e}")
+        return False, str(e)
+
+def update_user_upn(username: str, new_upn: str) -> str:
+    code, stdout, stderr = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={username})", "dn"])
+    if code != 0:
+        raise Exception(f"Failed to query SAM LDB: {stderr}")
+    dn = None
+    for line in stdout.splitlines():
+        if line.startswith("dn: "):
+            dn = line[4:].strip()
+            break
+    if not dn:
+        raise Exception(f"User '{username}' not found in Active Directory.")
+    ldif = f"dn: {dn}\nchangetype: modify\nreplace: userPrincipalName\nuserPrincipalName: {new_upn}\n"
+    proc = subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif, text=True, capture_output=True)
+    if proc.returncode != 0:
+        raise Exception(f"Failed to update userPrincipalName: {proc.stderr}")
+    return dn
+
+def provision_user_in_ad(username: str, password: str, given_name: str, surname: str, email: str, mobile: str, department: str, default_domain: str = None) -> bool:
+    admin_user, admin_pass = get_ad_creds()
+    cmd = [
+        "samba-tool", "user", "create", username, password,
+        f"-U{admin_user}", f"--password={admin_pass}"
+    ]
+    if given_name: cmd.extend(["--given-name", given_name])
+    if surname: cmd.extend(["--surname", surname])
+    if email: cmd.extend(["--mail-address", email])
+    if mobile: cmd.extend(["--telephone-number", mobile])
+    if department: cmd.extend(["--department", department])
+
+    code, stdout, stderr = run_cmd(cmd, timeout=25)
+    if code != 0:
+        raise HTTPException(status_code=400, detail=f"Failed to create user in Active Directory: {stderr or stdout}")
+
+    run_cmd(["samba-tool", "user", "setexpiry", username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+
+    if default_domain and default_domain.lower() != get_primary_realm().lower():
+        try:
+            update_user_upn(username, f"{username}@{default_domain.lower()}")
+        except Exception as e:
+            logger.warning(f"Could not set custom UPN {username}@{default_domain}: {e}")
+
+    return True
 
 # ----------------- Pydantic Data Models -----------------
 
@@ -403,6 +661,49 @@ class SnmpTestQueryRequest(BaseModel):
     target_host: Optional[str] = "127.0.0.1"
     community_string: Optional[str] = "zclock_public"
     oid: str = ".1.3.6.1.2.1.1.1.0"
+
+class SelfRegistrationSettingsRequest(BaseModel):
+    enabled: bool = True
+    require_mobile_otp: bool = True
+    auto_approve_with_otp: bool = True
+    default_domain: Optional[str] = "inet.net"
+    default_group: Optional[str] = "Domain Users"
+    sms_gateway_type: Optional[str] = "simulated"  # simulated, webhook, twilio, fast2sms, msg91
+    sms_gateway_url: Optional[str] = ""
+    sms_api_key: Optional[str] = ""
+    sms_sender_id: Optional[str] = "ZCLOCK"
+    sms_template: Optional[str] = "Your ZclockID verification code is {otp}. Valid for 10 minutes."
+    email_smtp_enabled: Optional[bool] = False
+    smtp_host: Optional[str] = ""
+    smtp_port: Optional[int] = 587
+    smtp_user: Optional[str] = ""
+    smtp_pass: Optional[str] = ""
+    smtp_from: Optional[str] = "no-reply@inet.net"
+
+class SelfRegistrationSubmitRequest(BaseModel):
+    username: str
+    password: str
+    given_name: str
+    surname: str
+    email: str
+    mobile: str
+    department: Optional[str] = "Engineering"
+    job_title: Optional[str] = ""
+    justification: Optional[str] = ""
+
+class SelfRegistrationOtpVerifyRequest(BaseModel):
+    registration_id: int
+    otp_code: str
+
+class SelfRegistrationResendOtpRequest(BaseModel):
+    registration_id: int
+
+class SelfRegistrationApprovalAction(BaseModel):
+    notes: Optional[str] = ""
+    target_upn_domain: Optional[str] = None
+
+class UserUpnUpdateRequest(BaseModel):
+    user_principal_name: str
 
 # ----------------- First-Time Setup Wizard Endpoints -----------------
 
@@ -1056,18 +1357,86 @@ def force_drs_replication():
 
 @app.get("/api/v1/users")
 def list_domain_users():
-    code, stdout, stderr = run_cmd(["samba-tool", "user", "list"], timeout=10)
+    primary_realm = get_primary_realm().lower()
+    code, stdout, stderr = run_cmd([
+        "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
+        "(objectClass=user)",
+        "sAMAccountName", "userPrincipalName", "mail", "telephoneNumber", "department", "userAccountControl"
+    ], timeout=10)
+
     users = []
     if code == 0:
+        current_user = {}
         for line in stdout.splitlines():
-            u = line.strip()
-            if u:
+            line = line.strip()
+            if not line:
+                if current_user.get("username"):
+                    u = current_user["username"]
+                    if not u.endswith("$"):
+                        is_built_in = u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"]
+                        uac = current_user.get("uac", 512)
+                        is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
+                        upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
+                        users.append({
+                            "username": u,
+                            "user_principal_name": upn,
+                            "email": current_user.get("email") or "",
+                            "mobile": current_user.get("mobile") or "",
+                            "department": current_user.get("department") or ("IT Operations" if u in ["Administrator", "admin"] else "Corporate Staff"),
+                            "status": "disabled" if is_disabled else "active",
+                            "is_built_in": is_built_in
+                        })
+                current_user = {}
+                continue
+            if line.startswith("sAMAccountName:"):
+                current_user["username"] = line.split(":", 1)[1].strip()
+            elif line.startswith("userPrincipalName:"):
+                current_user["user_principal_name"] = line.split(":", 1)[1].strip()
+            elif line.startswith("mail:"):
+                current_user["email"] = line.split(":", 1)[1].strip()
+            elif line.startswith("telephoneNumber:"):
+                current_user["mobile"] = line.split(":", 1)[1].strip()
+            elif line.startswith("department:"):
+                current_user["department"] = line.split(":", 1)[1].strip()
+            elif line.startswith("userAccountControl:"):
+                try:
+                    current_user["uac"] = int(line.split(":", 1)[1].strip())
+                except:
+                    current_user["uac"] = 512
+
+        if current_user.get("username"):
+            u = current_user["username"]
+            if not u.endswith("$"):
+                is_built_in = u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"]
+                uac = current_user.get("uac", 512)
+                is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
+                upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
                 users.append({
                     "username": u,
-                    "status": "active" if u not in ["Guest", "krbtgt"] else "disabled",
-                    "department": "IT Operations" if u in ["Administrator", "admin"] else "Corporate Staff",
-                    "is_built_in": u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"]
+                    "user_principal_name": upn,
+                    "email": current_user.get("email") or "",
+                    "mobile": current_user.get("mobile") or "",
+                    "department": current_user.get("department") or ("IT Operations" if u in ["Administrator", "admin"] else "Corporate Staff"),
+                    "status": "disabled" if is_disabled else "active",
+                    "is_built_in": is_built_in
                 })
+
+    if not users:
+        c2, out2, _ = run_cmd(["samba-tool", "user", "list"], timeout=10)
+        if c2 == 0:
+            for u in out2.splitlines():
+                u = u.strip()
+                if u and not u.endswith("$"):
+                    users.append({
+                        "username": u,
+                        "user_principal_name": f"{u}@{primary_realm}",
+                        "email": "",
+                        "mobile": "",
+                        "department": "Corporate Staff",
+                        "status": "active" if u not in ["Guest", "krbtgt"] else "disabled",
+                        "is_built_in": u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"]
+                    })
+
     return {"count": len(users), "users": users}
 
 @app.post("/api/v1/users", status_code=status.HTTP_201_CREATED)
@@ -1130,6 +1499,25 @@ def delete_user(username: str):
         raise HTTPException(status_code=400, detail=f"Failed to delete user: {stderr}")
     log_audit("USER_DELETED", "admin", username, "SUCCESS", {})
     return {"status": "success", "message": f"User {username} permanently removed."}
+
+@app.post("/api/v1/users/{username}/upn")
+def update_user_upn_endpoint(username: str, req: UserUpnUpdateRequest):
+    """Updates userPrincipalName attribute in Samba Active Directory SAM database."""
+    new_upn = req.user_principal_name.strip()
+    if not new_upn or "@" not in new_upn:
+        raise HTTPException(status_code=400, detail="Invalid UPN format. Must be in user@domain format.")
+
+    try:
+        dn = update_user_upn(username, new_upn)
+        log_audit("USER_UPN_UPDATED", "admin", username, "SUCCESS", {"new_upn": new_upn, "dn": dn})
+        return {
+            "status": "success",
+            "message": f"UserPrincipalName for '{username}' updated to '{new_upn}' successfully.",
+            "username": username,
+            "user_principal_name": new_upn
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/groups")
 def list_domain_groups():
@@ -2842,3 +3230,417 @@ def test_snmp_query(req: SnmpTestQueryRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"SNMP test query failed: {str(e)}")
+
+# ----------------- User Self-Registration & OTP Verification Subsystem -----------------
+
+@app.get("/api/v1/public/register/config")
+def get_public_registration_config():
+    """Returns self-registration availability and verification requirements for the public portal."""
+    settings = get_self_registration_settings()
+    primary_realm = get_primary_realm().lower()
+    return {
+        "status": "success",
+        "enabled": bool(settings.get("enabled", 1)),
+        "require_mobile_otp": bool(settings.get("require_mobile_otp", 1)),
+        "auto_approve_with_otp": bool(settings.get("auto_approve_with_otp", 1)),
+        "default_domain": settings.get("default_domain") or primary_realm,
+        "primary_realm": primary_realm,
+        "sms_provider": settings.get("sms_gateway_type", "simulated")
+    }
+
+@app.post("/api/v1/public/register/initiate")
+@app.post("/api/v1/registration/submit")
+def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Request):
+    """Submits a new domain account registration. Dispatches mobile OTP if verification enabled."""
+    settings = get_self_registration_settings()
+    if not settings.get("enabled", 1):
+        raise HTTPException(status_code=403, detail="User self-registration is currently disabled by administrator.")
+
+    clean_user = req.username.strip().lower()
+    if not re.match(r"^[a-zA-Z0-9._-]{3,32}$", clean_user):
+        raise HTTPException(status_code=400, detail="Username must be 3-32 characters (letters, numbers, dots, dashes).")
+
+    if len(req.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+
+    clean_mobile = re.sub(r"[^\d+]", "", req.mobile.strip())
+    if len(clean_mobile.replace("+", "")) < 8:
+        raise HTTPException(status_code=400, detail="Please provide a valid mobile number for verification.")
+
+    code, stdout, _ = run_cmd(["samba-tool", "user", "list"], timeout=10)
+    if code == 0:
+        existing_ad = [u.strip().lower() for u in stdout.splitlines() if u.strip()]
+        if clean_user in existing_ad:
+            raise HTTPException(status_code=409, detail=f"Username '{clean_user}' is already registered in the domain.")
+
+    client_ip = request.client.host if request.client else "unknown"
+    require_otp = bool(settings.get("require_mobile_otp", 1))
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, status FROM self_registrations 
+        WHERE (username = ? OR mobile = ?) AND status IN ('PENDING_OTP', 'PENDING_APPROVAL')
+    """, (clean_user, clean_mobile))
+    existing = cursor.fetchone()
+    if existing:
+        cursor.execute("DELETE FROM self_registrations WHERE id = ?", (existing[0],))
+
+    if require_otp:
+        otp = f"{secrets.randbelow(900000) + 100000}"
+        expiry = time.time() + 600
+
+        cursor.execute("""
+            INSERT INTO self_registrations (
+                username, email, given_name, surname, department, mobile,
+                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, ?, ?)
+        """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
+              req.department or "Engineering", clean_mobile, client_ip, time.time(),
+              otp, expiry, req.password, req.justification or ""))
+        reg_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        msg = settings.get("sms_template", "Your ZclockID verification code is {otp}. Valid for 10 minutes.").replace("{otp}", otp).replace("{username}", clean_user)
+        sms_ok, sms_msg = dispatch_sms(clean_mobile, msg, settings)
+
+        masked_mobile = clean_mobile[:4] + "*" * (len(clean_mobile) - 7) + clean_mobile[-3:] if len(clean_mobile) > 7 else clean_mobile
+
+        log_audit("REGISTRATION_OTP_DISPATCHED", clean_user, "appliance", "SUCCESS", {"mobile": clean_mobile, "sms_status": sms_msg})
+
+        return {
+            "status": "otp_required",
+            "registration_id": reg_id,
+            "username": clean_user,
+            "mobile_masked": masked_mobile,
+            "otp_debug": otp if settings.get("sms_gateway_type") == "simulated" else None,
+            "message": f"Verification OTP sent to mobile number {masked_mobile}. Please verify to complete activation."
+        }
+    else:
+        cursor.execute("""
+            INSERT INTO self_registrations (
+                username, email, given_name, surname, department, mobile,
+                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, NULL, NULL, 0, ?, ?)
+        """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
+              req.department or "Engineering", clean_mobile, client_ip, time.time(),
+              req.password, req.justification or ""))
+        reg_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        user_msg = f"Hello {req.given_name}, your ZclockID domain registration for '{clean_user}' has been received and is pending administrator review and approval."
+        dispatch_sms(clean_mobile, user_msg, settings)
+        dispatch_email(req.email.strip(), "ZclockID Registration Received - Pending Approval", user_msg, settings)
+
+        log_audit("REGISTRATION_SUBMITTED_PENDING_APPROVAL", clean_user, "appliance", "SUCCESS", {"mobile": clean_mobile, "email": req.email})
+
+        return {
+            "status": "pending_approval",
+            "registration_id": reg_id,
+            "username": clean_user,
+            "message": "Registration received. Your account is pending administrator review and approval. An SMS/Email notification will be sent upon activation."
+        }
+
+@app.post("/api/v1/public/register/verify-otp")
+def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest):
+    """Verifies mobile OTP code. If valid, automatically provisions and activates user in Samba Active Directory."""
+    settings = get_self_registration_settings()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req.registration_id,))
+    reg = cursor.fetchone()
+
+    if not reg:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Registration request not found.")
+
+    if reg["status"] in ["VERIFIED_AUTO_PROVISIONED", "APPROVED"]:
+        conn.close()
+        return {"status": "success", "message": "Account has already been verified and provisioned.", "username": reg["username"]}
+
+    if reg["status"] != "PENDING_OTP":
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Invalid registration state: {reg['status']}")
+
+    if time.time() > (reg["otp_expires_at"] or 0):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Verification OTP code has expired. Please request a new code.")
+
+    if req.otp_code.strip() != str(reg["otp_code"]).strip():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check your SMS and try again.")
+
+    username = reg["username"]
+    password = reg["password_hash"]
+    given_name = reg["given_name"] or ""
+    surname = reg["surname"] or ""
+    email = reg["email"] or ""
+    mobile = reg["mobile"] or ""
+    dept = reg["department"] or "Engineering"
+    domain = settings.get("default_domain") or get_primary_realm().lower()
+
+    try:
+        provision_user_in_ad(
+            username=username,
+            password=password,
+            given_name=given_name,
+            surname=surname,
+            email=email,
+            mobile=mobile,
+            department=dept,
+            default_domain=domain
+        )
+    except HTTPException:
+        conn.close()
+        raise
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Failed to provision Active Directory user: {str(e)}")
+
+    cursor.execute("""
+        UPDATE self_registrations 
+        SET status = 'VERIFIED_AUTO_PROVISIONED', otp_verified = 1, approved_at = ?, approved_by = 'AUTO_OTP', password_hash = 'PROVISIONED'
+        WHERE id = ?
+    """, (time.time(), req.registration_id))
+    conn.commit()
+    conn.close()
+
+    welcome_sms = f"Welcome to {domain}! Your corporate domain account '{username}' has been verified and activated. You may now log in to Windows, Wi-Fi, and VPN."
+    dispatch_sms(mobile, welcome_sms, settings)
+    dispatch_email(email, f"Welcome to {domain} - Account Activated", f"Hello {given_name},\n\nYour domain account '{username}' has been successfully verified via mobile OTP and created in Active Directory under primary domain '{domain}'.\n\nYou may now access:\n• Corporate Windows Workstations\n• 802.1X Enterprise Wi-Fi\n• VPN & Single Sign-On\n\nRegards,\nIdentity & Access Team", settings)
+
+    log_audit("USER_SELF_REGISTERED_AUTO_APPROVED", username, "active_directory", "SUCCESS", {"mobile": mobile, "email": email, "domain": domain})
+
+    return {
+        "status": "success",
+        "username": username,
+        "domain": domain,
+        "auto_approved": True,
+        "message": f"Mobile number verified! Your domain account '{username}@{domain}' is now active."
+    }
+
+@app.post("/api/v1/public/register/resend-otp")
+def resend_registration_otp(req: SelfRegistrationResendOtpRequest):
+    """Generates and resends a new mobile OTP for an existing unverified registration."""
+    settings = get_self_registration_settings()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM self_registrations WHERE id = ? AND status = 'PENDING_OTP'", (req.registration_id,))
+    reg = cursor.fetchone()
+    if not reg:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Pending registration request not found.")
+
+    otp = f"{secrets.randbelow(900000) + 100000}"
+    expiry = time.time() + 600
+
+    cursor.execute("UPDATE self_registrations SET otp_code = ?, otp_expires_at = ? WHERE id = ?", (otp, expiry, req.registration_id))
+    conn.commit()
+    conn.close()
+
+    clean_mobile = reg["mobile"]
+    msg = settings.get("sms_template", "Your ZclockID verification code is {otp}. Valid for 10 minutes.").replace("{otp}", otp).replace("{username}", reg["username"])
+    dispatch_sms(clean_mobile, msg, settings)
+
+    masked_mobile = clean_mobile[:4] + "*" * (len(clean_mobile) - 7) + clean_mobile[-3:] if len(clean_mobile) > 7 else clean_mobile
+
+    return {
+        "status": "success",
+        "message": f"A new OTP code has been sent to {masked_mobile}.",
+        "otp_debug": otp if settings.get("sms_gateway_type") == "simulated" else None
+    }
+
+@app.get("/api/v1/registrations/settings")
+def get_registration_settings_endpoint():
+    """Returns self-registration and OTP policy settings."""
+    settings = get_self_registration_settings()
+    return {"status": "success", "settings": settings}
+
+@app.post("/api/v1/registrations/settings")
+def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
+    """Updates self-registration, OTP verification, and SMS gateway parameters."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE self_registration_settings SET
+            enabled = ?,
+            require_mobile_otp = ?,
+            auto_approve_with_otp = ?,
+            default_domain = ?,
+            default_group = ?,
+            sms_gateway_type = ?,
+            sms_gateway_url = ?,
+            sms_api_key = ?,
+            sms_sender_id = ?,
+            sms_template = ?,
+            email_smtp_enabled = ?,
+            smtp_host = ?,
+            smtp_port = ?,
+            smtp_user = ?,
+            smtp_pass = ?,
+            smtp_from = ?,
+            updated_at = ?
+        WHERE id = 1
+    """, (
+        1 if req.enabled else 0,
+        1 if req.require_mobile_otp else 0,
+        1 if req.auto_approve_with_otp else 0,
+        req.default_domain or get_primary_realm().lower(),
+        req.default_group or "Domain Users",
+        req.sms_gateway_type or "simulated",
+        req.sms_gateway_url or "",
+        req.sms_api_key or "",
+        req.sms_sender_id or "ZCLOCK",
+        req.sms_template or "Your ZclockID verification code is {otp}. Valid for 10 minutes.",
+        1 if req.email_smtp_enabled else 0,
+        req.smtp_host or "",
+        req.smtp_port or 587,
+        req.smtp_user or "",
+        req.smtp_pass or "",
+        req.smtp_from or f"no-reply@{get_primary_realm().lower()}",
+        time.time()
+    ))
+    conn.commit()
+    conn.close()
+
+    log_audit("REGISTRATION_SETTINGS_UPDATED", "admin", "appliance", "SUCCESS", {
+        "enabled": req.enabled,
+        "require_mobile_otp": req.require_mobile_otp,
+        "sms_provider": req.sms_gateway_type
+    })
+
+    return {"status": "success", "message": "Self-registration and OTP policies updated successfully."}
+
+@app.get("/api/v1/registrations/requests")
+def list_registration_requests(status_filter: Optional[str] = "all"):
+    """Lists self-registration queue entries with status filtering."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    if status_filter and status_filter.lower() != "all":
+        cursor.execute("SELECT id, username, email, given_name, surname, department, mobile, status, ip_address, created_at, approved_at, approved_by, notes FROM self_registrations WHERE LOWER(status) = LOWER(?) ORDER BY created_at DESC", (status_filter,))
+    else:
+        cursor.execute("SELECT id, username, email, given_name, surname, department, mobile, status, ip_address, created_at, approved_at, approved_by, notes FROM self_registrations ORDER BY created_at DESC")
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    requests_list = [dict(r) for r in rows]
+    return {
+        "status": "success",
+        "count": len(requests_list),
+        "requests": requests_list
+    }
+
+@app.post("/api/v1/registrations/requests/{req_id}/approve")
+def approve_registration_request(req_id: int, action: SelfRegistrationApprovalAction):
+    """Admin approves a pending registration and provisions user in Active Directory."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req_id,))
+    reg = cursor.fetchone()
+
+    if not reg:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Registration request not found.")
+
+    if reg["status"] in ["APPROVED", "VERIFIED_AUTO_PROVISIONED"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Account is already approved and provisioned.")
+
+    settings = get_self_registration_settings()
+    domain = action.target_upn_domain or settings.get("default_domain") or get_primary_realm().lower()
+    username = reg["username"]
+    password = reg["password_hash"]
+    given_name = reg["given_name"] or ""
+    surname = reg["surname"] or ""
+    email = reg["email"] or ""
+    mobile = reg["mobile"] or ""
+    dept = reg["department"] or "Engineering"
+
+    if not password or password in ["PROVISIONED", "REJECTED"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Password credential unavailable for deferred provisioning.")
+
+    try:
+        provision_user_in_ad(
+            username=username,
+            password=password,
+            given_name=given_name,
+            surname=surname,
+            email=email,
+            mobile=mobile,
+            department=dept,
+            default_domain=domain
+        )
+    except HTTPException:
+        conn.close()
+        raise
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Active Directory provisioning failed: {str(e)}")
+
+    cursor.execute("""
+        UPDATE self_registrations
+        SET status = 'APPROVED', approved_at = ?, approved_by = 'admin', password_hash = 'PROVISIONED', notes = ?
+        WHERE id = ?
+    """, (time.time(), action.notes or "Approved by administrator", req_id))
+    conn.commit()
+    conn.close()
+
+    msg = f"Congratulations! Your ZclockID domain account '{username}@{domain}' has been approved by the administrator. You may now log in to Windows, Wi-Fi, and VPN."
+    dispatch_sms(mobile, msg, settings)
+    dispatch_email(email, "Your ZclockID Domain Account Has Been Approved", f"Hello {given_name},\n\nYour registration request has been approved by the system administrator.\n\nAccount: {username}@{domain}\nDomain: {domain}\n\nYou may now access corporate systems with your chosen password.\n\nRegards,\nIdentity & Access Team", settings)
+
+    log_audit("REGISTRATION_APPROVED_BY_ADMIN", username, "active_directory", "SUCCESS", {"mobile": mobile, "email": email, "domain": domain})
+
+    return {"status": "success", "message": f"User '{username}' approved and provisioned in Active Directory under domain '{domain}'."}
+
+@app.post("/api/v1/registrations/requests/{req_id}/reject")
+def reject_registration_request(req_id: int, action: SelfRegistrationApprovalAction):
+    """Admin rejects a pending registration request."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req_id,))
+    reg = cursor.fetchone()
+
+    if not reg:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Registration request not found.")
+
+    reason = action.notes or "Request rejected by administrator"
+
+    cursor.execute("""
+        UPDATE self_registrations
+        SET status = 'REJECTED', approved_at = ?, approved_by = 'admin', password_hash = 'REJECTED', notes = ?
+        WHERE id = ?
+    """, (time.time(), reason, req_id))
+    conn.commit()
+    conn.close()
+
+    settings = get_self_registration_settings()
+    rej_msg = f"Your ZclockID domain registration for '{reg['username']}' was declined by the administrator. Reason: {reason}"
+    dispatch_sms(reg["mobile"], rej_msg, settings)
+    dispatch_email(reg["email"], "ZclockID Domain Registration Declined", f"Hello {reg['given_name']},\n\nYour domain registration request for username '{reg['username']}' has been declined by the administrator.\n\nReason: {reason}\n\nPlease contact IT Support for assistance.\n\nRegards,\nIdentity & Access Team", settings)
+
+    log_audit("REGISTRATION_REJECTED", reg["username"], "appliance", "SUCCESS", {"reason": reason})
+
+    return {"status": "success", "message": f"Registration request for '{reg['username']}' rejected."}
+
+@app.delete("/api/v1/registrations/requests/{req_id}")
+def delete_registration_request(req_id: int):
+    """Deletes a registration record from the queue."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM self_registrations WHERE id = ?", (req_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Registration record deleted."}
