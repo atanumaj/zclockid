@@ -3,201 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZclockID - Active Directory Appliance Console</title>
+    <title>ZclockID Enterprise Console</title>
+    <!-- Tailwind CSS v3 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased">
 
     <!-- Top Navigation Bar -->
-    <header class="bg-slate-900 border-b border-slate-800 px-6 py-3.5 flex items-center justify-between sticky top-0 z-50">
-        <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-md shadow-indigo-600/30">
+    <header class="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30 px-6 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-600/30">
                 <i class="fa-solid fa-shield-halved"></i>
             </div>
             <div>
-                <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
-                    ZclockID <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-mono font-semibold border border-indigo-500/30">v1.0.0</span>
-                </h1>
-                <p id="top-hostname" class="text-[11px] text-slate-400 font-mono">inet-zclockid.corp.example.com</p>
+                <span class="font-bold text-sm tracking-tight text-white">ZclockID</span>
+                <span class="text-[10px] text-indigo-400 font-mono ml-1 px-1.5 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/40">ENTERPRISE DC</span>
             </div>
         </div>
 
-        <div class="flex items-center space-x-3">
-            <span id="health-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Appliance Healthy
-            </span>
-            <a href="/register.html" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-md font-medium text-slate-300 transition flex items-center gap-1">
-                <i class="fa-solid fa-user-plus text-indigo-400"></i> Self-Registration
-            </a>
-            <a href="/docs" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-md font-medium text-slate-300 transition flex items-center gap-1">
-                <i class="fa-solid fa-book text-cyan-400"></i> API
-            </a>
-            <button onclick="logout()" class="text-xs bg-rose-950/60 hover:bg-rose-900 border border-rose-800 px-3 py-1.5 rounded-md font-medium text-rose-300 transition flex items-center gap-1">
-                <i class="fa-solid fa-right-from-bracket"></i> Logout
+        <div class="flex items-center gap-4 text-xs font-mono">
+            <div class="flex items-center gap-2 px-3 py-1 bg-slate-950 rounded-lg border border-slate-800">
+                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="header-domain" class="text-slate-300 font-semibold">INET.NET</span>
+            </div>
+            <div class="hidden sm:flex items-center gap-2 text-slate-400">
+                <i class="fa-solid fa-server text-slate-500"></i>
+                <span id="header-host">inet-zclockid</span>
+            </div>
+            <button onclick="logout()" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 transition flex items-center gap-1.5">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span class="hidden md:inline font-sans text-xs">Logout</span>
             </button>
         </div>
     </header>
 
-    <!-- Main Workspace with Left Sidebar (Zentyal-like) -->
     <div class="flex-1 flex overflow-hidden">
-
         <!-- Sidebar Navigation -->
-        <aside class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between p-4 space-y-6">
-            <div class="space-y-1">
-                <p class="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">Management</p>
+        <aside class="w-64 border-r border-slate-800 bg-slate-900/50 flex flex-col justify-between p-4 shrink-0 overflow-y-auto custom-scroll">
+            <nav class="space-y-1 text-xs font-medium">
+                <button onclick="showTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-indigo-400 bg-indigo-600/10 border border-indigo-500/20 font-semibold transition text-left">
+                    <i class="fa-solid fa-gauge-high w-4"></i> Dashboard & Telemetry
+                </button>
+                <button onclick="showTab('domain')" id="nav-domain" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-network-wired w-4"></i> Domain & Forest Config
+                </button>
+                <button onclick="showTab('users')" id="nav-users" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-users w-4"></i> Users & Security Groups
+                </button>
+                <button onclick="showTab('dns')" id="nav-dns" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-server w-4"></i> DNS & Kerberos SRV
+                </button>
+                <button onclick="showTab('radius')" id="nav-radius" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-tower-broadcast w-4"></i> 802.1X Access (RADIUS)
+                </button>
+                <button onclick="showTab('sysvol')" id="nav-sysvol" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-folder-tree w-4"></i> Sysvol Guardian
+                </button>
+                <button onclick="showTab('azure')" id="nav-azure" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-cloud w-4"></i> Azure Cloud Sync
+                </button>
+                <button onclick="showTab('registrations')" id="nav-registrations" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-user-clock w-4"></i> Self-Registrations
+                </button>
+                <button onclick="showTab('reports')" id="nav-reports" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-file-shield w-4"></i> Compliance & Audit Logs
+                </button>
+            </nav>
 
-                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg bg-indigo-600 text-white transition">
-                    <i class="fa-solid fa-gauge-high w-4"></i> Dashboard & Status
-                </button>
-                <button onclick="switchTab('domain')" id="nav-domain" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-sitemap w-4 text-indigo-400"></i> Domain Controller & DRS
-                </button>
-                <button onclick="switchTab('users')" id="nav-users" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-users w-4 text-emerald-400"></i> Users & Groups
-                </button>
-                <button onclick="switchTab('dns')" id="nav-dns" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-network-wired w-4 text-cyan-400"></i> DNS & DoH
-                </button>
-                <button onclick="switchTab('radius')" id="nav-radius" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-wifi w-4 text-amber-400"></i> 802.1X Access (RADIUS)
-                </button>
-                <button onclick="switchTab('azure')" id="nav-azure" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-cloud-arrow-up w-4 text-blue-400"></i> Azure / M365 Sync
-                </button>
-                <button onclick="switchTab('sysvol')" id="nav-sysvol" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-arrows-spin w-4 text-purple-400"></i> Sysvol & NTACLs
-                </button>
-                <button onclick="switchTab('registrations')" id="nav-registrations" class="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <span class="flex items-center gap-3"><i class="fa-solid fa-user-clock w-4 text-rose-400"></i> Self-Registrations</span>
-                    <span id="badge-pending-reg" class="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">0</span>
-                </button>
-                <button onclick="switchTab('reports')" id="nav-reports" class="w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-chart-pie w-4 text-teal-400"></i> Audit Reports
-                </button>
-            </div>
-
-            <!-- Appliance Quick Footnote -->
-            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1 text-[11px] text-slate-400">
-                <div class="flex justify-between font-mono">
-                    <span>Samba AD:</span> <span class="text-emerald-400">v4.23.6</span>
+            <div class="pt-4 border-t border-slate-800 space-y-2 text-[11px] text-slate-500 font-mono">
+                <div class="flex justify-between items-center">
+                    <span>STATUS:</span>
+                    <span id="appliance-health" class="text-emerald-400 font-bold">HEALTHY</span>
                 </div>
-                <div class="flex justify-between font-mono">
-                    <span>DoH DNS:</span> <span class="text-cyan-400">Active</span>
+                <div class="flex justify-between items-center">
+                    <span>UPTIME:</span>
+                    <span id="appliance-uptime" class="text-slate-400">0h 0m</span>
+                </div>
+                <div class="pt-2 text-center">
+                    <span class="text-[10px] text-slate-600 block">ZclockID Appliance v1.1.0-LTS</span>
                 </div>
             </div>
         </aside>
 
-        <!-- Dynamic Content Workspace -->
-        <main class="flex-1 overflow-y-auto p-6 space-y-6">
+        <!-- Main Workspace Area -->
+        <main class="flex-1 overflow-y-auto custom-scroll p-6 space-y-6">
 
-            <!-- TAB 1: DASHBOARD -->
+            <!-- ==================== TAB 1: DASHBOARD ==================== -->
             <section id="tab-dashboard" class="space-y-6">
-                <!-- Resource Meters -->
+                <!-- Resource Gauges -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2">
-                        <div class="flex justify-between text-xs text-slate-400">
-                            <span>CPU Utilization</span>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-microchip text-indigo-400"></i> CPU Utilization</span>
                             <span id="meter-cpu" class="font-mono text-indigo-400 font-bold">0%</span>
                         </div>
                         <div class="w-full bg-slate-800 rounded-full h-2">
-                            <div id="bar-cpu" class="bg-indigo-600 h-2 rounded-full" style="width: 5%"></div>
+                            <div id="bar-cpu" class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: 5%"></div>
                         </div>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2">
-                        <div class="flex justify-between text-xs text-slate-400">
-                            <span>Memory (RAM)</span>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-memory text-emerald-400"></i> Memory (RAM)</span>
                             <span id="meter-mem" class="font-mono text-emerald-400 font-bold">0 MB</span>
                         </div>
                         <div class="w-full bg-slate-800 rounded-full h-2">
-                            <div id="bar-mem" class="bg-emerald-600 h-2 rounded-full" style="width: 20%"></div>
+                            <div id="bar-mem" class="bg-emerald-600 h-2 rounded-full transition-all duration-500" style="width: 20%"></div>
                         </div>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-2">
-                        <div class="flex justify-between text-xs text-slate-400">
-                            <span>Disk Storage</span>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-hard-drive text-cyan-400"></i> Root Storage</span>
                             <span id="meter-disk" class="font-mono text-cyan-400 font-bold">0 GB</span>
                         </div>
                         <div class="w-full bg-slate-800 rounded-full h-2">
-                            <div id="bar-disk" class="bg-cyan-600 h-2 rounded-full" style="width: 10%"></div>
+                            <div id="bar-disk" class="bg-cyan-600 h-2 rounded-full transition-all duration-500" style="width: 10%"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Subsystem Service States -->
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-server text-indigo-400"></i> Core Engine Daemons
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                            <span class="text-[10px] text-slate-500 uppercase">Directory Engine</span>
-                            <p class="text-xs font-bold text-white">Samba AD DC</p>
-                            <span id="srv-samba" class="inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-400">CHECKING</span>
-                        </div>
-                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                            <span class="text-[10px] text-slate-500 uppercase">DNS Engine</span>
-                            <p class="text-xs font-bold text-white">BIND9 DLZ & DoH</p>
-                            <span id="srv-bind" class="inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-400">CHECKING</span>
-                        </div>
-                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                            <span class="text-[10px] text-slate-500 uppercase">802.1X Access</span>
-                            <p class="text-xs font-bold text-white">FreeRADIUS 3</p>
-                            <span id="srv-radius" class="inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-400">CHECKING</span>
-                        </div>
-                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                            <span class="text-[10px] text-slate-500 uppercase">Sysvol Guardian</span>
-                            <p class="text-xs font-bold text-white">zclock-sysvold</p>
-                            <span id="srv-sysvol" class="inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-400">CHECKING</span>
-                        </div>
-                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1">
-                            <span class="text-[10px] text-slate-500 uppercase">Ingress Proxy</span>
-                            <p class="text-xs font-bold text-white">Nginx Port 443</p>
-                            <span id="srv-nginx" class="inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-400">CHECKING</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 2: DOMAIN CONTROLLER & DRS -->
-            <section id="tab-domain" class="space-y-6 hidden">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <h3 class="text-sm font-semibold text-white">Domain & FSMO Role Ownership</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-                        <div class="space-y-2 bg-slate-950 p-4 rounded-lg border border-slate-800">
-                            <div class="flex justify-between"><span class="text-slate-500">Domain Realm:</span> <span id="dc-realm" class="text-white">NOT PROVISIONED</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">NetBIOS Name:</span> <span id="dc-netbios" class="text-indigo-400">NOT PROVISIONED</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">Functional Level:</span> <span class="text-slate-300">2012_R2 / 2016</span></div>
-                        </div>
-                        <div id="fsmo-container" class="space-y-1 bg-slate-950 p-4 rounded-lg border border-slate-800">
-                            <div class="text-[11px] text-slate-400 font-sans font-semibold mb-2">FSMO Role Masters</div>
-                            <div class="flex justify-between"><span class="text-slate-500">PDC Emulator:</span> <span id="fsmo-pdc" class="text-emerald-400">-</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">RID Master:</span> <span id="fsmo-rid" class="text-slate-300">-</span></div>
-                            <div class="flex justify-between"><span class="text-slate-500">Schema Master:</span> <span id="fsmo-schema" class="text-slate-300">-</span></div>
-                        </div>
-                    </div>
-                    <div class="pt-2">
-                        <button onclick="forceDrsSync()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-arrows-rotate"></i> Force Immediate DRS Directory Replication
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 3: USERS & GROUPS -->
-            <section id="tab-users" class="space-y-6 hidden">
+                <!-- Detailed Subsystems Engine Grid (Zentyal Style) -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold text-white">Active Directory Domain Users</h3>
-                            <p class="text-xs text-slate-400">Manage user accounts, passwords, and security group memberships</p>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-server text-indigo-400"></i> Subsystem Engines & Daemon Status
+                            </h3>
+                            <p class="text-xs text-slate-400">Live process metrics, port bindings, and runtime controls (Zentyal style)</p>
                         </div>
-                        <button onclick="openUserModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow">
-                            <i class="fa-solid fa-plus"></i> Create New User
+                        <button onclick="fetchSystemStatus()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate"></i> Refresh Metrics
+                        </button>
+                    </div>
+
+                    <div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <!-- Samba Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] text-indigo-400 font-mono uppercase font-bold tracking-wider">DIRECTORY & AUTH</span>
+                                    <h4 class="text-xs font-bold text-white">Samba AD DC</h4>
+                                </div>
+                                <span id="badge-samba-ad-dc" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-samba-ad-dc" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-samba-ad-dc" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-indigo-300">53, 88, 389, 445, 464</span></div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                                <button onclick="controlService('samba-ad-dc', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="openLogViewer('samba-ad-dc', 'Samba Active Directory')" class="px-2.5 py-1 bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-300 border border-indigo-800/60 rounded text-[11px] font-semibold transition" title="View Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- BIND9 Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] text-cyan-400 font-mono uppercase font-bold tracking-wider">DNS & DOH ENGINE</span>
+                                    <h4 class="text-xs font-bold text-white">BIND9 DLZ</h4>
+                                </div>
+                                <span id="badge-bind9" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-bind9" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-bind9" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-cyan-300">53 (UDP/TCP), 8053 (DoH)</span></div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                                <button onclick="controlService('bind9', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="openLogViewer('bind9', 'BIND9 DNS Engine')" class="px-2.5 py-1 bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-800/60 rounded text-[11px] font-semibold transition" title="View Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- FreeRADIUS Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] text-amber-400 font-mono uppercase font-bold tracking-wider">802.1X AUTH & ACCT</span>
+                                    <h4 class="text-xs font-bold text-white">FreeRADIUS 3</h4>
+                                </div>
+                                <span id="badge-freeradius" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-freeradius" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-freeradius" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-amber-300">1812 (Auth), 1813 (Acct)</span></div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                                <button onclick="controlService('freeradius', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="openLogViewer('freeradius', 'FreeRADIUS 802.1X')" class="px-2.5 py-1 bg-amber-950/60 hover:bg-amber-900/60 text-amber-300 border border-amber-800/60 rounded text-[11px] font-semibold transition" title="View Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sysvol Daemon Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] text-emerald-400 font-mono uppercase font-bold tracking-wider">SYSVOL GUARDIAN</span>
+                                    <h4 class="text-xs font-bold text-white">zclock-sysvold</h4>
+                                </div>
+                                <span id="badge-zclock-sysvold" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-zclock-sysvold" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-zclock-sysvold" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Path:</span> <span class="text-emerald-300">/var/lib/samba/sysvol</span></div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                                <button onclick="controlService('zclock-sysvold', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="openLogViewer('zclock-sysvold', 'Sysvol NTACL Guardian')" class="px-2.5 py-1 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/60 rounded text-[11px] font-semibold transition" title="View Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Nginx Ingress Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] text-violet-400 font-mono uppercase font-bold tracking-wider">INGRESS PROXY</span>
+                                    <h4 class="text-xs font-bold text-white">Nginx Multiplexer</h4>
+                                </div>
+                                <span id="badge-nginx" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-nginx" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-nginx" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-violet-300">80, 443 (HTTP/2 TLS)</span></div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                                <button onclick="controlService('nginx', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="openLogViewer('nginx', 'Nginx Ingress Proxy')" class="px-2.5 py-1 bg-violet-950/60 hover:bg-violet-900/60 text-violet-300 border border-violet-800/60 rounded text-[11px] font-semibold transition" title="View Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- SNMP Telemetry Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] text-rose-400 font-mono uppercase font-bold tracking-wider">ENTERPRISE TELEMETRY</span>
+                                    <h4 class="text-xs font-bold text-white">Net-SNMP Daemon</h4>
+                                </div>
+                                <span id="badge-snmpd" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-snmpd" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-snmpd" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-rose-300">161 (UDP)</span></div>
+                            </div>
+                            <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                                <button onclick="controlService('snmpd', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="openLogViewer('snmpd', 'Net-SNMP Telemetry')" class="px-2.5 py-1 bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded text-[11px] font-semibold transition" title="View Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 2: DOMAIN & FOREST CONFIG ==================== -->
+            <section id="tab-domain" class="space-y-6 hidden">
+                <!-- Domain Identity Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired text-indigo-400"></i> Active Directory Domain & Forest Identity
+                            </h3>
+                            <p class="text-xs text-slate-400">Core parameters, domain SID, and Kerberos realm settings</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Primary Realm (FQDN)</span>
+                            <div id="domain-realm-val" class="text-white font-bold text-sm">INET.NET</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">NetBIOS Domain</span>
+                            <div id="domain-netbios-val" class="text-indigo-400 font-bold text-sm">INET</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Functional Levels</span>
+                            <div class="text-slate-300 font-bold text-sm">Win2008R2 / Win2012R2</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Domain SID</span>
+                            <div id="domain-sid-val" class="text-cyan-400 font-bold text-xs truncate">S-1-5-21-...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alternate Domain & UPN Suffixes Management (Zentyal Style) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-at text-emerald-400"></i> Alternate Domain & UPN Suffixes (Email Logins)
+                            </h3>
+                            <p class="text-xs text-slate-400">Configure secondary domain names so users can log in as user@alternate.com instead of the forest root</p>
+                        </div>
+                        <button onclick="openUpnModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Add Alternate Domain UPN
                         </button>
                     </div>
 
@@ -205,155 +344,436 @@
                         <table class="w-full text-xs text-left text-slate-300">
                             <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th class="px-4 py-2.5">Username</th>
-                                    <th class="px-4 py-2.5">Account Type</th>
+                                    <th class="px-4 py-2.5">Domain UPN Suffix</th>
+                                    <th class="px-4 py-2.5">Role Type</th>
                                     <th class="px-4 py-2.5">Status</th>
                                     <th class="px-4 py-2.5 text-right">Actions</th>
                                 </tr>
                             </thead>
+                            <tbody id="upn-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading domain UPN suffixes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- FSMO Roles Ownership & Role Transfer (Zentyal Style) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-crown text-amber-400"></i> Flexible Single Master Operation (FSMO) Roles
+                            </h3>
+                            <p class="text-xs text-slate-400">View and transfer directory role ownership or promote an alternate DC to primary</p>
+                        </div>
+                        <button onclick="openFsmoModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer / Seize Roles
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">FSMO Role Name</th>
+                                    <th class="px-4 py-2.5">Scope</th>
+                                    <th class="px-4 py-2.5">Master DC Owner</th>
+                                    <th class="px-4 py-2.5">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fsmo-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading FSMO roles...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- DRS Replication Sync -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Directory Replication Service (DRS) Health</h3>
+                            <p class="text-xs text-slate-400">Inbound and outbound neighbor synchronization across multi-DC topologies</p>
+                        </div>
+                        <button onclick="forceDrsSync()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-arrows-rotate"></i> Force Immediate DRS Sync
+                        </button>
+                    </div>
+                    <pre id="drs-output" class="text-[11px] font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-300 max-h-48 overflow-y-auto custom-scroll">Loading DRS replication status...</pre>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 3: USERS & GROUPS ==================== -->
+            <section id="tab-users" class="space-y-6 hidden">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-users text-indigo-400"></i> Active Directory Domain Accounts
+                            </h3>
+                            <p class="text-xs text-slate-400">Manage user accounts, group memberships, and credentials</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openGroupModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-folder-plus"></i> New Group
+                            </button>
+                            <button onclick="openUserModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-plus"></i> New User
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">sAMAccountName</th>
+                                    <th class="px-4 py-2.5">Department</th>
+                                    <th class="px-4 py-2.5">Account State</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
                             <tbody id="users-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading users...</td></tr>
+                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- TAB 4: DNS & DOH -->
+            <!-- ==================== TAB 4: DNS & KERBEROS SRV (Zentyal Style) ==================== -->
             <section id="tab-dns" class="space-y-6 hidden">
+                <!-- Kerberos Discovery Health Diagnostics Banner -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold text-white">BIND9 Dynamic Link Zone (DLZ) & DoH</h3>
-                            <p class="text-xs text-slate-400">Active Directory integrated forward and reverse lookup zones</p>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shield-virus text-indigo-400"></i> Kerberos & Active Directory Service Discovery Health
+                            </h3>
+                            <p class="text-xs text-slate-400">Real-time resolution tests for domain controllers, KDC authentication, and dynamic DNS</p>
+                        </div>
+                        <button onclick="runDnsDiagnostics()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-stethoscope"></i> Run Diagnostic Test
+                        </button>
+                    </div>
+
+                    <div id="dns-diag-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                            <div class="text-[10px] text-slate-500 uppercase">Kerberos KDC (TCP:88)</div>
+                            <div id="diag-kdc" class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> RESOLVING</div>
+                            <div id="diag-kdc-rec" class="text-[10px] text-slate-400 truncate">_kerberos._tcp.inet.net</div>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                            <div class="text-[10px] text-slate-500 uppercase">LDAP Directory (TCP:389)</div>
+                            <div id="diag-ldap" class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> RESOLVING</div>
+                            <div id="diag-ldap-rec" class="text-[10px] text-slate-400 truncate">_ldap._tcp.inet.net</div>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                            <div class="text-[10px] text-slate-500 uppercase">Kerberos Password (TCP:464)</div>
+                            <div id="diag-kpasswd" class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> RESOLVING</div>
+                            <div id="diag-kpasswd-rec" class="text-[10px] text-slate-400 truncate">_kpasswd._tcp.inet.net</div>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                            <div class="text-[10px] text-slate-500 uppercase">Upstream Forwarding</div>
+                            <div id="diag-forward" class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> ACTIVE</div>
+                            <div id="diag-forward-rec" class="text-[10px] text-slate-400 truncate">Recursive OK</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DNS Forwarders & Options (Zentyal Style) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-route text-cyan-400"></i> Upstream DNS Forwarders & Resolution Policy
+                            </h3>
+                            <p class="text-xs text-slate-400">Manage recursive upstream nameservers and forwarding modes (Zentyal style)</p>
+                        </div>
+                        <button onclick="openForwardersModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-sliders"></i> Configure Forwarders
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1 md:col-span-2">
+                            <span class="text-slate-500 text-[10px] uppercase">Active Upstream Forwarders</span>
+                            <div id="forwarders-list-display" class="flex flex-wrap gap-2 pt-1">
+                                <span class="px-2.5 py-1 bg-slate-800 text-cyan-300 rounded-lg text-xs border border-cyan-800/40">1.1.1.1</span>
+                                <span class="px-2.5 py-1 bg-slate-800 text-cyan-300 rounded-lg text-xs border border-cyan-800/40">8.8.8.8</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Forwarding Policy</span>
+                            <div id="forward-policy-val" class="text-white font-bold text-sm">Forward First (Fallback to Root)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DNS Records Table with SRV & Kerberos Presets -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <select id="dns-zone-select" onchange="fetchDnsRecords()" class="bg-slate-950 border border-slate-800 text-xs text-white rounded-lg px-3 py-1.5 font-mono focus:outline-none focus:border-indigo-500">
+                                <option value="inet.net">inet.net</option>
+                                <option value="_msdcs.inet.net">_msdcs.inet.net</option>
+                            </select>
+                            <button onclick="openNewZoneModal()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition" title="Create New Zone">
+                                <i class="fa-solid fa-plus"></i> New Zone
+                            </button>
                         </div>
                         <button onclick="openDnsModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-plus"></i> Add DNS Record
                         </button>
                     </div>
-                    <div id="dns-zones-container" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
-                            <span class="text-slate-500">Active Zone:</span> <span class="text-cyan-400">corp.example.com</span>
-                        </div>
-                        <div class="p-3 bg-slate-950 rounded-lg border border-slate-800">
-                            <span class="text-slate-500">DoH Endpoint:</span> <span class="text-emerald-400">https://192.168.1.41/dns-query</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
 
-            <!-- TAB 5: 802.1X ACCESS (RADIUS) -->
-            <section id="tab-radius" class="space-y-6 hidden">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-white">Authorized Network Access Servers (NAS)</h3>
-                            <p class="text-xs text-slate-400">Manage Wi-Fi access points and managed switches communicating with FreeRADIUS</p>
-                        </div>
-                        <button onclick="openRadiusModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-plus"></i> Add NAS Device
-                        </button>
+                    <!-- Filter Pills -->
+                    <div class="flex flex-wrap items-center gap-2 pt-2 text-xs">
+                        <button onclick="filterDnsRecords('ALL')" class="dns-filter-btn px-2.5 py-1 bg-indigo-600 text-white rounded-md font-semibold text-[11px]">All Records</button>
+                        <button onclick="filterDnsRecords('SRV')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">Kerberos & AD SRV</button>
+                        <button onclick="filterDnsRecords('A')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">A / AAAA</button>
+                        <button onclick="filterDnsRecords('CNAME')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">CNAME</button>
+                        <button onclick="filterDnsRecords('MX')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">MX</button>
                     </div>
+
                     <div class="overflow-x-auto">
                         <table class="w-full text-xs text-left text-slate-300">
                             <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th class="px-4 py-2.5">Client Name</th>
-                                    <th class="px-4 py-2.5">IP Subnet</th>
-                                    <th class="px-4 py-2.5">Shared Secret</th>
+                                    <th class="px-4 py-2.5">Record Name</th>
+                                    <th class="px-4 py-2.5">Type</th>
+                                    <th class="px-4 py-2.5">Target / IP / Data</th>
+                                    <th class="px-4 py-2.5">SRV Info (Port/Pri/Wgt)</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="radius-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="3" class="px-4 py-4 text-center font-sans text-slate-500">Loading NAS clients...</td></tr>
+                            <tbody id="dns-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Loading DNS records...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- TAB 6: AZURE CLOUD SYNC -->
+            <!-- ==================== TAB 5: 802.1X ACCESS (RADIUS - pfSense Style) ==================== -->
+            <section id="tab-radius" class="space-y-6 hidden">
+                <!-- Sub-nav Pills -->
+                <div class="flex items-center gap-3 border-b border-slate-800 pb-3">
+                    <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition">
+                        <i class="fa-solid fa-network-wired mr-1.5"></i> NAS Clients (AP / Switches)
+                    </button>
+                    <button onclick="switchRadiusSubTab('accounting')" id="rad-tab-accounting" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-chart-line mr-1.5"></i> RADIUS Accounting & Sessions
+                    </button>
+                    <button onclick="switchRadiusSubTab('settings')" id="rad-tab-settings" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                        <i class="fa-solid fa-sliders mr-1.5"></i> Engine Parameters
+                    </button>
+                </div>
+
+                <!-- SUB-SECTION 1: NAS Clients -->
+                <div id="radius-sec-clients" class="space-y-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-tower-broadcast text-amber-400"></i> Authorized Network Access Servers (NAS)
+                                </h3>
+                                <p class="text-xs text-slate-400">Switches and wireless access points allowed to authenticate users against Samba AD via 802.1X</p>
+                            </div>
+                            <button onclick="openRadiusModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add NAS Client
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Client Identifier</th>
+                                        <th class="px-4 py-2.5">IP Address / CIDR</th>
+                                        <th class="px-4 py-2.5">NAS Type</th>
+                                        <th class="px-4 py-2.5">Shared Secret</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Loading NAS clients...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 2: RADIUS Accounting & Sessions (pfSense Style) -->
+                <div id="radius-sec-accounting" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-stopwatch text-indigo-400"></i> Active 802.1X Accounting Sessions (pfSense Style)
+                                </h3>
+                                <p class="text-xs text-slate-400">Real-time session tracker, client MAC bindings, and bandwidth consumption</p>
+                            </div>
+                            <button onclick="fetchRadiusSessions()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate"></i> Refresh Sessions
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Username</th>
+                                        <th class="px-4 py-2.5">NAS Device</th>
+                                        <th class="px-4 py-2.5">Client MAC (Calling-Station)</th>
+                                        <th class="px-4 py-2.5">Framed IP</th>
+                                        <th class="px-4 py-2.5">Duration</th>
+                                        <th class="px-4 py-2.5">Data In / Out</th>
+                                        <th class="px-4 py-2.5">State</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-acct-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="8" class="px-4 py-4 text-center font-sans text-slate-500">Loading accounting sessions...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 3: RADIUS Settings -->
+                <div id="radius-sec-settings" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 max-w-xl">
+                        <h3 class="text-sm font-semibold text-white">FreeRADIUS General Parameters</h3>
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label class="text-slate-400 block mb-1">Authentication UDP Port</label>
+                                <input id="rad-cfg-auth-port" type="number" value="1812" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Accounting UDP Port</label>
+                                <input id="rad-cfg-acct-port" type="number" value="1813" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Interim-Update Interval (Seconds)</label>
+                                <input id="rad-cfg-interval" type="number" value="300" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div class="pt-2">
+                                <button onclick="saveRadiusSettings()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition">
+                                    Save RADIUS Settings
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 6: SYSVOL GUARDIAN ==================== -->
+            <section id="tab-sysvol" class="space-y-6 hidden">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Sysvol File System & NTACL Guardian</h3>
+                            <p class="text-xs text-slate-400">Preserves and heals Windows NT security descriptors across multi-DC sysvol replication</p>
+                        </div>
+                        <button onclick="resetSysvolNtacl()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-wrench"></i> Force NTACL Reset
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Guardian Daemon</span>
+                            <div class="text-emerald-400 font-bold text-sm">zclock-sysvold (ACTIVE)</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Sysvol Directory</span>
+                            <div class="text-white font-bold text-xs truncate">/var/lib/samba/sysvol</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase">Last Integrity Reset</span>
+                            <div id="sysvol-last-reset" class="text-slate-300 font-bold text-xs">-</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 7: AZURE CLOUD SYNC ==================== -->
             <section id="tab-azure" class="space-y-6 hidden">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold text-white">Microsoft Entra ID (Azure AD) Synchronization</h3>
-                            <p class="text-xs text-slate-400">Direct Linux-to-Cloud synchronization via Microsoft Graph API</p>
+                            <h3 class="text-sm font-semibold text-white">Microsoft Entra ID (Azure AD) Native Sync</h3>
+                            <p class="text-xs text-slate-400">Direct Linux-to-Cloud synchronization via Microsoft Graph API without Windows Server</p>
                         </div>
-                        <button onclick="triggerAzureSync()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> Sync to Cloud Now
+                        <button onclick="triggerAzureSync()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Sync Now
                         </button>
                     </div>
 
-                    <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                            <div><span class="text-slate-500">Azure Sync Status:</span> <span id="az-status" class="text-amber-400">NOT CONFIGURED</span></div>
-                            <div><span class="text-slate-500">Last Successful Sync:</span> <span id="az-last-sync" class="text-slate-300">Never</span></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                            <div class="flex justify-between"><span class="text-slate-500">Sync Status:</span> <span id="azure-status-text" class="text-amber-400">NOT CONFIGURED</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Local AD Users:</span> <span id="azure-local-count" class="text-white">0</span></div>
+                            <div class="flex justify-between"><span class="text-slate-500">Synced to Cloud:</span> <span id="azure-synced-count" class="text-white">0</span></div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <!-- TAB 7: SYSVOL -->
-            <section id="tab-sysvol" class="space-y-6 hidden">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <h3 class="text-sm font-semibold text-white">Sysvol Group Policy & Windows NTACL Health</h3>
-                    <p class="text-xs text-slate-400">Preserves and automatically restores Windows Security Descriptors on GPOs</p>
-                    <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
-                        <div class="flex justify-between"><span class="text-slate-500">Sysvol Path:</span> <span class="text-slate-300">/var/lib/samba/sysvol</span></div>
-                        <div class="flex justify-between"><span class="text-slate-500">Guardian Daemon:</span> <span class="text-emerald-400">Active (zclock-sysvold)</span></div>
-                    </div>
-                    <div>
-                        <button onclick="triggerNtaclReset()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-shield-halved"></i> Run NTACL Self-Healing (sysvolreset)
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- TAB 8: REGISTRATIONS -->
+            <!-- ==================== TAB 8: REGISTRATIONS ==================== -->
             <section id="tab-registrations" class="space-y-6 hidden">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <h3 class="text-sm font-semibold text-white">Pending User Self-Registrations</h3>
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">User Self-Registration Approval Queue</h3>
+                            <p class="text-xs text-slate-400">Review pending domain account self-service signups</p>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-xs text-left text-slate-300">
                             <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th class="px-4 py-2.5">User</th>
-                                    <th class="px-4 py-2.5">Email</th>
+                                    <th class="px-4 py-2.5">Requested Username</th>
+                                    <th class="px-4 py-2.5">Full Name</th>
                                     <th class="px-4 py-2.5">Department</th>
+                                    <th class="px-4 py-2.5">Submitted At</th>
                                     <th class="px-4 py-2.5 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="reg-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">No pending requests.</td></tr>
+                            <tbody id="registrations-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No pending registrations.</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             </section>
 
-            <!-- TAB 9: REPORTS -->
+            <!-- ==================== TAB 9: COMPLIANCE & AUDIT ==================== -->
             <section id="tab-reports" class="space-y-6 hidden">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-white">Audit Trail & Security Logs</h3>
-                        <div class="flex gap-2">
-                            <a href="/api/v1/reports/export/csv?report_type=registrations" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded text-emerald-400">Export Users CSV</a>
-                            <a href="/api/v1/reports/export/csv?report_type=audit" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded text-cyan-400">Export Audit CSV</a>
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Security & Audit Event Trail</h3>
+                            <p class="text-xs text-slate-400">Immutable ledger of administrative actions, user changes, and domain operations</p>
                         </div>
+                        <button onclick="exportAuditCsv()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-download"></i> Export CSV
+                        </button>
                     </div>
-                    <div class="overflow-x-auto max-h-96 overflow-y-auto">
+                    <div class="overflow-x-auto">
                         <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800 sticky top-0">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th class="px-4 py-2">Event</th>
-                                    <th class="px-4 py-2">Target</th>
-                                    <th class="px-4 py-2">Status</th>
-                                    <th class="px-4 py-2">Timestamp</th>
+                                    <th class="px-4 py-2.5">Timestamp</th>
+                                    <th class="px-4 py-2.5">Event</th>
+                                    <th class="px-4 py-2.5">Actor</th>
+                                    <th class="px-4 py-2.5">Target</th>
+                                    <th class="px-4 py-2.5">Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="reports-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading audit records...</td></tr>
+                            <tbody id="audit-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Loading audit records...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -363,256 +783,1295 @@
         </main>
     </div>
 
-    <!-- User Creation Modal -->
-    <div id="user-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4">
-            <h3 class="text-base font-bold text-white">Create Active Directory User</h3>
-            <form onsubmit="handleCreateUser(event)" class="space-y-3">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="new-given" placeholder="First Name" class="bg-slate-800 border border-slate-700 rounded p-2 text-xs text-white">
-                    <input type="text" id="new-sur" placeholder="Last Name" class="bg-slate-800 border border-slate-700 rounded p-2 text-xs text-white">
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- Live Journalctl Log Viewer Modal -->
+    <div id="log-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-terminal text-indigo-400"></i>
+                    <h3 id="log-modal-title" class="text-sm font-bold text-white font-mono">Service Logs</h3>
                 </div>
-                <input type="text" id="new-uname" placeholder="Username (e.g. jdoe)" required class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-xs text-white">
-                <input type="email" id="new-mail" placeholder="Email (jdoe@corp.com)" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-xs text-white">
-                <input type="password" id="new-pwd" placeholder="Initial Password" required minlength="8" class="w-full bg-slate-800 border border-slate-700 rounded p-2 text-xs text-white">
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeUserModal()" class="px-3 py-1.5 bg-slate-800 text-xs rounded text-slate-300">Cancel</button>
-                    <button type="submit" class="px-4 py-1.5 bg-emerald-600 text-xs font-bold rounded text-white">Create User</button>
+                <div class="flex items-center gap-3">
+                    <button onclick="refreshActiveLogs()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded font-semibold transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                    <button onclick="closeLogModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-            </form>
+            </div>
+            <div class="p-4 flex-1 overflow-y-auto custom-scroll bg-black/90">
+                <pre id="log-modal-body" class="text-[11px] font-mono text-emerald-400 whitespace-pre-wrap break-all">Loading logs...</pre>
+            </div>
+            <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-end">
+                <button onclick="closeLogModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Close</button>
+            </div>
         </div>
     </div>
 
+    <!-- DNS Forwarders Modal (Zentyal Style) -->
+    <div id="forwarders-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-route text-cyan-400"></i> Configure Upstream DNS Forwarders</h3>
+                <button onclick="closeForwardersModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Upstream Forwarders (One IP per line or space-separated)</label>
+                    <textarea id="fwd-ips-input" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono" placeholder="1.1.1.1&#10;8.8.8.8"></textarea>
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Forwarding Policy</label>
+                    <select id="fwd-policy-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <option value="first">forward first (Try forwarders, fall back to root servers)</option>
+                        <option value="only">forward only (Strictly use forwarders, do not resolve roots)</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeForwardersModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="saveForwarders()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Apply & Reload BIND9</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Alternate UPN Suffix Modal -->
+    <div id="upn-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-at text-emerald-400"></i> Add Alternate Domain UPN Suffix</h3>
+                <button onclick="closeUpnModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Alternate Domain (e.g. corpzee.com)</label>
+                    <input id="upn-suffix-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono" placeholder="corpzee.com">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeUpnModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitAddUpn()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Add Suffix</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FSMO Role Transfer Modal -->
+    <div id="fsmo-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-crown text-amber-400"></i> Transfer FSMO Role</h3>
+                <button onclick="closeFsmoModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Target FSMO Role</label>
+                    <select id="fsmo-role-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <option value="pdc">PDC Emulator Role</option>
+                        <option value="rid">RID Master Role</option>
+                        <option value="naming">Domain Naming Master Role</option>
+                        <option value="schema">Schema Master Role</option>
+                        <option value="infrastructure">Infrastructure Master Role</option>
+                        <option value="all">ALL 5 FSMO Roles</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                    <input id="fsmo-seize-check" type="checkbox" class="rounded bg-slate-950 border-slate-800 text-amber-600 focus:ring-0">
+                    <label for="fsmo-seize-check" class="text-rose-400 text-xs">Force Seize (Only if current role owner is permanently dead)</label>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeFsmoModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitFsmoTransfer()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Execute Transfer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add DNS Record Modal with Kerberos SRV Presets (Zentyal Style) -->
+    <div id="dns-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-plus text-indigo-400"></i> Add Active Directory DNS Record</h3>
+                <button onclick="closeDnsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <!-- Preset Dropdown for Kerberos & LDAP -->
+                <div>
+                    <label class="text-slate-400 block mb-1">Service Discovery Preset (Auto-fills SRV)</label>
+                    <select id="dns-preset-select" onchange="applyDnsPreset()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-mono">
+                        <option value="custom">-- Custom Record --</option>
+                        <option value="kerberos_tcp">_kerberos._tcp (Kerberos KDC Port 88)</option>
+                        <option value="kerberos_udp">_kerberos._udp (Kerberos KDC UDP 88)</option>
+                        <option value="kpasswd_tcp">_kpasswd._tcp (Kerberos Password Port 464)</option>
+                        <option value="ldap_tcp">_ldap._tcp (LDAP Directory Port 389)</option>
+                        <option value="gc_tcp">_gc._tcp (Global Catalog Port 3268)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Record Name (e.g. 'web' or '_kerberos._tcp')</label>
+                    <input id="dns-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="web">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Record Type</label>
+                    <select id="dns-type-select" onchange="toggleSrvInputs()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <option value="A">A (IPv4 Host)</option>
+                        <option value="AAAA">AAAA (IPv6 Host)</option>
+                        <option value="CNAME">CNAME (Alias)</option>
+                        <option value="SRV">SRV (Active Directory Service Discovery)</option>
+                        <option value="MX">MX (Mail Exchange)</option>
+                        <option value="TXT">TXT (Text)</option>
+                    </select>
+                </div>
+                <div>
+                    <label id="dns-data-label" class="text-slate-400 block mb-1">Target IP / Host FQDN</label>
+                    <input id="dns-data-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="192.168.1.50">
+                </div>
+                <!-- SRV Specific Fields -->
+                <div id="srv-fields-container" class="grid grid-cols-3 gap-2 hidden">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Port</label>
+                        <input id="dns-srv-port" type="number" value="88" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Priority</label>
+                        <input id="dns-srv-priority" type="number" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Weight</label>
+                        <input id="dns-srv-weight" type="number" value="100" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeDnsModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitAddDnsRecord()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Record</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add NAS Client Modal with Secret Generator (pfSense Style) -->
+    <div id="radius-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-tower-broadcast text-amber-400"></i> Add FreeRADIUS NAS Client (pfSense Style)</h3>
+                <button onclick="closeRadiusModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Client Identifier (Name)</label>
+                    <input id="rad-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="AP-Floor-1">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Client IP Address or CIDR Subnet</label>
+                    <input id="rad-ip-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="192.168.1.50 or 192.168.1.0/24">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">NAS Hardware Type</label>
+                    <select id="rad-type-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <option value="other">Generic / Other</option>
+                        <option value="cisco">Cisco IOS</option>
+                        <option value="mikrotik">MikroTik RouterOS</option>
+                        <option value="unifi">Ubiquiti UniFi AP / Switch</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-slate-400">Shared Secret (RADIUS Key)</label>
+                        <button type="button" onclick="generateSecretForModal()" class="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Strong Secret
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input id="rad-secret-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono pr-8" placeholder="StrongSharedSecret2026!">
+                        <button type="button" onclick="copyModalSecret()" class="absolute right-2 top-2 text-slate-500 hover:text-slate-300" title="Copy Secret">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeRadiusModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitAddRadiusClient()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Save NAS Client</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div id="user-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-400"></i> New Domain User</h3>
+                <button onclick="closeUserModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">sAMAccountName (Username)</label>
+                    <input id="usr-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Initial Password</label>
+                    <input id="usr-pass-input" type="password" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="P@ssw0rd2026!">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Given Name</label>
+                        <input id="usr-given-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="John">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Surname</label>
+                        <input id="usr-sur-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="Doe">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Department</label>
+                    <input id="usr-dept-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="Engineering">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitCreateUser()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Create Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Group Modal -->
+    <div id="group-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-indigo-400"></i> New Security Group</h3>
+                <button onclick="closeGroupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Group Name</label>
+                    <input id="grp-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="SG-Engineering">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeGroupModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitCreateGroup()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Group</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New DNS Zone Modal -->
+    <div id="zone-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-plus text-indigo-400"></i> Create Active Directory DNS Zone</h3>
+                <button onclick="closeNewZoneModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Zone FQDN (e.g. corpzee.com or 1.168.192.in-addr.arpa)</label>
+                    <input id="new-zone-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="corpzee.com">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeNewZoneModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitCreateZone()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Zone</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== JAVASCRIPT CONTROLLERS ==================== -->
     <script>
-        // Check Setup & Authentication on load
-        async function checkApplianceState() {
-            try {
-                const res = await fetch('/api/v1/setup/status');
-                const data = await res.json();
-                if (!data.is_configured) {
-                    window.location.href = '/setup.html';
-                    return;
-                }
-            } catch (e) {
-                console.error(e);
-            }
+        const API_BASE = '/api/v1';
+        let currentActiveLogService = '';
+        let currentDnsRecords = [];
 
-            // Authentication check
-            const token = localStorage.getItem('zclockid_token');
-            if (!token) {
-                window.location.href = '/login.html';
-                return;
-            }
-
-            refreshDashboard();
-        }
-
-        function switchTab(tabId) {
-            const tabs = ['dashboard', 'domain', 'users', 'dns', 'radius', 'azure', 'sysvol', 'registrations', 'reports'];
+        // Tab Navigation
+        function showTab(tabId) {
+            const tabs = ['dashboard', 'domain', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports'];
             tabs.forEach(t => {
-                document.getElementById(`tab-${t}`).classList.add('hidden');
-                const btn = document.getElementById(`nav-${t}`);
-                if (btn) btn.className = 'w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg text-slate-300 hover:bg-slate-800 transition';
+                const el = document.getElementById(`tab-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                if (el) el.classList.add('hidden');
+                if (nav) {
+                    nav.classList.remove('text-indigo-400', 'bg-indigo-600/10', 'border-indigo-500/20', 'font-semibold');
+                    nav.classList.add('text-slate-400');
+                }
             });
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            const activeBtn = document.getElementById(`nav-${tabId}`);
-            if (activeBtn) activeBtn.className = 'w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-lg bg-indigo-600 text-white transition';
 
-            // Lazy fetch tab data
-            if (tabId === 'users') fetchUsers();
-            if (tabId === 'domain') fetchDomain();
-            if (tabId === 'radius') fetchRadius();
-            if (tabId === 'reports') fetchReports();
-            if (tabId === 'azure') fetchAzure();
+            const activeEl = document.getElementById(`tab-${tabId}`);
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeEl) activeEl.classList.remove('hidden');
+            if (activeNav) {
+                activeNav.classList.remove('text-slate-400');
+                activeNav.classList.add('text-indigo-400', 'bg-indigo-600/10', 'border-indigo-500/20', 'font-semibold');
+            }
+
+            // Lazy load tab data
+            if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); }
+            else if (tabId === 'users') { fetchUsers(); }
+            else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
+            else if (tabId === 'radius') { fetchRadiusClients(); fetchRadiusSessions(); }
+            else if (tabId === 'sysvol') { fetchSysvolStatus(); }
+            else if (tabId === 'azure') { fetchAzureStatus(); }
+            else if (tabId === 'reports') { fetchAuditEvents(); }
         }
 
-        async function refreshDashboard() {
-            try {
-                const res = await fetch('/api/v1/system/status');
-                const data = await res.json();
-                document.getElementById('top-hostname').innerText = data.hostname;
+        // Sub-tabs in RADIUS
+        function switchRadiusSubTab(sub) {
+            document.getElementById('radius-sec-clients').classList.add('hidden');
+            document.getElementById('radius-sec-accounting').classList.add('hidden');
+            document.getElementById('radius-sec-settings').classList.add('hidden');
 
+            ['clients', 'accounting', 'settings'].forEach(s => {
+                const btn = document.getElementById(`rad-tab-${s}`);
+                if (btn) {
+                    btn.classList.remove('bg-amber-600/20', 'text-amber-400', 'border', 'border-amber-500/30', 'font-bold');
+                    btn.classList.add('text-slate-400', 'font-medium');
+                }
+            });
+
+            document.getElementById(`radius-sec-${sub}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`rad-tab-${sub}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('text-slate-400', 'font-medium');
+                activeBtn.classList.add('bg-amber-600/20', 'text-amber-400', 'border', 'border-amber-500/30', 'font-bold');
+            }
+        }
+
+        // 1. System & Dashboard Status
+        async function fetchSystemStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/system/status`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                // Resource Gauges
                 if (data.resources) {
                     document.getElementById('meter-cpu').innerText = `${data.resources.cpu_percent}%`;
                     document.getElementById('bar-cpu').style.width = `${data.resources.cpu_percent}%`;
-                    document.getElementById('meter-mem').innerText = `${data.resources.memory_used_mb} MB (${data.resources.memory_percent}%)`;
+                    document.getElementById('meter-mem').innerText = `${data.resources.memory_used_mb} / ${data.resources.memory_total_mb} MB (${data.resources.memory_percent}%)`;
                     document.getElementById('bar-mem').style.width = `${data.resources.memory_percent}%`;
-                    document.getElementById('meter-disk').innerText = `${data.resources.disk_used_gb} GB (${data.resources.disk_percent}%)`;
+                    document.getElementById('meter-disk').innerText = `${data.resources.disk_used_gb} / ${data.resources.disk_total_gb} GB (${data.resources.disk_percent}%)`;
                     document.getElementById('bar-disk').style.width = `${data.resources.disk_percent}%`;
                 }
 
-                // Daemon pills
-                const setPill = (id, s) => {
-                    const el = document.getElementById(id);
-                    if (!el) return;
-                    el.className = s === 'active' ? 'inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800' : 'inline-block px-1.5 py-0.5 rounded text-[9px] font-mono bg-slate-800 text-slate-400';
-                    el.innerText = s.toUpperCase();
-                };
-                setPill('srv-samba', data.services.samba_ad_dc.status);
-                setPill('srv-bind', data.services.bind9_doh.status);
-                setPill('srv-radius', data.services.freeradius.status);
-                setPill('srv-sysvol', data.services.sysvol_daemon.status);
-                setPill('srv-nginx', data.services.nginx.status);
-            } catch (e) {
-                console.error(e);
-            }
-        }
+                document.getElementById('header-host').innerText = data.hostname || 'inet-zclockid';
+                document.getElementById('appliance-health').innerText = data.overall_health || 'HEALTHY';
+                const upH = Math.floor(data.uptime_seconds / 3600);
+                const upM = Math.floor((data.uptime_seconds % 3600) / 60);
+                document.getElementById('appliance-uptime').innerText = `${upH}h ${upM}m`;
 
-        async function fetchUsers() {
-            try {
-                const res = await fetch('/api/v1/users');
-                const data = await res.json();
-                const tbody = document.getElementById('users-table-body');
-                tbody.innerHTML = data.users.map(u => `
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-white">${u.username}</td>
-                        <td class="px-4 py-2 text-slate-400">${u.type}</td>
-                        <td class="px-4 py-2"><span class="px-1.5 py-0.5 text-[9px] rounded bg-emerald-950 text-emerald-400">ACTIVE</span></td>
-                        <td class="px-4 py-2 text-right space-x-1">
-                            <button onclick="resetPass('${u.username}')" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px]">Password</button>
-                            <button onclick="delUser('${u.username}')" class="px-2 py-0.5 bg-rose-950 hover:bg-rose-900 text-rose-300 rounded text-[10px]">Delete</button>
-                        </td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function fetchDomain() {
-            try {
-                const res = await fetch('/api/v1/domain/info');
-                const data = await res.json();
-                document.getElementById('dc-realm').innerText = data.realm;
-                document.getElementById('dc-netbios').innerText = data.domain_netbios;
-                if (data.fsmo_roles) {
-                    document.getElementById('fsmo-pdc').innerText = data.fsmo_roles.PdcEmulator || 'Active';
-                    document.getElementById('fsmo-rid').innerText = data.fsmo_roles.RidMaster || 'Active';
-                    document.getElementById('fsmo-schema').innerText = data.fsmo_roles.SchemaMaster || 'Active';
+                // Services Badges & PIDs
+                if (data.services) {
+                    for (const [key, srv] of Object.entries(data.services)) {
+                        const dashKey = key.replace(/_/g, '-');
+                        const badge = document.getElementById(`badge-${dashKey}`);
+                        const pidEl = document.getElementById(`pid-${dashKey}`);
+                        const memEl = document.getElementById(`mem-${dashKey}`);
+                        if (badge) {
+                            badge.innerText = srv.status.toUpperCase();
+                            badge.className = srv.status === 'active' 
+                                ? 'px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800'
+                                : 'px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950 text-rose-400 border border-rose-800';
+                        }
+                        if (pidEl) pidEl.innerText = srv.pid ? `${srv.pid}` : '-';
+                        if (memEl) memEl.innerText = srv.memory_mb ? `${srv.memory_mb} MB` : '-';
+                    }
                 }
-            } catch (e) {
-                console.error(e);
+            } catch (err) {
+                console.error('Failed to fetch status:', err);
             }
         }
 
-        async function fetchRadius() {
+        // Service Control (Restart / Start / Stop)
+        async function controlService(serviceName, action) {
+            if (!confirm(`Are you sure you want to ${action} ${serviceName}?`)) return;
             try {
-                const res = await fetch('/api/v1/radius/clients');
+                const res = await fetch(`${API_BASE}/services/${serviceName}/control`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ action: action })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`${serviceName} ${action} successful!`);
+                    fetchSystemStatus();
+                } else {
+                    alert(`Action failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error executing control command: ${err}`);
+            }
+        }
+
+        // Live Log Viewer
+        async function openLogViewer(serviceName, title) {
+            currentActiveLogService = serviceName;
+            document.getElementById('log-modal-title').innerText = `${title} (journalctl -u ${serviceName})`;
+            document.getElementById('log-modal-body').innerText = 'Streaming logs from journalctl...';
+            document.getElementById('log-modal').classList.remove('hidden');
+            refreshActiveLogs();
+        }
+
+        async function refreshActiveLogs() {
+            if (!currentActiveLogService) return;
+            try {
+                const res = await fetch(`${API_BASE}/services/${currentActiveLogService}/logs?lines=60`);
+                const data = await res.json();
+                document.getElementById('log-modal-body').innerText = data.logs || 'No logs found.';
+            } catch (err) {
+                document.getElementById('log-modal-body').innerText = `Error retrieving logs: ${err}`;
+            }
+        }
+
+        function closeLogModal() {
+            document.getElementById('log-modal').classList.add('hidden');
+            currentActiveLogService = '';
+        }
+
+        // 2. Domain & UPN Management
+        async function fetchDomainInfo() {
+            try {
+                const res = await fetch(`${API_BASE}/domain/info`);
+                const data = await res.json();
+                document.getElementById('header-domain').innerText = data.realm || 'INET.NET';
+                document.getElementById('domain-realm-val').innerText = data.realm || 'INET.NET';
+                document.getElementById('domain-netbios-val').innerText = data.domain_netbios || 'INET';
+                document.getElementById('domain-sid-val').innerText = data.domain_sid || 'S-1-5-21-...';
+
+                // FSMO Roles Table
+                const tbody = document.getElementById('fsmo-table-body');
+                if (tbody && data.fsmo_roles) {
+                    tbody.innerHTML = '';
+                    const roleDefs = [
+                        { name: 'PDC Emulator (PdcEmulationMaster)', scope: 'Domain', val: data.fsmo_roles.PdcEmulationMaster || data.fsmo_roles.PdcEmulator },
+                        { name: 'RID Master (RidAllocationMaster)', scope: 'Domain', val: data.fsmo_roles.RidAllocationMaster || data.fsmo_roles.RidMaster },
+                        { name: 'Infrastructure Master (InfrastructureMaster)', scope: 'Domain', val: data.fsmo_roles.InfrastructureMaster },
+                        { name: 'Schema Master (SchemaMaster)', scope: 'Forest', val: data.fsmo_roles.SchemaMaster },
+                        { name: 'Domain Naming Master (DomainNamingMaster)', scope: 'Forest', val: data.fsmo_roles.DomainNamingMaster }
+                    ];
+
+                    roleDefs.forEach(r => {
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5 font-bold text-white">${r.name}</td>
+                                <td class="px-4 py-2.5 text-slate-400">${r.scope}</td>
+                                <td class="px-4 py-2.5 text-indigo-300 font-semibold">${r.val || 'Local DC'}</td>
+                                <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800">ONLINE</span></td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching domain info:', err);
+            }
+        }
+
+        async function fetchUpnSuffixes() {
+            try {
+                const res = await fetch(`${API_BASE}/domain/upn`);
+                const data = await res.json();
+                const tbody = document.getElementById('upn-table-body');
+                if (!tbody) return;
+
+                tbody.innerHTML = `
+                    <tr class="hover:bg-slate-800/30">
+                        <td class="px-4 py-2.5 font-bold text-white">@${data.primary_realm.toLowerCase()}</td>
+                        <td class="px-4 py-2.5 text-indigo-400">Primary Forest Root</td>
+                        <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800">DEFAULT</span></td>
+                        <td class="px-4 py-2.5 text-right text-slate-500 font-sans italic text-[10px]">Protected Root</td>
+                    </tr>
+                `;
+
+                if (data.alternate_suffixes && data.alternate_suffixes.length > 0) {
+                    data.alternate_suffixes.forEach(s => {
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5 font-bold text-emerald-300">@${s}</td>
+                                <td class="px-4 py-2.5 text-slate-400">Alternate UPN Suffix</td>
+                                <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">ACTIVE</span></td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <button onclick="deleteUpnSuffix('${s}')" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/60 text-rose-400 border border-rose-800/60 rounded text-[10px] transition">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching UPN suffixes:', err);
+            }
+        }
+
+        function openUpnModal() { document.getElementById('upn-modal').classList.remove('hidden'); }
+        function closeUpnModal() { document.getElementById('upn-modal').classList.add('hidden'); }
+
+        async function submitAddUpn() {
+            const suffix = document.getElementById('upn-suffix-input').value.trim();
+            if (!suffix) return alert('Please enter an alternate domain suffix.');
+            try {
+                const res = await fetch(`${API_BASE}/domain/upn`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ upn_suffix: suffix })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeUpnModal();
+                    document.getElementById('upn-suffix-input').value = '';
+                    fetchUpnSuffixes();
+                } else {
+                    alert(`Failed to add suffix: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error adding UPN suffix: ${err}`);
+            }
+        }
+
+        async function deleteUpnSuffix(suffix) {
+            if (!confirm(`Are you sure you want to remove alternate domain '@${suffix}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/domain/upn/${suffix}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchUpnSuffixes();
+                } else {
+                    const data = await res.json();
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting suffix: ${err}`);
+            }
+        }
+
+        function openFsmoModal() { document.getElementById('fsmo-modal').classList.remove('hidden'); }
+        function closeFsmoModal() { document.getElementById('fsmo-modal').classList.add('hidden'); }
+
+        async function submitFsmoTransfer() {
+            const role = document.getElementById('fsmo-role-select').value;
+            const forceSeize = document.getElementById('fsmo-seize-check').checked;
+            if (!confirm(`Execute ${forceSeize ? 'SEIZE' : 'TRANSFER'} for role '${role}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/domain/fsmo/transfer`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ role: role, force_seize: forceSeize })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`FSMO Operation Succeeded: ${data.message}`);
+                    closeFsmoModal();
+                    fetchDomainInfo();
+                } else {
+                    alert(`FSMO Operation Failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error transferring role: ${err}`);
+            }
+        }
+
+        async function forceDrsSync() {
+            try {
+                document.getElementById('drs-output').innerText = 'Executing samba-tool drs kcc sync...';
+                const res = await fetch(`${API_BASE}/domain/replication/sync`, { method: 'POST' });
+                const data = await res.json();
+                document.getElementById('drs-output').innerText = data.message || 'DRS Synchronization complete.';
+            } catch (err) {
+                document.getElementById('drs-output').innerText = `Sync error: ${err}`;
+            }
+        }
+
+        // 3. DNS & Kerberos Diagnostics & Forwarders (Zentyal Style)
+        async function fetchDnsForwarders() {
+            try {
+                const res = await fetch(`${API_BASE}/dns/forwarders`);
+                const data = await res.json();
+                const container = document.getElementById('forwarders-list-display');
+                if (container && data.forwarders) {
+                    container.innerHTML = data.forwarders.map(ip => `
+                        <span class="px-2.5 py-1 bg-slate-800 text-cyan-300 rounded-lg text-xs border border-cyan-800/40">${ip}</span>
+                    `).join('');
+                }
+                const policyEl = document.getElementById('forward-policy-val');
+                if (policyEl) policyEl.innerText = data.policy === 'only' ? 'Forward Only' : 'Forward First (Fallback to Root)';
+            } catch (err) {
+                console.error('Error fetching DNS forwarders:', err);
+            }
+        }
+
+        function openForwardersModal() {
+            fetch(`${API_BASE}/dns/forwarders`).then(r => r.json()).then(data => {
+                document.getElementById('fwd-ips-input').value = data.forwarders.join('\n');
+                document.getElementById('fwd-policy-select').value = data.policy || 'first';
+                document.getElementById('forwarders-modal').classList.remove('hidden');
+            });
+        }
+        function closeForwardersModal() { document.getElementById('forwarders-modal').classList.add('hidden'); }
+
+        async function saveForwarders() {
+            const raw = document.getElementById('fwd-ips-input').value;
+            const ips = raw.split(/[\n,\s]+/).map(s => s.trim()).filter(Boolean);
+            const policy = document.getElementById('fwd-policy-select').value;
+            if (ips.length === 0) return alert('At least one forwarder IP is required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/dns/forwarders`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ forwarders: ips, policy: policy })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeForwardersModal();
+                    fetchDnsForwarders();
+                } else {
+                    alert(`Failed to save forwarders: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving forwarders: ${err}`);
+            }
+        }
+
+        async function runDnsDiagnostics() {
+            try {
+                const res = await fetch(`${API_BASE}/dns/diagnostics`);
+                const data = await res.json();
+                if (data.diagnostics) {
+                    data.diagnostics.forEach(d => {
+                        if (d.service.includes('Kerberos KDC')) {
+                            const el = document.getElementById('diag-kdc');
+                            if (el) el.innerHTML = d.status === 'PASS' 
+                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> RESOLVING`
+                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
+                        } else if (d.service.includes('LDAP Directory')) {
+                            const el = document.getElementById('diag-ldap');
+                            if (el) el.innerHTML = d.status === 'PASS' 
+                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> RESOLVING`
+                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
+                        } else if (d.service.includes('Kerberos Password')) {
+                            const el = document.getElementById('diag-kpasswd');
+                            if (el) el.innerHTML = d.status === 'PASS' 
+                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> RESOLVING`
+                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
+                        } else if (d.service.includes('Forwarding')) {
+                            const el = document.getElementById('diag-forward');
+                            if (el) el.innerHTML = d.status === 'PASS' 
+                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> ACTIVE`
+                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Error running diagnostics:', err);
+            }
+        }
+
+        async function fetchDnsZones() {
+            try {
+                const res = await fetch(`${API_BASE}/dns/zones`);
+                const data = await res.json();
+                const sel = document.getElementById('dns-zone-select');
+                if (sel && data.zones) {
+                    sel.innerHTML = data.zones.map(z => `<option value="${z}">${z}</option>`).join('');
+                }
+            } catch (err) {
+                console.error('Error fetching DNS zones:', err);
+            }
+        }
+
+        async function fetchDnsRecords() {
+            const zone = document.getElementById('dns-zone-select').value;
+            const tbody = document.getElementById('dns-table-body');
+            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Querying DNS database...</td></tr>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/dns/records?zone=${zone}`);
+                const data = await res.json();
+                currentDnsRecords = data.records || [];
+                renderDnsTable(currentDnsRecords);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-rose-400">Failed to query records: ${err}</td></tr>`;
+            }
+        }
+
+        function renderDnsTable(records) {
+            const tbody = document.getElementById('dns-table-body');
+            if (records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No records found.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = records.map(r => `
+                <tr class="hover:bg-slate-800/30">
+                    <td class="px-4 py-2.5 font-bold ${r.name.includes('_tcp') || r.name.includes('_kerberos') ? 'text-indigo-400' : 'text-white'}">${r.name}</td>
+                    <td class="px-4 py-2.5">
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono ${r.type === 'SRV' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : 'bg-slate-800 text-slate-300'}">${r.type}</span>
+                    </td>
+                    <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs">${r.data}</td>
+                    <td class="px-4 py-2.5 text-slate-400">${r.type === 'SRV' ? '<span class="text-indigo-300">Port/Pri/Wgt Active</span>' : '-'}</td>
+                    <td class="px-4 py-2.5 text-right">
+                        ${r.name !== '@' ? `
+                            <button onclick="deleteDnsRecord('${r.zone}', '${r.name}', '${r.type}', '${r.data}')" class="text-slate-500 hover:text-rose-400 transition" title="Delete Record">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterDnsRecords(type) {
+            document.querySelectorAll('.dns-filter-btn').forEach(b => {
+                b.className = 'dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]';
+            });
+            event.target.className = 'dns-filter-btn px-2.5 py-1 bg-indigo-600 text-white rounded-md font-semibold text-[11px]';
+
+            if (type === 'ALL') {
+                renderDnsTable(currentDnsRecords);
+            } else if (type === 'SRV') {
+                renderDnsTable(currentDnsRecords.filter(r => r.type === 'SRV'));
+            } else {
+                renderDnsTable(currentDnsRecords.filter(r => r.type === type));
+            }
+        }
+
+        function openDnsModal() {
+            document.getElementById('dns-modal').classList.remove('hidden');
+        }
+        function closeDnsModal() {
+            document.getElementById('dns-modal').classList.add('hidden');
+        }
+
+        function applyDnsPreset() {
+            const p = document.getElementById('dns-preset-select').value;
+            const nameInput = document.getElementById('dns-name-input');
+            const typeSelect = document.getElementById('dns-type-select');
+            const dataInput = document.getElementById('dns-data-input');
+            const portInput = document.getElementById('dns-srv-port');
+            const priInput = document.getElementById('dns-srv-priority');
+            const wgtInput = document.getElementById('dns-srv-weight');
+
+            if (p === 'kerberos_tcp') {
+                nameInput.value = '_kerberos._tcp';
+                typeSelect.value = 'SRV';
+                dataInput.value = 'inet-zclockid.inet.net';
+                portInput.value = '88';
+                priInput.value = '0';
+                wgtInput.value = '100';
+            } else if (p === 'kerberos_udp') {
+                nameInput.value = '_kerberos._udp';
+                typeSelect.value = 'SRV';
+                dataInput.value = 'inet-zclockid.inet.net';
+                portInput.value = '88';
+                priInput.value = '0';
+                wgtInput.value = '100';
+            } else if (p === 'kpasswd_tcp') {
+                nameInput.value = '_kpasswd._tcp';
+                typeSelect.value = 'SRV';
+                dataInput.value = 'inet-zclockid.inet.net';
+                portInput.value = '464';
+                priInput.value = '0';
+                wgtInput.value = '100';
+            } else if (p === 'ldap_tcp') {
+                nameInput.value = '_ldap._tcp';
+                typeSelect.value = 'SRV';
+                dataInput.value = 'inet-zclockid.inet.net';
+                portInput.value = '389';
+                priInput.value = '0';
+                wgtInput.value = '100';
+            } else if (p === 'gc_tcp') {
+                nameInput.value = '_gc._tcp';
+                typeSelect.value = 'SRV';
+                dataInput.value = 'inet-zclockid.inet.net';
+                portInput.value = '3268';
+                priInput.value = '0';
+                wgtInput.value = '100';
+            }
+            toggleSrvInputs();
+        }
+
+        function toggleSrvInputs() {
+            const t = document.getElementById('dns-type-select').value;
+            const srvBox = document.getElementById('srv-fields-container');
+            const dataLabel = document.getElementById('dns-data-label');
+            if (t === 'SRV') {
+                srvBox.classList.remove('hidden');
+                dataLabel.innerText = 'Target Host FQDN (e.g. dc1.inet.net)';
+            } else {
+                srvBox.classList.add('hidden');
+                dataLabel.innerText = 'Target IP / Host / Value';
+            }
+        }
+
+        async function submitAddDnsRecord() {
+            const zone = document.getElementById('dns-zone-select').value;
+            const name = document.getElementById('dns-name-input').value.trim();
+            const type = document.getElementById('dns-type-select').value;
+            const data = document.getElementById('dns-data-input').value.trim();
+            const port = parseInt(document.getElementById('dns-srv-port').value) || 88;
+            const pri = parseInt(document.getElementById('dns-srv-priority').value) || 0;
+            const wgt = parseInt(document.getElementById('dns-srv-weight').value) || 100;
+
+            if (!name || !data) return alert('Name and target data are required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/dns/records`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        zone: zone,
+                        record_name: name,
+                        record_type: type,
+                        record_data: data,
+                        port: port,
+                        priority: pri,
+                        weight: wgt
+                    })
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    closeDnsModal();
+                    fetchDnsRecords();
+                } else {
+                    alert(`Failed to create record: ${resData.detail}`);
+                }
+            } catch (err) {
+                alert(`Error creating record: ${err}`);
+            }
+        }
+
+        async function deleteDnsRecord(zone, name, type, data) {
+            if (!confirm(`Delete ${type} record '${name}'?`)) return;
+            try {
+                const url = `${API_BASE}/dns/records?zone=${encodeURIComponent(zone)}&record_name=${encodeURIComponent(name)}&record_type=${encodeURIComponent(type)}&record_data=${encodeURIComponent(data)}`;
+                const res = await fetch(url, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchDnsRecords();
+                } else {
+                    const err = await res.json();
+                    alert(`Failed to delete record: ${err.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting record: ${err}`);
+            }
+        }
+
+        function openNewZoneModal() { document.getElementById('zone-modal').classList.remove('hidden'); }
+        function closeNewZoneModal() { document.getElementById('zone-modal').classList.add('hidden'); }
+
+        async function submitCreateZone() {
+            const zname = document.getElementById('new-zone-name-input').value.trim();
+            if (!zname) return alert('Please enter a zone name.');
+            try {
+                const res = await fetch(`${API_BASE}/dns/zones`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ zone_name: zname })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeNewZoneModal();
+                    fetchDnsZones();
+                } else {
+                    alert(`Failed to create zone: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error creating zone: ${err}`);
+            }
+        }
+
+        // 4. FreeRADIUS 802.1X NAS Clients, Secrets & Accounting (pfSense Style)
+        async function fetchRadiusClients() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/clients`);
                 const data = await res.json();
                 const tbody = document.getElementById('radius-table-body');
-                tbody.innerHTML = data.clients.map(c => `
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-white">${c.name}</td>
-                        <td class="px-4 py-2 text-amber-400">${c.ipaddr}</td>
-                        <td class="px-4 py-2 text-slate-500">${c.secret}</td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.error(e);
-            }
-        }
-
-        async function fetchAzure() {
-            try {
-                const res = await fetch('/api/v1/azure/status');
-                const data = await res.json();
-                document.getElementById('az-status').innerText = data.status;
-                document.getElementById('az-status').className = data.status === 'HEALTHY' ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
-                if (data.last_sync) {
-                    document.getElementById('az-last-sync').innerText = new Date(data.last_sync * 1000).toLocaleString();
+                if (data.clients && data.clients.length > 0) {
+                    tbody.innerHTML = data.clients.map((c, idx) => `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5 font-bold text-white">${c.name}</td>
+                            <td class="px-4 py-2.5 text-cyan-400 font-semibold">${c.ipaddr}</td>
+                            <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 uppercase">${c.nas_type || 'other'}</span></td>
+                            <td class="px-4 py-2.5">
+                                <div class="flex items-center gap-2">
+                                    <span id="secret-disp-${idx}" class="text-slate-400">••••••••••••••••</span>
+                                    <button onclick="toggleSecretDisplay(${idx}, '${c.secret}')" class="text-slate-500 hover:text-amber-400" title="Toggle Visibility">
+                                        <i class="fa-solid fa-eye text-xs"></i>
+                                    </button>
+                                    <button onclick="copyToClipboard('${c.secret}')" class="text-slate-500 hover:text-white" title="Copy Secret">
+                                        <i class="fa-solid fa-copy text-xs"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-4 py-2.5 text-right">
+                                <button onclick="deleteRadiusClient('${c.name}')" class="text-slate-500 hover:text-rose-400 transition" title="Delete Client">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No NAS clients configured.</td></tr>`;
                 }
-            } catch (e) {
-                console.error(e);
+            } catch (err) {
+                console.error('Error fetching RADIUS clients:', err);
             }
         }
 
-        async function fetchReports() {
+        function toggleSecretDisplay(idx, secret) {
+            const el = document.getElementById(`secret-disp-${idx}`);
+            if (el.innerText.includes('•')) {
+                el.innerText = secret;
+                el.className = 'text-amber-300 font-bold';
+            } else {
+                el.innerText = '••••••••••••••••';
+                el.className = 'text-slate-400';
+            }
+        }
+
+        function copyToClipboard(val) {
+            navigator.clipboard.writeText(val);
+            alert('Secret copied to clipboard!');
+        }
+
+        function openRadiusModal() {
+            document.getElementById('radius-modal').classList.remove('hidden');
+            generateSecretForModal();
+        }
+        function closeRadiusModal() { document.getElementById('radius-modal').classList.add('hidden'); }
+
+        async function generateSecretForModal() {
             try {
-                const res = await fetch('/api/v1/reports/audit-events?limit=25');
+                const res = await fetch(`${API_BASE}/radius/secret/generate`, { method: 'POST' });
                 const data = await res.json();
-                const tbody = document.getElementById('reports-table-body');
-                tbody.innerHTML = data.events.map(ev => `
-                    <tr>
-                        <td class="px-4 py-2 font-medium text-indigo-300">${ev.event_type}</td>
-                        <td class="px-4 py-2 text-slate-300">${ev.target}</td>
-                        <td class="px-4 py-2"><span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-emerald-400">${ev.status}</span></td>
-                        <td class="px-4 py-2 text-slate-500">${new Date(ev.timestamp * 1000).toLocaleTimeString()}</td>
-                    </tr>
-                `).join('');
-            } catch (e) {
-                console.error(e);
+                document.getElementById('rad-secret-input').value = data.secret;
+            } catch (err) {
+                console.error('Error generating secret:', err);
+            }
+        }
+
+        function copyModalSecret() {
+            const sec = document.getElementById('rad-secret-input').value;
+            copyToClipboard(sec);
+        }
+
+        async function submitAddRadiusClient() {
+            const name = document.getElementById('rad-name-input').value.trim();
+            const ip = document.getElementById('rad-ip-input').value.trim();
+            const type = document.getElementById('rad-type-select').value;
+            const secret = document.getElementById('rad-secret-input').value.trim();
+
+            if (!name || !ip || !secret) return alert('Name, IP, and Secret are required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/radius/clients`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        client_name: name,
+                        ip_subnet: ip,
+                        nas_type: type,
+                        shared_secret: secret
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeRadiusModal();
+                    fetchRadiusClients();
+                } else {
+                    alert(`Failed to add client: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving NAS client: ${err}`);
+            }
+        }
+
+        async function deleteRadiusClient(name) {
+            if (!confirm(`Delete NAS client '${name}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/radius/clients/${name}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchRadiusClients();
+                } else {
+                    const data = await res.json();
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting client: ${err}`);
+            }
+        }
+
+        // Live Accounting Sessions (pfSense Style)
+        async function fetchRadiusSessions() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/accounting/sessions`);
+                const data = await res.json();
+                const tbody = document.getElementById('radius-acct-table-body');
+                if (data.sessions && data.sessions.length > 0) {
+                    tbody.innerHTML = data.sessions.map(s => {
+                        const inMb = (s.input_octets / (1024 * 1024)).toFixed(1);
+                        const outMb = (s.output_octets / (1024 * 1024)).toFixed(1);
+                        const durH = Math.floor(s.acct_session_time / 3600);
+                        const durM = Math.floor((s.acct_session_time % 3600) / 60);
+                        const durS = s.acct_session_time % 60;
+                        const durStr = `${durH}h ${durM}m ${durS}s`;
+
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5 font-bold text-white">${s.username}</td>
+                                <td class="px-4 py-2.5 text-slate-300">${s.nas_name || s.nas_ip}</td>
+                                <td class="px-4 py-2.5 text-indigo-400 font-semibold">${s.calling_station_id || '-'}</td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${s.framed_ip || '-'}</td>
+                                <td class="px-4 py-2.5 text-slate-400">${durStr}</td>
+                                <td class="px-4 py-2.5 text-slate-300">▲ ${inMb} MB / ▼ ${outMb} MB</td>
+                                <td class="px-4 py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] ${s.acct_status_type === 'Active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${s.acct_status_type}</span>
+                                </td>
+                                <td class="px-4 py-2.5 text-right">
+                                    ${s.acct_status_type === 'Active' ? `
+                                        <button onclick="disconnectSession('${s.session_id}')" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/60 text-rose-400 border border-rose-800/60 rounded text-[10px] transition" title="Disconnect Session">
+                                            <i class="fa-solid fa-power-off mr-1"></i> Disconnect
+                                        </button>
+                                    ` : '<span class="text-slate-600">-</span>'}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-4 text-center font-sans text-slate-500">No active RADIUS sessions.</td></tr>`;
+                }
+            } catch (err) {
+                console.error('Error fetching accounting sessions:', err);
+            }
+        }
+
+        async function disconnectSession(sessionId) {
+            if (!confirm(`Force disconnect session '${sessionId}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/radius/accounting/disconnect?session_id=${sessionId}`, { method: 'POST' });
+                if (res.ok) {
+                    fetchRadiusSessions();
+                } else {
+                    const data = await res.json();
+                    alert(`Disconnect failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error disconnecting session: ${err}`);
+            }
+        }
+
+        async function saveRadiusSettings() {
+            const authPort = parseInt(document.getElementById('rad-cfg-auth-port').value);
+            const acctPort = parseInt(document.getElementById('rad-cfg-acct-port').value);
+            const interval = parseInt(document.getElementById('rad-cfg-interval').value);
+
+            try {
+                const res = await fetch(`${API_BASE}/radius/settings`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        auth_port: authPort,
+                        acct_port: acctPort,
+                        acct_enabled: true,
+                        interim_interval: interval
+                    })
+                });
+                if (res.ok) {
+                    alert('FreeRADIUS settings updated successfully!');
+                } else {
+                    const data = await res.json();
+                    alert(`Save failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving settings: ${err}`);
+            }
+        }
+
+        // 5. Users & Groups
+        async function fetchUsers() {
+            try {
+                const res = await fetch(`${API_BASE}/users`);
+                const data = await res.json();
+                const tbody = document.getElementById('users-table-body');
+                if (data.users && data.users.length > 0) {
+                    tbody.innerHTML = data.users.map(u => `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5 font-bold text-white">${u.username}</td>
+                            <td class="px-4 py-2.5 text-slate-400">${u.department || '-'}</td>
+                            <td class="px-4 py-2.5">
+                                <span class="px-2 py-0.5 rounded text-[10px] ${u.status === 'active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${u.status.toUpperCase()}</span>
+                            </td>
+                            <td class="px-4 py-2.5 text-right">
+                                ${!u.is_built_in ? `
+                                    <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-2" title="Delete User">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : '<span class="text-slate-600 font-sans italic text-[10px]">Built-in</span>'}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error('Error fetching users:', err);
             }
         }
 
         function openUserModal() { document.getElementById('user-modal').classList.remove('hidden'); }
         function closeUserModal() { document.getElementById('user-modal').classList.add('hidden'); }
 
-        async function handleCreateUser(e) {
-            e.preventDefault();
-            const payload = {
-                username: document.getElementById('new-uname').value,
-                password: document.getElementById('new-pwd').value,
-                given_name: document.getElementById('new-given').value,
-                surname: document.getElementById('new-sur').value,
-                email: document.getElementById('new-mail').value
-            };
-            const res = await fetch('/api/v1/users', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            alert(data.message || 'User created');
-            closeUserModal();
-            fetchUsers();
+        async function submitCreateUser() {
+            const username = document.getElementById('usr-name-input').value.trim();
+            const password = document.getElementById('usr-pass-input').value;
+            const givenName = document.getElementById('usr-given-input').value.trim();
+            const surname = document.getElementById('usr-sur-input').value.trim();
+            const department = document.getElementById('usr-dept-input').value.trim();
+
+            if (!username || !password) return alert('Username and password are required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/users`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        given_name: givenName,
+                        surname: surname,
+                        department: department
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeUserModal();
+                    fetchUsers();
+                } else {
+                    alert(`Failed to create user: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error creating user: ${err}`);
+            }
         }
 
-        async function resetPass(uname) {
-            const p = prompt(`Enter new password for ${uname}:`);
-            if (!p) return;
-            const res = await fetch(`/api/v1/users/${uname}/password`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ new_password: p })
-            });
-            const d = await res.json();
-            alert(d.message);
+        async function deleteUser(username) {
+            if (!confirm(`Delete user '${username}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/users/${username}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchUsers();
+                } else {
+                    const data = await res.json();
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting user: ${err}`);
+            }
         }
 
-        async function delUser(uname) {
-            if (!confirm(`Delete domain account ${uname}?`)) return;
-            const res = await fetch(`/api/v1/users/${uname}`, { method: 'DELETE' });
-            const d = await res.json();
-            alert(d.message);
-            fetchUsers();
+        function openGroupModal() { document.getElementById('group-modal').classList.remove('hidden'); }
+        function closeGroupModal() { document.getElementById('group-modal').classList.add('hidden'); }
+
+        async function submitCreateGroup() {
+            const name = document.getElementById('grp-name-input').value.trim();
+            if (!name) return alert('Group name is required.');
+            try {
+                const res = await fetch(`${API_BASE}/groups`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ group_name: name })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeGroupModal();
+                    alert(`Group '${name}' created!`);
+                } else {
+                    alert(`Failed to create group: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error creating group: ${err}`);
+            }
         }
 
-        async function forceDrsSync() {
-            const res = await fetch('/api/v1/domain/replication/sync', { method: 'POST' });
-            const d = await res.json();
-            alert(d.output || 'DRS Sync Triggered');
+        // 6. Sysvol & Azure & Reports
+        async function fetchSysvolStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/status`);
+                const data = await res.json();
+                const d = new Date(data.last_reset * 1000);
+                document.getElementById('sysvol-last-reset').innerText = d.toLocaleTimeString();
+            } catch (err) {
+                console.error('Error fetching sysvol:', err);
+            }
+        }
+
+        async function resetSysvolNtacl() {
+            if (!confirm('Force samba-tool ntacl sysvolreset across all GPO directories?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/reset-ntacl`, { method: 'POST' });
+                const data = await res.json();
+                alert(data.message);
+                fetchSysvolStatus();
+            } catch (err) {
+                alert(`Error resetting sysvol: ${err}`);
+            }
+        }
+
+        async function fetchAzureStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/azure/status`);
+                const data = await res.json();
+                document.getElementById('azure-status-text').innerText = data.status || 'NOT CONFIGURED';
+                document.getElementById('azure-local-count').innerText = data.local_users_count || 0;
+                document.getElementById('azure-synced-count').innerText = data.synced_users_count || 0;
+            } catch (err) {
+                console.error('Error fetching azure status:', err);
+            }
         }
 
         async function triggerAzureSync() {
-            const res = await fetch('/api/v1/azure/sync', { method: 'POST' });
-            const d = await res.json();
-            alert(d.output || d.message || 'Azure sync complete');
-            fetchAzure();
+            try {
+                const res = await fetch(`${API_BASE}/azure/sync`, { method: 'POST' });
+                const data = await res.json();
+                alert(`Azure sync finished with code ${data.exit_code}: ${data.output || data.error}`);
+                fetchAzureStatus();
+            } catch (err) {
+                alert(`Error triggering azure sync: ${err}`);
+            }
         }
 
-        async function triggerNtaclReset() {
-            const res = await fetch('/api/v1/sysvol/reset-ntacl', { method: 'POST' });
-            const d = await res.json();
-            alert(d.message || 'Sysvol reset completed');
+        async function fetchAuditEvents() {
+            try {
+                const res = await fetch(`${API_BASE}/reports/audit-events?limit=30`);
+                const data = await res.json();
+                const tbody = document.getElementById('audit-table-body');
+                if (data.events && data.events.length > 0) {
+                    tbody.innerHTML = data.events.map(e => {
+                        const d = new Date(e.timestamp * 1000);
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5 text-slate-400">${d.toLocaleDateString()} ${d.toLocaleTimeString()}</td>
+                                <td class="px-4 py-2.5 font-bold text-white">${e.event_type}</td>
+                                <td class="px-4 py-2.5 text-indigo-400">${e.actor || 'system'}</td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${e.target}</td>
+                                <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] ${e.status === 'SUCCESS' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">${e.status}</span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No audit events recorded yet.</td></tr>`;
+                }
+            } catch (err) {
+                console.error('Error fetching audit events:', err);
+            }
+        }
+
+        function exportAuditCsv() {
+            window.location.href = `${API_BASE}/reports/export/csv`;
         }
 
         function logout() {
-            localStorage.removeItem('zclockid_token');
             window.location.href = '/login.html';
         }
 
-        // Initialize
-        checkApplianceState();
+        // Initialize dashboard and telemetry polling
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchSystemStatus();
+            setInterval(fetchSystemStatus, 5000);
+        });
     </script>
 </body>
 </html>
