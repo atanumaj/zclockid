@@ -70,6 +70,8 @@ apt-get install -y --no-install-recommends \
     winbind \
     libpam-winbind \
     libnss-winbind \
+    tdb-tools \
+    ldb-tools \
     krb5-user \
     bind9 \
     bind9utils \

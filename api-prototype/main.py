@@ -257,10 +257,19 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
     conn.commit()
     conn.close()
 
-    # 2. Backup old smb.conf if present
+    # 2. Backup old smb.conf if present and clear stale databases
     if os.path.exists("/etc/samba/smb.conf"):
         run_cmd(["cp", "/etc/samba/smb.conf", f"/etc/samba/smb.conf.bak-{int(time.time())}"])
         run_cmd(["rm", "-f", "/etc/samba/smb.conf"])
+
+    if req.mode == "new_domain":
+        run_cmd(["rm", "-rf", "/var/lib/samba/private"])
+        run_cmd(["mkdir", "-p", "/var/lib/samba/private"])
+        run_cmd(["chmod", "700", "/var/lib/samba/private"])
+        run_cmd(["rm", "-rf", "/var/lib/samba/bind-dns"])
+        run_cmd(["mkdir", "-p", "/var/lib/samba/bind-dns"])
+        run_cmd(["rm", "-rf", "/var/lib/samba/sysvol"])
+        run_cmd(["mkdir", "-p", "/var/lib/samba/sysvol"])
 
     provision_output = ""
     # 3. Provisioning or Joining Domain
@@ -274,7 +283,7 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
             f"--adminpass={req.ad_admin_password}",
             "--use-rfc2307"
         ]
-        code, stdout, stderr = run_cmd(cmd, timeout=120)
+        code, stdout, stderr = run_cmd(cmd, timeout=180)
         provision_output = stdout + stderr
         if code != 0 and "not installed" not in stderr:
             raise HTTPException(status_code=500, detail=f"Samba AD provisioning failed: {stderr or stdout}")
@@ -292,19 +301,25 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
         if code != 0 and "not installed" not in stderr:
             raise HTTPException(status_code=500, detail=f"Joining domain failed: {stderr or stdout}")
 
-    # 4. Configure BIND9 with Samba DLZ include
+    # 4. Configure BIND9 with Samba DLZ include and options
     named_conf_local = "/etc/bind/named.conf.local"
-    dlz_block = """
-// Load Samba DLZ dynamically for Active Directory DNS
-dlz "AD_DNS" {
-    database "dlopen /usr/lib/x86_64-linux-gnu/samba/bind9/dlz_bind9_20.so";
-};
+    dlz_block = """// Load Samba DLZ dynamically for Active Directory DNS
+include "/var/lib/samba/bind-dns/named.conf";
 """
     try:
         with open(named_conf_local, "w") as f:
             f.write(dlz_block)
+        # Ensure BIND user has permissions to read Samba DNS zone and keys
+        run_cmd(["chown", "-R", "root:bind", "/var/lib/samba/bind-dns"])
+        run_cmd(["chmod", "750", "/var/lib/samba/bind-dns"])
+        if os.path.exists("/var/lib/samba/bind-dns/dns"):
+            run_cmd(["chmod", "-R", "770", "/var/lib/samba/bind-dns/dns"])
     except Exception:
         pass
+
+    # Copy generated Kerberos config to system location
+    if os.path.exists("/var/lib/samba/private/krb5.conf"):
+        run_cmd(["cp", "-f", "/var/lib/samba/private/krb5.conf", "/etc/krb5.conf"])
 
     # 5. Start and enable samba-ad-dc, restart BIND9
     run_cmd(["systemctl", "unmask", "samba-ad-dc"])
