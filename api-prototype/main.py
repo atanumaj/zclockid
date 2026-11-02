@@ -364,6 +364,10 @@ class DohTestRequest(BaseModel):
     qname: Optional[str] = None
     rtype: Optional[str] = None
 
+class FunctionalLevelRaiseRequest(BaseModel):
+    domain_level: str = "2016"
+    forest_level: str = "2016"
+
 # ----------------- First-Time Setup Wizard Endpoints -----------------
 
 @app.get("/api/v1/setup/status")
@@ -659,6 +663,8 @@ def get_domain_info():
     raw_fqdn = out_fqdn.strip() if code_fqdn == 0 else ""
     fqdn = raw_fqdn if "." in raw_fqdn else f"{hostname}.{realm.lower()}"
 
+    fl_info = get_functional_level()
+
     return {
         "realm": realm,
         "domain_netbios": domain,
@@ -668,9 +674,163 @@ def get_domain_info():
         "hostname": hostname,
         "fqdn": fqdn,
         "domain_sid": domain_sid,
-        "forest_functional_level": "Windows Server 2008 R2 / 2012 R2",
-        "domain_functional_level": "Windows Server 2008 R2 / 2012 R2",
+        "forest_functional_level": fl_info.get("forest_level_label", "Windows Server 2016"),
+        "domain_functional_level": fl_info.get("domain_level_label", "Windows Server 2016"),
+        "lowest_dc_level": fl_info.get("lowest_dc_level_label", "Windows Server 2016"),
+        "functional_levels": fl_info,
         "fsmo_roles": fsmo
+    }
+
+# ----------------- Active Directory Functional Levels (DFL / FFL) -----------------
+
+LEVEL_ORDER = {
+    "2003": 1,
+    "2008": 2,
+    "2008_R2": 3,
+    "2012": 4,
+    "2012_R2": 5,
+    "2016": 6
+}
+
+LEVEL_LABELS = {
+    "2003": "Windows Server 2003",
+    "2008": "Windows Server 2008",
+    "2008_R2": "Windows Server 2008 R2",
+    "2012": "Windows Server 2012",
+    "2012_R2": "Windows Server 2012 R2",
+    "2016": "Windows Server 2016"
+}
+
+def parse_fl_string(val: str) -> str:
+    val_clean = val.replace("(Windows)", "").strip()
+    val_normalized = val_clean.replace(" ", "_").upper()
+    for k in LEVEL_ORDER.keys():
+        if k == val_clean or k == val_normalized:
+            return k
+    for k, label in LEVEL_LABELS.items():
+        if label.lower() in val_clean.lower():
+            return k
+    return val_clean
+
+@app.get("/api/v1/domain/functional-level")
+def get_functional_level():
+    """Returns the current Domain and Forest functional levels, lowest DC level, and supported versions."""
+    admin_user, admin_pass = get_ad_creds()
+    code, stdout, stderr = run_cmd([
+        "samba-tool", "domain", "level", "show",
+        f"-U{admin_user}", f"--password={admin_pass}"
+    ], timeout=10)
+
+    forest_raw = "2016"
+    domain_raw = "2016"
+    lowest_dc_raw = "2016"
+
+    if code == 0:
+        for line in stdout.splitlines():
+            if "Forest function level:" in line:
+                forest_raw = line.split(":", 1)[1].strip()
+            elif "Domain function level:" in line:
+                domain_raw = line.split(":", 1)[1].strip()
+            elif "Lowest function level of a DC:" in line:
+                lowest_dc_raw = line.split(":", 1)[1].strip()
+
+    forest_key = parse_fl_string(forest_raw)
+    domain_key = parse_fl_string(domain_raw)
+    lowest_dc_key = parse_fl_string(lowest_dc_raw)
+
+    return {
+        "status": "success",
+        "forest_level": forest_key,
+        "forest_level_label": LEVEL_LABELS.get(forest_key, forest_raw),
+        "domain_level": domain_key,
+        "domain_level_label": LEVEL_LABELS.get(domain_key, domain_raw),
+        "lowest_dc_level": lowest_dc_key,
+        "lowest_dc_level_label": LEVEL_LABELS.get(lowest_dc_key, lowest_dc_raw),
+        "supported_levels": [
+            {"id": "2008_R2", "label": "Windows Server 2008 R2"},
+            {"id": "2012", "label": "Windows Server 2012"},
+            {"id": "2012_R2", "label": "Windows Server 2012 R2"},
+            {"id": "2016", "label": "Windows Server 2016"}
+        ]
+    }
+
+@app.post("/api/v1/domain/functional-level/raise")
+def raise_functional_level(req: FunctionalLevelRaiseRequest):
+    """Raises the Active Directory Domain and Forest functional levels."""
+    d_level = req.domain_level.strip().replace(" ", "_")
+    f_level = req.forest_level.strip().replace(" ", "_")
+
+    if d_level not in LEVEL_ORDER or f_level not in LEVEL_ORDER:
+        raise HTTPException(status_code=400, detail="Invalid functional level specified.")
+
+    if LEVEL_ORDER[f_level] > LEVEL_ORDER[d_level]:
+        raise HTTPException(status_code=400, detail="Forest functional level cannot be higher than Domain functional level.")
+
+    admin_user, admin_pass = get_ad_creds()
+
+    # Check current levels
+    curr_info = get_functional_level()
+    curr_d_order = LEVEL_ORDER.get(curr_info["domain_level"], 0)
+    curr_f_order = LEVEL_ORDER.get(curr_info["forest_level"], 0)
+
+    if LEVEL_ORDER[d_level] < curr_d_order:
+        raise HTTPException(status_code=400, detail=f"Active Directory Domain functional level cannot be downgraded below {curr_info['domain_level_label']}.")
+    if LEVEL_ORDER[f_level] < curr_f_order:
+        raise HTTPException(status_code=400, detail=f"Active Directory Forest functional level cannot be downgraded below {curr_info['forest_level_label']}.")
+
+    if LEVEL_ORDER[d_level] == curr_d_order and LEVEL_ORDER[f_level] == curr_f_order:
+        return {
+            "status": "success",
+            "message": f"Domain and Forest functional levels are already set to {curr_info['domain_level_label']}.",
+            "output": "Levels already current.",
+            "current": curr_info
+        }
+
+    # 1. Update smb.conf 'ad dc functional level' if target is higher than current DC level
+    smb_conf = "/etc/samba/smb.conf"
+    highest_target = d_level if LEVEL_ORDER[d_level] >= LEVEL_ORDER[f_level] else f_level
+    if os.path.exists(smb_conf):
+        with open(smb_conf, "r") as f:
+            content = f.read()
+
+        if "ad dc functional level" in content:
+            new_content = re.sub(r'ad dc functional level\s*=\s*\S+', f'ad dc functional level = {highest_target}', content)
+        else:
+            new_content = re.sub(r'(\[global\][^\n]*)', r'\1\n    ad dc functional level = ' + highest_target, content)
+
+        if new_content != content:
+            with open("/tmp/smb.conf.fl.tmp", "w") as f:
+                f.write(new_content)
+            run_cmd(["cp", "/tmp/smb.conf.fl.tmp", smb_conf])
+            run_cmd(["systemctl", "restart", "samba-ad-dc"], timeout=15)
+            time.sleep(1.5)
+
+    # 2. Execute samba-tool domain level raise
+    cmd = [
+        "samba-tool", "domain", "level", "raise",
+        f"--domain-level={d_level}",
+        f"--forest-level={f_level}",
+        f"-U{admin_user}", f"--password={admin_pass}"
+    ]
+    code, stdout, stderr = run_cmd(cmd, timeout=20)
+    output = (stdout + "\n" + stderr).strip()
+
+    if code != 0 and "already at" not in output.lower():
+        raise HTTPException(status_code=500, detail=f"Failed to raise functional level: {output}")
+
+    log_audit("FUNCTIONAL_LEVEL_RAISED", admin_user, "domain", "SUCCESS", {
+        "domain_level": d_level,
+        "forest_level": f_level,
+        "raw_output": output
+    })
+
+    # Return updated info
+    updated_info = get_functional_level()
+    return {
+        "status": "success",
+        "message": f"Successfully updated functional levels to Domain: {updated_info['domain_level_label']}, Forest: {updated_info['forest_level_label']}",
+        "output": output,
+        "current": updated_info
     }
 
 @app.post("/api/v1/system/identity")

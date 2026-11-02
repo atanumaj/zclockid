@@ -338,12 +338,62 @@
                             <div id="domain-desc-val" class="text-slate-300 font-sans text-xs truncate">ZclockID Active Directory Domain Controller</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-500 text-[10px] uppercase font-sans">Functional Levels</span>
-                            <div class="text-slate-300 font-bold text-xs">Win2008R2 / Win2012R2</div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Functional Levels</span>
+                                <button onclick="openFunctionalLevelModal()" class="text-indigo-400 hover:text-indigo-300 text-[10px] font-semibold flex items-center gap-1" title="Raise Domain/Forest Functional Levels">
+                                    <i class="fa-solid fa-arrow-up-right-dots"></i> Change
+                                </button>
+                            </div>
+                            <div id="domain-fl-val" class="text-indigo-300 font-bold text-xs truncate">Windows Server 2016</div>
+                            <span id="domain-fl-sub" class="text-[10px] text-slate-500 font-sans block pt-0.5 truncate">Domain & Forest: 2016</span>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <span class="text-slate-500 text-[10px] uppercase font-sans">Domain SID</span>
                             <div id="domain-sid-val" class="text-amber-400 font-bold text-xs truncate">S-1-5-21-...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Directory Functional Levels Card (DFL & FFL) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-layer-group text-indigo-400"></i> Active Directory Domain & Forest Functional Levels
+                            </h3>
+                            <p class="text-xs text-slate-400">Unlock advanced Kerberos claims, Privileged Access Management (PAM), AES-256 encryption, and modern AD directory features</p>
+                        </div>
+                        <button onclick="openFunctionalLevelModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50 whitespace-nowrap">
+                            <i class="fa-solid fa-arrow-up-right-dots"></i> Raise Functional Level
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Domain Level (DFL)</span>
+                                <span id="card-dfl-badge" class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono font-bold">2016</span>
+                            </div>
+                            <div id="card-dfl-title" class="text-white font-bold text-xs truncate">Windows Server 2016</div>
+                            <p class="text-[10px] text-slate-400 font-sans pt-1">Governs Kerberos armoring, dynamic access control, and domain security policy.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Forest Level (FFL)</span>
+                                <span id="card-ffl-badge" class="px-2 py-0.5 rounded text-[10px] bg-sky-950 text-sky-300 border border-sky-800 font-mono font-bold">2016</span>
+                            </div>
+                            <div id="card-ffl-title" class="text-white font-bold text-xs truncate">Windows Server 2016</div>
+                            <p class="text-[10px] text-slate-400 font-sans pt-1">Governs cross-forest trust mechanisms, global catalog replication, and schema attributes.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Lowest DC Level</span>
+                                <span id="card-lowest-badge" class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-bold">2016</span>
+                            </div>
+                            <div id="card-lowest-title" class="text-white font-bold text-xs truncate">Windows Server 2016</div>
+                            <p class="text-[10px] text-slate-400 font-sans pt-1">Active Directory DC operating system version capability across all replication peers.</p>
                         </div>
                     </div>
                 </div>
@@ -1463,6 +1513,67 @@
         </div>
     </div>
 
+    <!-- Raise Active Directory Functional Level Modal (Zentyal Style) -->
+    <div id="modal-functional-level" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-up-right-dots text-indigo-400"></i> Raise Active Directory Functional Levels
+                </h3>
+                <button onclick="closeFunctionalLevelModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="submitRaiseFunctionalLevels(event)" class="space-y-4 text-xs">
+                <!-- Current Levels Snapshot -->
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+                    <div class="flex justify-between items-center text-slate-400">
+                        <span>Current Domain Level (DFL):</span>
+                        <span id="fl-modal-curr-domain" class="font-bold text-emerald-400 font-mono">Windows Server 2016 (2016)</span>
+                    </div>
+                    <div class="flex justify-between items-center text-slate-400">
+                        <span>Current Forest Level (FFL):</span>
+                        <span id="fl-modal-curr-forest" class="font-bold text-sky-400 font-mono">Windows Server 2016 (2016)</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">Target Domain Functional Level (DFL)</label>
+                    <select id="fl-select-domain" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono focus:outline-none focus:border-indigo-500 transition">
+                        <option value="2008_R2">Windows Server 2008 R2</option>
+                        <option value="2012">Windows Server 2012</option>
+                        <option value="2012_R2">Windows Server 2012 R2</option>
+                        <option value="2016" selected>Windows Server 2016</option>
+                    </select>
+                    <p class="text-[10px] text-slate-500 mt-1">DFL controls Kerberos policy, claims, and local security descriptor capabilities</p>
+                </div>
+
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">Target Forest Functional Level (FFL)</label>
+                    <select id="fl-select-forest" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono focus:outline-none focus:border-indigo-500 transition">
+                        <option value="2008_R2">Windows Server 2008 R2</option>
+                        <option value="2012">Windows Server 2012</option>
+                        <option value="2012_R2">Windows Server 2012 R2</option>
+                        <option value="2016" selected>Windows Server 2016</option>
+                    </select>
+                    <p class="text-[10px] text-slate-500 mt-1">Forest level cannot exceed Domain level. Governs cross-forest trusts and catalog replication</p>
+                </div>
+
+                <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1 text-[11px] text-amber-300">
+                    <strong class="block flex items-center gap-1.5 text-amber-200">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Irreversible Operation:
+                    </strong>
+                    <p>Per Microsoft Active Directory architecture, functional levels can only be raised and cannot be rolled back or downgraded. Ensure older legacy Domain Controllers are decommissioned before elevating.</p>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeFunctionalLevelModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" id="btn-submit-fl" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                        <i class="fa-solid fa-arrow-up-right-dots"></i> Apply & Raise Level
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Add Alternate UPN Suffix Modal -->
     <div id="upn-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
@@ -1897,7 +2008,7 @@
             }
 
             // Lazy load tab data
-            if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); }
+            if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); fetchFunctionalLevels(); }
             else if (tabId === 'ntp') { fetchNtpStatus(); fetchNtpConfig(); }
             else if (tabId === 'users') { fetchUsers(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
@@ -2108,6 +2219,95 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origText;
+            }
+        }
+
+        // ==================== FUNCTIONAL LEVELS CONTROLLER ====================
+        let currentFunctionalLevels = null;
+
+        async function fetchFunctionalLevels() {
+            try {
+                const res = await fetch(`${API_BASE}/domain/functional-level`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    currentFunctionalLevels = data;
+                    renderFunctionalLevels(data);
+                }
+            } catch (err) {
+                console.error('Error fetching functional levels:', err);
+            }
+        }
+
+        function renderFunctionalLevels(data) {
+            // Identity widget
+            const flVal = document.getElementById('domain-fl-val');
+            const flSub = document.getElementById('domain-fl-sub');
+            if (flVal) flVal.innerText = data.domain_level_label || 'Windows Server 2016';
+            if (flSub) flSub.innerText = `Domain: ${data.domain_level} | Forest: ${data.forest_level}`;
+
+            // Dedicated Card
+            const dflBadge = document.getElementById('card-dfl-badge');
+            const dflTitle = document.getElementById('card-dfl-title');
+            const fflBadge = document.getElementById('card-ffl-badge');
+            const fflTitle = document.getElementById('card-ffl-title');
+            const lowestBadge = document.getElementById('card-lowest-badge');
+            const lowestTitle = document.getElementById('card-lowest-title');
+
+            if (dflBadge) dflBadge.innerText = data.domain_level || '2016';
+            if (dflTitle) dflTitle.innerText = data.domain_level_label || 'Windows Server 2016';
+            if (fflBadge) fflBadge.innerText = data.forest_level || '2016';
+            if (fflTitle) fflTitle.innerText = data.forest_level_label || 'Windows Server 2016';
+            if (lowestBadge) lowestBadge.innerText = data.lowest_dc_level || '2016';
+            if (lowestTitle) lowestTitle.innerText = data.lowest_dc_level_label || 'Windows Server 2016';
+        }
+
+        function openFunctionalLevelModal() {
+            if (currentFunctionalLevels) {
+                document.getElementById('fl-modal-curr-domain').innerText = `${currentFunctionalLevels.domain_level_label} (${currentFunctionalLevels.domain_level})`;
+                document.getElementById('fl-modal-curr-forest').innerText = `${currentFunctionalLevels.forest_level_label} (${currentFunctionalLevels.forest_level})`;
+                document.getElementById('fl-select-domain').value = currentFunctionalLevels.domain_level || '2016';
+                document.getElementById('fl-select-forest').value = currentFunctionalLevels.forest_level || '2016';
+            }
+            document.getElementById('modal-functional-level').classList.remove('hidden');
+        }
+
+        function closeFunctionalLevelModal() {
+            document.getElementById('modal-functional-level').classList.add('hidden');
+        }
+
+        async function submitRaiseFunctionalLevels(e) {
+            e.preventDefault();
+            const dLevel = document.getElementById('fl-select-domain').value;
+            const fLevel = document.getElementById('fl-select-forest').value;
+            const btn = document.getElementById('btn-submit-fl');
+
+            if (!confirm(`Are you sure you want to raise functional levels to:\n\n• Domain Functional Level: ${dLevel}\n• Forest Functional Level: ${fLevel}\n\nWARNING: Active Directory functional level elevation is permanent and cannot be downgraded.`)) {
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Raising Levels...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/domain/functional-level/raise`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ domain_level: dLevel, forest_level: fLevel })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Functional levels raised successfully.');
+                    closeFunctionalLevelModal();
+                    await fetchFunctionalLevels();
+                    await fetchDomainInfo();
+                } else {
+                    alert(`Failed to raise functional level: ${data.detail || data.message}`);
+                }
+            } catch (err) {
+                alert(`Error raising functional level: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-arrow-up-right-dots"></i> Apply & Raise Level`;
             }
         }
 
