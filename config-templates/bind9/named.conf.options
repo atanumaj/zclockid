@@ -1,0 +1,46 @@
+// /etc/bind/named.conf.options
+// ZclockID DNS Engine: BIND9 DLZ with Native DNS-over-HTTPS (DoH)
+
+// 1. TLS Profile for DoH Listeners
+tls doh-tls {
+    key-file "/etc/bind/certs/privkey.pem";
+    cert-file "/etc/bind/certs/fullchain.pem";
+    ciphers "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384";
+};
+
+// 2. HTTP Profile for DoH Endpoints
+http doh-http {
+    endpoints { "/dns-query"; };
+    listener-clients 500;
+    streams-per-connection 100;
+};
+
+options {
+    directory "/var/cache/bind";
+    version "none";
+
+    // Standard RFC DNS Listeners (UDP/TCP Port 53)
+    listen-on port 53 { any; };
+    listen-on-v6 port 53 { any; };
+
+    // Native DNS-over-HTTPS (DoH) Listener (TCP Port 443)
+    listen-on port 443 tls doh-tls http doh-http { any; };
+
+    // Query & Recursion ACLs
+    allow-query { any; };
+    allow-recursion { 127.0.0.1; 192.168.0.0/16; 10.0.0.0/8; 172.16.0.0/12; };
+    recursion yes;
+
+    // Upstream Forwarders for External Internet Queries
+    forwarders {
+        1.1.1.1;
+        8.8.8.8;
+    };
+
+    dnssec-validation auto;
+    auth-nxdomain no;
+
+    // Kerberos GSS-TSIG Keytab for Secure Windows Dynamic DNS Registrations
+    tkey-gssapi-keytab "/var/lib/samba/private/dns.keytab";
+};
+

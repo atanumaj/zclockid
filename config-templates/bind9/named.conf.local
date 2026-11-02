@@ -1,0 +1,8 @@
+// /etc/bind/named.conf.local
+// ZclockID Dynamic Link Zone (DLZ) Driver Loading
+
+dlz "AD_DNS" {
+    # Dynamically query Samba's Active Directory sam.ldb database
+    database "dlopen /usr/lib/x86_64-linux-gnu/samba/bind9/dlz_bind9_18.so";
+};
+

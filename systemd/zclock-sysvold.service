@@ -1,0 +1,18 @@
+[Unit]
+Description=ZclockID Sysvol Synchronization & NTACL Self-Healing Daemon
+After=network.target samba-ad-dc.service
+Requires=samba-ad-dc.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /opt/zclockid/scripts/zclock-sysvold.py
+Restart=always
+RestartSec=5s
+Environment=PYTHONUNBUFFERED=1
+Environment=SYSVOL_PATH=/var/lib/samba/sysvol
+Environment=DEBOUNCE_SECONDS=5
+
+[Install]
+WantedBy=multi-user.target
+

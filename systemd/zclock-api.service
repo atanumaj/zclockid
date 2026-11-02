@@ -1,0 +1,18 @@
+[Unit]
+Description=ZclockID Headless REST Management API
+After=network.target samba-ad-dc.service
+Wants=samba-ad-dc.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/zclockid/api
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5s
+Environment=PYTHONUNBUFFERED=1
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+

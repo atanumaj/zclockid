@@ -1,0 +1,49 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # 1. Disable native host firewalls (UFW / Firewalld)
+        if command -v ufw >/dev/null 2>&1; then
+            ufw disable || true
+            systemctl stop ufw || true
+            systemctl disable ufw || true
+            systemctl mask ufw || true
+        fi
+
+        # 2. Decouple systemd-resolved stub listener from Port 53
+        # Preserves host Netplan configuration while freeing port 53 for BIND9
+        if [ -f /etc/systemd/resolved.conf ]; then
+            sed -i 's/^#*DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
+            systemctl restart systemd-resolved || true
+        fi
+
+        # 3. Mask standard smbd/nmbd in favor of samba-ad-dc
+        systemctl stop smbd nmbd winbind || true
+        systemctl disable smbd nmbd winbind || true
+        systemctl mask smbd nmbd winbind || true
+
+        # 4. Service user privilege grants
+        if getent group winbindd_priv >/dev/null; then
+            usermod -aG winbindd_priv freerad || true
+        fi
+
+        # Chrony NTP signing socket
+        mkdir -p /var/lib/samba/ntp_signd
+        chown -R root:_chrony /var/lib/samba/ntp_signd || true
+        chmod 750 /var/lib/samba/ntp_signd || true
+
+        # BIND access to Samba private directory
+        mkdir -p /var/lib/samba/private
+        chown -R root:bind /var/lib/samba/private || true
+        chmod 750 /var/lib/samba/private || true
+
+        # 5. Reload and enable ZclockID services
+        systemctl daemon-reload
+        systemctl enable zclock-api.service || true
+        systemctl restart zclock-api.service || true
+        ;;
+esac
+
+exit 0
+
