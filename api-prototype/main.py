@@ -384,6 +384,26 @@ class BackupRestoreRequest(BaseModel):
 class BackupInspectRequest(BaseModel):
     filename: str
 
+class SnmpConfigRequest(BaseModel):
+    enabled: bool = True
+    agent_address: str = "udp:161,udp6:[::1]:161"
+    sys_location: str = "Inet Secure Labs Datacenter"
+    sys_contact: str = "noc@inetcsc.com"
+    community_string: str = "zclock_public"
+    allowed_subnets: str = "192.168.1.0/24, 127.0.0.1"
+    enable_extensions: bool = True
+    snmpv3_enabled: bool = False
+    snmpv3_user: Optional[str] = "zclock_admin"
+    snmpv3_auth_proto: Optional[str] = "SHA"
+    snmpv3_auth_pass: Optional[str] = None
+    snmpv3_priv_proto: Optional[str] = "AES"
+    snmpv3_priv_pass: Optional[str] = None
+
+class SnmpTestQueryRequest(BaseModel):
+    target_host: Optional[str] = "127.0.0.1"
+    community_string: Optional[str] = "zclock_public"
+    oid: str = ".1.3.6.1.2.1.1.1.0"
+
 # ----------------- First-Time Setup Wizard Endpoints -----------------
 
 @app.get("/api/v1/setup/status")
@@ -2613,3 +2633,212 @@ def delete_backup(filename: str):
     target_path.unlink()
     log_audit("BACKUP_DELETED", "admin", "appliance", "SUCCESS", {"filename": safe_name})
     return {"status": "success", "message": f"Backup archive '{safe_name}' deleted successfully."}
+
+# ----------------- SNMP Service Management & Telemetry Endpoints -----------------
+
+@app.get("/api/v1/snmp/status")
+def get_snmp_status():
+    """Returns SNMP daemon operational state, listening ports, and real-time enterprise telemetry OID values."""
+    is_active = subprocess.run(["systemctl", "is-active", "--quiet", "snmpd"]).returncode == 0
+    is_enabled = subprocess.run(["systemctl", "is-enabled", "--quiet", "snmpd"]).returncode == 0
+
+    # Collect telemetry script metrics if available
+    telemetry_script = Path("/usr/local/bin/zclock-telemetry.sh")
+    metrics = {
+        "ad_status": "UNKNOWN",
+        "drs_health": "0",
+        "active_sessions": "0",
+        "sysvol_health": "UNKNOWN",
+        "radius_auths": "UNKNOWN"
+    }
+
+    if telemetry_script.exists():
+        for metric_key in metrics.keys():
+            try:
+                res = subprocess.run(
+                    [str(telemetry_script), metric_key],
+                    capture_output=True,
+                    text=True,
+                    timeout=4
+                )
+                if res.returncode == 0:
+                    metrics[metric_key] = res.stdout.strip()
+            except Exception:
+                pass
+
+    return {
+        "status": "success",
+        "service_active": is_active,
+        "service_enabled": is_enabled,
+        "listening_port": 161,
+        "transport": "UDP",
+        "enterprise_base_oid": ".1.3.6.1.4.1.99999.1",
+        "metrics": metrics
+    }
+
+@app.get("/api/v1/snmp/config")
+def get_snmp_config():
+    """Parses /etc/snmp/snmpd.conf and returns active SNMP configuration settings."""
+    conf_path = Path("/etc/snmp/snmpd.conf")
+    is_active = subprocess.run(["systemctl", "is-active", "--quiet", "snmpd"]).returncode == 0
+
+    config = {
+        "enabled": is_active,
+        "agent_address": "udp:161,udp6:[::1]:161",
+        "sys_location": "Inet Secure Labs Datacenter",
+        "sys_contact": "noc@inetcsc.com",
+        "community_string": "zclock_public",
+        "allowed_subnets": "192.168.1.0/24, 127.0.0.1",
+        "enable_extensions": True,
+        "snmpv3_enabled": False,
+        "snmpv3_user": "zclock_admin",
+        "snmpv3_auth_proto": "SHA",
+        "snmpv3_priv_proto": "AES"
+    }
+
+    if conf_path.exists():
+        try:
+            content = conf_path.read_text()
+            subnets = []
+            for line in content.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                parts = line.split()
+                if parts[0].lower() in ["agentaddress", "agent_address"] and len(parts) > 1:
+                    config["agent_address"] = " ".join(parts[1:])
+                elif parts[0].lower() == "syslocation" and len(parts) > 1:
+                    config["sys_location"] = " ".join(parts[1:]).strip('"')
+                elif parts[0].lower() == "syscontact" and len(parts) > 1:
+                    config["sys_contact"] = " ".join(parts[1:]).strip('"')
+                elif parts[0].lower() == "rocommunity" and len(parts) > 1:
+                    config["community_string"] = parts[1]
+                    if len(parts) > 2:
+                        subnets.append(parts[2])
+                elif parts[0].lower() == "rouser" and len(parts) > 1:
+                    config["snmpv3_enabled"] = True
+                    config["snmpv3_user"] = parts[1]
+
+            if subnets:
+                config["allowed_subnets"] = ", ".join(dict.fromkeys(subnets))
+            config["enable_extensions"] = "extend .1.3.6.1.4.1.99999.1" in content
+        except Exception as e:
+            logger.warning(f"Failed to parse /etc/snmp/snmpd.conf: {e}")
+
+    return {"status": "success", "config": config}
+
+@app.post("/api/v1/snmp/config")
+def update_snmp_config(req: SnmpConfigRequest):
+    """Updates /etc/snmp/snmpd.conf, manages snmpd service state, and writes audit log."""
+    conf_path = Path("/etc/snmp/snmpd.conf")
+    conf_dir = conf_path.parent
+    conf_dir.mkdir(parents=True, exist_ok=True)
+
+    # Ensure telemetry helper script is deployed and executable
+    telemetry_dest = Path("/usr/local/bin/zclock-telemetry.sh")
+    repo_telemetry = Path(__file__).resolve().parent.parent / "scripts" / "zclock-telemetry.sh"
+    if repo_telemetry.exists() and not telemetry_dest.exists():
+        try:
+            shutil.copy2(repo_telemetry, telemetry_dest)
+            telemetry_dest.chmod(0o755)
+        except Exception as e:
+            logger.warning(f"Failed to copy telemetry script: {e}")
+
+    # Parse allowed subnets
+    subnets = [s.strip() for s in req.allowed_subnets.split(",") if s.strip()]
+    if not subnets:
+        subnets = ["127.0.0.1"]
+
+    lines = [
+        "# /etc/snmp/snmpd.conf",
+        "# ZclockID Appliance Net-SNMP Telemetry Configuration",
+        f"agentaddress {req.agent_address}",
+        "",
+        "# System Information",
+        f'sysLocation    "{req.sys_location}"',
+        f'sysContact     "{req.sys_contact}"',
+        "sysServices    72",
+        "",
+        "# Read-only Community Strings (Restricted by Subnet)"
+    ]
+
+    for s in subnets:
+        lines.append(f"rocommunity    {req.community_string} {s}")
+
+    if req.enable_extensions:
+        lines.extend([
+            "",
+            "# Active Directory Domain Controller Health & Telemetry OID Extensions",
+            "# Base OID: .1.3.6.1.4.1.99999.1.*",
+            "extend .1.3.6.1.4.1.99999.1.1 ad_status        /usr/local/bin/zclock-telemetry.sh ad_status",
+            "extend .1.3.6.1.4.1.99999.1.2 drs_repl_health  /usr/local/bin/zclock-telemetry.sh drs_health",
+            "extend .1.3.6.1.4.1.99999.1.3 active_sessions  /usr/local/bin/zclock-telemetry.sh active_sessions",
+            "extend .1.3.6.1.4.1.99999.1.4 sysvol_health    /usr/local/bin/zclock-telemetry.sh sysvol_health",
+            "extend .1.3.6.1.4.1.99999.1.5 radius_auths     /usr/local/bin/zclock-telemetry.sh radius_auths"
+        ])
+
+    if req.snmpv3_enabled and req.snmpv3_user:
+        lines.extend([
+            "",
+            "# SNMPv3 USM User Access",
+            f"rouser {req.snmpv3_user} priv"
+        ])
+
+    lines.append("")
+
+    try:
+        conf_path.write_text("\n".join(lines))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write /etc/snmp/snmpd.conf: {str(e)}")
+
+    # Manage service state
+    try:
+        if req.enabled:
+            subprocess.run(["systemctl", "enable", "snmpd"], check=True)
+            subprocess.run(["systemctl", "restart", "snmpd"], check=True)
+        else:
+            subprocess.run(["systemctl", "stop", "snmpd"], check=False)
+            subprocess.run(["systemctl", "disable", "snmpd"], check=False)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update snmpd service state: {str(e)}")
+
+    log_audit("SNMP_CONFIG_UPDATED", "admin", "appliance", "SUCCESS", {
+        "enabled": req.enabled,
+        "community_string": req.community_string,
+        "allowed_subnets": req.allowed_subnets,
+        "extensions": req.enable_extensions
+    })
+
+    return {
+        "status": "success",
+        "message": "SNMP service configuration updated and daemon reloaded successfully."
+    }
+
+@app.post("/api/v1/snmp/test-query")
+def test_snmp_query(req: SnmpTestQueryRequest):
+    """Executes a live snmpwalk or snmpget query against target host."""
+    host = req.target_host or "127.0.0.1"
+    comm = req.community_string or "zclock_public"
+    oid = req.oid or ".1.3.6.1.2.1.1.1.0"
+
+    cmd = ["snmpwalk", "-v2c", "-c", comm, "-t", "3", "-r", "1", host, oid]
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=6)
+        return {
+            "status": "success" if proc.returncode == 0 else "error",
+            "command": " ".join(cmd),
+            "exit_code": proc.returncode,
+            "stdout": proc.stdout.strip(),
+            "stderr": proc.stderr.strip()
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "error",
+            "command": " ".join(cmd),
+            "exit_code": -1,
+            "stdout": "",
+            "stderr": "SNMP query timed out after 6 seconds (No SNMP response from target host/port)."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"SNMP test query failed: {str(e)}")
