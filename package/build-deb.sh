@@ -32,8 +32,11 @@ cp "${DIST_DIR}/api-prototype/main.py" "${BUILD_ROOT}/opt/zclockid/api/"
 cp "${DIST_DIR}/api-prototype/requirements.txt" "${BUILD_ROOT}/opt/zclockid/api/"
 cp "${DIST_DIR}/scripts/zclock-sysvold.py" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-telemetry.sh" "${BUILD_ROOT}/opt/zclockid/scripts/"
+cp "${DIST_DIR}/scripts/zclock-azuresync.py" "${BUILD_ROOT}/opt/zclockid/scripts/"
 chmod 755 "${BUILD_ROOT}/opt/zclockid/scripts/"*
 cp "${DIST_DIR}/web/index.html" "${BUILD_ROOT}/opt/zclockid/web/"
+cp "${DIST_DIR}/web/register.html" "${BUILD_ROOT}/opt/zclockid/web/"
+cp "${DIST_DIR}/config-templates/azure/azure-sync.json" "${BUILD_ROOT}/etc/zclockid/"
 
 # Copy Nginx Ingress template
 cp "${DIST_DIR}/config-templates/nginx/zclockid.conf" "${BUILD_ROOT}/etc/nginx/sites-available/"

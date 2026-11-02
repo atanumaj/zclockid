@@ -221,6 +221,14 @@
                     <i class="fa-solid fa-wrench text-slate-400"></i> Maintenance & Utilities
                 </h3>
                 <div class="space-y-2.5">
+                    <button onclick="triggerAzureSync()" class="w-full text-left bg-slate-950 hover:bg-slate-800/60 border border-slate-800 p-3 rounded-lg text-xs text-slate-200 transition flex items-center justify-between group">
+                        <div>
+                            <p class="font-medium text-white group-hover:text-cyan-400">Sync to Azure / M365</p>
+                            <p id="azure-sync-subtext" class="text-[11px] text-slate-400">Push Samba AD users to Entra ID</p>
+                        </div>
+                        <i class="fa-solid fa-cloud-arrow-up text-slate-500 group-hover:text-cyan-400"></i>
+                    </button>
+
                     <button onclick="triggerNtaclReset()" class="w-full text-left bg-slate-950 hover:bg-slate-800/60 border border-slate-800 p-3 rounded-lg text-xs text-slate-200 transition flex items-center justify-between group">
                         <div>
                             <p class="font-medium text-white group-hover:text-indigo-400">Repair Sysvol NTACLs</p>
@@ -351,6 +359,21 @@
             const data = await res.json();
             alert(data.message);
             refreshAll();
+        }
+
+        async function triggerAzureSync() {
+            if (!confirm('Initiate immediate cloud identity synchronization to Microsoft Entra ID (Azure AD)?')) return;
+            const subtext = document.getElementById('azure-sync-subtext');
+            subtext.innerText = 'Synchronizing with Azure...';
+            try {
+                const res = await fetch('/api/v1/azure/sync', { method: 'POST' });
+                const json = await res.json();
+                alert(json.output || json.message || 'Azure synchronization cycle completed.');
+            } catch (e) {
+                alert('Request sent to Azure sync engine.');
+            } finally {
+                subtext.innerText = 'Push Samba AD users to Entra ID';
+            }
         }
 
         async function triggerNtaclReset() {

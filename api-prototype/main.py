@@ -126,6 +126,14 @@ class RegistrationAction(BaseModel):
     notes: Optional[str] = None
     target_group: Optional[str] = "Domain Users"
 
+class AzureSyncConfig(BaseModel):
+    enabled: bool = False
+    tenant_id: str = Field(..., example="00000000-0000-0000-0000-000000000000")
+    client_id: str = Field(..., example="11111111-1111-1111-1111-111111111111")
+    client_secret: str = Field(..., example="secret_value")
+    sync_interval_seconds: int = 900
+    default_domain: str = "corp.example.com"
+
 class SysvolStatusResponse(BaseModel):
     status: str
     last_reset: Optional[float]
@@ -564,3 +572,66 @@ def get_telemetry():
         "radius_active": 1,
         "doh_active": 1
     }
+
+# ----------------- Azure Cloud Sync (Hybrid Identity) -----------------
+
+AZURE_CONFIG_FILE = Path("/etc/zclockid/azure-sync.json")
+AZURE_STATUS_FILE = Path("/var/run/zclock-azuresync.status")
+
+@app.get("/api/v1/azure/status")
+def get_azure_sync_status():
+    """Returns real-time status of Azure / Microsoft Entra ID cloud synchronization."""
+    if AZURE_STATUS_FILE.exists():
+        try:
+            with open(AZURE_STATUS_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+
+    return {
+        "status": "NOT_CONFIGURED",
+        "last_sync": None,
+        "local_users_count": 0,
+        "synced_users_count": 0,
+        "message": "Azure Cloud Sync has not been initialized."
+    }
+
+@app.get("/api/v1/azure/config")
+def get_azure_sync_config():
+    """Returns the current Azure sync configuration (masks client secret)."""
+    if AZURE_CONFIG_FILE.exists():
+        with open(AZURE_CONFIG_FILE) as f:
+            data = json.load(f)
+            if "client_secret" in data and data["client_secret"]:
+                data["client_secret"] = "********"
+            return data
+    return {"enabled": False, "tenant_id": "", "client_id": "", "sync_interval_seconds": 900}
+
+@app.post("/api/v1/azure/config")
+def update_azure_sync_config(cfg: AzureSyncConfig):
+    """Updates Azure Entra ID credentials and synchronization parameters."""
+    AZURE_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(AZURE_CONFIG_FILE, "w") as f:
+        json.dump(cfg.dict(), f, indent=2)
+
+    log_audit("AZURE_CONFIG_UPDATED", "admin", "azure_sync", "SUCCESS", {"tenant_id": cfg.tenant_id, "enabled": cfg.enabled})
+    return {"status": "success", "message": "Azure Cloud Sync configuration updated successfully."}
+
+@app.post("/api/v1/azure/sync")
+def trigger_azure_sync_now():
+    """Forces an immediate synchronization pass between Samba AD and Microsoft Entra ID."""
+    script_path = "/opt/zclockid/scripts/zclock-azuresync.py"
+    if not os.path.exists(script_path):
+        # Fallback to local repo path for dev
+        script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts", "zclock-azuresync.py"))
+
+    code, stdout, stderr = run_cmd(["/usr/bin/python3", script_path, "--sync-once"])
+    log_audit("AZURE_SYNC_TRIGGERED", "admin", "azure_sync", "SUCCESS" if code == 0 else "FAILED", {"code": code})
+
+    return {
+        "status": "success" if code == 0 else "error",
+        "exit_code": code,
+        "output": stdout.strip(),
+        "error": stderr.strip() if code != 0 else None
+    }
+

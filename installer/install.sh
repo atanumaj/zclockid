@@ -128,8 +128,9 @@ if [[ ! -f /etc/zclockid/certs/appliance.crt ]]; then
         -subj "/CN=$(hostname -f 2>/dev/null || echo 'zclockid.local')/O=Inet Secure Labs/OU=ZclockID" >/dev/null 2>&1 || true
 fi
 
-# Copy Web Dashboard
+# Copy Web Dashboard & Registration Portal
 cp "${SCRIPT_DIR}/web/index.html" "${INSTALL_DIR}/web/"
+cp "${SCRIPT_DIR}/web/register.html" "${INSTALL_DIR}/web/"
 
 # Copy API files
 cp "${SCRIPT_DIR}/api-prototype/main.py" "${INSTALL_DIR}/api/"
@@ -138,7 +139,13 @@ cp "${SCRIPT_DIR}/api-prototype/requirements.txt" "${INSTALL_DIR}/api/"
 # Copy Scripts
 cp "${SCRIPT_DIR}/scripts/zclock-sysvold.py" "${INSTALL_DIR}/scripts/"
 cp "${SCRIPT_DIR}/scripts/zclock-telemetry.sh" "${INSTALL_DIR}/scripts/"
+cp "${SCRIPT_DIR}/scripts/zclock-azuresync.py" "${INSTALL_DIR}/scripts/"
 chmod +x "${INSTALL_DIR}/scripts/"*
+
+# Copy Azure Sync baseline config if not exists
+if [[ ! -f /etc/zclockid/azure-sync.json && -f "${SCRIPT_DIR}/config-templates/azure/azure-sync.json" ]]; then
+    cp "${SCRIPT_DIR}/config-templates/azure/azure-sync.json" /etc/zclockid/
+fi
 
 # Configure Nginx
 if [[ -f "${SCRIPT_DIR}/config-templates/nginx/zclockid.conf" ]]; then

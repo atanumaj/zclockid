@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "tenant_id": "YOUR_AZURE_TENANT_ID_GUID",
+  "client_id": "YOUR_AZURE_APP_CLIENT_ID_GUID",
+  "client_secret": "YOUR_AZURE_APP_CLIENT_SECRET",
+  "sync_interval_seconds": 900,
+  "default_domain": "corp.example.com",
+  "source_ou": "OU=Users,DC=corp,DC=example,DC=com",
+  "password_hash_sync": true,
+  "target_license_sku": null
+}
