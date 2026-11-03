@@ -699,6 +699,35 @@ def dispatch_email(to_email: str, subject: str, body: str, settings: dict) -> tu
         logger.error(f"SMTP dispatch failed: {e}")
         return False, str(e)
 
+def parse_bw_info(info_str: Optional[str]) -> Optional[dict]:
+    """Parses ZCLOCKID_BW tag embedded in Active Directory user/group 'info' attribute (replicated via Microsoft DRS)."""
+    if not info_str or not info_str.startswith("ZCLOCKID_BW:"):
+        return None
+    raw = info_str.replace("ZCLOCKID_BW:", "", 1).strip()
+    parts = raw.split(";")
+    data = {
+        "name": parts[0].strip(),
+        "download_mbps": 5.0,
+        "upload_mbps": 2.0,
+        "session_timeout_mins": 120,
+        "idle_timeout_mins": 30,
+        "daily_quota_mb": 0
+    }
+    for p in parts[1:]:
+        if "=" in p:
+            k, v = p.split("=", 1)
+            k = k.strip().lower()
+            v = v.strip()
+            try:
+                if k in ["down", "download_mbps"]: data["download_mbps"] = float(v)
+                elif k in ["up", "upload_mbps"]: data["upload_mbps"] = float(v)
+                elif k in ["sess", "session_timeout_mins"]: data["session_timeout_mins"] = int(float(v))
+                elif k in ["idle", "idle_timeout_mins"]: data["idle_timeout_mins"] = int(float(v))
+                elif k in ["quota", "daily_quota_mb"]: data["daily_quota_mb"] = int(float(v))
+            except Exception:
+                pass
+    return data
+
 def update_user_upn(username: str, new_upn: str) -> str:
     code, stdout, stderr = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={username})", "dn"])
     if code != 0:
@@ -1764,8 +1793,12 @@ def get_drs_replication():
 
 @app.post("/api/v1/domain/replication/sync")
 def force_drs_replication():
-    """Forces immediate Directory Replication Service synchronization."""
+    """Forces immediate Directory Replication Service synchronization and re-evaluates FreeRADIUS rate limits."""
     code, stdout, stderr = run_cmd(["samba-tool", "drs", "kcc"], timeout=20)
+    try:
+        sync_freeradius_policies()
+    except Exception as e:
+        logger.warning(f"Failed to refresh FreeRADIUS policies post DRS sync: {e}")
     log_audit("DRS_SYNC_FORCED", "admin", "drs", "SUCCESS" if code == 0 else "FAILED", {"output": stdout})
     return {"status": "success" if code == 0 else "error", "message": stdout}
 
@@ -1777,10 +1810,10 @@ def list_domain_users():
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
         "(objectClass=user)",
-        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "userAccountControl"
+        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "info", "userAccountControl"
     ], timeout=10)
 
-    # Fetch bandwidth mappings
+    # Fetch bandwidth mappings from local SQLite
     user_bw_map = {}
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -1794,9 +1827,13 @@ def list_domain_users():
         """)
         for row in cursor.fetchall():
             user_bw_map[row["username"]] = dict(row)
+
+        cursor.execute("SELECT id, name FROM radius_bandwidth_profiles")
+        profiles_by_name = {r["name"].lower(): r["id"] for r in cursor.fetchall()}
         conn.close()
     except Exception as e:
         logger.warning(f"Failed to read radius_user_bandwidth: {e}")
+        profiles_by_name = {}
 
     users = []
     if code == 0:
@@ -1812,6 +1849,14 @@ def list_domain_users():
                         is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                         upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
                         bw_entry = user_bw_map.get(u)
+                        bw_parsed = parse_bw_info(current_user.get("info"))
+
+                        p_name = bw_parsed["name"] if bw_parsed else (bw_entry["profile_name"] if bw_entry else None)
+                        p_id = bw_entry["profile_id"] if bw_entry else (profiles_by_name.get(p_name.lower()) if p_name else None)
+                        d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+                        u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
+                        bw_rate_str = f"{d_val:g}M/{u_val:g}M" if (d_val is not None and u_val is not None) else None
+
                         g_name = current_user.get("given_name") or ""
                         s_name = current_user.get("surname") or ""
                         full_name = current_user.get("display_name") or f"{g_name} {s_name}".strip() or u
@@ -1827,9 +1872,9 @@ def list_domain_users():
                             "status": "disabled" if is_disabled else "active",
                             "is_disabled": is_disabled,
                             "is_built_in": is_built_in,
-                            "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
-                            "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
-                            "bandwidth_rate": f"{bw_entry['download_mbps']:g}M/{bw_entry['upload_mbps']:g}M" if bw_entry else None
+                            "bandwidth_profile_id": p_id,
+                            "bandwidth_profile_name": p_name,
+                            "bandwidth_rate": bw_rate_str
                         })
                 current_user = {}
                 continue
@@ -1849,6 +1894,8 @@ def list_domain_users():
                 current_user["mobile"] = line.split(":", 1)[1].strip()
             elif line.startswith("department:"):
                 current_user["department"] = line.split(":", 1)[1].strip()
+            elif line.startswith("info:"):
+                current_user["info"] = line.split(":", 1)[1].strip()
             elif line.startswith("userAccountControl:"):
                 try:
                     current_user["uac"] = int(line.split(":", 1)[1].strip())
@@ -1863,6 +1910,14 @@ def list_domain_users():
                 is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                 upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
                 bw_entry = user_bw_map.get(u)
+                bw_parsed = parse_bw_info(current_user.get("info"))
+
+                p_name = bw_parsed["name"] if bw_parsed else (bw_entry["profile_name"] if bw_entry else None)
+                p_id = bw_entry["profile_id"] if bw_entry else (profiles_by_name.get(p_name.lower()) if p_name else None)
+                d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+                u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
+                bw_rate_str = f"{d_val:g}M/{u_val:g}M" if (d_val is not None and u_val is not None) else None
+
                 g_name = current_user.get("given_name") or ""
                 s_name = current_user.get("surname") or ""
                 full_name = current_user.get("display_name") or f"{g_name} {s_name}".strip() or u
@@ -1878,9 +1933,9 @@ def list_domain_users():
                     "status": "disabled" if is_disabled else "active",
                     "is_disabled": is_disabled,
                     "is_built_in": is_built_in,
-                    "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
-                    "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
-                    "bandwidth_rate": f"{bw_entry['download_mbps']:g}M/{bw_entry['upload_mbps']:g}M" if bw_entry else None
+                    "bandwidth_profile_id": p_id,
+                    "bandwidth_profile_name": p_name,
+                    "bandwidth_rate": bw_rate_str
                 })
 
     if not users:
@@ -1941,7 +1996,11 @@ def create_domain_user(req: UserCreateRequest):
     if req.bandwidth_profile_id and req.bandwidth_profile_id > 0:
         try:
             conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+            cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
+            p_row = cursor.fetchone()
+
             cursor.execute("""
                 INSERT INTO radius_user_bandwidth (username, profile_id, updated_at)
                 VALUES (?, ?, ?)
@@ -1949,6 +2008,18 @@ def create_domain_user(req: UserCreateRequest):
             """, (req.username, req.bandwidth_profile_id, time.time()))
             conn.commit()
             conn.close()
+
+            if p_row:
+                p = dict(p_row)
+                bw_tag = f"ZCLOCKID_BW:{p['name']};down={p['download_mbps']};up={p['upload_mbps']};sess={p.get('session_timeout_mins', 120)};idle={p.get('idle_timeout_mins', 30)};quota={p.get('daily_quota_mb', 0)}"
+                c_d, o_d, _ = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={req.username})", "dn"])
+                if c_d == 0 and "dn: " in o_d:
+                    for l in o_d.splitlines():
+                        if l.startswith("dn: "):
+                            u_dn = l[4:].strip()
+                            ldif = f"dn: {u_dn}\nchangetype: modify\nreplace: info\ninfo: {bw_tag}\n-\n"
+                            subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif, text=True, capture_output=True)
+                            break
             sync_freeradius_policies()
         except Exception as e:
             logger.warning(f"Failed to assign user bandwidth on create: {e}")
@@ -1971,7 +2042,26 @@ def update_domain_user(username: str, req: UserUpdateRequest):
     if not dn:
         raise HTTPException(status_code=404, detail=f"User '{username}' not found in Active Directory.")
 
-    # 2. Modify AD attributes via ldbmodify
+    # 2. Resolve Bandwidth Profile tag for AD DRS Replication (Option B)
+    bw_info_tag = None
+    if req.bandwidth_profile_id is not None:
+        if req.bandwidth_profile_id > 0:
+            try:
+                conn_b = sqlite3.connect(DB_PATH)
+                conn_b.row_factory = sqlite3.Row
+                c_b = conn_b.cursor()
+                c_b.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
+                p_r = c_b.fetchone()
+                conn_b.close()
+                if p_r:
+                    p = dict(p_r)
+                    bw_info_tag = f"ZCLOCKID_BW:{p['name']};down={p['download_mbps']};up={p['upload_mbps']};sess={p.get('session_timeout_mins', 120)};idle={p.get('idle_timeout_mins', 30)};quota={p.get('daily_quota_mb', 0)}"
+            except Exception as e:
+                logger.warning(f"Failed to lookup profile details: {e}")
+        else:
+            bw_info_tag = "" # clear from AD info attribute
+
+    # 3. Modify AD attributes via ldbmodify
     ldif_lines = [f"dn: {dn}", "changetype: modify"]
     has_modifications = False
 
@@ -1983,6 +2073,8 @@ def update_domain_user(username: str, req: UserUpdateRequest):
         ("department", req.department),
         ("userPrincipalName", req.user_principal_name)
     ]
+    if bw_info_tag is not None:
+        attr_map.append(("info", bw_info_tag))
 
     for attr, val in attr_map:
         if val is not None:
@@ -2009,7 +2101,7 @@ def update_domain_user(username: str, req: UserUpdateRequest):
 
     admin_user, admin_pass = get_ad_creds()
 
-    # 3. Handle Password Reset if requested
+    # 4. Handle Password Reset if requested
     if req.new_password:
         p_code, p_out, p_err = run_cmd([
             "samba-tool", "user", "setpassword", username,
@@ -2019,7 +2111,7 @@ def update_domain_user(username: str, req: UserUpdateRequest):
         if p_code != 0:
             raise HTTPException(status_code=400, detail=f"Failed to reset password: {p_err or p_out}")
 
-    # 4. Handle Account Status (Enable/Disable)
+    # 5. Handle Account Status (Enable/Disable)
     if req.is_disabled is not None:
         action = "disable" if req.is_disabled else "enable"
         s_code, s_out, s_err = run_cmd([
@@ -2029,7 +2121,7 @@ def update_domain_user(username: str, req: UserUpdateRequest):
         if s_code != 0:
             raise HTTPException(status_code=400, detail=f"Failed to {action} user: {s_err or s_out}")
 
-    # 5. Handle Bandwidth Profile Assignment
+    # 6. Handle Local SQLite Cache Update
     if req.bandwidth_profile_id is not None:
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -2532,19 +2624,58 @@ def sync_freeradius_policies():
                 lines.append(f'\tFramed-IP-Address = {mab["static_ip"]},')
             lines.append(f'\tFall-Through = Yes\n')
 
-    # 2. Individual User Bandwidth Profiles (Highest Priority)
-    if user_bw_rows:
-        lines.append("# --- Individual User Bandwidth Profiles (Top Priority) ---")
-        for ubw in user_bw_rows:
+    # 2. Individual User Bandwidth Profiles (Highest Priority - DRS Multi-Master Replicated)
+    # Query Active Directory SAM LDB for all users with ZCLOCKID_BW in info attribute (Replicated via Microsoft DRS)
+    ad_user_overrides = {}
+    code_ad, out_ad, _ = run_cmd([
+        "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
+        "(info=ZCLOCKID_BW:*)", "sAMAccountName", "info"
+    ], timeout=5)
+    if code_ad == 0:
+        c_u = {}
+        for line in out_ad.splitlines():
+            line = line.strip()
+            if not line:
+                if c_u.get("username") and c_u.get("info"):
+                    bw = parse_bw_info(c_u["info"])
+                    if bw:
+                        ad_user_overrides[c_u["username"]] = {
+                            "username": c_u["username"],
+                            **bw
+                        }
+                c_u = {}
+                continue
+            if line.startswith("sAMAccountName:"):
+                c_u["username"] = line.split(":", 1)[1].strip()
+            elif line.startswith("info:"):
+                c_u["info"] = line.split(":", 1)[1].strip()
+        if c_u.get("username") and c_u.get("info"):
+            bw = parse_bw_info(c_u["info"])
+            if bw:
+                ad_user_overrides[c_u["username"]] = {
+                    "username": c_u["username"],
+                    **bw
+                }
+
+    # Merge local SQLite mappings with Active Directory DRS mappings
+    merged_user_bw = {}
+    for ubw in user_bw_rows:
+        merged_user_bw[ubw['username']] = ubw
+    for u_name, u_data in ad_user_overrides.items():
+        merged_user_bw[u_name] = u_data
+
+    if merged_user_bw:
+        lines.append("# --- Individual User Bandwidth Profiles (Top Priority - DRS Multi-Master Replicated) ---")
+        for u_name, ubw in sorted(merged_user_bw.items()):
             down_bps = int(ubw['download_mbps'] * 1000000)
             up_bps = int(ubw['upload_mbps'] * 1000000)
             mk_rate = f"{ubw['upload_mbps']:g}M/{ubw['download_mbps']:g}M"
-            sess_sec = int(ubw['session_timeout_mins'] * 60) if ubw.get('session_timeout_mins') else 0
-            idle_sec = int(ubw['idle_timeout_mins'] * 60) if ubw.get('idle_timeout_mins') else 0
-            quota_bytes = int(ubw['daily_quota_mb'] * 1024 * 1024) if ubw.get('daily_quota_mb') else 0
+            sess_sec = int(ubw.get('session_timeout_mins', 0) * 60)
+            idle_sec = int(ubw.get('idle_timeout_mins', 0) * 60)
+            quota_bytes = int(ubw.get('daily_quota_mb', 0) * 1024 * 1024)
 
-            lines.append(f'# User Override: {ubw["username"]} -> Tier: {ubw["name"]} ({ubw["download_mbps"]:g}M/{ubw["upload_mbps"]:g}M)')
-            lines.append(f'"{ubw["username"]}"')
+            lines.append(f'# User Override: {u_name} -> Tier: {ubw["name"]} ({ubw["download_mbps"]:g}M/{ubw["upload_mbps"]:g}M) [DRS Replicated]')
+            lines.append(f'"{u_name}"')
             lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
             lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
             lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
@@ -5186,4 +5317,19 @@ def get_update_log():
         "lines": content.splitlines()[-100:],
         "size": len(content)
     }
+
+# ----------------- Background Active Directory DRS Replication Poller -----------------
+
+def background_radius_drs_poller():
+    """Wakes up every 60 seconds to detect Active Directory DRS-replicated user bandwidth profiles."""
+    while True:
+        try:
+            time.sleep(60)
+            sync_freeradius_policies()
+        except Exception:
+            pass
+
+import threading
+_drs_sync_thread = threading.Thread(target=background_radius_drs_poller, daemon=True)
+_drs_sync_thread.start()
 
