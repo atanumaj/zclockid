@@ -1849,7 +1849,7 @@ def list_domain_users():
                 if current_user.get("username"):
                     u = current_user["username"]
                     if not u.endswith("$"):
-                        is_built_in = u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"]
+                        is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
                         uac = current_user.get("uac", 512)
                         is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                         upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
@@ -1865,6 +1865,7 @@ def list_domain_users():
                         g_name = current_user.get("given_name") or ""
                         s_name = current_user.get("surname") or ""
                         full_name = current_user.get("display_name") or f"{g_name} {s_name}".strip() or u
+                        dept_val = "Built-in" if is_built_in else (current_user.get("department") or "-")
                         users.append({
                             "username": u,
                             "name": full_name,
@@ -1873,7 +1874,7 @@ def list_domain_users():
                             "user_principal_name": upn,
                             "email": current_user.get("email") or "",
                             "mobile": current_user.get("mobile") or "",
-                            "department": current_user.get("department") or ("IT Operations" if u in ["Administrator", "admin"] else "Corporate Staff"),
+                            "department": dept_val,
                             "status": "disabled" if is_disabled else "active",
                             "is_disabled": is_disabled,
                             "is_built_in": is_built_in,
@@ -1910,7 +1911,7 @@ def list_domain_users():
         if current_user.get("username"):
             u = current_user["username"]
             if not u.endswith("$"):
-                is_built_in = u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"]
+                is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
                 uac = current_user.get("uac", 512)
                 is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                 upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
@@ -1926,6 +1927,7 @@ def list_domain_users():
                 g_name = current_user.get("given_name") or ""
                 s_name = current_user.get("surname") or ""
                 full_name = current_user.get("display_name") or f"{g_name} {s_name}".strip() or u
+                dept_val = "Built-in" if is_built_in else (current_user.get("department") or "-")
                 users.append({
                     "username": u,
                     "name": full_name,
@@ -1934,7 +1936,7 @@ def list_domain_users():
                     "user_principal_name": upn,
                     "email": current_user.get("email") or "",
                     "mobile": current_user.get("mobile") or "",
-                    "department": current_user.get("department") or ("IT Operations" if u in ["Administrator", "admin"] else "Corporate Staff"),
+                    "department": dept_val,
                     "status": "disabled" if is_disabled else "active",
                     "is_disabled": is_disabled,
                     "is_built_in": is_built_in,
@@ -2233,6 +2235,22 @@ def update_user_upn_endpoint(username: str, req: UserUpnUpdateRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+PROTECTED_BUILTIN_GROUPS = {
+    "administrators", "domain admins", "enterprise admins", "schema admins",
+    "domain users", "domain guests", "domain computers", "domain controllers",
+    "group policy creator owners", "cert publishers", "ras and ias servers",
+    "allowed rodc password replication group", "denied rodc password replication group",
+    "read-only domain controllers", "enterprise read-only domain controllers",
+    "dnsadmins", "dnsupdateproxy", "protected users", "users", "guests",
+    "account operators", "server operators", "print operators", "backup operators",
+    "replicator", "remote desktop users", "network configuration operators",
+    "performance monitor users", "performance log users", "distributed com users",
+    "iis_iusrs", "cryptographic operators", "event log readers",
+    "certificate service dcom access", "incoming forest trust builders",
+    "terminal server license servers", "windows authorization access group",
+    "pre-windows 2000 compatible access"
+}
+
 @app.get("/api/v1/groups")
 def list_domain_groups():
     """Lists all Active Directory security groups with member counts, descriptions, and assigned bandwidth profiles."""
@@ -2261,15 +2279,6 @@ def list_domain_groups():
     except Exception as e:
         logger.warning(f"Failed to query bandwidth profiles for groups: {e}")
 
-    protected_builtins = {
-        "administrators", "domain admins", "enterprise admins", "schema admins",
-        "domain users", "domain guests", "domain computers", "domain controllers",
-        "group policy creator owners", "cert publishers", "ras and ias servers",
-        "allowed rodc password replication group", "denied rodc password replication group",
-        "read-only domain controllers", "enterprise read-only domain controllers",
-        "dnsadmins", "dnsupdateproxy"
-    }
-
     groups = []
     if code == 0:
         current_grp = {}
@@ -2279,7 +2288,8 @@ def list_domain_groups():
             if not line:
                 if current_grp.get("group_name"):
                     g_name = current_grp["group_name"]
-                    is_builtin = g_name.lower() in protected_builtins
+                    grp_dn = current_grp.get("dn", "").lower()
+                    is_builtin = ("cn=builtin" in grp_dn) or (g_name.lower() in PROTECTED_BUILTIN_GROUPS)
                     info_raw = current_grp.get("info")
                     bw_parsed = parse_bw_info(info_raw)
                     bw_entry = group_bw_map.get(g_name.lower())
@@ -2292,7 +2302,10 @@ def list_domain_groups():
 
                     groups.append({
                         "group_name": g_name,
+                        "dn": current_grp.get("dn", ""),
                         "description": current_grp.get("description", ""),
+                        "department": "Built-in" if is_builtin else "Custom Group",
+                        "group_type": "Built-in" if is_builtin else "Custom Group",
                         "member_count": len(members),
                         "is_built_in": is_builtin,
                         "bandwidth_profile_id": p_id,
@@ -2303,7 +2316,9 @@ def list_domain_groups():
                 members = []
                 continue
 
-            if line.startswith("sAMAccountName:"):
+            if line.startswith("dn:"):
+                current_grp["dn"] = line.split(":", 1)[1].strip()
+            elif line.startswith("sAMAccountName:"):
                 current_grp["group_name"] = line.split(":", 1)[1].strip()
             elif line.startswith("description:"):
                 current_grp["description"] = line.split(":", 1)[1].strip()
@@ -2314,7 +2329,8 @@ def list_domain_groups():
 
         if current_grp.get("group_name"):
             g_name = current_grp["group_name"]
-            is_builtin = g_name.lower() in protected_builtins
+            grp_dn = current_grp.get("dn", "").lower()
+            is_builtin = ("cn=builtin" in grp_dn) or (g_name.lower() in PROTECTED_BUILTIN_GROUPS)
             info_raw = current_grp.get("info")
             bw_parsed = parse_bw_info(info_raw)
             bw_entry = group_bw_map.get(g_name.lower())
@@ -2327,7 +2343,10 @@ def list_domain_groups():
 
             groups.append({
                 "group_name": g_name,
+                "dn": current_grp.get("dn", ""),
                 "description": current_grp.get("description", ""),
+                "department": "Built-in" if is_builtin else "Custom Group",
+                "group_type": "Built-in" if is_builtin else "Custom Group",
                 "member_count": len(members),
                 "is_built_in": is_builtin,
                 "bandwidth_profile_id": p_id,
@@ -2393,6 +2412,9 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
             g_dn = l[4:].strip()
             break
 
+    if group_name.lower() in PROTECTED_BUILTIN_GROUPS or ("cn=builtin" in (g_dn or "").lower()):
+        raise HTTPException(status_code=400, detail=f"Cannot modify protected built-in Active Directory group '{group_name}'.")
+
     ldif_lines = [f"dn: {g_dn}", "changetype: modify"]
     has_mod = False
 
@@ -2452,9 +2474,8 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
 @app.delete("/api/v1/groups/{group_name}")
 def delete_domain_group(group_name: str):
     """Deletes an Active Directory Security Group."""
-    protected = {"administrators", "domain admins", "enterprise admins", "schema admins", "domain users", "domain guests", "domain computers", "domain controllers"}
-    if group_name.lower() in protected:
-        raise HTTPException(status_code=400, detail=f"Cannot delete protected built-in group '{group_name}'.")
+    if group_name.lower() in PROTECTED_BUILTIN_GROUPS or ("cn=builtin" in group_name.lower()):
+        raise HTTPException(status_code=400, detail=f"Cannot delete protected built-in Active Directory group '{group_name}'.")
 
     admin_user, admin_pass = get_ad_creds()
     code, stdout, stderr = run_cmd(["samba-tool", "group", "delete", group_name, f"-U{admin_user}", f"--password={admin_pass}"], timeout=15)
