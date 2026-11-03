@@ -1112,19 +1112,47 @@
                 </div>
             </section>
 
-            <!-- ==================== TAB 5: 802.1X ACCESS (RADIUS - pfSense Style) ==================== -->
+            <!-- ==================== TAB 5: 802.1X ACCESS (RADIUS - Option 2: Tiered Mode) ==================== -->
             <section id="tab-radius" class="space-y-6 hidden">
-                <!-- Sub-nav Pills -->
-                <div class="flex items-center gap-3 border-b border-slate-800 pb-3">
-                    <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition">
-                        <i class="fa-solid fa-network-wired mr-1.5"></i> NAS Clients (AP / Switches)
-                    </button>
-                    <button onclick="switchRadiusSubTab('accounting')" id="rad-tab-accounting" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                        <i class="fa-solid fa-chart-line mr-1.5"></i> RADIUS Accounting & Sessions
-                    </button>
-                    <button onclick="switchRadiusSubTab('settings')" id="rad-tab-settings" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                        <i class="fa-solid fa-sliders mr-1.5"></i> Engine Parameters
-                    </button>
+                <!-- Tiered Sub-nav Tabs -->
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="px-2 py-1 rounded text-[10px] font-mono uppercase bg-amber-950 text-amber-400 border border-amber-800 font-bold">Standard</span>
+                        <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition">
+                            <i class="fa-solid fa-network-wired mr-1.5"></i> NAS Clients & APs
+                        </button>
+                        <button onclick="switchRadiusSubTab('vlans')" id="rad-tab-vlans" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-tags mr-1.5"></i> Dynamic AD VLANs
+                        </button>
+                        <button onclick="switchRadiusSubTab('eap')" id="rad-tab-eap" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-shield-halved mr-1.5"></i> EAP & Certificates
+                        </button>
+                        <button onclick="switchRadiusSubTab('accounting')" id="rad-tab-accounting" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-chart-line mr-1.5"></i> Live Sessions & Acct
+                        </button>
+
+                        <span class="text-slate-700">|</span>
+
+                        <span class="px-2 py-1 rounded text-[10px] font-mono uppercase bg-indigo-950 text-indigo-400 border border-indigo-800 font-bold">Advanced</span>
+                        <button onclick="switchRadiusSubTab('mab')" id="rad-tab-mab" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-print mr-1.5"></i> MAB (MAC Bypass)
+                        </button>
+                        <button onclick="switchRadiusSubTab('custom')" id="rad-tab-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-code-branch mr-1.5"></i> Custom Attributes
+                        </button>
+                        <button onclick="switchRadiusSubTab('settings')" id="rad-tab-settings" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-sliders mr-1.5"></i> Engine & Logging
+                        </button>
+                        <button onclick="switchRadiusSubTab('config')" id="rad-tab-config" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-file-code mr-1.5"></i> View Raw Config
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="controlService('freeradius', 'restart')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-rotate text-amber-400"></i> Restart FreeRADIUS
+                        </button>
+                    </div>
                 </div>
 
                 <!-- SUB-SECTION 1: NAS Clients -->
@@ -1135,7 +1163,7 @@
                                 <h3 class="text-sm font-semibold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-tower-broadcast text-amber-400"></i> Authorized Network Access Servers (NAS)
                                 </h3>
-                                <p class="text-xs text-slate-400">Switches and wireless access points allowed to authenticate users against Samba AD via 802.1X</p>
+                                <p class="text-xs text-slate-400">Switches and wireless access points allowed to authenticate 802.1X supplicants against Samba AD</p>
                             </div>
                             <button onclick="openRadiusModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-plus"></i> Add NAS Client
@@ -1148,8 +1176,8 @@
                                     <tr>
                                         <th class="px-4 py-2.5">Client Identifier</th>
                                         <th class="px-4 py-2.5">IP Address / CIDR</th>
-                                        <th class="px-4 py-2.5">NAS Type</th>
-                                        <th class="px-4 py-2.5">Shared Secret</th>
+                                        <th class="px-4 py-2.5">NAS Hardware</th>
+                                        <th class="px-4 py-2.5">Shared Secret (RADIUS Key)</th>
                                         <th class="px-4 py-2.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -1161,7 +1189,90 @@
                     </div>
                 </div>
 
-                <!-- SUB-SECTION 2: RADIUS Accounting & Sessions (pfSense Style) -->
+                <!-- SUB-SECTION 2: Dynamic AD VLAN Steering (RFC 3580) -->
+                <div id="radius-sec-vlans" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-tags text-cyan-400"></i> Dynamic 802.1X VLAN Steering (RFC 3580)
+                                </h3>
+                                <p class="text-xs text-slate-400">Dynamically assigns authenticated Active Directory users to specific VLANs upon 802.1X authentication</p>
+                            </div>
+                            <button onclick="openVlanMappingModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add VLAN Steering Rule
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Active Directory Group</th>
+                                        <th class="px-4 py-2.5">Assigned VLAN ID</th>
+                                        <th class="px-4 py-2.5">VLAN Name</th>
+                                        <th class="px-4 py-2.5">RFC 3580 Injected Attributes</th>
+                                        <th class="px-4 py-2.5">Priority</th>
+                                        <th class="px-4 py-2.5">Status</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-vlans-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading dynamic VLAN rules...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 3: EAP & Certificate Profiles -->
+                <div id="radius-sec-eap" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- Protocol Status Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Supported 802.1X EAP Protocols
+                            </h3>
+                            <div class="space-y-3 text-xs">
+                                <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-white">EAP-PEAP-MSCHAPv2</div>
+                                        <div class="text-[11px] text-slate-400">WPA2/WPA3-Enterprise password authentication validated against Samba AD KDC via winbind</div>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">ENABLED</span>
+                                </div>
+                                <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-white">EAP-TLS (Certificate Auth)</div>
+                                        <div class="text-[11px] text-slate-400">Mutual TLS authentication for smartcards, YubiKeys, and client certificates issued by ZclockID CA</div>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">ENABLED</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 802.1X Server Certificate Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-certificate text-amber-400"></i> FreeRADIUS Server TLS Certificate
+                                </h3>
+                                <button onclick="renewRadiusCert()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-rotate"></i> Re-issue Cert
+                                </button>
+                            </div>
+                            <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg space-y-2 text-xs font-mono">
+                                <div class="flex justify-between"><span class="text-slate-400">Subject:</span> <span id="rad-cert-subject" class="text-white">CN=radius.inet.net</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Issuer:</span> <span id="rad-cert-issuer" class="text-cyan-400">Inet Secure Root CA</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Algorithm:</span> <span id="rad-cert-algo" class="text-slate-300">RSA 4096-bit / SHA-256</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Validity:</span> <span id="rad-cert-validity" class="text-emerald-400">Valid (3,480 days remaining)</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Cert Path:</span> <span class="text-slate-400">/etc/freeradius/3.0/certs/server.pem</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 4: Live Sessions & Accounting Log (pfSense Style) -->
                 <div id="radius-sec-accounting" class="space-y-6 hidden">
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                         <div class="flex items-center justify-between">
@@ -1198,11 +1309,84 @@
                     </div>
                 </div>
 
-                <!-- SUB-SECTION 3: RADIUS Settings -->
+                <!-- SUB-SECTION 5: MAC Authentication Bypass (MAB - Advanced Mode) -->
+                <div id="radius-sec-mab" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-print text-indigo-400"></i> MAC Authentication Bypass (MAB) for Headless Devices
+                                </h3>
+                                <p class="text-xs text-slate-400">Allows IoT devices, printers, IP phones, and cameras without 802.1X supplicants to access assigned VLANs</p>
+                            </div>
+                            <button onclick="openMabModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Register MAB Device
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Hardware MAC Address</th>
+                                        <th class="px-4 py-2.5">Device Identifier</th>
+                                        <th class="px-4 py-2.5">Assigned VLAN</th>
+                                        <th class="px-4 py-2.5">Static IP</th>
+                                        <th class="px-4 py-2.5">Description</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-mab-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading MAB devices...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 6: Custom Attributes & Policies (Advanced Mode) -->
+                <div id="radius-sec-custom" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-code-branch text-amber-400"></i> Vendor-Specific Attributes (VSA) & RADIUS Policies
+                                </h3>
+                                <p class="text-xs text-slate-400">Inject granular RADIUS check/reply items (Cisco-AVPair, Session-Timeout, Mikrotik-Rate-Limit) globally or per-group</p>
+                            </div>
+                            <button onclick="openCustomAttrModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add Custom Attribute
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Target Scope</th>
+                                        <th class="px-4 py-2.5">Scope Identifier</th>
+                                        <th class="px-4 py-2.5">Attribute Name</th>
+                                        <th class="px-4 py-2.5">Operator</th>
+                                        <th class="px-4 py-2.5">Value</th>
+                                        <th class="px-4 py-2.5">Description</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-custom-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading custom attributes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 7: Engine Parameters & Logging (Advanced Mode) -->
                 <div id="radius-sec-settings" class="space-y-6 hidden">
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 max-w-xl">
-                        <h3 class="text-sm font-semibold text-white">FreeRADIUS General Parameters</h3>
-                        <div class="space-y-3 text-xs">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 max-w-2xl">
+                        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-indigo-400"></i> FreeRADIUS Daemon Parameters & Logging (pfSense Style)
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
                             <div>
                                 <label class="text-slate-400 block mb-1">Authentication UDP Port</label>
                                 <input id="rad-cfg-auth-port" type="number" value="1812" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
@@ -1212,14 +1396,68 @@
                                 <input id="rad-cfg-acct-port" type="number" value="1813" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
                             </div>
                             <div>
+                                <label class="text-slate-400 block mb-1">Listening Interface IP</label>
+                                <input id="rad-cfg-listen-ip" type="text" value="0.0.0.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono" placeholder="0.0.0.0">
+                            </div>
+                            <div>
                                 <label class="text-slate-400 block mb-1">Interim-Update Interval (Seconds)</label>
                                 <input id="rad-cfg-interval" type="number" value="300" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
                             </div>
-                            <div class="pt-2">
-                                <button onclick="saveRadiusSettings()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition">
-                                    Save RADIUS Settings
+                            <div>
+                                <label class="text-slate-400 block mb-1">Max Requests (Thread Pool)</label>
+                                <input id="rad-cfg-max-requests" type="number" value="1024" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Max Server Workers</label>
+                                <input id="rad-cfg-max-servers" type="number" value="32" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                        </div>
+
+                        <!-- Logging Toggles -->
+                        <div class="pt-2 border-t border-slate-800 space-y-2 text-xs">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="rad-cfg-log-auth" checked class="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0">
+                                <span class="text-slate-300">Log all 802.1X authentication requests (Success & Deny) to syslog</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="rad-cfg-log-badpass" checked class="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0">
+                                <span class="text-slate-300">Log bad password attempts (audit trail for brute-force defense)</span>
+                            </label>
+                        </div>
+
+                        <div class="pt-2">
+                            <button onclick="saveRadiusSettings()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition">
+                                Save RADIUS Engine Parameters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 8: Raw Config Inspector (pfSense Style) -->
+                <div id="radius-sec-config" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-file-code text-cyan-400"></i> FreeRADIUS Raw Configuration Inspector (pfSense Style)
+                                </h3>
+                                <p class="text-xs text-slate-400">View real-time generated directives across FreeRADIUS configuration files</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="flex bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+                                    <button onclick="loadRawRadiusConfig('clients')" id="rad-cfgfile-clients" class="px-2.5 py-1 rounded bg-amber-600/20 text-amber-400 font-semibold font-mono">clients.conf</button>
+                                    <button onclick="loadRawRadiusConfig('authorize')" id="rad-cfgfile-authorize" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">authorize</button>
+                                    <button onclick="loadRawRadiusConfig('mschap')" id="rad-cfgfile-mschap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">mschap</button>
+                                    <button onclick="loadRawRadiusConfig('eap')" id="rad-cfgfile-eap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">eap.conf</button>
+                                </div>
+                                <button onclick="copyRawConfigToClipboard()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition flex items-center gap-1.5 border border-slate-700">
+                                    <i class="fa-solid fa-copy"></i> Copy
                                 </button>
                             </div>
+                        </div>
+
+                        <div class="relative">
+                            <pre id="radius-raw-config-display" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-[11px] font-mono text-emerald-400 overflow-x-auto max-h-[500px]">Loading configuration...</pre>
                         </div>
                     </div>
                 </div>
@@ -3141,6 +3379,8 @@
                         <option value="cisco">Cisco IOS</option>
                         <option value="mikrotik">MikroTik RouterOS</option>
                         <option value="unifi">Ubiquiti UniFi AP / Switch</option>
+                        <option value="aruba">Aruba Networks</option>
+                        <option value="tplink">TP-Link JetStream</option>
                     </select>
                 </div>
                 <div>
@@ -3160,6 +3400,143 @@
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeRadiusModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
                     <button type="button" onclick="submitAddRadiusClient()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Save NAS Client</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dynamic AD VLAN Mapping Modal -->
+    <div id="radius-vlan-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-tags text-cyan-400"></i> Add Dynamic 802.1X VLAN Steering Rule</h3>
+                <button onclick="closeVlanMappingModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Active Directory Security Group</label>
+                    <input id="rad-vlan-group-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Domain Admins or Corporate-Users">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Assigned 802.1X VLAN ID</label>
+                        <input id="rad-vlan-id-input" type="number" min="1" max="4094" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="50">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">VLAN Name / Label</label>
+                        <input id="rad-vlan-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="CORP_DATA">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Evaluation Priority</label>
+                        <input id="rad-vlan-priority-input" type="number" value="10" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Description</label>
+                        <input id="rad-vlan-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Corporate staff data access">
+                    </div>
+                </div>
+                <div class="p-3 bg-slate-950 border border-slate-800/80 rounded-lg text-[11px] text-slate-400 space-y-1">
+                    <span class="font-bold text-cyan-400">RFC 3580 Attributes Injected:</span>
+                    <div>• Tunnel-Type = 13 (VLAN)</div>
+                    <div>• Tunnel-Medium-Type = 6 (IEEE-802)</div>
+                    <div>• Tunnel-Private-Group-Id = &lt;VLAN_ID&gt;</div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeVlanMappingModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitSaveVlanMapping()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Save Steering Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAB (MAC Authentication Bypass) Modal -->
+    <div id="radius-mab-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-print text-indigo-400"></i> Register Headless Device for MAB Bypass</h3>
+                <button onclick="closeMabModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Device Hardware MAC Address</label>
+                    <input id="rad-mab-mac-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="00:11:22:33:44:55 or 001122334455">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Device Identifier / Hostname</label>
+                    <input id="rad-mab-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Floor-1-LaserJet-M404">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Assigned VLAN ID</label>
+                        <input id="rad-mab-vlan-input" type="number" min="1" max="4094" value="70" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Optional Static IP</label>
+                        <input id="rad-mab-ip-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="192.168.70.25">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Description / Location</label>
+                    <input id="rad-mab-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Shared Office MFP Printer">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeMabModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitSaveMabDevice()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Save MAB Device</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom RADIUS Vendor Attribute Modal -->
+    <div id="radius-custom-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-code-branch text-amber-400"></i> Add Custom RADIUS Vendor Attribute</h3>
+                <button onclick="closeCustomAttrModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Target Scope</label>
+                        <select id="rad-attr-scope-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                            <option value="GLOBAL">GLOBAL (All Clients & Users)</option>
+                            <option value="GROUP">GROUP (Specific AD Group)</option>
+                            <option value="CLIENT">CLIENT (Specific NAS Shortname)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Scope Identifier</label>
+                        <input id="rad-attr-scopename-input" type="text" value="ALL" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="ALL, or AD Group Name">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2">
+                        <label class="text-slate-400 block mb-1">Attribute Name</label>
+                        <input id="rad-attr-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Session-Timeout">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Operator</label>
+                        <select id="rad-attr-op-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                            <option value="=">=</option>
+                            <option value=":=">:=</option>
+                            <option value="+=">+=</option>
+                            <option value="==">==</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Attribute Value</label>
+                    <input id="rad-attr-val-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="28800 or url-redirect=...">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Description</label>
+                    <input id="rad-attr-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="8-hour session timeout re-auth">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeCustomAttrModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitSaveCustomAttr()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Save Attribute</button>
                 </div>
             </div>
         </div>
@@ -3319,7 +3696,15 @@
             else if (tabId === 'ntp') { fetchNtpStatus(); fetchNtpConfig(); }
             else if (tabId === 'users') { fetchUsers(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
-            else if (tabId === 'radius') { fetchRadiusClients(); fetchRadiusSessions(); }
+            else if (tabId === 'radius') {
+                fetchRadiusClients();
+                fetchRadiusVlans();
+                fetchRadiusEap();
+                fetchRadiusSessions();
+                fetchRadiusMab();
+                fetchRadiusCustom();
+                fetchRadiusSettings();
+            }
             else if (tabId === 'sysvol') { fetchSysvolStatus(); fetchSysvolPartners(); }
             else if (tabId === 'azure') { fetchAzureStatus(); fetchAzureConfig(); }
             else if (tabId === 'registrations') { fetchRegistrations(); fetchRegistrationSettings(); }
@@ -3329,26 +3714,40 @@
             else if (tabId === 'update') { loadUpdateInfo(); }
         }
 
-        // Sub-tabs in RADIUS
+        // Sub-tabs in RADIUS (Tiered: Standard & Advanced)
         function switchRadiusSubTab(sub) {
-            document.getElementById('radius-sec-clients').classList.add('hidden');
-            document.getElementById('radius-sec-accounting').classList.add('hidden');
-            document.getElementById('radius-sec-settings').classList.add('hidden');
+            const allSubs = ['clients', 'vlans', 'eap', 'accounting', 'mab', 'custom', 'settings', 'config'];
+            allSubs.forEach(s => {
+                const sec = document.getElementById(`radius-sec-${s}`);
+                if (sec) sec.classList.add('hidden');
 
-            ['clients', 'accounting', 'settings'].forEach(s => {
                 const btn = document.getElementById(`rad-tab-${s}`);
                 if (btn) {
-                    btn.classList.remove('bg-amber-600/20', 'text-amber-400', 'border', 'border-amber-500/30', 'font-bold');
+                    btn.classList.remove('bg-amber-600/20', 'text-amber-400', 'bg-indigo-600/20', 'text-indigo-400', 'border', 'border-amber-500/30', 'border-indigo-500/30', 'font-bold');
                     btn.classList.add('text-slate-400', 'font-medium');
                 }
             });
 
-            document.getElementById(`radius-sec-${sub}`).classList.remove('hidden');
+            const activeSec = document.getElementById(`radius-sec-${sub}`);
+            if (activeSec) activeSec.classList.remove('hidden');
+
             const activeBtn = document.getElementById(`rad-tab-${sub}`);
             if (activeBtn) {
                 activeBtn.classList.remove('text-slate-400', 'font-medium');
-                activeBtn.classList.add('bg-amber-600/20', 'text-amber-400', 'border', 'border-amber-500/30', 'font-bold');
+                const isAdvanced = ['mab', 'custom', 'settings', 'config'].includes(sub);
+                const colorClass = isAdvanced ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' : 'bg-amber-600/20 text-amber-400 border border-amber-500/30';
+                activeBtn.className = `px-3 py-1.5 rounded-lg text-xs font-bold ${colorClass} transition`;
             }
+
+            // Lazy data fetch on sub-tab switch
+            if (sub === 'clients') fetchRadiusClients();
+            else if (sub === 'vlans') fetchRadiusVlans();
+            else if (sub === 'eap') fetchRadiusEap();
+            else if (sub === 'accounting') fetchRadiusSessions();
+            else if (sub === 'mab') fetchRadiusMab();
+            else if (sub === 'custom') fetchRadiusCustom();
+            else if (sub === 'settings') fetchRadiusSettings();
+            else if (sub === 'config') loadRawRadiusConfig('clients');
         }
 
         // 1. System & Dashboard Status
@@ -4581,10 +4980,323 @@
             }
         }
 
+        // Dynamic AD VLAN Steering (RFC 3580)
+        async function fetchRadiusVlans() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/vlan-mappings`);
+                const data = await res.json();
+                const tbody = document.getElementById('radius-vlans-table-body');
+                if (data.mappings && data.mappings.length > 0) {
+                    tbody.innerHTML = data.mappings.map(m => `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5 font-bold text-white flex items-center gap-1.5">
+                                <i class="fa-solid fa-users text-cyan-400 text-xs"></i> ${m.ad_group}
+                            </td>
+                            <td class="px-4 py-2.5 text-cyan-300 font-mono font-bold">VLAN ${m.vlan_id}</td>
+                            <td class="px-4 py-2.5 text-slate-300 font-mono text-[10px]">${m.vlan_name || '-'}</td>
+                            <td class="px-4 py-2.5">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 text-slate-300 border border-slate-800">Tunnel-Pvt-Group: "${m.vlan_id}"</span>
+                            </td>
+                            <td class="px-4 py-2.5 text-slate-400 font-mono">${m.priority}</td>
+                            <td class="px-4 py-2.5">
+                                <span class="px-2 py-0.5 rounded text-[10px] ${m.is_active ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${m.is_active ? 'ACTIVE' : 'DISABLED'}</span>
+                            </td>
+                            <td class="px-4 py-2.5 text-right">
+                                <button onclick="deleteVlanMapping(${m.id})" class="text-slate-500 hover:text-rose-400 transition" title="Delete Rule">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">No dynamic VLAN steering rules configured.</td></tr>`;
+                }
+            } catch (err) {
+                console.error('Error fetching VLAN mappings:', err);
+            }
+        }
+
+        function openVlanMappingModal() { document.getElementById('radius-vlan-modal').classList.remove('hidden'); }
+        function closeVlanMappingModal() { document.getElementById('radius-vlan-modal').classList.add('hidden'); }
+
+        async function submitSaveVlanMapping() {
+            const group = document.getElementById('rad-vlan-group-input').value.trim();
+            const vlanId = parseInt(document.getElementById('rad-vlan-id-input').value);
+            const vlanName = document.getElementById('rad-vlan-name-input').value.trim();
+            const priority = parseInt(document.getElementById('rad-vlan-priority-input').value) || 10;
+            const desc = document.getElementById('rad-vlan-desc-input').value.trim();
+
+            if (!group || isNaN(vlanId)) return alert('AD Group and VLAN ID are required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/radius/vlan-mappings`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        ad_group: group,
+                        vlan_id: vlanId,
+                        vlan_name: vlanName,
+                        priority: priority,
+                        description: desc,
+                        is_active: true
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeVlanMappingModal();
+                    fetchRadiusVlans();
+                } else {
+                    alert(`Failed to save rule: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving VLAN rule: ${err}`);
+            }
+        }
+
+        async function deleteVlanMapping(id) {
+            if (!confirm('Delete this dynamic VLAN steering rule?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/radius/vlan-mappings/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchRadiusVlans();
+                } else {
+                    const data = await res.json();
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting VLAN rule: ${err}`);
+            }
+        }
+
+        // EAP & Certificates
+        async function fetchRadiusEap() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/eap`);
+                const data = await res.json();
+                if (data.certificates) {
+                    const c = data.certificates;
+                    document.getElementById('rad-cert-subject').innerText = c.subject || 'radius.inet.net';
+                    document.getElementById('rad-cert-issuer').innerText = c.issuer || 'Inet Secure Root CA';
+                    document.getElementById('rad-cert-algo').innerText = c.key_algorithm || 'RSA 4096-bit';
+                    document.getElementById('rad-cert-validity').innerText = `Valid (${c.days_remaining || '3650'} days remaining)`;
+                }
+            } catch (err) {
+                console.error('Error fetching RADIUS EAP profile:', err);
+            }
+        }
+
+        async function renewRadiusCert() {
+            if (!confirm('Re-issue and renew FreeRADIUS 802.1X Server TLS Certificate? Services will be reloaded.')) return;
+            try {
+                const res = await fetch(`${API_BASE}/radius/eap/renew-cert`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('802.1X Server TLS certificate renewed successfully!');
+                    fetchRadiusEap();
+                } else {
+                    alert(`Renewal failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error renewing cert: ${err}`);
+            }
+        }
+
+        // MAC Authentication Bypass (MAB)
+        async function fetchRadiusMab() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/mab`);
+                const data = await res.json();
+                const tbody = document.getElementById('radius-mab-table-body');
+                if (data.devices && data.devices.length > 0) {
+                    tbody.innerHTML = data.devices.map(d => `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5 font-bold text-indigo-400 font-mono">${d.mac_address}</td>
+                            <td class="px-4 py-2.5 text-white font-semibold">${d.device_name}</td>
+                            <td class="px-4 py-2.5 text-cyan-400 font-mono font-bold">VLAN ${d.vlan_id}</td>
+                            <td class="px-4 py-2.5 text-slate-300 font-mono">${d.static_ip || '-'}</td>
+                            <td class="px-4 py-2.5 text-slate-400">${d.description || '-'}</td>
+                            <td class="px-4 py-2.5 text-right">
+                                <button onclick="deleteMabDevice(${d.id})" class="text-slate-500 hover:text-rose-400 transition" title="Delete Device">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No MAB bypass devices configured.</td></tr>`;
+                }
+            } catch (err) {
+                console.error('Error fetching MAB devices:', err);
+            }
+        }
+
+        function openMabModal() { document.getElementById('radius-mab-modal').classList.remove('hidden'); }
+        function closeMabModal() { document.getElementById('radius-mab-modal').classList.add('hidden'); }
+
+        async function submitSaveMabDevice() {
+            const mac = document.getElementById('rad-mab-mac-input').value.trim();
+            const name = document.getElementById('rad-mab-name-input').value.trim();
+            const vlan = parseInt(document.getElementById('rad-mab-vlan-input').value);
+            const ip = document.getElementById('rad-mab-ip-input').value.trim();
+            const desc = document.getElementById('rad-mab-desc-input').value.trim();
+
+            if (!mac || !name || isNaN(vlan)) return alert('MAC address, Device name, and VLAN ID are required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/radius/mab`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        mac_address: mac,
+                        device_name: name,
+                        vlan_id: vlan,
+                        static_ip: ip,
+                        description: desc,
+                        is_active: true
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeMabModal();
+                    fetchRadiusMab();
+                } else {
+                    alert(`Failed to save MAB device: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving MAB device: ${err}`);
+            }
+        }
+
+        async function deleteMabDevice(id) {
+            if (!confirm('Delete this MAB device entry?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/radius/mab/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchRadiusMab();
+                } else {
+                    const data = await res.json();
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting MAB device: ${err}`);
+            }
+        }
+
+        // Custom RADIUS Attributes & Policies
+        async function fetchRadiusCustom() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/custom-attributes`);
+                const data = await res.json();
+                const tbody = document.getElementById('radius-custom-table-body');
+                if (data.attributes && data.attributes.length > 0) {
+                    tbody.innerHTML = data.attributes.map(a => `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-800 text-slate-300">${a.target_type}</span>
+                            </td>
+                            <td class="px-4 py-2.5 font-bold text-white font-mono">${a.target_name || 'ALL'}</td>
+                            <td class="px-4 py-2.5 text-amber-400 font-mono font-semibold">${a.attribute_name}</td>
+                            <td class="px-4 py-2.5 text-slate-400 font-mono">${a.operator || '='}</td>
+                            <td class="px-4 py-2.5 text-cyan-300 font-mono">${a.attribute_value}</td>
+                            <td class="px-4 py-2.5 text-slate-400">${a.description || '-'}</td>
+                            <td class="px-4 py-2.5 text-right">
+                                <button onclick="deleteCustomAttr(${a.id})" class="text-slate-500 hover:text-rose-400 transition" title="Delete Attribute">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">No custom vendor attributes configured.</td></tr>`;
+                }
+            } catch (err) {
+                console.error('Error fetching custom attributes:', err);
+            }
+        }
+
+        function openCustomAttrModal() { document.getElementById('radius-custom-modal').classList.remove('hidden'); }
+        function closeCustomAttrModal() { document.getElementById('radius-custom-modal').classList.add('hidden'); }
+
+        async function submitSaveCustomAttr() {
+            const scope = document.getElementById('rad-attr-scope-select').value;
+            const scopeName = document.getElementById('rad-attr-scopename-input').value.trim() || 'ALL';
+            const name = document.getElementById('rad-attr-name-input').value.trim();
+            const op = document.getElementById('rad-attr-op-select').value;
+            const val = document.getElementById('rad-attr-val-input').value.trim();
+            const desc = document.getElementById('rad-attr-desc-input').value.trim();
+
+            if (!name || !val) return alert('Attribute Name and Value are required.');
+
+            try {
+                const res = await fetch(`${API_BASE}/radius/custom-attributes`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        target_type: scope,
+                        target_name: scopeName,
+                        attribute_name: name,
+                        operator: op,
+                        attribute_value: val,
+                        description: desc,
+                        is_active: true
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeCustomAttrModal();
+                    fetchRadiusCustom();
+                } else {
+                    alert(`Failed to save attribute: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving custom attribute: ${err}`);
+            }
+        }
+
+        async function deleteCustomAttr(id) {
+            if (!confirm('Delete this custom attribute?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/radius/custom-attributes/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchRadiusCustom();
+                } else {
+                    const data = await res.json();
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting attribute: ${err}`);
+            }
+        }
+
+        // Engine Parameters & Logging
+        async function fetchRadiusSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/radius/settings`);
+                const data = await res.json();
+                if (data) {
+                    document.getElementById('rad-cfg-auth-port').value = data.auth_port || 1812;
+                    document.getElementById('rad-cfg-acct-port').value = data.acct_port || 1813;
+                    document.getElementById('rad-cfg-listen-ip').value = data.listen_ip || '0.0.0.0';
+                    document.getElementById('rad-cfg-interval').value = data.interim_interval || 300;
+                    document.getElementById('rad-cfg-max-requests').value = data.max_requests || 1024;
+                    document.getElementById('rad-cfg-max-servers').value = data.max_servers || 32;
+                    document.getElementById('rad-cfg-log-auth').checked = Boolean(data.log_auth !== 0);
+                    document.getElementById('rad-cfg-log-badpass').checked = Boolean(data.log_badpass !== 0);
+                }
+            } catch (err) {
+                console.error('Error fetching RADIUS settings:', err);
+            }
+        }
+
         async function saveRadiusSettings() {
-            const authPort = parseInt(document.getElementById('rad-cfg-auth-port').value);
-            const acctPort = parseInt(document.getElementById('rad-cfg-acct-port').value);
-            const interval = parseInt(document.getElementById('rad-cfg-interval').value);
+            const authPort = parseInt(document.getElementById('rad-cfg-auth-port').value) || 1812;
+            const acctPort = parseInt(document.getElementById('rad-cfg-acct-port').value) || 1813;
+            const listenIp = document.getElementById('rad-cfg-listen-ip').value.trim() || '0.0.0.0';
+            const interval = parseInt(document.getElementById('rad-cfg-interval').value) || 300;
+            const maxReq = parseInt(document.getElementById('rad-cfg-max-requests').value) || 1024;
+            const maxServ = parseInt(document.getElementById('rad-cfg-max-servers').value) || 32;
+            const logAuth = document.getElementById('rad-cfg-log-auth').checked;
+            const logBadPass = document.getElementById('rad-cfg-log-badpass').checked;
 
             try {
                 const res = await fetch(`${API_BASE}/radius/settings`, {
@@ -4594,11 +5306,16 @@
                         auth_port: authPort,
                         acct_port: acctPort,
                         acct_enabled: true,
-                        interim_interval: interval
+                        listen_ip: listenIp,
+                        interim_interval: interval,
+                        max_requests: maxReq,
+                        max_servers: maxServ,
+                        log_auth: logAuth,
+                        log_badpass: logBadPass
                     })
                 });
                 if (res.ok) {
-                    alert('FreeRADIUS settings updated successfully!');
+                    alert('FreeRADIUS engine settings saved and applied!');
                 } else {
                     const data = await res.json();
                     alert(`Save failed: ${data.detail}`);
@@ -4606,6 +5323,37 @@
             } catch (err) {
                 alert(`Error saving settings: ${err}`);
             }
+        }
+
+        // Raw Configuration Inspector (pfSense Style)
+        let activeRawConfigFile = 'clients';
+        async function loadRawRadiusConfig(file) {
+            activeRawConfigFile = file;
+            ['clients', 'authorize', 'mschap', 'eap'].forEach(f => {
+                const btn = document.getElementById(`rad-cfgfile-${f}`);
+                if (btn) {
+                    if (f === file) {
+                        btn.className = 'px-2.5 py-1 rounded bg-amber-600/20 text-amber-400 font-semibold font-mono';
+                    } else {
+                        btn.className = 'px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono';
+                    }
+                }
+            });
+
+            const pre = document.getElementById('radius-raw-config-display');
+            pre.innerText = `Loading ${file}...`;
+            try {
+                const res = await fetch(`${API_BASE}/radius/config/view?file=${file}`);
+                const data = await res.json();
+                pre.innerText = data.content || `# No content returned for ${file}`;
+            } catch (err) {
+                pre.innerText = `Error loading ${file}: ${err}`;
+            }
+        }
+
+        function copyRawConfigToClipboard() {
+            const pre = document.getElementById('radius-raw-config-display');
+            copyToClipboard(pre.innerText, `Copied ${activeRawConfigFile} config to clipboard!`);
         }
 
         // 5. Users & Groups

@@ -74,6 +74,10 @@ fi
 if [[ -f "${DIST_DIR}/config-templates/bind9/named.conf.options" ]]; then
     cp "${DIST_DIR}/config-templates/bind9/named.conf.options" "${BUILD_ROOT}/etc/zclockid/templates/"
 fi
+if [[ -d "${DIST_DIR}/config-templates/freeradius" ]]; then
+    mkdir -p "${BUILD_ROOT}/etc/zclockid/templates/freeradius"
+    cp -r "${DIST_DIR}/config-templates/freeradius/"* "${BUILD_ROOT}/etc/zclockid/templates/freeradius/"
+fi
 
 # 6. Copy systemd unit files
 for svc in zclock-api.service zclock-sysvold.service zclock-azuresync.service; do

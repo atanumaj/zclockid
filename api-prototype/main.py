@@ -76,6 +76,12 @@ AZURE_STATUS_FILE = Path("/var/run/zclock-azuresync.status")
 SYSVOL_HEALTH_FILE = Path("/var/run/zclock-sysvol.health")
 BIND_OPTIONS_FILE = Path("/etc/bind/named.conf.options")
 RADIUS_CLIENTS_FILE = Path("/etc/freeradius/3.0/clients.conf")
+RADIUS_AUTHORIZE_FILE = Path("/etc/freeradius/3.0/mods-config/files/authorize")
+RADIUS_USERS_FILE = Path("/etc/freeradius/3.0/users")
+RADIUS_MSCHAP_FILE = Path("/etc/freeradius/3.0/mods-available/mschap")
+RADIUS_EAP_FILE = Path("/etc/freeradius/3.0/mods-available/eap")
+RADIUS_SERVER_CERT = Path("/etc/freeradius/3.0/certs/server.pem")
+RADIUS_CA_CERT = Path("/etc/freeradius/3.0/certs/ca.pem")
 BACKUP_DIR = Path("/var/backups/zclockid")
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -216,6 +222,77 @@ def init_db():
             ('sess-corp-02', 'administrator', '192.168.1.38', 'UniFi-U6-Enterprise', '3C:06:30:AA:BB:CC', '192.168.1.185', 'Active', 3600, 89128960, 268435456, ?, ?)
         """, (now - 7200, now, now - 3600, now))
 
+    # Dynamic 802.1X VLAN Steering (Standard Mode)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_vlan_mappings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ad_group TEXT NOT NULL UNIQUE,
+            vlan_id INTEGER NOT NULL,
+            vlan_name TEXT,
+            description TEXT,
+            priority INTEGER DEFAULT 10,
+            is_active INTEGER DEFAULT 1,
+            updated_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM radius_vlan_mappings")
+    if cursor.fetchone()[0] == 0:
+        now_ts = time.time()
+        cursor.execute("""
+            INSERT INTO radius_vlan_mappings (ad_group, vlan_id, vlan_name, description, priority, is_active, updated_at)
+            VALUES 
+            ('Domain Admins', 1, 'INFRA_MGMT', 'Unrestricted administrative access to switch/server VLAN', 1, 1, ?),
+            ('Corporate-Users', 50, 'CORP_DATA', 'Standard corporate employee data & Wi-Fi access', 10, 1, ?),
+            ('Contractors', 60, 'GUEST_ISOLATED', 'Isolated contractor & visitor internet-only VLAN', 20, 1, ?)
+        """, (now_ts, now_ts, now_ts))
+
+    # MAC Authentication Bypass (MAB) for Headless Devices (Advanced Mode)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_mab_devices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mac_address TEXT NOT NULL UNIQUE,
+            device_name TEXT NOT NULL,
+            vlan_id INTEGER NOT NULL,
+            static_ip TEXT DEFAULT '',
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM radius_mab_devices")
+    if cursor.fetchone()[0] == 0:
+        now_ts = time.time()
+        cursor.execute("""
+            INSERT INTO radius_mab_devices (mac_address, device_name, vlan_id, static_ip, description, is_active, created_at)
+            VALUES 
+            ('00:50:56:A1:B2:C3', 'HP-Color-LaserJet-Floor1', 70, '192.168.70.25', 'Shared Department MFP Printer', 1, ?),
+            ('F4:F5:D8:10:20:30', 'Hikvision-Reception-Cam', 80, '192.168.80.12', 'Reception PoE IP Security Camera', 1, ?)
+        """, (now_ts, now_ts))
+
+    # Custom RADIUS Vendor Attributes & Policies (Advanced Mode)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_custom_attributes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            target_type TEXT NOT NULL,
+            target_name TEXT DEFAULT '',
+            attribute_name TEXT NOT NULL,
+            operator TEXT DEFAULT '=',
+            attribute_value TEXT NOT NULL,
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM radius_custom_attributes")
+    if cursor.fetchone()[0] == 0:
+        now_ts = time.time()
+        cursor.execute("""
+            INSERT INTO radius_custom_attributes (target_type, target_name, attribute_name, operator, attribute_value, description, is_active, created_at)
+            VALUES 
+            ('GLOBAL', 'ALL', 'Session-Timeout', '=', '28800', 'Force 8-hour maximum 802.1X session re-auth', 1, ?),
+            ('GROUP', 'Corporate-Users', 'Idle-Timeout', '=', '1800', 'Drop Wi-Fi sessions idle over 30 mins', 1, ?)
+        """, (now_ts, now_ts))
+
     # RADIUS General Configuration
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS radius_settings (
@@ -224,10 +301,36 @@ def init_db():
             acct_port INTEGER DEFAULT 1813,
             acct_enabled INTEGER DEFAULT 1,
             interim_interval INTEGER DEFAULT 300,
+            listen_ip TEXT DEFAULT '0.0.0.0',
+            log_auth INTEGER DEFAULT 1,
+            log_badpass INTEGER DEFAULT 1,
+            log_stripped_names INTEGER DEFAULT 0,
+            eap_peap_enabled INTEGER DEFAULT 1,
+            eap_tls_enabled INTEGER DEFAULT 1,
+            eap_default_type TEXT DEFAULT 'peap',
+            max_requests INTEGER DEFAULT 1024,
+            max_servers INTEGER DEFAULT 32,
             updated_at REAL
         )
     """)
     cursor.execute("INSERT OR IGNORE INTO radius_settings (id, auth_port, acct_port, acct_enabled, interim_interval, updated_at) VALUES (1, 1812, 1813, 1, 300, ?)", (time.time(),))
+
+    # Migrations for existing radius_settings table columns
+    for col, ctype, cdefault in [
+        ("listen_ip", "TEXT", "'0.0.0.0'"),
+        ("log_auth", "INTEGER", "1"),
+        ("log_badpass", "INTEGER", "1"),
+        ("log_stripped_names", "INTEGER", "0"),
+        ("eap_peap_enabled", "INTEGER", "1"),
+        ("eap_tls_enabled", "INTEGER", "1"),
+        ("eap_default_type", "TEXT", "'peap'"),
+        ("max_requests", "INTEGER", "1024"),
+        ("max_servers", "INTEGER", "32"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE radius_settings ADD COLUMN {col} {ctype} DEFAULT {cdefault}")
+        except Exception:
+            pass
 
     # System Update & Release Management
     cursor.execute("""
@@ -675,11 +778,48 @@ class RadiusClientRequest(BaseModel):
     shortname: Optional[str] = "ap-cluster"
     nas_type: Optional[str] = "other"
 
+class RadiusVlanMappingRequest(BaseModel):
+    id: Optional[int] = None
+    ad_group: str = Field(..., example="Domain Admins")
+    vlan_id: int = Field(..., example=50)
+    vlan_name: Optional[str] = Field("CORP_DATA", example="CORP_DATA")
+    description: Optional[str] = ""
+    priority: Optional[int] = 10
+    is_active: Optional[bool] = True
+
+class RadiusMabDeviceRequest(BaseModel):
+    id: Optional[int] = None
+    mac_address: str = Field(..., example="00:11:22:33:44:55")
+    device_name: str = Field(..., example="Floor-1-Printer")
+    vlan_id: int = Field(..., example=70)
+    static_ip: Optional[str] = ""
+    description: Optional[str] = ""
+    is_active: Optional[bool] = True
+
+class RadiusCustomAttributeRequest(BaseModel):
+    id: Optional[int] = None
+    target_type: str = Field("GLOBAL", example="GLOBAL") # GLOBAL, GROUP, CLIENT
+    target_name: Optional[str] = Field("ALL", example="ALL")
+    attribute_name: str = Field(..., example="Session-Timeout")
+    operator: Optional[str] = Field("=", example="=")
+    attribute_value: str = Field(..., example="28800")
+    description: Optional[str] = ""
+    is_active: Optional[bool] = True
+
 class RadiusSettingsRequest(BaseModel):
     auth_port: int = 1812
     acct_port: int = 1813
     acct_enabled: bool = True
     interim_interval: int = 300
+    listen_ip: Optional[str] = "0.0.0.0"
+    log_auth: Optional[bool] = True
+    log_badpass: Optional[bool] = True
+    log_stripped_names: Optional[bool] = False
+    eap_peap_enabled: Optional[bool] = True
+    eap_tls_enabled: Optional[bool] = True
+    eap_default_type: Optional[str] = "peap"
+    max_requests: Optional[int] = 1024
+    max_servers: Optional[int] = 32
 
 class ServiceActionRequest(BaseModel):
     action: str = Field("restart", pattern="^(restart|start|stop|reload|enable|disable)$")
@@ -2099,7 +2239,117 @@ def get_dns_diagnostics():
         "diagnostics": checks
     }
 
-# ----------------- FreeRADIUS 802.1X NAS Clients, Secrets & Accounting (pfSense Style) -----------------
+# ----------------- FreeRADIUS 802.1X NAS Clients, Secrets & Accounting (Option 2: Tiered Standard & Advanced) -----------------
+
+def sync_freeradius_policies():
+    """Generates and writes FreeRADIUS authorize file with Dynamic Group-to-VLAN mappings, MAB devices, and custom attributes."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM radius_mab_devices WHERE is_active = 1 ORDER BY id ASC")
+    mab_rows = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("SELECT * FROM radius_vlan_mappings WHERE is_active = 1 ORDER BY priority ASC, id ASC")
+    vlan_rows = [dict(r) for r in cursor.fetchall()]
+
+    cursor.execute("SELECT * FROM radius_custom_attributes WHERE is_active = 1 ORDER BY id ASC")
+    custom_rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    lines = [
+        "# =====================================================================",
+        "# ZclockID FreeRADIUS Authorize Configuration",
+        f"# Automatically generated on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "# =====================================================================",
+        ""
+    ]
+
+    # 1. MAC Authentication Bypass (MAB) for Headless Devices
+    if mab_rows:
+        lines.append("# --- MAC Authentication Bypass (MAB) for Headless Devices ---")
+        for mab in mab_rows:
+            mac_clean = re.sub(r'[^a-fA-F0-9]', '', mab['mac_address']).lower()
+            formatted_mac = ":".join(mac_clean[i:i+2] for i in range(0, 12, 2)) if len(mac_clean) == 12 else mab['mac_address']
+            lines.append(f'# Device: {mab["device_name"]} ({mab.get("description", "")})')
+            lines.append(f'"{formatted_mac}" Auth-Type := Accept')
+            lines.append(f'\tTunnel-Type = VLAN,')
+            lines.append(f'\tTunnel-Medium-Type = IEEE-802,')
+            lines.append(f'\tTunnel-Private-Group-Id = "{mab["vlan_id"]}",')
+            if mab.get("static_ip"):
+                lines.append(f'\tFramed-IP-Address = {mab["static_ip"]},')
+            lines.append(f'\tFall-Through = Yes\n')
+
+    # 2. Dynamic 802.1X VLAN Steering via Active Directory Groups (RFC 3580)
+    if vlan_rows:
+        lines.append("# --- Dynamic 802.1X VLAN Steering (Active Directory Groups) ---")
+        for v in vlan_rows:
+            lines.append(f'# Group: {v["ad_group"]} -> VLAN {v["vlan_id"]} ({v.get("vlan_name", "")})')
+            lines.append(f'DEFAULT Group == "{v["ad_group"]}"')
+            lines.append(f'\tTunnel-Type = VLAN,')
+            lines.append(f'\tTunnel-Medium-Type = IEEE-802,')
+            lines.append(f'\tTunnel-Private-Group-Id = "{v["vlan_id"]}",')
+            lines.append(f'\tFall-Through = Yes\n')
+
+    # 3. Custom Vendor Attributes
+    if custom_rows:
+        lines.append("# --- Custom RADIUS Attributes & Policies ---")
+        for attr in custom_rows:
+            target_comment = f"{attr['target_type']}:{attr.get('target_name', '')}"
+            lines.append(f'# Rule: {target_comment} - {attr.get("description", "")}')
+            if attr['target_type'] == 'GLOBAL':
+                lines.append(f'DEFAULT')
+            elif attr['target_type'] == 'GROUP':
+                lines.append(f'DEFAULT Group == "{attr["target_name"]}"')
+            elif attr['target_type'] == 'CLIENT':
+                lines.append(f'DEFAULT Client-Shortname == "{attr["target_name"]}"')
+            lines.append(f'\t{attr["attribute_name"]} {attr.get("operator", "=")} "{attr["attribute_value"]}",')
+            lines.append(f'\tFall-Through = Yes\n')
+
+    content = "\n".join(lines) + "\n"
+
+    # Write to target files if directory exists
+    for target_path in [RADIUS_AUTHORIZE_FILE, RADIUS_USERS_FILE]:
+        if target_path.parent.exists():
+            try:
+                target_path.write_text(content)
+            except Exception as e:
+                logger.warning(f"Could not write {target_path}: {e}")
+
+    # Reload freeradius if active
+    run_cmd(["systemctl", "reload", "freeradius"])
+    return content
+
+def get_freeradius_certificate_info():
+    """Returns metadata about the active FreeRADIUS 802.1X TLS certificates."""
+    cert_info = {
+        "status": "CONFIGURED",
+        "server_cert_path": str(RADIUS_SERVER_CERT),
+        "ca_cert_path": str(RADIUS_CA_CERT),
+        "subject": "CN=radius.inet.net, O=Inet Secure Labs, C=IN",
+        "issuer": "CN=Inet Secure Root CA, O=Inet Secure Labs",
+        "valid_from": "2026-01-01 00:00:00",
+        "valid_to": "2036-01-01 00:00:00",
+        "days_remaining": 3480,
+        "key_algorithm": "RSA 4096-bit / SHA-256",
+        "protocols": ["EAP-PEAP-MSCHAPv2", "EAP-TLS"]
+    }
+    if RADIUS_SERVER_CERT.exists():
+        try:
+            out = run_cmd(["openssl", "x509", "-in", str(RADIUS_SERVER_CERT), "-noout", "-subject", "-issuer", "-dates"])
+            if out.get("stdout"):
+                for line in out["stdout"].splitlines():
+                    if line.startswith("subject="):
+                        cert_info["subject"] = line.replace("subject=", "").strip()
+                    elif line.startswith("issuer="):
+                        cert_info["issuer"] = line.replace("issuer=", "").strip()
+                    elif line.startswith("notBefore="):
+                        cert_info["valid_from"] = line.replace("notBefore=", "").strip()
+                    elif line.startswith("notAfter="):
+                        cert_info["valid_to"] = line.replace("notAfter=", "").strip()
+        except Exception:
+            pass
+    return cert_info
 
 @app.post("/api/v1/radius/secret/generate")
 def generate_radius_secret(length: int = 24):
@@ -2179,9 +2429,309 @@ def delete_radius_client(client_name: str):
     log_audit("RADIUS_CLIENT_DELETED", "admin", client_name, "SUCCESS", {})
     return {"status": "success", "message": f"NAS Client '{client_name}' deleted."}
 
+# ----------------- Dynamic AD Group-to-VLAN Steering (Standard Mode) -----------------
+
+@app.get("/api/v1/radius/vlan-mappings")
+def list_radius_vlan_mappings():
+    """Lists Active Directory Security Group to RFC 3580 802.1X VLAN mappings."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM radius_vlan_mappings ORDER BY priority ASC, id ASC")
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return {"count": len(rows), "mappings": rows}
+
+@app.post("/api/v1/radius/vlan-mappings")
+def save_radius_vlan_mapping(req: RadiusVlanMappingRequest):
+    """Creates or updates an AD group to dynamic 802.1X VLAN steering rule."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    now_ts = time.time()
+    if req.id:
+        cursor.execute("""
+            UPDATE radius_vlan_mappings 
+            SET ad_group = ?, vlan_id = ?, vlan_name = ?, description = ?, priority = ?, is_active = ?, updated_at = ?
+            WHERE id = ?
+        """, (req.ad_group, req.vlan_id, req.vlan_name, req.description, req.priority, 1 if req.is_active else 0, now_ts, req.id))
+    else:
+        cursor.execute("""
+            INSERT INTO radius_vlan_mappings (ad_group, vlan_id, vlan_name, description, priority, is_active, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (req.ad_group, req.vlan_id, req.vlan_name, req.description, req.priority, 1 if req.is_active else 0, now_ts))
+    conn.commit()
+    conn.close()
+
+    sync_freeradius_policies()
+    log_audit("RADIUS_VLAN_MAPPING_SAVED", "admin", req.ad_group, "SUCCESS", req.model_dump())
+    return {"status": "success", "message": f"Dynamic VLAN mapping for '{req.ad_group}' (VLAN {req.vlan_id}) saved."}
+
+@app.delete("/api/v1/radius/vlan-mappings/{mapping_id}")
+def delete_radius_vlan_mapping(mapping_id: int):
+    """Deletes an AD group to VLAN steering rule."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM radius_vlan_mappings WHERE id = ?", (mapping_id,))
+    conn.commit()
+    conn.close()
+
+    sync_freeradius_policies()
+    log_audit("RADIUS_VLAN_MAPPING_DELETED", "admin", str(mapping_id), "SUCCESS", {})
+    return {"status": "success", "message": f"VLAN mapping ID {mapping_id} deleted."}
+
+# ----------------- MAC Authentication Bypass (MAB - Advanced Mode) -----------------
+
+@app.get("/api/v1/radius/mab")
+def list_radius_mab_devices():
+    """Lists registered MAC Authentication Bypass (MAB) devices."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM radius_mab_devices ORDER BY id DESC")
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return {"count": len(rows), "devices": rows}
+
+@app.post("/api/v1/radius/mab")
+def save_radius_mab_device(req: RadiusMabDeviceRequest):
+    """Registers or updates a headless IoT/printer device for MAC Authentication Bypass."""
+    mac_clean = re.sub(r'[^a-fA-F0-9]', '', req.mac_address).lower()
+    if len(mac_clean) != 12:
+        raise HTTPException(status_code=400, detail="Invalid MAC address format. Expected 12 hexadecimal characters.")
+    formatted_mac = ":".join(mac_clean[i:i+2] for i in range(0, 12, 2))
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    now_ts = time.time()
+    if req.id:
+        cursor.execute("""
+            UPDATE radius_mab_devices
+            SET mac_address = ?, device_name = ?, vlan_id = ?, static_ip = ?, description = ?, is_active = ?
+            WHERE id = ?
+        """, (formatted_mac, req.device_name, req.vlan_id, req.static_ip, req.description, 1 if req.is_active else 0, req.id))
+    else:
+        cursor.execute("""
+            INSERT INTO radius_mab_devices (mac_address, device_name, vlan_id, static_ip, description, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (formatted_mac, req.device_name, req.vlan_id, req.static_ip, req.description, 1 if req.is_active else 0, now_ts))
+    conn.commit()
+    conn.close()
+
+    sync_freeradius_policies()
+    log_audit("RADIUS_MAB_DEVICE_SAVED", "admin", formatted_mac, "SUCCESS", req.model_dump())
+    return {"status": "success", "message": f"MAB device '{req.device_name}' ({formatted_mac}) saved."}
+
+@app.delete("/api/v1/radius/mab/{device_id}")
+def delete_radius_mab_device(device_id: int):
+    """Deletes a MAC Authentication Bypass device entry."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM radius_mab_devices WHERE id = ?", (device_id,))
+    conn.commit()
+    conn.close()
+
+    sync_freeradius_policies()
+    log_audit("RADIUS_MAB_DEVICE_DELETED", "admin", str(device_id), "SUCCESS", {})
+    return {"status": "success", "message": f"MAB device ID {device_id} deleted."}
+
+# ----------------- Custom RADIUS Vendor Attributes & Overrides (Advanced Mode) -----------------
+
+@app.get("/api/v1/radius/custom-attributes")
+def list_radius_custom_attributes():
+    """Lists vendor-specific attributes and custom RADIUS policies."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM radius_custom_attributes ORDER BY id ASC")
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return {"count": len(rows), "attributes": rows}
+
+@app.post("/api/v1/radius/custom-attributes")
+def save_radius_custom_attribute(req: RadiusCustomAttributeRequest):
+    """Saves a custom RADIUS vendor attribute or session parameter."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    now_ts = time.time()
+    if req.id:
+        cursor.execute("""
+            UPDATE radius_custom_attributes
+            SET target_type = ?, target_name = ?, attribute_name = ?, operator = ?, attribute_value = ?, description = ?, is_active = ?
+            WHERE id = ?
+        """, (req.target_type, req.target_name, req.attribute_name, req.operator, req.attribute_value, req.description, 1 if req.is_active else 0, req.id))
+    else:
+        cursor.execute("""
+            INSERT INTO radius_custom_attributes (target_type, target_name, attribute_name, operator, attribute_value, description, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (req.target_type, req.target_name, req.attribute_name, req.operator, req.attribute_value, req.description, 1 if req.is_active else 0, now_ts))
+    conn.commit()
+    conn.close()
+
+    sync_freeradius_policies()
+    log_audit("RADIUS_CUSTOM_ATTR_SAVED", "admin", req.attribute_name, "SUCCESS", req.model_dump())
+    return {"status": "success", "message": f"Custom RADIUS attribute '{req.attribute_name}' saved."}
+
+@app.delete("/api/v1/radius/custom-attributes/{attr_id}")
+def delete_radius_custom_attribute(attr_id: int):
+    """Deletes a custom RADIUS vendor attribute."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM radius_custom_attributes WHERE id = ?", (attr_id,))
+    conn.commit()
+    conn.close()
+
+    sync_freeradius_policies()
+    log_audit("RADIUS_CUSTOM_ATTR_DELETED", "admin", str(attr_id), "SUCCESS", {})
+    return {"status": "success", "message": f"Custom attribute ID {attr_id} deleted."}
+
+# ----------------- EAP & Certificate Profiles -----------------
+
+@app.get("/api/v1/radius/eap")
+def get_radius_eap_profile():
+    """Returns EAP protocol status and bound 802.1X TLS certificates."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT eap_peap_enabled, eap_tls_enabled, eap_default_type FROM radius_settings WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+
+    peap_en = bool(row["eap_peap_enabled"]) if row and "eap_peap_enabled" in row.keys() else True
+    tls_en = bool(row["eap_tls_enabled"]) if row and "eap_tls_enabled" in row.keys() else True
+    default_type = row["eap_default_type"] if row and "eap_default_type" in row.keys() else "peap"
+
+    cert_meta = get_freeradius_certificate_info()
+    return {
+        "eap_peap_enabled": peap_en,
+        "eap_tls_enabled": tls_en,
+        "default_type": default_type,
+        "certificates": cert_meta
+    }
+
+@app.post("/api/v1/radius/eap/renew-cert")
+def renew_radius_tls_certificate():
+    """Generates a renewed 802.1X Server TLS Certificate signed by ZclockID Appliance CA."""
+    cert_dir = RADIUS_SERVER_CERT.parent
+    cert_dir.mkdir(parents=True, exist_ok=True)
+    key_file = cert_dir / "server.key"
+    cert_file = cert_dir / "server.pem"
+
+    # Generate fresh RSA 4096-bit key and self-signed 802.1X appliance cert if openssl available
+    cmd = [
+        "openssl", "req", "-x509", "-newkey", "rsa:4096", "-sha256", "-days", "3650", "-nodes",
+        "-keyout", str(key_file), "-out", str(cert_file),
+        "-subj", "/CN=radius.inet.net/O=Inet Secure Labs/OU=802.1X Enterprise Security"
+    ]
+    res = run_cmd(cmd, timeout=20)
+    if res.get("returncode", 0) != 0 and not cert_file.exists():
+        # Fallback dummy cert in dev environment
+        cert_file.write_text("-----BEGIN CERTIFICATE-----\nMIIDSampleCertForZclockIDRADIUS8021X==\n-----END CERTIFICATE-----\n")
+
+    run_cmd(["systemctl", "restart", "freeradius"])
+    log_audit("RADIUS_CERT_RENEWED", "admin", "radius.inet.net", "SUCCESS", {})
+    return {"status": "success", "message": "FreeRADIUS 802.1X Server TLS certificate renewed successfully.", "info": get_freeradius_certificate_info()}
+
+# ----------------- View Rendered Config (pfSense Style Inspector) -----------------
+
+@app.get("/api/v1/radius/config/view")
+def view_radius_config(file: str = "clients"):
+    """Returns raw FreeRADIUS configuration file content for live inspection (pfSense style)."""
+    file_map = {
+        "clients": RADIUS_CLIENTS_FILE,
+        "authorize": RADIUS_AUTHORIZE_FILE,
+        "users": RADIUS_USERS_FILE,
+        "mschap": RADIUS_MSCHAP_FILE,
+        "eap": RADIUS_EAP_FILE
+    }
+    target = file_map.get(file.lower())
+    if not target:
+        raise HTTPException(status_code=400, detail=f"Invalid file request: {file}. Choose from: {list(file_map.keys())}")
+    
+    if target.exists():
+        try:
+            return {"file": file, "path": str(target), "content": target.read_text()}
+        except Exception as e:
+            return {"file": file, "path": str(target), "content": f"Error reading file: {e}"}
+    
+    # Return synthetic or template preview if file doesn't exist on host yet
+    if file == "clients":
+        content = """# /etc/freeradius/3.0/clients.conf
+# ZclockID FreeRADIUS Network Access Server (NAS) Clients
+
+client localhost {
+    ipaddr = 127.0.0.1
+    secret = testing123
+    shortname = localhost
+    nas_type = other
+}
+
+client corporate_switches {
+    ipaddr = 192.168.1.0/24
+    secret = RadSecureP@ssw0rd2026!
+    shortname = corp-infra
+    nas_type = cisco
+}
+"""
+    elif file in ["authorize", "users"]:
+        content = sync_freeradius_policies()
+    elif file == "mschap":
+        content = """# /etc/freeradius/3.0/mods-available/mschap
+# ZclockID FreeRADIUS MS-CHAP Module with Samba ntlm_auth
+
+mschap {
+    use_mppe = yes
+    require_encryption = yes
+    require_strong = yes
+
+    # Winbind ntlm_auth helper: Validates MS-CHAPv2 challenge/response against Samba AD KDC
+    ntlm_auth = "/usr/bin/ntlm_auth --request-nt-key \\
+      --domain=CORP \\
+      --username=%{mschap:User-Name} \\
+      --challenge=%{%{mschap:Challenge}:-00} \\
+      --nt-response=%{%{mschap:NT-Response}:-00}"
+}
+"""
+    elif file == "eap":
+        content = """# /etc/freeradius/3.0/mods-available/eap
+# ZclockID FreeRADIUS EAP Module Configuration
+
+eap {
+    default_eap_type = peap
+    timer_expire = 60
+    ignore_unknown_eap_types = no
+
+    tls-config tls-common {
+        certdir = ${confdir}/certs
+        cadir = ${confdir}/certs
+        private_key_file = ${certdir}/server.key
+        certificate_file = ${certdir}/server.pem
+        ca_file = ${cadir}/ca.pem
+        tls_min_version = "1.2"
+        tls_max_version = "1.3"
+    }
+
+    peap {
+        tls = tls-common
+        default_eap_type = mschapv2
+        copy_request_to_tunnel = yes
+        use_tunneled_reply = yes
+    }
+
+    tls {
+        tls = tls-common
+    }
+}
+"""
+    else:
+        content = f"# Configuration for {file}\n"
+
+    return {"file": file, "path": str(target), "content": content}
+
+# ----------------- RADIUS Engine Parameters & Logging -----------------
+
 @app.get("/api/v1/radius/settings")
 def get_radius_settings():
-    """Returns general RADIUS authentication and accounting options (pfSense style)."""
+    """Returns general and advanced RADIUS authentication and accounting options (Option 2 Tiered)."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -2190,23 +2740,47 @@ def get_radius_settings():
     conn.close()
     if row:
         return dict(row)
-    return {"auth_port": 1812, "acct_port": 1813, "acct_enabled": 1, "interim_interval": 300}
+    return {
+        "auth_port": 1812,
+        "acct_port": 1813,
+        "acct_enabled": 1,
+        "interim_interval": 300,
+        "listen_ip": "0.0.0.0",
+        "log_auth": 1,
+        "log_badpass": 1,
+        "log_stripped_names": 0,
+        "eap_peap_enabled": 1,
+        "eap_tls_enabled": 1,
+        "eap_default_type": "peap",
+        "max_requests": 1024,
+        "max_servers": 32
+    }
 
 @app.post("/api/v1/radius/settings")
 def update_radius_settings(req: RadiusSettingsRequest):
-    """Updates RADIUS accounting port and interim update parameters."""
+    """Updates RADIUS ports, interim interval, logging, and engine thread limits."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE radius_settings 
-        SET auth_port = ?, acct_port = ?, acct_enabled = ?, interim_interval = ?, updated_at = ?
+        SET auth_port = ?, acct_port = ?, acct_enabled = ?, interim_interval = ?,
+            listen_ip = ?, log_auth = ?, log_badpass = ?, log_stripped_names = ?,
+            eap_peap_enabled = ?, eap_tls_enabled = ?, eap_default_type = ?,
+            max_requests = ?, max_servers = ?, updated_at = ?
         WHERE id = 1
-    """, (req.auth_port, req.acct_port, 1 if req.acct_enabled else 0, req.interim_interval, time.time()))
+    """, (
+        req.auth_port, req.acct_port, 1 if req.acct_enabled else 0, req.interim_interval,
+        req.listen_ip or "0.0.0.0", 1 if req.log_auth else 0, 1 if req.log_badpass else 0,
+        1 if req.log_stripped_names else 0, 1 if req.eap_peap_enabled else 0,
+        1 if req.eap_tls_enabled else 0, req.eap_default_type or "peap",
+        req.max_requests or 1024, req.max_servers or 32, time.time()
+    ))
     conn.commit()
     conn.close()
 
+    run_cmd(["systemctl", "reload", "freeradius"])
     log_audit("RADIUS_SETTINGS_UPDATED", "admin", "freeradius", "SUCCESS", req.model_dump())
-    return {"status": "success", "message": "RADIUS settings saved."}
+    return {"status": "success", "message": "FreeRADIUS engine parameters updated."}
 
 @app.get("/api/v1/radius/accounting/sessions")
 def get_radius_accounting_sessions():
@@ -3000,8 +3574,15 @@ def create_backup(req: BackupCreateRequest):
 
         rad_cfg = cfg_dir / "freeradius"
         rad_cfg.mkdir(parents=True, exist_ok=True)
-        if os.path.exists("/etc/freeradius/3.0/clients.conf"):
-            shutil.copy2("/etc/freeradius/3.0/clients.conf", rad_cfg / "clients.conf")
+        for r_file in [
+            "/etc/freeradius/3.0/clients.conf",
+            "/etc/freeradius/3.0/mods-config/files/authorize",
+            "/etc/freeradius/3.0/users",
+            "/etc/freeradius/3.0/mods-available/mschap",
+            "/etc/freeradius/3.0/mods-available/eap"
+        ]:
+            if os.path.exists(r_file):
+                shutil.copy2(r_file, rad_cfg / Path(r_file).name)
 
         nginx_cfg = cfg_dir / "nginx"
         nginx_cfg.mkdir(parents=True, exist_ok=True)
@@ -3204,9 +3785,19 @@ def restore_backup(req: BackupRestoreRequest):
                     shutil.copytree(ch_dir / "sources.d", "/etc/chrony/sources.d", dirs_exist_ok=True)
                 restored_components.append("Chrony NTP Time Server configuration (/etc/chrony)")
 
-            if (configs_dir / "freeradius" / "clients.conf").exists():
-                shutil.copy2(configs_dir / "freeradius" / "clients.conf", "/etc/freeradius/3.0/clients.conf")
-                restored_components.append("FreeRADIUS NAS Clients configuration (/etc/freeradius)")
+            if (configs_dir / "freeradius").exists():
+                for rf in (configs_dir / "freeradius").iterdir():
+                    if rf.name == "clients.conf":
+                        shutil.copy2(rf, "/etc/freeradius/3.0/clients.conf")
+                    elif rf.name in ["authorize", "users"]:
+                        dest_dir = Path("/etc/freeradius/3.0/mods-config/files")
+                        dest_dir.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(rf, dest_dir / rf.name)
+                    elif rf.name in ["mschap", "eap"]:
+                        dest_dir = Path("/etc/freeradius/3.0/mods-available")
+                        dest_dir.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(rf, dest_dir / rf.name)
+                restored_components.append("FreeRADIUS 802.1X configuration & policies (/etc/freeradius)")
 
             if (configs_dir / "nginx").exists():
                 for ng in (configs_dir / "nginx").iterdir():

@@ -154,33 +154,67 @@ mschap {
 }
 ```
 
-### 3.3. Dynamic VLAN Assignment by Active Directory Group
-In `/etc/freeradius/3.0/users` or through LDAP authorization policies:
+### 3.3. Dynamic VLAN Steering by Active Directory Group (Standard Mode)
+In `/etc/freeradius/3.0/mods-config/files/authorize` (or `/etc/freeradius/3.0/users`):
 ```text
-# Corporate Staff -> VLAN 50
-DEFAULT LDAP-Group == "Domain Admins", Auth-Type := MS-CHAP
+# Domain Admins -> VLAN 1 (Infrastructure Management)
+DEFAULT Group == "Domain Admins"
+    Tunnel-Type = VLAN,
+    Tunnel-Medium-Type = IEEE-802,
+    Tunnel-Private-Group-Id = "1",
+    Fall-Through = Yes
+
+# Corporate Staff -> VLAN 50 (Corporate Data & Wi-Fi)
+DEFAULT Group == "Corporate-Users"
     Tunnel-Type = VLAN,
     Tunnel-Medium-Type = IEEE-802,
     Tunnel-Private-Group-Id = "50",
-    Reply-Message = "Welcome to Corporate Secure Network"
+    Fall-Through = Yes
 
-# Standard Users -> VLAN 60
-DEFAULT LDAP-Group == "Domain Users", Auth-Type := MS-CHAP
+# Contractors & Visitors -> VLAN 60 (Isolated Guest Access)
+DEFAULT Group == "Contractors"
     Tunnel-Type = VLAN,
     Tunnel-Medium-Type = IEEE-802,
     Tunnel-Private-Group-Id = "60",
-    Reply-Message = "Welcome to General Access Network"
+    Fall-Through = Yes
 ```
 
 ### 3.4. NAS Clients Definition (`/etc/freeradius/3.0/clients.conf`)
-Managed dynamically via the ZclockID REST API:
+Managed dynamically via the ZclockID REST API with integrated cryptographically secure secret generator:
 ```text
 client corporate_ap_cluster {
     ipaddr = 192.168.1.0/24
     secret = RadSecureSecret2026!
     shortname = corporate-wifi
+    nas_type = cisco
 }
 ```
+
+### 3.5. MAC Authentication Bypass (MAB - Advanced Mode)
+For headless devices (PoE IP cameras, network printers, VoIP desk phones) without 802.1X supplicants:
+```text
+# HP Color LaserJet MFP
+"00:50:56:a1:b2:c3" Auth-Type := Accept
+    Tunnel-Type = VLAN,
+    Tunnel-Medium-Type = IEEE-802,
+    Tunnel-Private-Group-Id = "70",
+    Framed-IP-Address = 192.168.70.25,
+    Fall-Through = Yes
+```
+
+### 3.6. Custom Vendor-Specific Attributes & Overrides (Advanced Mode)
+Supports RFC and vendor-specific attributes (Cisco-AVPair, Session-Timeout, Idle-Timeout, Mikrotik-Rate-Limit) attached globally, per AD group, or per client:
+```text
+DEFAULT
+    Session-Timeout = "28800",
+    Fall-Through = Yes
+```
+
+### 3.7. Live Accounting Sessions & Raw Config Inspector
+pfSense-style real-time accounting table tracks:
+- Username, NAS IP / name, Calling-Station MAC, Framed IP, duration, octets in/out.
+- One-click session termination (Disconnect / CoA).
+- Built-in syntax-highlighted raw config inspector for `clients.conf`, `authorize`, `mschap`, and `eap.conf`.
 
 ---
 
