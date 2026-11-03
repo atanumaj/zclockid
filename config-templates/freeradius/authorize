@@ -1,25 +1,35 @@
 # /etc/freeradius/3.0/mods-config/files/authorize
-# ZclockID FreeRADIUS Authorize Configuration: Dynamic VLAN Steering & MAB Bypass
+# ZclockID FreeRADIUS Authorize Configuration: Captive Portal Bandwidth & Rate Limiting
 
 # 1. MAC Authentication Bypass (MAB) for Headless Devices (Printers, IoT, Cameras)
-# Example: 00:50:56:A1:B2:C3 Auth-Type := Accept, Tunnel-Type = VLAN, Tunnel-Medium-Type = IEEE-802, Tunnel-Private-Group-Id = "70"
+# Example: "00:50:56:a1:b2:c3" Auth-Type := Accept, WISPr-Bandwidth-Max-Down = 50000000, WISPr-Bandwidth-Max-Up = 25000000
 
-# 2. Dynamic 802.1X VLAN Steering via Active Directory Groups (RFC 3580)
+# 2. Priority Bandwidth Profiles by Active Directory Groups
 DEFAULT Group == "Domain Admins"
-	Tunnel-Type = VLAN,
-	Tunnel-Medium-Type = IEEE-802,
-	Tunnel-Private-Group-Id = "1",
+	WISPr-Bandwidth-Max-Down = 50000000,
+	WISPr-Bandwidth-Max-Up = 25000000,
+	Mikrotik-Rate-Limit = "25M/50M",
+	Acct-Interim-Interval = 300,
+	Session-Timeout = 86400,
 	Fall-Through = Yes
 
 DEFAULT Group == "Corporate-Users"
-	Tunnel-Type = VLAN,
-	Tunnel-Medium-Type = IEEE-802,
-	Tunnel-Private-Group-Id = "50",
+	WISPr-Bandwidth-Max-Down = 20000000,
+	WISPr-Bandwidth-Max-Up = 10000000,
+	Mikrotik-Rate-Limit = "10M/20M",
+	Acct-Interim-Interval = 300,
+	Session-Timeout = 43200,
+	Idle-Timeout = 1800,
 	Fall-Through = Yes
 
-DEFAULT Group == "Contractors"
-	Tunnel-Type = VLAN,
-	Tunnel-Medium-Type = IEEE-802,
-	Tunnel-Private-Group-Id = "60",
+# 3. Default Captive Portal Tier (Visitor Wi-Fi & Mobile OTP Self-Registrations)
+DEFAULT
+	WISPr-Bandwidth-Max-Down = 5000000,
+	WISPr-Bandwidth-Max-Up = 2000000,
+	Mikrotik-Rate-Limit = "2M/5M",
+	Acct-Interim-Interval = 300,
+	Session-Timeout = 7200,
+	Idle-Timeout = 900,
+	ChilliSpot-Max-Total-Octets = 2147483648,
+	Mikrotik-Total-Limit = 2147483648,
 	Fall-Through = Yes
-

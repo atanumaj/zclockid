@@ -222,29 +222,34 @@ def init_db():
             ('sess-corp-02', 'administrator', '192.168.1.38', 'UniFi-U6-Enterprise', '3C:06:30:AA:BB:CC', '192.168.1.185', 'Active', 3600, 89128960, 268435456, ?, ?)
         """, (now - 7200, now, now - 3600, now))
 
-    # Dynamic 802.1X VLAN Steering (Standard Mode)
+    # Captive Portal Bandwidth & Rate Limiting Profiles (Standard Mode)
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS radius_vlan_mappings (
+        CREATE TABLE IF NOT EXISTS radius_bandwidth_profiles (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ad_group TEXT NOT NULL UNIQUE,
-            vlan_id INTEGER NOT NULL,
-            vlan_name TEXT,
+            name TEXT NOT NULL UNIQUE,
+            download_mbps REAL NOT NULL,
+            upload_mbps REAL NOT NULL,
+            session_timeout_mins INTEGER DEFAULT 120,
+            idle_timeout_mins INTEGER DEFAULT 30,
+            daily_quota_mb INTEGER DEFAULT 0,
+            ad_group TEXT DEFAULT '',
+            is_default INTEGER DEFAULT 0,
             description TEXT,
-            priority INTEGER DEFAULT 10,
             is_active INTEGER DEFAULT 1,
-            updated_at REAL
+            created_at REAL
         )
     """)
-    cursor.execute("SELECT COUNT(*) FROM radius_vlan_mappings")
+    cursor.execute("SELECT COUNT(*) FROM radius_bandwidth_profiles")
     if cursor.fetchone()[0] == 0:
         now_ts = time.time()
         cursor.execute("""
-            INSERT INTO radius_vlan_mappings (ad_group, vlan_id, vlan_name, description, priority, is_active, updated_at)
+            INSERT INTO radius_bandwidth_profiles (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, ad_group, is_default, description, is_active, created_at)
             VALUES 
-            ('Domain Admins', 1, 'INFRA_MGMT', 'Unrestricted administrative access to switch/server VLAN', 1, 1, ?),
-            ('Corporate-Users', 50, 'CORP_DATA', 'Standard corporate employee data & Wi-Fi access', 10, 1, ?),
-            ('Contractors', 60, 'GUEST_ISOLATED', 'Isolated contractor & visitor internet-only VLAN', 20, 1, ?)
-        """, (now_ts, now_ts, now_ts))
+            ('VIP-Executive', 50.0, 25.0, 1440, 60, 0, 'Domain Admins', 0, 'Unrestricted high-speed priority tier for leadership & admins', 1, ?),
+            ('Staff-Standard', 20.0, 10.0, 720, 30, 0, 'Corporate-Users', 0, 'Standard enterprise employee work profile', 1, ?),
+            ('Guest-Captive-Portal', 5.0, 2.0, 120, 15, 2048, '', 1, 'Default captive portal profile for visitor Wi-Fi & OTP self-registrations', 1, ?),
+            ('Limited-Public', 2.0, 0.5, 30, 10, 500, '', 0, 'Throttled public access tier with 500 MB data cap', 1, ?)
+        """, (now_ts, now_ts, now_ts, now_ts))
 
     # MAC Authentication Bypass (MAB) for Headless Devices (Advanced Mode)
     cursor.execute("""
@@ -778,13 +783,17 @@ class RadiusClientRequest(BaseModel):
     shortname: Optional[str] = "ap-cluster"
     nas_type: Optional[str] = "other"
 
-class RadiusVlanMappingRequest(BaseModel):
+class RadiusBandwidthProfileRequest(BaseModel):
     id: Optional[int] = None
-    ad_group: str = Field(..., example="Domain Admins")
-    vlan_id: int = Field(..., example=50)
-    vlan_name: Optional[str] = Field("CORP_DATA", example="CORP_DATA")
+    name: str = Field(..., example="Guest-5M")
+    download_mbps: float = Field(..., example=5.0)
+    upload_mbps: float = Field(..., example=2.0)
+    session_timeout_mins: Optional[int] = 120
+    idle_timeout_mins: Optional[int] = 30
+    daily_quota_mb: Optional[int] = 0 # 0 for unlimited
+    ad_group: Optional[str] = ""
+    is_default: Optional[bool] = False
     description: Optional[str] = ""
-    priority: Optional[int] = 10
     is_active: Optional[bool] = True
 
 class RadiusMabDeviceRequest(BaseModel):
@@ -2242,7 +2251,7 @@ def get_dns_diagnostics():
 # ----------------- FreeRADIUS 802.1X NAS Clients, Secrets & Accounting (Option 2: Tiered Standard & Advanced) -----------------
 
 def sync_freeradius_policies():
-    """Generates and writes FreeRADIUS authorize file with Dynamic Group-to-VLAN mappings, MAB devices, and custom attributes."""
+    """Generates and writes FreeRADIUS authorize file with Bandwidth Rate Limiting, MAB devices, and custom attributes."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -2250,8 +2259,8 @@ def sync_freeradius_policies():
     cursor.execute("SELECT * FROM radius_mab_devices WHERE is_active = 1 ORDER BY id ASC")
     mab_rows = [dict(r) for r in cursor.fetchall()]
 
-    cursor.execute("SELECT * FROM radius_vlan_mappings WHERE is_active = 1 ORDER BY priority ASC, id ASC")
-    vlan_rows = [dict(r) for r in cursor.fetchall()]
+    cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE is_active = 1 ORDER BY is_default ASC, id ASC")
+    bw_rows = [dict(r) for r in cursor.fetchall()]
 
     cursor.execute("SELECT * FROM radius_custom_attributes WHERE is_active = 1 ORDER BY id ASC")
     custom_rows = [dict(r) for r in cursor.fetchall()]
@@ -2259,13 +2268,13 @@ def sync_freeradius_policies():
 
     lines = [
         "# =====================================================================",
-        "# ZclockID FreeRADIUS Authorize Configuration",
+        "# ZclockID FreeRADIUS Authorize Configuration: Captive Portal & Rate Limits",
         f"# Automatically generated on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "# =====================================================================",
         ""
     ]
 
-    # 1. MAC Authentication Bypass (MAB) for Headless Devices
+    # 1. MAC Authentication Bypass (MAB) for Headless Devices (Printers, IoT, Cameras)
     if mab_rows:
         lines.append("# --- MAC Authentication Bypass (MAB) for Headless Devices ---")
         for mab in mab_rows:
@@ -2273,23 +2282,46 @@ def sync_freeradius_policies():
             formatted_mac = ":".join(mac_clean[i:i+2] for i in range(0, 12, 2)) if len(mac_clean) == 12 else mab['mac_address']
             lines.append(f'# Device: {mab["device_name"]} ({mab.get("description", "")})')
             lines.append(f'"{formatted_mac}" Auth-Type := Accept')
-            lines.append(f'\tTunnel-Type = VLAN,')
-            lines.append(f'\tTunnel-Medium-Type = IEEE-802,')
-            lines.append(f'\tTunnel-Private-Group-Id = "{mab["vlan_id"]}",')
+            lines.append(f'\tWISPr-Bandwidth-Max-Down = 50000000,')
+            lines.append(f'\tWISPr-Bandwidth-Max-Up = 25000000,')
             if mab.get("static_ip"):
                 lines.append(f'\tFramed-IP-Address = {mab["static_ip"]},')
             lines.append(f'\tFall-Through = Yes\n')
 
-    # 2. Dynamic 802.1X VLAN Steering via Active Directory Groups (RFC 3580)
-    if vlan_rows:
-        lines.append("# --- Dynamic 802.1X VLAN Steering (Active Directory Groups) ---")
-        for v in vlan_rows:
-            lines.append(f'# Group: {v["ad_group"]} -> VLAN {v["vlan_id"]} ({v.get("vlan_name", "")})')
-            lines.append(f'DEFAULT Group == "{v["ad_group"]}"')
-            lines.append(f'\tTunnel-Type = VLAN,')
-            lines.append(f'\tTunnel-Medium-Type = IEEE-802,')
-            lines.append(f'\tTunnel-Private-Group-Id = "{v["vlan_id"]}",')
-            lines.append(f'\tFall-Through = Yes\n')
+    # 2. Captive Portal Bandwidth Profiles & Rate Limits (pfSense, MikroTik, TP-Link Omada)
+    if bw_rows:
+        lines.append("# --- Captive Portal Bandwidth Management & Rate Limits (WISPr + MikroTik) ---")
+        for bw in bw_rows:
+            down_bps = int(bw['download_mbps'] * 1000000)
+            up_bps = int(bw['upload_mbps'] * 1000000)
+            mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
+            sess_sec = int(bw['session_timeout_mins'] * 60) if bw.get('session_timeout_mins') else 0
+            idle_sec = int(bw['idle_timeout_mins'] * 60) if bw.get('idle_timeout_mins') else 0
+            quota_bytes = int(bw['daily_quota_mb'] * 1024 * 1024) if bw.get('daily_quota_mb') else 0
+
+            if bw.get('ad_group'):
+                lines.append(f'# Profile: {bw["name"]} (AD Group: {bw["ad_group"]}) - {bw.get("description", "")}')
+                lines.append(f'DEFAULT Group == "{bw["ad_group"]}"')
+            elif bw.get('is_default'):
+                lines.append(f'# Default Captive Portal Tier: {bw["name"]} (Self-Registration Fallback) - {bw.get("description", "")}')
+                lines.append('DEFAULT')
+            else:
+                lines.append(f'# Tier: {bw["name"]} - {bw.get("description", "")}')
+                lines.append(f'DEFAULT Profile-Name == "{bw["name"]}"')
+
+            # Universal WISPr (pfSense, TP-Link, UniFi) + MikroTik attributes
+            lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
+            lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
+            lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
+            lines.append('\tAcct-Interim-Interval = 300,')
+            if sess_sec > 0:
+                lines.append(f'\tSession-Timeout = {sess_sec},')
+            if idle_sec > 0:
+                lines.append(f'\tIdle-Timeout = {idle_sec},')
+            if quota_bytes > 0:
+                lines.append(f'\tChilliSpot-Max-Total-Octets = {quota_bytes},')
+                lines.append(f'\tMikrotik-Total-Limit = {quota_bytes},')
+            lines.append('\tFall-Through = Yes\n')
 
     # 3. Custom Vendor Attributes
     if custom_rows:
@@ -2429,55 +2461,71 @@ def delete_radius_client(client_name: str):
     log_audit("RADIUS_CLIENT_DELETED", "admin", client_name, "SUCCESS", {})
     return {"status": "success", "message": f"NAS Client '{client_name}' deleted."}
 
-# ----------------- Dynamic AD Group-to-VLAN Steering (Standard Mode) -----------------
+# ----------------- Captive Portal Bandwidth Management & Rate Limiting (Standard Mode) -----------------
 
-@app.get("/api/v1/radius/vlan-mappings")
-def list_radius_vlan_mappings():
-    """Lists Active Directory Security Group to RFC 3580 802.1X VLAN mappings."""
+@app.get("/api/v1/radius/bandwidth-profiles")
+def list_radius_bandwidth_profiles():
+    """Lists Captive Portal bandwidth management and rate limiting profiles."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM radius_vlan_mappings ORDER BY priority ASC, id ASC")
+    cursor.execute("SELECT * FROM radius_bandwidth_profiles ORDER BY is_default DESC, id ASC")
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
-    return {"count": len(rows), "mappings": rows}
+    return {"count": len(rows), "profiles": rows}
 
-@app.post("/api/v1/radius/vlan-mappings")
-def save_radius_vlan_mapping(req: RadiusVlanMappingRequest):
-    """Creates or updates an AD group to dynamic 802.1X VLAN steering rule."""
+@app.post("/api/v1/radius/bandwidth-profiles")
+def save_radius_bandwidth_profile(req: RadiusBandwidthProfileRequest):
+    """Creates or updates a Captive Portal bandwidth profile and rate limit policy."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     now_ts = time.time()
+    
+    # If marking as default fallback, unmark others
+    if req.is_default:
+        cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0")
+
     if req.id:
         cursor.execute("""
-            UPDATE radius_vlan_mappings 
-            SET ad_group = ?, vlan_id = ?, vlan_name = ?, description = ?, priority = ?, is_active = ?, updated_at = ?
+            UPDATE radius_bandwidth_profiles
+            SET name = ?, download_mbps = ?, upload_mbps = ?, session_timeout_mins = ?,
+                idle_timeout_mins = ?, daily_quota_mb = ?, ad_group = ?, is_default = ?,
+                description = ?, is_active = ?
             WHERE id = ?
-        """, (req.ad_group, req.vlan_id, req.vlan_name, req.description, req.priority, 1 if req.is_active else 0, now_ts, req.id))
+        """, (
+            req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
+            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, req.ad_group or "",
+            1 if req.is_default else 0, req.description or "", 1 if req.is_active else 0, req.id
+        ))
     else:
         cursor.execute("""
-            INSERT INTO radius_vlan_mappings (ad_group, vlan_id, vlan_name, description, priority, is_active, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (req.ad_group, req.vlan_id, req.vlan_name, req.description, req.priority, 1 if req.is_active else 0, now_ts))
+            INSERT INTO radius_bandwidth_profiles
+            (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, ad_group, is_default, description, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
+            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, req.ad_group or "",
+            1 if req.is_default else 0, req.description or "", 1 if req.is_active else 0, now_ts
+        ))
     conn.commit()
     conn.close()
 
     sync_freeradius_policies()
-    log_audit("RADIUS_VLAN_MAPPING_SAVED", "admin", req.ad_group, "SUCCESS", req.model_dump())
-    return {"status": "success", "message": f"Dynamic VLAN mapping for '{req.ad_group}' (VLAN {req.vlan_id}) saved."}
+    log_audit("RADIUS_BANDWIDTH_PROFILE_SAVED", "admin", req.name, "SUCCESS", req.model_dump())
+    return {"status": "success", "message": f"Bandwidth profile '{req.name}' saved."}
 
-@app.delete("/api/v1/radius/vlan-mappings/{mapping_id}")
-def delete_radius_vlan_mapping(mapping_id: int):
-    """Deletes an AD group to VLAN steering rule."""
+@app.delete("/api/v1/radius/bandwidth-profiles/{profile_id}")
+def delete_radius_bandwidth_profile(profile_id: int):
+    """Deletes a Captive Portal bandwidth profile."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM radius_vlan_mappings WHERE id = ?", (mapping_id,))
+    cursor.execute("DELETE FROM radius_bandwidth_profiles WHERE id = ?", (profile_id,))
     conn.commit()
     conn.close()
 
     sync_freeradius_policies()
-    log_audit("RADIUS_VLAN_MAPPING_DELETED", "admin", str(mapping_id), "SUCCESS", {})
-    return {"status": "success", "message": f"VLAN mapping ID {mapping_id} deleted."}
+    log_audit("RADIUS_BANDWIDTH_PROFILE_DELETED", "admin", str(profile_id), "SUCCESS", {})
+    return {"status": "success", "message": f"Bandwidth profile ID {profile_id} deleted."}
 
 # ----------------- MAC Authentication Bypass (MAB - Advanced Mode) -----------------
 

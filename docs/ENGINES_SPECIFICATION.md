@@ -154,28 +154,39 @@ mschap {
 }
 ```
 
-### 3.3. Dynamic VLAN Steering by Active Directory Group (Standard Mode)
-In `/etc/freeradius/3.0/mods-config/files/authorize` (or `/etc/freeradius/3.0/users`):
+### 3.3. Captive Portal Bandwidth Management & Rate Limiting (Standard Mode)
+FreeRADIUS provides universal rate limiting and bandwidth enforcement across pfSense, MikroTik RouterOS, and TP-Link Omada captive portals by returning vendor attributes inside `Access-Accept`:
+
 ```text
-# Domain Admins -> VLAN 1 (Infrastructure Management)
+# Domain Admins / VIPs -> 50 Mbps Down / 25 Mbps Up, 24h Session
 DEFAULT Group == "Domain Admins"
-    Tunnel-Type = VLAN,
-    Tunnel-Medium-Type = IEEE-802,
-    Tunnel-Private-Group-Id = "1",
+    WISPr-Bandwidth-Max-Down = 50000000,
+    WISPr-Bandwidth-Max-Up = 25000000,
+    Mikrotik-Rate-Limit = "25M/50M",
+    Acct-Interim-Interval = 300,
+    Session-Timeout = 86400,
     Fall-Through = Yes
 
-# Corporate Staff -> VLAN 50 (Corporate Data & Wi-Fi)
+# Corporate Employees -> 20 Mbps Down / 10 Mbps Up, 12h Session
 DEFAULT Group == "Corporate-Users"
-    Tunnel-Type = VLAN,
-    Tunnel-Medium-Type = IEEE-802,
-    Tunnel-Private-Group-Id = "50",
+    WISPr-Bandwidth-Max-Down = 20000000,
+    WISPr-Bandwidth-Max-Up = 10000000,
+    Mikrotik-Rate-Limit = "10M/20M",
+    Acct-Interim-Interval = 300,
+    Session-Timeout = 43200,
+    Idle-Timeout = 1800,
     Fall-Through = Yes
 
-# Contractors & Visitors -> VLAN 60 (Isolated Guest Access)
-DEFAULT Group == "Contractors"
-    Tunnel-Type = VLAN,
-    Tunnel-Medium-Type = IEEE-802,
-    Tunnel-Private-Group-Id = "60",
+# Default Captive Portal Tier (Visitor Wi-Fi & OTP Self-Registrations) -> 5M / 2M, 2 GB Quota
+DEFAULT
+    WISPr-Bandwidth-Max-Down = 5000000,
+    WISPr-Bandwidth-Max-Up = 2000000,
+    Mikrotik-Rate-Limit = "2M/5M",
+    Acct-Interim-Interval = 300,
+    Session-Timeout = 7200,
+    Idle-Timeout = 900,
+    ChilliSpot-Max-Total-Octets = 2147483648,
+    Mikrotik-Total-Limit = 2147483648,
     Fall-Through = Yes
 ```
 

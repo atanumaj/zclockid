@@ -1121,8 +1121,8 @@
                         <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition">
                             <i class="fa-solid fa-network-wired mr-1.5"></i> NAS Clients & APs
                         </button>
-                        <button onclick="switchRadiusSubTab('vlans')" id="rad-tab-vlans" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-tags mr-1.5"></i> Dynamic AD VLANs
+                        <button onclick="switchRadiusSubTab('bandwidth')" id="rad-tab-bandwidth" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
+                            <i class="fa-solid fa-gauge-high mr-1.5"></i> Bandwidth & Rate Limits
                         </button>
                         <button onclick="switchRadiusSubTab('eap')" id="rad-tab-eap" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
                             <i class="fa-solid fa-shield-halved mr-1.5"></i> EAP & Certificates
@@ -1189,18 +1189,18 @@
                     </div>
                 </div>
 
-                <!-- SUB-SECTION 2: Dynamic AD VLAN Steering (RFC 3580) -->
-                <div id="radius-sec-vlans" class="space-y-6 hidden">
+                <!-- SUB-SECTION 2: Captive Portal Bandwidth Management & Rate Limits -->
+                <div id="radius-sec-bandwidth" class="space-y-6 hidden">
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                                    <i class="fa-solid fa-tags text-cyan-400"></i> Dynamic 802.1X VLAN Steering (RFC 3580)
+                                    <i class="fa-solid fa-gauge-high text-cyan-400"></i> Captive Portal Bandwidth Management & Rate Limits
                                 </h3>
-                                <p class="text-xs text-slate-400">Dynamically assigns authenticated Active Directory users to specific VLANs upon 802.1X authentication</p>
+                                <p class="text-xs text-slate-400">Enforces per-user upload/download speeds, session timeouts, and data quotas across pfSense, MikroTik Hotspot, and TP-Link Omada</p>
                             </div>
-                            <button onclick="openVlanMappingModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-plus"></i> Add VLAN Steering Rule
+                            <button onclick="openBandwidthModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add Bandwidth Tier
                             </button>
                         </div>
 
@@ -1208,17 +1208,18 @@
                             <table class="w-full text-xs text-left text-slate-300">
                                 <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                     <tr>
-                                        <th class="px-4 py-2.5">Active Directory Group</th>
-                                        <th class="px-4 py-2.5">Assigned VLAN ID</th>
-                                        <th class="px-4 py-2.5">VLAN Name</th>
-                                        <th class="px-4 py-2.5">RFC 3580 Injected Attributes</th>
-                                        <th class="px-4 py-2.5">Priority</th>
-                                        <th class="px-4 py-2.5">Status</th>
+                                        <th class="px-4 py-2.5">Tier / Profile Name</th>
+                                        <th class="px-4 py-2.5">Download Limit</th>
+                                        <th class="px-4 py-2.5">Upload Limit</th>
+                                        <th class="px-4 py-2.5">Timeouts (Session / Idle)</th>
+                                        <th class="px-4 py-2.5">Daily Quota</th>
+                                        <th class="px-4 py-2.5">Target Scope</th>
+                                        <th class="px-4 py-2.5">Enforced RADIUS Attributes</th>
                                         <th class="px-4 py-2.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="radius-vlans-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading dynamic VLAN rules...</td></tr>
+                                <tbody id="radius-bandwidth-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="8" class="px-4 py-4 text-center font-sans text-slate-500">Loading bandwidth profiles...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3405,47 +3406,67 @@
         </div>
     </div>
 
-    <!-- Dynamic AD VLAN Mapping Modal -->
-    <div id="radius-vlan-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+    <!-- Captive Portal Bandwidth Profile Modal -->
+    <div id="radius-bandwidth-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
-                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-tags text-cyan-400"></i> Add Dynamic 802.1X VLAN Steering Rule</h3>
-                <button onclick="closeVlanMappingModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-gauge-high text-cyan-400"></i> Configure Captive Portal Bandwidth Profile</h3>
+                <button onclick="closeBandwidthModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
-                    <label class="text-slate-400 block mb-1">Active Directory Security Group</label>
-                    <input id="rad-vlan-group-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Domain Admins or Corporate-Users">
+                    <label class="text-slate-400 block mb-1">Tier / Profile Name</label>
+                    <input id="rad-bw-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Guest-5M or VIP-50M">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-slate-400 block mb-1">Assigned 802.1X VLAN ID</label>
-                        <input id="rad-vlan-id-input" type="number" min="1" max="4094" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="50">
+                        <label class="text-slate-400 block mb-1">Download Speed (Mbps)</label>
+                        <input id="rad-bw-down-input" type="number" step="0.5" min="0.1" value="5.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="5.0">
                     </div>
                     <div>
-                        <label class="text-slate-400 block mb-1">VLAN Name / Label</label>
-                        <input id="rad-vlan-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="CORP_DATA">
+                        <label class="text-slate-400 block mb-1">Upload Speed (Mbps)</label>
+                        <input id="rad-bw-up-input" type="number" step="0.5" min="0.1" value="2.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="2.0">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-slate-400 block mb-1">Evaluation Priority</label>
-                        <input id="rad-vlan-priority-input" type="number" value="10" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <label class="text-slate-400 block mb-1">Session Timeout (Minutes)</label>
+                        <input id="rad-bw-sess-input" type="number" min="0" value="120" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="120 (0 = unlimited)">
                     </div>
                     <div>
-                        <label class="text-slate-400 block mb-1">Description</label>
-                        <input id="rad-vlan-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Corporate staff data access">
+                        <label class="text-slate-400 block mb-1">Idle Timeout (Minutes)</label>
+                        <input id="rad-bw-idle-input" type="number" min="0" value="30" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="30">
                     </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Daily Data Quota (MB)</label>
+                        <input id="rad-bw-quota-input" type="number" min="0" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="0 = Unlimited, or 2048 MB">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Optional AD Group Mapping</label>
+                        <input id="rad-bw-group-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="e.g. VIP-Users or leave empty">
+                    </div>
+                </div>
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer pt-1">
+                        <input type="checkbox" id="rad-bw-default-input" class="rounded bg-slate-950 border-slate-800 text-cyan-500 focus:ring-0">
+                        <span class="text-slate-300">Set as Default Profile for Captive Portal & OTP Self-Registrations</span>
+                    </label>
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Description</label>
+                    <input id="rad-bw-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Standard visitor Wi-Fi tier">
                 </div>
                 <div class="p-3 bg-slate-950 border border-slate-800/80 rounded-lg text-[11px] text-slate-400 space-y-1">
-                    <span class="font-bold text-cyan-400">RFC 3580 Attributes Injected:</span>
-                    <div>• Tunnel-Type = 13 (VLAN)</div>
-                    <div>• Tunnel-Medium-Type = 6 (IEEE-802)</div>
-                    <div>• Tunnel-Private-Group-Id = &lt;VLAN_ID&gt;</div>
+                    <span class="font-bold text-cyan-400">Universal Enforced RADIUS Attributes:</span>
+                    <div>• <code class="text-white">WISPr-Bandwidth-Max-Down / Up</code> (pfSense, TP-Link, UniFi)</div>
+                    <div>• <code class="text-white">Mikrotik-Rate-Limit = "&lt;Up&gt;M/&lt;Down&gt;M"</code> (MikroTik RouterOS)</div>
+                    <div>• <code class="text-white">Session-Timeout</code> & <code class="text-white">Idle-Timeout</code></div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeVlanMappingModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitSaveVlanMapping()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Save Steering Rule</button>
+                    <button type="button" onclick="closeBandwidthModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="submitSaveBandwidthProfile()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Save Bandwidth Tier</button>
                 </div>
             </div>
         </div>
@@ -3698,7 +3719,7 @@
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
             else if (tabId === 'radius') {
                 fetchRadiusClients();
-                fetchRadiusVlans();
+                fetchRadiusBandwidth();
                 fetchRadiusEap();
                 fetchRadiusSessions();
                 fetchRadiusMab();
@@ -3716,7 +3737,7 @@
 
         // Sub-tabs in RADIUS (Tiered: Standard & Advanced)
         function switchRadiusSubTab(sub) {
-            const allSubs = ['clients', 'vlans', 'eap', 'accounting', 'mab', 'custom', 'settings', 'config'];
+            const allSubs = ['clients', 'bandwidth', 'eap', 'accounting', 'mab', 'custom', 'settings', 'config'];
             allSubs.forEach(s => {
                 const sec = document.getElementById(`radius-sec-${s}`);
                 if (sec) sec.classList.add('hidden');
@@ -3741,7 +3762,7 @@
 
             // Lazy data fetch on sub-tab switch
             if (sub === 'clients') fetchRadiusClients();
-            else if (sub === 'vlans') fetchRadiusVlans();
+            else if (sub === 'bandwidth') fetchRadiusBandwidth();
             else if (sub === 'eap') fetchRadiusEap();
             else if (sub === 'accounting') fetchRadiusSessions();
             else if (sub === 'mab') fetchRadiusMab();
@@ -4980,91 +5001,113 @@
             }
         }
 
-        // Dynamic AD VLAN Steering (RFC 3580)
-        async function fetchRadiusVlans() {
+        // Captive Portal Bandwidth Management & Rate Limiting
+        async function fetchRadiusBandwidth() {
             try {
-                const res = await fetch(`${API_BASE}/radius/vlan-mappings`);
+                const res = await fetch(`${API_BASE}/radius/bandwidth-profiles`);
                 const data = await res.json();
-                const tbody = document.getElementById('radius-vlans-table-body');
-                if (data.mappings && data.mappings.length > 0) {
-                    tbody.innerHTML = data.mappings.map(m => `
-                        <tr class="hover:bg-slate-800/30">
-                            <td class="px-4 py-2.5 font-bold text-white flex items-center gap-1.5">
-                                <i class="fa-solid fa-users text-cyan-400 text-xs"></i> ${m.ad_group}
-                            </td>
-                            <td class="px-4 py-2.5 text-cyan-300 font-mono font-bold">VLAN ${m.vlan_id}</td>
-                            <td class="px-4 py-2.5 text-slate-300 font-mono text-[10px]">${m.vlan_name || '-'}</td>
-                            <td class="px-4 py-2.5">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 text-slate-300 border border-slate-800">Tunnel-Pvt-Group: "${m.vlan_id}"</span>
-                            </td>
-                            <td class="px-4 py-2.5 text-slate-400 font-mono">${m.priority}</td>
-                            <td class="px-4 py-2.5">
-                                <span class="px-2 py-0.5 rounded text-[10px] ${m.is_active ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${m.is_active ? 'ACTIVE' : 'DISABLED'}</span>
-                            </td>
-                            <td class="px-4 py-2.5 text-right">
-                                <button onclick="deleteVlanMapping(${m.id})" class="text-slate-500 hover:text-rose-400 transition" title="Delete Rule">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('');
+                const tbody = document.getElementById('radius-bandwidth-table-body');
+                if (data.profiles && data.profiles.length > 0) {
+                    tbody.innerHTML = data.profiles.map(p => {
+                        const sessStr = p.session_timeout_mins > 0 ? `${p.session_timeout_mins}m` : 'Unlimited';
+                        const idleStr = p.idle_timeout_mins > 0 ? `${p.idle_timeout_mins}m` : 'None';
+                        const quotaStr = p.daily_quota_mb > 0 ? `${p.daily_quota_mb} MB` : 'Unlimited';
+                        const targetBadge = p.is_default
+                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">DEFAULT (PORTAL/OTP)</span>'
+                            : (p.ad_group ? `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono"><i class="fa-solid fa-users text-cyan-400 mr-1"></i>${p.ad_group}</span>` : '<span class="text-slate-500 font-sans">On-Demand</span>');
+
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5">
+                                    <div class="font-bold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-gauge text-cyan-400"></i> ${p.name}
+                                    </div>
+                                    <div class="text-[10px] text-slate-400">${p.description || '-'}</div>
+                                </td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-mono font-bold">▼ ${p.download_mbps} Mbps</td>
+                                <td class="px-4 py-2.5 text-amber-300 font-mono font-bold">▲ ${p.upload_mbps} Mbps</td>
+                                <td class="px-4 py-2.5 text-slate-300 font-mono">${sessStr} / ${idleStr}</td>
+                                <td class="px-4 py-2.5 text-emerald-400 font-mono font-semibold">${quotaStr}</td>
+                                <td class="px-4 py-2.5">${targetBadge}</td>
+                                <td class="px-4 py-2.5">
+                                    <div class="text-[10px] font-mono text-slate-300 space-y-0.5">
+                                        <div>WISPr: <span class="text-slate-400">▼${p.download_mbps}M / ▲${p.upload_mbps}M</span></div>
+                                        <div>MikroTik: <span class="text-cyan-400 font-bold">"${p.upload_mbps}M/${p.download_mbps}M"</span></div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <button onclick="deleteBandwidthProfile(${p.id}, '${p.name}')" class="text-slate-500 hover:text-rose-400 transition" title="Delete Profile">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">No dynamic VLAN steering rules configured.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-4 text-center font-sans text-slate-500">No bandwidth profiles configured.</td></tr>`;
                 }
             } catch (err) {
-                console.error('Error fetching VLAN mappings:', err);
+                console.error('Error fetching bandwidth profiles:', err);
             }
         }
 
-        function openVlanMappingModal() { document.getElementById('radius-vlan-modal').classList.remove('hidden'); }
-        function closeVlanMappingModal() { document.getElementById('radius-vlan-modal').classList.add('hidden'); }
+        function openBandwidthModal() { document.getElementById('radius-bandwidth-modal').classList.remove('hidden'); }
+        function closeBandwidthModal() { document.getElementById('radius-bandwidth-modal').classList.add('hidden'); }
 
-        async function submitSaveVlanMapping() {
-            const group = document.getElementById('rad-vlan-group-input').value.trim();
-            const vlanId = parseInt(document.getElementById('rad-vlan-id-input').value);
-            const vlanName = document.getElementById('rad-vlan-name-input').value.trim();
-            const priority = parseInt(document.getElementById('rad-vlan-priority-input').value) || 10;
-            const desc = document.getElementById('rad-vlan-desc-input').value.trim();
+        async function submitSaveBandwidthProfile() {
+            const name = document.getElementById('rad-bw-name-input').value.trim();
+            const down = parseFloat(document.getElementById('rad-bw-down-input').value);
+            const up = parseFloat(document.getElementById('rad-bw-up-input').value);
+            const sess = parseInt(document.getElementById('rad-bw-sess-input').value) || 0;
+            const idle = parseInt(document.getElementById('rad-bw-idle-input').value) || 0;
+            const quota = parseInt(document.getElementById('rad-bw-quota-input').value) || 0;
+            const group = document.getElementById('rad-bw-group-input').value.trim();
+            const isDef = document.getElementById('rad-bw-default-input').checked;
+            const desc = document.getElementById('rad-bw-desc-input').value.trim();
 
-            if (!group || isNaN(vlanId)) return alert('AD Group and VLAN ID are required.');
+            if (!name || isNaN(down) || isNaN(up)) return alert('Profile name, Download speed, and Upload speed are required.');
 
             try {
-                const res = await fetch(`${API_BASE}/radius/vlan-mappings`, {
+                const res = await fetch(`${API_BASE}/radius/bandwidth-profiles`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
+                        name: name,
+                        download_mbps: down,
+                        upload_mbps: up,
+                        session_timeout_mins: sess,
+                        idle_timeout_mins: idle,
+                        daily_quota_mb: quota,
                         ad_group: group,
-                        vlan_id: vlanId,
-                        vlan_name: vlanName,
-                        priority: priority,
+                        is_default: isDef,
                         description: desc,
                         is_active: true
                     })
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    closeVlanMappingModal();
-                    fetchRadiusVlans();
+                    closeBandwidthModal();
+                    fetchRadiusBandwidth();
                 } else {
-                    alert(`Failed to save rule: ${data.detail}`);
+                    alert(`Failed to save profile: ${data.detail}`);
                 }
             } catch (err) {
-                alert(`Error saving VLAN rule: ${err}`);
+                alert(`Error saving bandwidth profile: ${err}`);
             }
         }
 
-        async function deleteVlanMapping(id) {
-            if (!confirm('Delete this dynamic VLAN steering rule?')) return;
+        async function deleteBandwidthProfile(id, name) {
+            if (!confirm(`Delete bandwidth profile '${name}'?`)) return;
             try {
-                const res = await fetch(`${API_BASE}/radius/vlan-mappings/${id}`, { method: 'DELETE' });
+                const res = await fetch(`${API_BASE}/radius/bandwidth-profiles/${id}`, { method: 'DELETE' });
                 if (res.ok) {
-                    fetchRadiusVlans();
+                    fetchRadiusBandwidth();
                 } else {
                     const data = await res.json();
                     alert(`Delete failed: ${data.detail}`);
                 }
             } catch (err) {
-                alert(`Error deleting VLAN rule: ${err}`);
+                alert(`Error deleting bandwidth profile: ${err}`);
             }
         }
 
