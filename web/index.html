@@ -878,14 +878,18 @@
                 <!-- SUB-PANE 1: DOMAIN USERS -->
                 <div id="dir-pane-users" class="space-y-4">
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                        <div class="flex items-center justify-between">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div>
                                 <h3 class="text-sm font-semibold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-user-shield text-emerald-400"></i> Active Directory Domain Users
                                 </h3>
                                 <p class="text-xs text-slate-400">Manage individual domain user accounts, login credentials, and user-specific bandwidth profiles</p>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 hover:text-slate-200">
+                                    <input type="checkbox" id="chk-show-system-users" onchange="renderUsersTable()" class="rounded bg-slate-900 border-slate-700 text-emerald-600 focus:ring-0">
+                                    <span class="text-[11px]">Show System Accounts (krbtgt, Guest)</span>
+                                </label>
                                 <button onclick="openUserModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                     <i class="fa-solid fa-user-plus"></i> New User
                                 </button>
@@ -5706,65 +5710,86 @@
             else if (subtab === 'computers') fetchComputers();
         }
 
+        function renderUsersTable() {
+            const chk = document.getElementById('chk-show-system-users');
+            const showSystem = chk ? chk.checked : false;
+            // Always keep Administrator + all normal domain users. Hide krbtgt, Guest, and dns-* unless checkbox is checked.
+            const usersToRender = showSystem 
+                ? globalUsers 
+                : globalUsers.filter(u => !u.is_system_hidden && u.username.toLowerCase() !== 'krbtgt' && u.username.toLowerCase() !== 'guest' && !u.username.toLowerCase().startsWith('dns-'));
+
+            const badge = document.getElementById('badge-users-count');
+            if (badge) {
+                const visibleCount = globalUsers.filter(u => !u.is_system_hidden && u.username.toLowerCase() !== 'krbtgt' && u.username.toLowerCase() !== 'guest' && !u.username.toLowerCase().startsWith('dns-')).length;
+                badge.innerText = showSystem ? `${globalUsers.length}` : `${visibleCount}`;
+            }
+
+            const tbody = document.getElementById('users-table-body');
+            if (!tbody) return;
+
+            if (usersToRender.length > 0) {
+                tbody.innerHTML = usersToRender.map(u => {
+                    const nameDisplay = u.name || u.username;
+                    const contactDetails = [];
+                    if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${u.email}</span>`);
+                    if (u.mobile) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-phone text-slate-500 mr-1"></i>${u.mobile}</span>`);
+                    
+                    let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-users text-slate-600"></i> Group Default</span>';
+                    if (u.bandwidth_profile_name) {
+                        bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${u.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${u.bandwidth_profile_name} (${u.bandwidth_rate || ''})</span>`;
+                    }
+
+                    const statusBadge = u.status === 'active'
+                        ? '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>'
+                        : '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-400 border border-rose-800">DISABLED</span>';
+
+                    const isBuiltin = u.is_built_in;
+                    const isSystemAccount = u.is_system_hidden || ['krbtgt', 'guest', 'dns-inet-zclockid'].includes(u.username.toLowerCase());
+
+                    return `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5">
+                                <div class="font-bold text-white flex items-center gap-1.5 flex-wrap">
+                                    <i class="fa-solid fa-user ${isBuiltin ? 'text-amber-400' : 'text-emerald-400'} text-[10px]"></i> ${u.username}
+                                    ${u.username.toLowerCase() === 'administrator' 
+                                        ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/80 uppercase font-mono font-bold">Domain Admin</span>' 
+                                        : (isBuiltin ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 uppercase font-mono">System Account</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Domain User</span>')}
+                                </div>
+                                <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
+                            </td>
+                            <td class="px-4 py-2.5">
+                                <div class="font-semibold text-slate-200">${nameDisplay}</div>
+                                <div class="flex flex-col gap-0.5 mt-0.5">${contactDetails.join('')}</div>
+                            </td>
+                            <td class="px-4 py-2.5">
+                                ${isBuiltin ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : `<span class="text-slate-300 font-sans">${u.department || '-'}</span>`}
+                            </td>
+                            <td class="px-4 py-2.5">${bwBadge}</td>
+                            <td class="px-4 py-2.5">${statusBadge}</td>
+                            <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                <button onclick="openEditUserModal('${u.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit User Account, Credentials & Bandwidth">
+                                    <i class="fa-solid fa-user-pen"></i> Edit
+                                </button>
+                                ${!isBuiltin ? `
+                                    <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete User">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : '<span class="text-slate-600 font-sans italic text-[10px] ml-1">Built-in</span>'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">No domain users found. Create one using "+ New User".</td></tr>';
+            }
+        }
+
         async function fetchUsers() {
             try {
                 const res = await fetch(`${API_BASE}/users`);
                 const data = await res.json();
                 globalUsers = data.users || [];
-                const badge = document.getElementById('badge-users-count');
-                if (badge) badge.innerText = globalUsers.length;
-
-                const tbody = document.getElementById('users-table-body');
-                if (globalUsers.length > 0) {
-                    tbody.innerHTML = globalUsers.map(u => {
-                        const nameDisplay = u.name || u.username;
-                        const contactDetails = [];
-                        if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${u.email}</span>`);
-                        if (u.mobile) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-phone text-slate-500 mr-1"></i>${u.mobile}</span>`);
-                        
-                        let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-users text-slate-600"></i> Group Default</span>';
-                        if (u.bandwidth_profile_name) {
-                            bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${u.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${u.bandwidth_profile_name} (${u.bandwidth_rate || ''})</span>`;
-                        }
-
-                        const statusBadge = u.status === 'active'
-                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>'
-                            : '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-400 border border-rose-800">DISABLED</span>';
-
-                        return `
-                            <tr class="hover:bg-slate-800/30">
-                                <td class="px-4 py-2.5">
-                                    <div class="font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                        <i class="fa-solid fa-user text-emerald-400 text-[10px]"></i> ${u.username}
-                                        ${u.is_built_in ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/80 uppercase font-mono font-bold">Built-in User</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Domain User</span>'}
-                                    </div>
-                                    <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
-                                </td>
-                                <td class="px-4 py-2.5">
-                                    <div class="font-semibold text-slate-200">${nameDisplay}</div>
-                                    <div class="flex flex-col gap-0.5 mt-0.5">${contactDetails.join('')}</div>
-                                </td>
-                                <td class="px-4 py-2.5">
-                                    ${u.is_built_in ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : `<span class="text-slate-300 font-sans">${u.department || '-'}</span>`}
-                                </td>
-                                <td class="px-4 py-2.5">${bwBadge}</td>
-                                <td class="px-4 py-2.5">${statusBadge}</td>
-                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                                    <button onclick="openEditUserModal('${u.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit User Account, Credentials & Bandwidth">
-                                        <i class="fa-solid fa-user-pen"></i> Edit
-                                    </button>
-                                    ${!u.is_built_in ? `
-                                        <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete User">
-                                            <i class="fa-solid fa-trash-can"></i>
-                                        </button>
-                                    ` : '<span class="text-slate-600 font-sans italic text-[10px] ml-1">Built-in</span>'}
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No domain users found.</td></tr>';
-                }
+                renderUsersTable();
             } catch (err) {
                 console.error('Error fetching users:', err);
             }

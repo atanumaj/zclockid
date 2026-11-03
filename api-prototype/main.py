@@ -1850,6 +1850,7 @@ def list_domain_users():
                     u = current_user["username"]
                     if not u.endswith("$"):
                         is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
+                        is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
                         uac = current_user.get("uac", 512)
                         is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                         upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
@@ -1878,6 +1879,7 @@ def list_domain_users():
                             "status": "disabled" if is_disabled else "active",
                             "is_disabled": is_disabled,
                             "is_built_in": is_built_in,
+                            "is_system_hidden": is_system_hidden,
                             "bandwidth_profile_id": p_id,
                             "bandwidth_profile_name": p_name,
                             "bandwidth_rate": bw_rate_str
@@ -1912,6 +1914,7 @@ def list_domain_users():
             u = current_user["username"]
             if not u.endswith("$"):
                 is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
+                is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
                 uac = current_user.get("uac", 512)
                 is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                 upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
@@ -1940,6 +1943,7 @@ def list_domain_users():
                     "status": "disabled" if is_disabled else "active",
                     "is_disabled": is_disabled,
                     "is_built_in": is_built_in,
+                    "is_system_hidden": is_system_hidden,
                     "bandwidth_profile_id": p_id,
                     "bandwidth_profile_name": p_name,
                     "bandwidth_rate": bw_rate_str
