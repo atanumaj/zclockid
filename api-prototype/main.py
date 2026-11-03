@@ -377,7 +377,8 @@ def get_ad_creds() -> tuple[str, str]:
 
 def check_systemd_service(service_name: str) -> Dict[str, Any]:
     code, out, _ = run_cmd(["systemctl", "is-active", service_name], timeout=5)
-    is_active = (out.strip() == "active")
+    raw_st = out.strip()
+    is_active = (raw_st == "active")
     pid = None
     mem_mb = None
     if is_active:
@@ -395,9 +396,12 @@ def check_systemd_service(service_name: str) -> Dict[str, Any]:
                         mem_mb = round(raw_b / (1024 * 1024), 1)
                 except:
                     pass
+    _, out_en, _ = run_cmd(["systemctl", "is-enabled", service_name], timeout=3)
+    en_val = out_en.strip() or "unknown"
     return {
-        "status": "active" if is_active else "inactive",
-        "systemd_state": out.strip() if code == 0 else "unknown",
+        "status": "active" if is_active else ("failed" if raw_st == "failed" else "inactive"),
+        "systemd_state": raw_st if code == 0 else "unknown",
+        "enabled": en_val,
         "pid": pid,
         "memory_mb": mem_mb
     }
@@ -678,7 +682,7 @@ class RadiusSettingsRequest(BaseModel):
     interim_interval: int = 300
 
 class ServiceActionRequest(BaseModel):
-    action: str = Field("restart", pattern="^(restart|start|stop|reload)$")
+    action: str = Field("restart", pattern="^(restart|start|stop|reload|enable|disable)$")
 
 class UpnSuffixRequest(BaseModel):
     upn_suffix: str = Field(..., example="alternate.net")
@@ -970,6 +974,18 @@ def login(req: LoginRequest):
 
 # ----------------- Dashboard & System Status -----------------
 
+ALL_MANAGED_SERVICES = [
+    "samba-ad-dc",
+    "bind9",
+    "freeradius",
+    "chrony",
+    "zclock-sysvold",
+    "zclock-azuresync",
+    "zclock-api",
+    "nginx",
+    "snmpd"
+]
+
 @app.get("/api/v1/system/status")
 def get_system_status():
     """Returns comprehensive appliance health, engine statuses, PIDs, memory, and ports."""
@@ -977,27 +993,32 @@ def get_system_status():
         "samba_ad_dc": check_systemd_service("samba-ad-dc"),
         "bind9": check_systemd_service("bind9"),
         "freeradius": check_systemd_service("freeradius"),
+        "chrony": check_systemd_service("chrony"),
         "zclock_sysvold": check_systemd_service("zclock-sysvold"),
+        "zclock_azuresync": check_systemd_service("zclock-azuresync"),
+        "zclock_api": check_systemd_service("zclock-api"),
         "nginx": check_systemd_service("nginx"),
-        "snmpd": check_systemd_service("snmpd"),
-        "zclock_api": check_systemd_service("zclock-api")
+        "snmpd": check_systemd_service("snmpd")
     }
 
     # Port listeners map
     ports_map = {
         "DNS (UDP/TCP)": 53,
         "Kerberos KDC": 88,
+        "NTP Time Server": 123,
         "MSRPC Endpoint": 135,
         "NetBIOS-SSN": 139,
+        "SNMP Telemetry": 161,
         "LDAP Directory": 389,
         "HTTPS / DoH Ingress": 443,
         "SMB / CIFS Share": 445,
         "Kerberos Password": 464,
         "LDAPS SSL": 636,
-        "DoH Internal HTTP": 8053,
         "FreeRADIUS Auth": 1812,
         "FreeRADIUS Acct": 1813,
-        "Global Catalog": 3268
+        "Global Catalog": 3268,
+        "Management API": 8000,
+        "DoH Internal HTTP": 8053
     }
 
     import psutil
@@ -1006,7 +1027,7 @@ def get_system_status():
     disk = psutil.disk_usage("/")
 
     active_count = sum(1 for s in services.values() if s["status"] == "active")
-    health = "HEALTHY" if active_count >= 4 else ("INITIALIZING" if active_count >= 2 else "DEGRADED")
+    health = "HEALTHY" if active_count >= 5 else ("INITIALIZING" if active_count >= 3 else "DEGRADED")
 
     return {
         "hostname": os.uname().nodename,
@@ -1028,26 +1049,132 @@ def get_system_status():
 
 # ----------------- Module Logs & Live Controls (Zentyal Style) -----------------
 
+@app.get("/api/v1/services")
+def list_managed_services():
+    """Lists all 9 managed system services with metadata, role category, ports, runtime state, and boot status."""
+    catalog = [
+        # Custom Built ZclockID Daemons
+        {
+            "id": "zclock-api",
+            "name": "ZclockID REST API",
+            "category": "custom_built",
+            "category_label": "CORE BACKEND",
+            "role": "Appliance REST API & Web Management Console Engine",
+            "ports": [8000],
+            "unit": "zclock-api.service"
+        },
+        {
+            "id": "zclock-sysvold",
+            "name": "Sysvol NTACL Guardian",
+            "category": "custom_built",
+            "category_label": "SYSVOL REPLICATION",
+            "role": "Bi-directional Sysvol Replication & Windows NTACL Self-Healing",
+            "ports": [],
+            "unit": "zclock-sysvold.service"
+        },
+        {
+            "id": "zclock-azuresync",
+            "name": "Azure / Entra Cloud Sync",
+            "category": "custom_built",
+            "category_label": "HYBRID IDENTITY",
+            "role": "Hybrid Cloud Identity, User & Password Hash Synchronization",
+            "ports": [],
+            "unit": "zclock-azuresync.service"
+        },
+        # Core Infrastructure Services
+        {
+            "id": "samba-ad-dc",
+            "name": "Samba Active Directory DC",
+            "category": "infrastructure",
+            "category_label": "DIRECTORY & AUTH",
+            "role": "Kerberos KDC, LDAP Directory, SMB/CIFS, MSRPC, SAM LDB",
+            "ports": [53, 88, 135, 139, 389, 445, 464, 636, 3268],
+            "unit": "samba-ad-dc.service"
+        },
+        {
+            "id": "bind9",
+            "name": "BIND9 DLZ & DoH",
+            "category": "infrastructure",
+            "category_label": "DNS & DOH ENGINE",
+            "role": "Active Directory Dynamic DNS & RFC 8484 DNS-over-HTTPS",
+            "ports": [53, 8053],
+            "unit": "bind9.service"
+        },
+        {
+            "id": "freeradius",
+            "name": "FreeRADIUS 3.0",
+            "category": "infrastructure",
+            "category_label": "802.1X AUTH & ACCT",
+            "role": "WPA-Enterprise 802.1X Access Authentication & Accounting",
+            "ports": [1812, 1813],
+            "unit": "freeradius.service"
+        },
+        {
+            "id": "chrony",
+            "name": "Chrony NTP Server",
+            "category": "infrastructure",
+            "category_label": "NTP TIME SYNC",
+            "role": "Precision Network Time Server with Samba MS-SNTP Signing",
+            "ports": [123],
+            "unit": "chrony.service"
+        },
+        {
+            "id": "nginx",
+            "name": "Nginx Multiplexer",
+            "category": "infrastructure",
+            "category_label": "INGRESS PROXY",
+            "role": "HTTP/2 TLS Termination, Web UI Host, DoH Path Routing",
+            "ports": [80, 443],
+            "unit": "nginx.service"
+        },
+        {
+            "id": "snmpd",
+            "name": "Net-SNMP Telemetry",
+            "category": "infrastructure",
+            "category_label": "ENTERPRISE TELEMETRY",
+            "role": "RFC 1157 SNMP Telemetry & Active Directory Enterprise MIB",
+            "ports": [161],
+            "unit": "snmpd.service"
+        }
+    ]
+
+    result = []
+    for item in catalog:
+        st = check_systemd_service(item["id"])
+        result.append({
+            **item,
+            **st
+        })
+    return {"services": result, "total": len(result)}
+
 @app.get("/api/v1/services/{service_name}/logs")
 def get_service_logs(service_name: str, lines: int = 50):
     """Retrieves live journalctl log lines for any engine service."""
-    allowed = ["samba-ad-dc", "bind9", "freeradius", "zclock-sysvold", "zclock-api", "nginx", "snmpd", "zclock-azuresync"]
-    if service_name not in allowed:
+    if service_name not in ALL_MANAGED_SERVICES:
         raise HTTPException(status_code=400, detail=f"Service '{service_name}' not allowed.")
     code, stdout, stderr = run_cmd(["journalctl", "-u", service_name, "-n", str(min(lines, 200)), "--no-pager"], timeout=10)
     return {"service": service_name, "logs": stdout or stderr or "No logs recorded yet."}
 
 @app.post("/api/v1/services/{service_name}/control")
 def control_service(service_name: str, req: ServiceActionRequest):
-    """Executes restart, start, stop, or reload on a subsystem service."""
-    allowed = ["samba-ad-dc", "bind9", "freeradius", "zclock-sysvold", "zclock-api", "nginx", "snmpd", "zclock-azuresync"]
-    if service_name not in allowed:
+    """Executes restart, start, stop, reload, enable, or disable on any subsystem service."""
+    if service_name not in ALL_MANAGED_SERVICES:
         raise HTTPException(status_code=400, detail=f"Service '{service_name}' not allowed.")
+
     code, stdout, stderr = run_cmd(["systemctl", req.action, service_name], timeout=15)
     if code != 0:
-        raise HTTPException(status_code=500, detail=f"Failed to {req.action} {service_name}: {stderr}")
+        raise HTTPException(status_code=500, detail=f"Failed to {req.action} {service_name}: {stderr or stdout}")
+
+    time.sleep(0.5)
+    updated_state = check_systemd_service(service_name)
     log_audit("SERVICE_CONTROL", "admin", service_name, "SUCCESS", {"action": req.action})
-    return {"status": "success", "service": service_name, "action": req.action, "message": f"{service_name} {req.action} successful."}
+    return {
+        "status": "success",
+        "service": service_name,
+        "action": req.action,
+        "message": f"Service '{service_name}' {req.action} executed successfully.",
+        "state": updated_state
+    }
 
 # ----------------- Active Directory Domain & UPN & FSMO Management -----------------
 
