@@ -22,3 +22,4 @@ DEFAULT Group == "Contractors"
 	Tunnel-Medium-Type = IEEE-802,
 	Tunnel-Private-Group-Id = "60",
 	Fall-Through = Yes
+
