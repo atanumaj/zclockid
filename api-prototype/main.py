@@ -798,6 +798,7 @@ class UserCreateRequest(BaseModel):
     mobile: Optional[str] = Field(None, example="+919876543210")
     department: Optional[str] = None
     target_group: Optional[str] = "Domain Users"
+    groups: Optional[List[str]] = Field(default_factory=list)
     bandwidth_profile_id: Optional[int] = None
 
 class UserUpdateRequest(BaseModel):
@@ -810,6 +811,7 @@ class UserUpdateRequest(BaseModel):
     bandwidth_profile_id: Optional[int] = None
     new_password: Optional[str] = None
     is_disabled: Optional[bool] = None
+    groups: Optional[List[str]] = None
 
 class UserPasswordReset(BaseModel):
     new_password: str = Field(..., min_length=8, example="NewSecureP@ss2026!")
@@ -1815,7 +1817,7 @@ def list_domain_users():
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
         "(objectClass=user)",
-        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "info", "userAccountControl"
+        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "info", "userAccountControl", "memberOf"
     ], timeout=10)
 
     # Fetch bandwidth mappings from local SQLite
@@ -1842,7 +1844,7 @@ def list_domain_users():
 
     users = []
     if code == 0:
-        current_user = {}
+        current_user = {"groups": []}
         for line in stdout.splitlines():
             line = line.strip()
             if not line:
@@ -1880,11 +1882,12 @@ def list_domain_users():
                             "is_disabled": is_disabled,
                             "is_built_in": is_built_in,
                             "is_system_hidden": is_system_hidden,
+                            "groups": current_user.get("groups", []),
                             "bandwidth_profile_id": p_id,
                             "bandwidth_profile_name": p_name,
                             "bandwidth_rate": bw_rate_str
                         })
-                current_user = {}
+                current_user = {"groups": []}
                 continue
             if line.startswith("sAMAccountName:"):
                 current_user["username"] = line.split(":", 1)[1].strip()
@@ -1904,6 +1907,14 @@ def list_domain_users():
                 current_user["department"] = line.split(":", 1)[1].strip()
             elif line.startswith("info:"):
                 current_user["info"] = line.split(":", 1)[1].strip()
+            elif line.startswith("memberOf:"):
+                dn_val = line.split(":", 1)[1].strip()
+                for part in dn_val.split(","):
+                    if part.strip().startswith("CN="):
+                        grp_name = part.strip()[3:]
+                        if grp_name not in current_user.setdefault("groups", []):
+                            current_user["groups"].append(grp_name)
+                        break
             elif line.startswith("userAccountControl:"):
                 try:
                     current_user["uac"] = int(line.split(":", 1)[1].strip())
@@ -1944,6 +1955,7 @@ def list_domain_users():
                     "is_disabled": is_disabled,
                     "is_built_in": is_built_in,
                     "is_system_hidden": is_system_hidden,
+                    "groups": current_user.get("groups", []),
                     "bandwidth_profile_id": p_id,
                     "bandwidth_profile_name": p_name,
                     "bandwidth_rate": bw_rate_str
@@ -1968,6 +1980,7 @@ def list_domain_users():
                         "status": "active" if u not in ["Guest", "krbtgt"] else "disabled",
                         "is_disabled": u in ["Guest", "krbtgt"],
                         "is_built_in": u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"],
+                        "groups": [],
                         "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
                         "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
                         "bandwidth_rate": f"{bw_entry['download_mbps']:g}M/{bw_entry['upload_mbps']:g}M" if bw_entry else None
@@ -2001,8 +2014,15 @@ def create_domain_user(req: UserCreateRequest):
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to create user: {stderr or stdout}")
 
+    target_groups = set(req.groups or [])
     if req.target_group and req.target_group != "Domain Users":
-        run_cmd(["samba-tool", "group", "addmembers", req.target_group, req.username, f"-U{admin_user}", f"--password={admin_pass}"])
+        target_groups.add(req.target_group)
+    for grp in target_groups:
+        if grp and grp.lower() != "domain users":
+            run_cmd(["samba-tool", "group", "addmembers", grp, req.username, f"-U{admin_user}", f"--password={admin_pass}"])
+
+    if target_groups:
+        sync_freeradius_policies()
 
     if req.bandwidth_profile_id and req.bandwidth_profile_id > 0:
         try:
@@ -2151,6 +2171,33 @@ def update_domain_user(username: str, req: UserUpdateRequest):
             sync_freeradius_policies()
         except Exception as e:
             logger.warning(f"Failed to update user bandwidth profile: {e}")
+
+    # 7. Synchronize Group Memberships if provided
+    if req.groups is not None:
+        c_m, o_m, _ = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={username})", "memberOf"])
+        current_user_groups = set()
+        if c_m == 0:
+            for l in o_m.splitlines():
+                if l.startswith("memberOf:"):
+                    dn_val = l.split(":", 1)[1].strip()
+                    for part in dn_val.split(","):
+                        if part.strip().startswith("CN="):
+                            current_user_groups.add(part.strip()[3:])
+                            break
+
+        desired_groups = set(req.groups)
+        to_add = desired_groups - current_user_groups
+        to_remove = current_user_groups - desired_groups
+
+        for grp in to_add:
+            if grp and grp.lower() != "domain users":
+                run_cmd(["samba-tool", "group", "addmembers", grp, username, f"-U{admin_user}", f"--password={admin_pass}"])
+
+        for grp in to_remove:
+            if grp and grp.lower() not in ["domain users", "domain guests"]:
+                run_cmd(["samba-tool", "group", "removemembers", grp, username, f"-U{admin_user}", f"--password={admin_pass}"])
+
+        sync_freeradius_policies()
 
     log_audit("USER_UPDATED", "admin", username, "SUCCESS", {
         "given_name": req.given_name,

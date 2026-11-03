@@ -3756,6 +3756,23 @@
                         <option value="0">Default (Inherit from Group / Captive Portal)</option>
                     </select>
                 </div>
+
+                <!-- Group Memberships -->
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-slate-300 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-users text-indigo-400"></i> Group Memberships
+                        </label>
+                        <span class="text-[10px] text-slate-400 font-mono">Select Multiple Groups</span>
+                    </div>
+                    <div id="usr-groups-container" class="max-h-32 overflow-y-auto bg-slate-900 border border-slate-800 rounded-lg p-2.5 space-y-1.5 font-mono text-[11px]">
+                        <!-- Populated with checkboxes -->
+                    </div>
+                    <p class="text-[10px] text-slate-500">
+                        Assign user to security groups to automatically inherit bandwidth policies and domain permissions.
+                    </p>
+                </div>
+
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
                     <button type="button" onclick="submitCreateUser()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Create Account</button>
@@ -3834,6 +3851,22 @@
                     </select>
                     <p class="text-[10px] text-slate-400">
                         Individual profile overrides AD group rates with top priority in FreeRADIUS (<code class="text-cyan-300">WISPr-Bandwidth-Max-*</code> & <code class="text-cyan-300">Mikrotik-Rate-Limit</code>).
+                    </p>
+                </div>
+
+                <!-- Group Memberships -->
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-slate-300 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-users text-indigo-400"></i> Active Directory Group Memberships
+                        </label>
+                        <span class="text-[10px] text-indigo-400 font-mono">Multi-Group Assignment</span>
+                    </div>
+                    <div id="edit-usr-groups-container" class="max-h-36 overflow-y-auto bg-slate-900 border border-slate-800 rounded-lg p-2.5 space-y-1.5 font-mono text-[11px]">
+                        <!-- Populated dynamically with checkboxes -->
+                    </div>
+                    <p class="text-[10px] text-slate-400">
+                        Adding a user to groups (e.g. <code class="text-indigo-300">bandwidth-high</code>) automatically grants the group's captive portal rate limits and network access rights.
                     </p>
                 </div>
 
@@ -5756,6 +5789,11 @@
                                         : (isBuiltin ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 uppercase font-mono">System Account</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Domain User</span>')}
                                 </div>
                                 <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
+                                ${(u.groups && u.groups.length > 0) ? `
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        ${u.groups.map(g => `<span class="px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 text-[9px] font-mono flex items-center gap-1"><i class="fa-solid fa-users text-[8px] opacity-70"></i>${g}</span>`).join('')}
+                                    </div>
+                                ` : ''}
                             </td>
                             <td class="px-4 py-2.5">
                                 <div class="font-semibold text-slate-200">${nameDisplay}</div>
@@ -5795,8 +5833,67 @@
             }
         }
 
+        function populateGroupCheckboxes(containerId, selectedGroupNames = []) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            if (!globalGroups || globalGroups.length === 0) {
+                container.innerHTML = '<div class="text-slate-500 italic text-center py-2"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading security groups...</div>';
+                fetchGroups().then(() => populateGroupCheckboxes(containerId, selectedGroupNames));
+                return;
+            }
+
+            const selectedNormalized = (selectedGroupNames || []).map(g => (g || '').toLowerCase());
+
+            const sorted = [...globalGroups].sort((a, b) => {
+                if (a.is_built_in !== b.is_built_in) {
+                    return a.is_built_in ? 1 : -1;
+                }
+                return a.group_name.localeCompare(b.group_name);
+            });
+
+            container.innerHTML = sorted.map(g => {
+                const isChecked = selectedNormalized.includes(g.group_name.toLowerCase());
+                const bwTag = g.bandwidth_profile_name ? 
+                    `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1"><i class="fa-solid fa-gauge-high text-[8px]"></i> ${g.bandwidth_profile_name}</span>` : '';
+                const builtinTag = g.is_built_in ?
+                    `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Built-in</span>` :
+                    `<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Security</span>`;
+
+                return `
+                    <label class="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/70 cursor-pointer border border-transparent hover:border-slate-700 transition">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" name="${containerId}-chk" value="${g.group_name}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                            <span class="font-medium text-slate-200">${g.group_name}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            ${bwTag}
+                            ${builtinTag}
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        }
+
         function openUserModal() {
             populateBandwidthSelects();
+            const uInput = document.getElementById('usr-name-input');
+            const pInput = document.getElementById('usr-pass-input');
+            const gInput = document.getElementById('usr-given-input');
+            const sInput = document.getElementById('usr-sur-input');
+            const eInput = document.getElementById('usr-email-input');
+            const mInput = document.getElementById('usr-mobile-input');
+            const dInput = document.getElementById('usr-dept-input');
+            const bInput = document.getElementById('usr-bw-profile-input');
+            if (uInput) uInput.value = '';
+            if (pInput) pInput.value = '';
+            if (gInput) gInput.value = '';
+            if (sInput) sInput.value = '';
+            if (eInput) eInput.value = '';
+            if (mInput) mInput.value = '';
+            if (dInput) dInput.value = '';
+            if (bInput) bInput.value = '0';
+            populateGroupCheckboxes('usr-groups-container', []);
             document.getElementById('user-modal').classList.remove('hidden');
         }
         function closeUserModal() { document.getElementById('user-modal').classList.add('hidden'); }
@@ -5810,6 +5907,7 @@
             const mobile = (document.getElementById('usr-mobile-input') ? document.getElementById('usr-mobile-input').value.trim() : '');
             const department = document.getElementById('usr-dept-input').value.trim();
             const bwId = parseInt(document.getElementById('usr-bw-profile-input') ? document.getElementById('usr-bw-profile-input').value : 0) || 0;
+            const checkedGroups = Array.from(document.querySelectorAll("input[name='usr-groups-container-chk']:checked")).map(cb => cb.value);
 
             if (!username || !password) return alert('Username and password are required.');
 
@@ -5825,7 +5923,8 @@
                         email: email,
                         mobile: mobile,
                         department: department,
-                        bandwidth_profile_id: bwId
+                        bandwidth_profile_id: bwId,
+                        groups: checkedGroups
                     })
                 });
                 const data = await res.json();
@@ -5857,6 +5956,8 @@
             document.getElementById('edit-usr-bandwidth-profile').value = u.bandwidth_profile_id || 0;
             document.getElementById('edit-usr-pass').value = '';
 
+            populateGroupCheckboxes('edit-usr-groups-container', u.groups || []);
+
             document.getElementById('edit-user-modal').classList.remove('hidden');
         }
 
@@ -5877,6 +5978,7 @@
             const upn = document.getElementById('edit-usr-upn').value.trim();
             const bwId = parseInt(document.getElementById('edit-usr-bandwidth-profile').value) || 0;
             const passVal = document.getElementById('edit-usr-pass').value;
+            const checkedGroups = Array.from(document.querySelectorAll("input[name='edit-usr-groups-container-chk']:checked")).map(cb => cb.value);
 
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
@@ -5894,7 +5996,8 @@
                         user_principal_name: upn,
                         bandwidth_profile_id: bwId,
                         is_disabled: statusVal === 'disabled',
-                        new_password: passVal ? passVal : null
+                        new_password: passVal ? passVal : null,
+                        groups: checkedGroups
                     })
                 });
                 const data = await res.json();
