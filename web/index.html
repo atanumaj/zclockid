@@ -87,6 +87,10 @@
                 <button onclick="showTab('snmp')" id="nav-snmp" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-satellite-dish w-4 text-cyan-400"></i> SNMP & Telemetry
                 </button>
+                <button onclick="showTab('update')" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-arrows-rotate w-4 text-violet-400"></i> Software Updates
+                    <span id="nav-update-badge" class="hidden ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-violet-600 text-white animate-pulse">UPDATE</span>
+                </button>
             </nav>
 
             <div class="pt-4 border-t border-slate-800 space-y-2 text-[11px] text-slate-500 font-mono">
@@ -98,8 +102,11 @@
                     <span>UPTIME:</span>
                     <span id="appliance-uptime" class="text-slate-400">0h 0m</span>
                 </div>
-                <div class="pt-2 text-center">
-                    <span class="text-[10px] text-slate-600 block">ZclockID Appliance v1.1.0-LTS</span>
+                <div class="pt-2 text-center cursor-pointer group" onclick="showTab('update')">
+                    <span class="text-[10px] text-slate-500 group-hover:text-violet-400 transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-[8px]" id="appliance-version-dot"></i>
+                        <span id="appliance-version-label">ZclockID v1.0.0</span>
+                    </span>
                 </div>
             </div>
         </aside>
@@ -137,6 +144,31 @@
                         <div class="w-full bg-slate-800 rounded-full h-2">
                             <div id="bar-disk" class="bg-cyan-600 h-2 rounded-full transition-all duration-500" style="width: 10%"></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Software Updates & Release Banner -->
+                <div class="bg-gradient-to-r from-slate-900 via-indigo-950/20 to-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-10 w-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 text-lg shrink-0">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-white">Appliance Version & Updates</span>
+                                <span id="dash-version-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-950/80 text-violet-300 border border-violet-800/50">v1.0.0</span>
+                                <span id="dash-update-available-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">UPDATE AVAILABLE</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5" id="dash-update-summary">Automated Debian package updates with persistent configurations & state</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="checkForSystemUpdates()" id="btn-dash-check-updates" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400"></i> Check Updates
+                        </button>
+                        <button onclick="showTab('update')" class="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-violet-600/30">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> Update Center
+                        </button>
                     </div>
                 </div>
 
@@ -1859,6 +1891,248 @@
                     </div>
                 </div>
             </section>
+
+            <!-- ==================== TAB 13: SOFTWARE UPDATES ==================== -->
+            <section id="tab-update" class="space-y-6 hidden">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-xl p-5">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-arrows-rotate text-violet-400"></i> Software Update & Release Management
+                            </h2>
+                            <span id="update-current-ver-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-950 text-violet-300 border border-violet-800">v1.0.0</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Non-disruptive, atomic Debian package upgrades. Preserves all Samba SAM databases, sysvol directories, and SSL certificates.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="loadUpdateInfo()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                        <button onclick="checkForSystemUpdates()" id="btn-check-updates-top" class="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-violet-600/30">
+                            <i class="fa-solid fa-magnifying-glass"></i> Check for Updates
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Updates Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Column 1: System Environment & Channel Settings -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-server text-indigo-400"></i> Appliance Runtime & Release Channel
+                            </h3>
+                            <span class="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> ACTIVE RUNTIME
+                            </span>
+                        </div>
+
+                        <!-- System Specs Table -->
+                        <div class="space-y-2 text-xs font-mono">
+                            <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                <span class="text-slate-400">Installed Version:</span>
+                                <span id="info-current-version" class="text-violet-300 font-bold">1.0.0</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                <span class="text-slate-400">Package Architecture:</span>
+                                <span id="info-system-arch" class="text-slate-200">all (x86_64 / arm64)</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                <span class="text-slate-400">Python Runtime:</span>
+                                <span id="info-python-ver" class="text-slate-200">Python 3.12</span>
+                            </div>
+                            <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                <span class="text-slate-400">Detached Updater Daemon:</span>
+                                <span id="info-updater-status" class="text-emerald-400 font-semibold">Ready (/opt/zclockid/scripts/zclock-updater.sh)</span>
+                            </div>
+                            <div class="flex justify-between py-1">
+                                <span class="text-slate-400">Last Checked:</span>
+                                <span id="info-last-checked" class="text-slate-300">Never</span>
+                            </div>
+                        </div>
+
+                        <!-- Channel Settings Form -->
+                        <div class="pt-3 border-t border-slate-800 space-y-3">
+                            <h4 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                                <i class="fa-solid fa-sliders text-indigo-400"></i> Update Channel Configuration
+                            </h4>
+                            <div>
+                                <label class="text-[11px] text-slate-400 block mb-1">GitHub Releases Repository</label>
+                                <input type="text" id="update-github-repo" value="atanude/Inet-ZclockID" placeholder="owner/repo" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:border-violet-500 focus:outline-none">
+                                <span class="text-[10px] text-slate-500 mt-0.5 block">Official repository releases for automated upstream updates</span>
+                            </div>
+                            <div>
+                                <label class="text-[11px] text-slate-400 block mb-1">Custom Manifest URL (Optional)</label>
+                                <input type="text" id="update-custom-manifest" placeholder="https://internal-mirror.local/zclockid-manifest.json" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:border-violet-500 focus:outline-none">
+                                <span class="text-[10px] text-slate-500 mt-0.5 block">Overrides GitHub for private DC mirrors or air-gapped repositories</span>
+                            </div>
+                            <div class="flex items-center gap-2 pt-1">
+                                <input type="checkbox" id="update-auto-check" checked class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
+                                <label for="update-auto-check" class="text-xs text-slate-300 cursor-pointer">Automatically check for updates on startup</label>
+                            </div>
+                            <div class="pt-2">
+                                <button onclick="saveUpdateSettings()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition border border-slate-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-floppy-disk text-violet-400"></i> Save Channel Settings
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Remote Release Status & Actions -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-cloud-arrow-down text-violet-400"></i> Remote Release Status
+                                </h3>
+                                <span id="remote-check-status-pill" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">READY</span>
+                            </div>
+
+                            <!-- Dynamic Release Card -->
+                            <div id="release-result-card" class="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
+                                <div class="flex items-center gap-3 text-slate-400">
+                                    <i class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
+                                    <div class="text-xs">
+                                        <div class="font-semibold text-slate-200">No Check Performed Yet</div>
+                                        <div class="text-[11px] text-slate-400">Click "Check for Updates" above to query the configured release channel.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Expandable Release Notes / Changelog -->
+                            <div id="release-notes-container" class="hidden space-y-2">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-file-lines text-violet-400"></i> Release Notes & Changelog
+                                    </span>
+                                    <span id="release-date-badge" class="text-[10px] font-mono text-slate-400"></span>
+                                </div>
+                                <div id="release-notes-body" class="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 font-mono max-h-48 overflow-y-auto custom-scroll whitespace-pre-wrap"></div>
+                            </div>
+                        </div>
+
+                        <!-- One-Click Install Action Card -->
+                        <div id="update-action-container" class="hidden pt-4 border-t border-slate-800 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-400">Target Package: <span id="target-pkg-name" class="font-mono text-white font-semibold"></span></span>
+                                <span class="text-xs text-slate-400">Size: <span id="target-pkg-size" class="font-mono text-emerald-400">~85 KB</span></span>
+                            </div>
+                            <button onclick="confirmAndRunUpdate()" id="btn-run-update-now" class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20">
+                                <i class="fa-solid fa-bolt"></i> Install & Apply Update Now
+                            </button>
+                            <p class="text-[10px] text-slate-500 text-center">Appliance management API will briefly restart (3-5s). Samba AD DC service and directory replication remain uninterrupted.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Manual Package Upload (.deb) for Air-Gapped Environments -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div>
+                            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-file-arrow-up text-cyan-400"></i> Offline / Manual Package Upload (.deb)
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Upload a thin ZclockID Debian package directly through the browser for offline environments or private custom builds.</p>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">AIR-GAP READY</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-2">
+                            <div id="dropzone-update" onclick="document.getElementById('file-upload-deb').click()" class="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-xl p-6 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition flex flex-col items-center justify-center space-y-2">
+                                <input type="file" id="file-upload-deb" accept=".deb" class="hidden" onchange="handleDebFileSelected(event)">
+                                <div class="h-10 w-10 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-lg">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                </div>
+                                <div class="text-xs text-slate-300 font-semibold" id="upload-label-main">Click to select or drag and drop ZclockID .deb package</div>
+                                <div class="text-[10px] text-slate-500" id="upload-label-sub">Supported format: zclockid_*.deb (Debian / Ubuntu archive)</div>
+                            </div>
+                        </div>
+
+                        <!-- Upload Staging & Install Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
+                            <div class="space-y-2">
+                                <div class="text-xs font-semibold text-white flex items-center justify-between">
+                                    <span>Selected File</span>
+                                    <span id="staged-file-status" class="text-[10px] font-mono text-slate-500">NO FILE</span>
+                                </div>
+                                <div class="text-xs font-mono text-slate-300 truncate" id="staged-file-name">None</div>
+                                <div class="text-[11px] font-mono text-slate-400 flex justify-between">
+                                    <span>File Size:</span>
+                                    <span id="staged-file-size" class="text-white">-</span>
+                                </div>
+                                <div class="flex items-center gap-2 pt-1">
+                                    <input type="checkbox" id="upload-auto-install" checked class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
+                                    <label for="upload-auto-install" class="text-xs text-slate-300 cursor-pointer">Install immediately after upload</label>
+                                </div>
+                            </div>
+
+                            <button onclick="submitDebUpload()" id="btn-submit-deb" disabled class="w-full py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-not-allowed">
+                                <i class="fa-solid fa-upload"></i> Upload & Install Package
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Live Update Progress Console & Terminal -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-terminal text-emerald-400"></i> Update Engine Console & Live Logs
+                            </h3>
+                            <span id="update-terminal-status-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">IDLE</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="fetchUpdateLog()" class="px-2.5 py-1 text-slate-400 hover:text-white text-xs transition flex items-center gap-1">
+                                <i class="fa-solid fa-arrows-rotate"></i> Refresh Log
+                            </button>
+                            <button onclick="copyUpdateLog()" class="px-2.5 py-1 text-slate-400 hover:text-white text-xs transition flex items-center gap-1">
+                                <i class="fa-solid fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Visual Step Progress Tracker -->
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center text-xs font-mono">
+                        <div id="step-stage" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 1</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">Package Staged</div>
+                        </div>
+                        <div id="step-verify" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 2</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">Verify Integrity</div>
+                        </div>
+                        <div id="step-unpack" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 3</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">dpkg & postinst</div>
+                        </div>
+                        <div id="step-restart" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 4</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">Service Reload</div>
+                        </div>
+                        <div id="step-healthy" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 5</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">System Online</div>
+                        </div>
+                    </div>
+
+                    <!-- Live Terminal Output -->
+                    <div class="relative bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-2 bg-slate-900/80 border-b border-slate-800 text-[11px] font-mono text-slate-400">
+                            <div class="flex items-center gap-2">
+                                <span class="h-2.5 w-2.5 rounded-full bg-rose-500/80 inline-block"></span>
+                                <span class="h-2.5 w-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+                                <span class="h-2.5 w-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+                                <span class="ml-2 text-slate-300">/var/log/zclock-update.log</span>
+                            </div>
+                            <span id="update-terminal-line-count">0 lines</span>
+                        </div>
+                        <pre id="update-terminal-pre" class="p-4 font-mono text-xs text-emerald-400 leading-relaxed max-h-72 overflow-y-auto custom-scroll whitespace-pre-wrap select-all">Appliance updater is idle. Ready for update checks or package installation.</pre>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -2777,7 +3051,7 @@
 
         // Tab Navigation
         function showTab(tabId) {
-            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp'];
+            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update'];
             tabs.forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const nav = document.getElementById(`nav-${t}`);
@@ -2808,6 +3082,7 @@
             else if (tabId === 'reports') { fetchAuditEvents(); }
             else if (tabId === 'backup') { fetchBackups(); }
             else if (tabId === 'snmp') { fetchSnmpStatus(); fetchSnmpConfig(); }
+            else if (tabId === 'update') { loadUpdateInfo(); }
         }
 
         // Sub-tabs in RADIUS
@@ -2854,6 +3129,17 @@
                 const upH = Math.floor(data.uptime_seconds / 3600);
                 const upM = Math.floor((data.uptime_seconds % 3600) / 60);
                 document.getElementById('appliance-uptime').innerText = `${upH}h ${upM}m`;
+
+                if (data.version) {
+                    const vPill = document.getElementById('dash-version-badge');
+                    const vApp = document.getElementById('appliance-version-label');
+                    const vCur = document.getElementById('update-current-ver-badge');
+                    const vInf = document.getElementById('info-current-version');
+                    if (vPill) vPill.innerText = `v${data.version}`;
+                    if (vApp) vApp.innerText = `ZclockID v${data.version}`;
+                    if (vCur) vCur.innerText = `v${data.version}`;
+                    if (vInf) vInf.innerText = data.version;
+                }
 
                 // Services Badges & PIDs
                 if (data.services) {
@@ -5186,6 +5472,577 @@
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-check"></i> Update UPN`;
             }
+        }
+
+        // ==================== SOFTWARE UPDATES & UPGRADE SUBSYSTEM ====================
+        let stagedDebFile = null;
+        let updatePollInterval = null;
+        let cachedLatestRelease = null;
+
+        async function loadUpdateInfo() {
+            try {
+                const res = await fetch(`${API_BASE}/system/update/info`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                // Current system version & arch
+                document.getElementById('info-current-version').innerText = data.current_version || '1.0.0';
+                document.getElementById('update-current-ver-badge').innerText = `v${data.current_version || '1.0.0'}`;
+                document.getElementById('dash-version-badge').innerText = `v${data.current_version || '1.0.0'}`;
+                document.getElementById('appliance-version-label').innerText = `ZclockID v${data.current_version || '1.0.0'}`;
+                document.getElementById('info-system-arch').innerText = `${data.system_arch || 'amd64'} (${data.platform_system || 'Linux'})`;
+                document.getElementById('info-python-ver').innerText = `Python ${data.python_version || '3.12'}`;
+
+                // Channel settings
+                if (data.settings) {
+                    if (data.settings.github_repo) {
+                        document.getElementById('update-github-repo').value = data.settings.github_repo;
+                    }
+                    if (data.settings.custom_manifest_url !== undefined) {
+                        document.getElementById('update-custom-manifest').value = data.settings.custom_manifest_url;
+                    }
+                    if (data.settings.auto_check !== undefined) {
+                        document.getElementById('update-auto-check').checked = !!data.settings.auto_check;
+                    }
+                    if (data.settings.last_checked && data.settings.last_checked > 0) {
+                        const d = new Date(data.settings.last_checked * 1000);
+                        document.getElementById('info-last-checked').innerText = d.toLocaleString();
+                    }
+
+                    // If cached release is newer
+                    if (data.update_available && data.settings.latest_version) {
+                        displayUpdateAvailable({
+                            latest_version: data.settings.latest_version,
+                            release_name: data.settings.latest_release_name,
+                            release_notes: data.settings.latest_release_notes,
+                            download_url: data.settings.latest_download_url
+                        });
+                    }
+                }
+
+                // If update is currently running, monitor it
+                if (data.is_running) {
+                    setUpdateTerminalStatus('UPDATING');
+                    startUpdateWatchdog();
+                }
+
+                fetchUpdateLog();
+            } catch (err) {
+                console.error("Error loading update info:", err);
+            }
+        }
+
+        async function saveUpdateSettings() {
+            const repo = document.getElementById('update-github-repo').value.trim();
+            const manifest = document.getElementById('update-custom-manifest').value.trim();
+            const autoCheck = document.getElementById('update-auto-check').checked;
+
+            try {
+                const res = await fetch(`${API_BASE}/system/update/settings`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        github_repo: repo,
+                        custom_manifest_url: manifest,
+                        auto_check: autoCheck
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Update channel configuration saved successfully.');
+                } else {
+                    alert(`Failed to save settings: ${data.detail || 'Unknown error'}`);
+                }
+            } catch (err) {
+                alert(`Error saving update settings: ${err}`);
+            }
+        }
+
+        async function checkForSystemUpdates() {
+            const btn = document.getElementById('btn-check-updates-top');
+            const dashBtn = document.getElementById('btn-dash-check-updates');
+            const statusPill = document.getElementById('remote-check-status-pill');
+            const resultCard = document.getElementById('release-result-card');
+
+            if (btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Checking...`;
+            if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Checking...`;
+            if (statusPill) {
+                statusPill.innerText = 'CHECKING...';
+                statusPill.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-violet-950 text-violet-300 border border-violet-800 animate-pulse';
+            }
+
+            if (resultCard) {
+                resultCard.innerHTML = `
+                    <div class="flex items-center gap-3 text-slate-300">
+                        <i class="fa-solid fa-circle-notch fa-spin text-violet-400 text-lg"></i>
+                        <div class="text-xs">
+                            <div class="font-semibold text-white">Contacting Release Channel...</div>
+                            <div class="text-[11px] text-slate-400">Querying upstream repository for latest tagged releases and packages.</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            try {
+                const repo = document.getElementById('update-github-repo') ? document.getElementById('update-github-repo').value.trim() : 'atanude/Inet-ZclockID';
+                const manifest = document.getElementById('update-custom-manifest') ? document.getElementById('update-custom-manifest').value.trim() : '';
+
+                const res = await fetch(`${API_BASE}/system/update/check`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        github_repo: repo,
+                        custom_manifest_url: manifest
+                    })
+                });
+                const data = await res.json();
+
+                if (data.update_available) {
+                    if (statusPill) {
+                        statusPill.innerText = 'UPDATE FOUND';
+                        statusPill.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950 text-amber-300 border border-amber-800 font-bold';
+                    }
+                    displayUpdateAvailable(data);
+                } else if (data.status === 'success') {
+                    if (statusPill) {
+                        statusPill.innerText = 'UP TO DATE';
+                        statusPill.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800';
+                    }
+                    displayUpToDate(data);
+                } else if (data.status === 'no_releases') {
+                    if (statusPill) {
+                        statusPill.innerText = 'NO RELEASES';
+                        statusPill.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400';
+                    }
+                    displayNoReleases(data);
+                } else {
+                    if (statusPill) {
+                        statusPill.innerText = 'OFFLINE / NOTICE';
+                        statusPill.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950 text-amber-400 border border-amber-800';
+                    }
+                    displayOfflineNotice(data);
+                }
+
+                const lastCheckedEl = document.getElementById('info-last-checked');
+                if (lastCheckedEl) lastCheckedEl.innerText = new Date().toLocaleString();
+            } catch (err) {
+                if (statusPill) {
+                    statusPill.innerText = 'CHECK FAILED';
+                    statusPill.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950 text-rose-400 border border-rose-800';
+                }
+                if (resultCard) {
+                    resultCard.innerHTML = `
+                        <div class="flex items-center gap-3 text-rose-300">
+                            <i class="fa-solid fa-triangle-exclamation text-rose-400 text-lg"></i>
+                            <div class="text-xs">
+                                <div class="font-semibold text-rose-200">Update Check Error</div>
+                                <div class="text-[11px] text-slate-400">${err}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } finally {
+                if (btn) btn.innerHTML = `<i class="fa-solid fa-magnifying-glass"></i> Check for Updates`;
+                if (dashBtn) dashBtn.innerHTML = `<i class="fa-solid fa-magnifying-glass text-slate-400"></i> Check Updates`;
+            }
+        }
+
+        function displayUpdateAvailable(data) {
+            cachedLatestRelease = data;
+            const resultCard = document.getElementById('release-result-card');
+            const notesContainer = document.getElementById('release-notes-container');
+            const notesBody = document.getElementById('release-notes-body');
+            const actionContainer = document.getElementById('update-action-container');
+            const targetPkgName = document.getElementById('target-pkg-name');
+            const targetPkgSize = document.getElementById('target-pkg-size');
+            const navBadge = document.getElementById('nav-update-badge');
+            const dashBadge = document.getElementById('dash-update-available-badge');
+            const dashSummary = document.getElementById('dash-update-summary');
+
+            if (navBadge) navBadge.classList.remove('hidden');
+            if (dashBadge) dashBadge.classList.remove('hidden');
+            if (dashSummary) dashSummary.innerText = `New version v${data.latest_version} is available for installation!`;
+
+            if (resultCard) {
+                resultCard.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="h-9 w-9 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 text-base shrink-0 mt-0.5">
+                                <i class="fa-solid fa-rocket"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-white text-sm">New Release Available!</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-600 text-white font-bold">v${data.latest_version}</span>
+                                </div>
+                                <div class="text-xs text-slate-300 mt-1">${data.release_name || `ZclockID v${data.latest_version}`}</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Published: ${data.published_at ? new Date(data.published_at).toLocaleDateString() : 'Recent'}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (data.release_notes && notesContainer && notesBody) {
+                notesContainer.classList.remove('hidden');
+                notesBody.innerText = data.release_notes;
+                if (data.published_at) {
+                    const dt = document.getElementById('release-date-badge');
+                    if (dt) dt.innerText = new Date(data.published_at).toLocaleString();
+                }
+            }
+
+            if (actionContainer) actionContainer.classList.remove('hidden');
+            if (targetPkgName) targetPkgName.innerText = `zclockid_${data.latest_version}_all.deb`;
+            if (targetPkgSize && data.asset_size) {
+                const kb = Math.round(data.asset_size / 1024);
+                targetPkgSize.innerText = `${kb} KB`;
+            }
+        }
+
+        function displayUpToDate(data) {
+            const resultCard = document.getElementById('release-result-card');
+            const notesContainer = document.getElementById('release-notes-container');
+            const actionContainer = document.getElementById('update-action-container');
+            const navBadge = document.getElementById('nav-update-badge');
+            const dashBadge = document.getElementById('dash-update-available-badge');
+
+            if (navBadge) navBadge.classList.add('hidden');
+            if (dashBadge) dashBadge.classList.add('hidden');
+            if (notesContainer) notesContainer.classList.add('hidden');
+            if (actionContainer) actionContainer.classList.add('hidden');
+
+            if (resultCard) {
+                resultCard.innerHTML = `
+                    <div class="flex items-center gap-3 text-emerald-400">
+                        <div class="h-9 w-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-base shrink-0">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="text-xs">
+                            <div class="font-bold text-white">Appliance is Up to Date</div>
+                            <div class="text-[11px] text-slate-400">Current version <span class="font-mono text-emerald-400 font-semibold">v${data.current_version}</span> is the latest release published on this channel.</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function displayNoReleases(data) {
+            const resultCard = document.getElementById('release-result-card');
+            const notesContainer = document.getElementById('release-notes-container');
+            const actionContainer = document.getElementById('update-action-container');
+
+            if (notesContainer) notesContainer.classList.add('hidden');
+            if (actionContainer) actionContainer.classList.add('hidden');
+
+            if (resultCard) {
+                resultCard.innerHTML = `
+                    <div class="flex items-center gap-3 text-slate-400">
+                        <i class="fa-solid fa-box-open text-slate-500 text-xl shrink-0"></i>
+                        <div class="text-xs">
+                            <div class="font-semibold text-slate-200">No Releases Published Yet</div>
+                            <div class="text-[11px] text-slate-400">${data.message || 'The specified GitHub repository has no release assets tagged yet.'}</div>
+                            <div class="text-[10px] text-cyan-400 mt-1"><i class="fa-solid fa-arrow-down"></i> You can upload a .deb package directly using the manual upload form below.</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function displayOfflineNotice(data) {
+            const resultCard = document.getElementById('release-result-card');
+            const notesContainer = document.getElementById('release-notes-container');
+            const actionContainer = document.getElementById('update-action-container');
+
+            if (notesContainer) notesContainer.classList.add('hidden');
+            if (actionContainer) actionContainer.classList.add('hidden');
+
+            if (resultCard) {
+                resultCard.innerHTML = `
+                    <div class="flex items-center gap-3 text-amber-400">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-400 text-xl shrink-0"></i>
+                        <div class="text-xs">
+                            <div class="font-semibold text-slate-200">Update Channel Notice</div>
+                            <div class="text-[11px] text-slate-400">${data.message || 'Could not connect to release server.'}</div>
+                            <div class="text-[10px] text-cyan-400 mt-1">Appliance is ready for offline updates via direct .deb file upload below.</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function confirmAndRunUpdate() {
+            if (!cachedLatestRelease) return;
+            const targetVer = cachedLatestRelease.latest_version;
+            const confirmed = confirm(`Are you sure you want to upgrade ZclockID to v${targetVer}?\n\n- The API process will reload in the background.\n- Active Directory Samba services will remain uninterrupted.\n- All database records and configs will be preserved.`);
+            if (!confirmed) return;
+
+            const btn = document.getElementById('btn-run-update-now');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Initializing Update...`;
+            }
+
+            setUpdateStep(1, 'active');
+            setUpdateTerminalStatus('UPDATING');
+
+            try {
+                const res = await fetch(`${API_BASE}/system/update/install`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        download_url: cachedLatestRelease.download_url
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    appendTerminalLog(`[ZclockID Console] Background update runner initiated for v${targetVer}.`);
+                    startUpdateWatchdog(targetVer);
+                } else {
+                    alert(`Failed to start update: ${data.detail || 'Unknown error'}`);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Install & Apply Update Now`;
+                    }
+                }
+            } catch (err) {
+                // If fetch failed due to API restart, watchdog handles it
+                appendTerminalLog(`[ZclockID Console] Update command sent. Monitoring API reconnect...`);
+                startUpdateWatchdog(targetVer);
+            }
+        }
+
+        function handleDebFileSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.endsWith('.deb')) {
+                alert('Please select a valid Debian package archive (.deb)');
+                event.target.value = '';
+                return;
+            }
+
+            stagedDebFile = file;
+            document.getElementById('staged-file-name').innerText = file.name;
+            document.getElementById('staged-file-size').innerText = `${Math.round(file.size / 1024)} KB`;
+            document.getElementById('staged-file-status').innerText = 'READY TO UPLOAD';
+            document.getElementById('staged-file-status').className = 'text-[10px] font-mono text-emerald-400 font-bold';
+
+            const btn = document.getElementById('btn-submit-deb');
+            btn.disabled = false;
+            btn.className = 'w-full py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-violet-600/20';
+
+            document.getElementById('upload-label-main').innerText = `Selected: ${file.name}`;
+            document.getElementById('upload-label-sub').innerText = `Size: ${Math.round(file.size / 1024)} KB - Click 'Upload & Install Package' to proceed`;
+        }
+
+        async function submitDebUpload() {
+            if (!stagedDebFile) {
+                alert('Please select a .deb file first.');
+                return;
+            }
+
+            const autoInstall = document.getElementById('upload-auto-install').checked;
+            const btn = document.getElementById('btn-submit-deb');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Package...`;
+
+            setUpdateStep(1, 'active');
+            setUpdateTerminalStatus('UPLOADING');
+            appendTerminalLog(`[ZclockID Console] Uploading package file: ${stagedDebFile.name} (${Math.round(stagedDebFile.size / 1024)} KB)...`);
+
+            const formData = new FormData();
+            formData.append('package', stagedDebFile);
+            formData.append('auto_install', autoInstall ? 'true' : 'false');
+
+            try {
+                const res = await fetch(`${API_BASE}/system/update/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    appendTerminalLog(`[ZclockID Console] Package uploaded and verified: ${data.package} v${data.version} (${data.arch})`);
+                    setUpdateStep(2, 'success');
+
+                    if (autoInstall) {
+                        setUpdateStep(3, 'active');
+                        setUpdateTerminalStatus('UPDATING');
+                        appendTerminalLog(`[ZclockID Console] Background updater runner active. Installing v${data.version}...`);
+                        startUpdateWatchdog(data.version);
+                    } else {
+                        alert(`Package v${data.version} uploaded successfully and verified!`);
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-check"></i> Package Staged`;
+                    }
+                } else {
+                    alert(`Package validation failed: ${data.detail || 'Unknown error'}`);
+                    setUpdateStep(2, 'error');
+                    setUpdateTerminalStatus('ERROR');
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-upload"></i> Upload & Install Package`;
+                }
+            } catch (err) {
+                if (autoInstall) {
+                    // API might have immediately restarted
+                    appendTerminalLog(`[ZclockID Console] API connection dropped for service restart. Monitoring reconnection...`);
+                    startUpdateWatchdog();
+                } else {
+                    alert(`Upload error: ${err}`);
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-upload"></i> Upload & Install Package`;
+                }
+            }
+        }
+
+        function setUpdateStep(stepNum, status) {
+            const stepIds = ['step-stage', 'step-verify', 'step-unpack', 'step-restart', 'step-healthy'];
+            stepIds.forEach((id, idx) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const n = idx + 1;
+                if (n < stepNum) {
+                    el.className = 'p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-800 text-emerald-400 font-bold transition';
+                } else if (n === stepNum) {
+                    if (status === 'active') {
+                        el.className = 'p-2.5 rounded-lg bg-violet-950/80 border border-violet-500 text-violet-300 font-bold animate-pulse transition';
+                    } else if (status === 'success') {
+                        el.className = 'p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-800 text-emerald-400 font-bold transition';
+                    } else if (status === 'error') {
+                        el.className = 'p-2.5 rounded-lg bg-rose-950/60 border border-rose-800 text-rose-400 font-bold transition';
+                    }
+                } else {
+                    el.className = 'p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition';
+                }
+            });
+        }
+
+        function setUpdateTerminalStatus(statusText) {
+            const badge = document.getElementById('update-terminal-status-badge');
+            if (!badge) return;
+            badge.innerText = statusText;
+            if (statusText === 'UPDATING' || statusText === 'RESTARTING API' || statusText === 'UPLOADING') {
+                badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-violet-950 text-violet-300 border border-violet-800 font-bold animate-pulse';
+            } else if (statusText === 'COMPLETE' || statusText === 'HEALTHY') {
+                badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold';
+            } else if (statusText === 'ERROR') {
+                badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950 text-rose-400 border border-rose-800 font-bold';
+            } else {
+                badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400';
+            }
+        }
+
+        function appendTerminalLog(msg) {
+            const pre = document.getElementById('update-terminal-pre');
+            if (!pre) return;
+            const ts = new Date().toLocaleTimeString();
+            pre.innerText += `\n[${ts}] ${msg}`;
+            pre.scrollTop = pre.scrollHeight;
+        }
+
+        async function fetchUpdateLog() {
+            try {
+                const res = await fetch(`${API_BASE}/system/update/log`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.log) {
+                    const pre = document.getElementById('update-terminal-pre');
+                    pre.innerText = data.log;
+                    pre.scrollTop = pre.scrollHeight;
+                    const lines = data.log.split('\n').filter(l => l.trim().length > 0);
+                    const lineCountEl = document.getElementById('update-terminal-line-count');
+                    if (lineCountEl) lineCountEl.innerText = `${lines.length} lines`;
+
+                    // Check progress clues in log
+                    if (data.log.includes('Beginning dpkg') || data.log.includes('Unpacking')) {
+                        setUpdateStep(3, 'active');
+                    }
+                    if (data.log.includes('Restarting zclock-api')) {
+                        setUpdateStep(4, 'active');
+                        setUpdateTerminalStatus('RESTARTING API');
+                    }
+                    if (data.log.includes('completed successfully!') || data.log.includes('SUCCESS: zclock-api')) {
+                        setUpdateStep(5, 'success');
+                        setUpdateTerminalStatus('COMPLETE');
+                    }
+                }
+            } catch (err) {
+                console.warn("Could not fetch log (service might be restarting):", err);
+            }
+        }
+
+        function startUpdateWatchdog(targetVer) {
+            if (updatePollInterval) clearInterval(updatePollInterval);
+            let attempts = 0;
+            const maxAttempts = 30; // 60 seconds total
+
+            setUpdateTerminalStatus('UPDATING');
+            setUpdateStep(3, 'active');
+
+            updatePollInterval = setInterval(async () => {
+                attempts++;
+                fetchUpdateLog();
+
+                try {
+                    const res = await fetch(`${API_BASE}/system/status`, { cache: 'no-cache' });
+                    if (res.ok) {
+                        const sys = await res.json();
+                        setUpdateStep(4, 'success');
+                        setUpdateStep(5, 'success');
+                        setUpdateTerminalStatus('COMPLETE');
+                        clearInterval(updatePollInterval);
+                        updatePollInterval = null;
+
+                        appendTerminalLog(`\n🎉 UPDATE COMPLETE! ZclockID is now running version ${sys.version || targetVer || ''}`);
+                        appendTerminalLog(`System health: ${sys.overall_health}. All Active Directory engines online.`);
+
+                        // Refresh all version badges on page
+                        if (sys.version) {
+                            const inf = document.getElementById('info-current-version');
+                            const upd = document.getElementById('update-current-ver-badge');
+                            const dsh = document.getElementById('dash-version-badge');
+                            const app = document.getElementById('appliance-version-label');
+                            if (inf) inf.innerText = sys.version;
+                            if (upd) upd.innerText = `v${sys.version}`;
+                            if (dsh) dsh.innerText = `v${sys.version}`;
+                            if (app) app.innerText = `ZclockID v${sys.version}`;
+                        }
+
+                        // Hide update badges
+                        const navBadge = document.getElementById('nav-update-badge');
+                        const dashBadge = document.getElementById('dash-update-available-badge');
+                        const dashSummary = document.getElementById('dash-update-summary');
+                        if (navBadge) navBadge.classList.add('hidden');
+                        if (dashBadge) dashBadge.classList.add('hidden');
+                        if (dashSummary) dashSummary.innerText = `System updated successfully to v${sys.version || targetVer}!`;
+
+                        displayUpToDate({ current_version: sys.version || targetVer });
+                    }
+                } catch (e) {
+                    // Service is restarting
+                    setUpdateTerminalStatus('RESTARTING API');
+                    setUpdateStep(4, 'active');
+                    appendTerminalLog(`Reconnecting to ZclockID management API... (attempt ${attempts}/${maxAttempts})`);
+                }
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(updatePollInterval);
+                    updatePollInterval = null;
+                    setUpdateTerminalStatus('TIMEOUT');
+                    appendTerminalLog(`Watchdog reached maximum wait time. Please refresh the page manually.`);
+                }
+            }, 2000);
+        }
+
+        function copyUpdateLog() {
+            const pre = document.getElementById('update-terminal-pre');
+            if (!pre) return;
+            navigator.clipboard.writeText(pre.innerText).then(() => {
+                alert('Update log copied to clipboard.');
+            }).catch(() => {
+                alert('Could not copy log automatically.');
+            });
         }
 
         function logout() {

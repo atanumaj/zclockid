@@ -20,6 +20,7 @@ from typing import List, Optional, Dict, Any
 from pathlib import Path
 import subprocess
 import os
+import platform
 import time
 import datetime
 import logging
@@ -228,12 +229,117 @@ def init_db():
     """)
     cursor.execute("INSERT OR IGNORE INTO radius_settings (id, auth_port, acct_port, acct_enabled, interim_interval, updated_at) VALUES (1, 1812, 1813, 1, 300, ?)", (time.time(),))
 
+    # System Update & Release Management
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS update_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            github_repo TEXT DEFAULT 'atanude/Inet-ZclockID',
+            custom_manifest_url TEXT DEFAULT '',
+            auto_check INTEGER DEFAULT 1,
+            last_checked REAL DEFAULT 0,
+            latest_version TEXT DEFAULT '',
+            latest_release_name TEXT DEFAULT '',
+            latest_release_notes TEXT DEFAULT '',
+            latest_download_url TEXT DEFAULT '',
+            last_check_status TEXT DEFAULT 'NOT_CHECKED',
+            updated_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM update_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO update_settings (
+                id, github_repo, custom_manifest_url, auto_check, last_checked,
+                latest_version, latest_release_name, latest_release_notes,
+                latest_download_url, last_check_status, updated_at
+            ) VALUES (
+                1, 'atanude/Inet-ZclockID', '', 1, 0, '', '', '', '', 'NOT_CHECKED', ?
+            )
+        """, (time.time(),))
+
     conn.commit()
     conn.close()
 
 init_db()
 
 # ----------------- Helper Functions -----------------
+
+APPLIANCE_DEFAULT_VERSION = "1.0.0"
+
+def get_appliance_version() -> str:
+    ver_file = Path("/opt/zclockid/VERSION")
+    if ver_file.exists():
+        try:
+            v = ver_file.read_text().strip()
+            if v:
+                return v
+        except Exception:
+            pass
+    code, stdout, _ = run_cmd(["dpkg-query", "-W", "-f=${Version}", "zclockid"])
+    if code == 0 and stdout.strip():
+        return stdout.strip()
+    return APPLIANCE_DEFAULT_VERSION
+
+def parse_semver(v_str: str) -> tuple:
+    v_clean = re.sub(r'^[vV]', '', str(v_str).strip())
+    parts = []
+    for piece in v_clean.split('.'):
+        digits = re.findall(r'^\d+', piece)
+        if digits:
+            parts.append(int(digits[0]))
+        else:
+            parts.append(0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:3])
+
+def is_newer_version(candidate: str, baseline: str) -> bool:
+    try:
+        return parse_semver(candidate) > parse_semver(baseline)
+    except Exception:
+        return False
+
+def ensure_updater_script() -> str:
+    standard_path = "/opt/zclockid/scripts/zclock-updater.sh"
+    if os.path.exists(standard_path) and os.access(standard_path, os.X_OK):
+        return standard_path
+    fallback_path = "/tmp/zclock-updater.sh"
+    updater_script_content = r"""#!/usr/bin/env bash
+set -o pipefail
+LOG_FILE="/var/log/zclock-update.log"
+STATUS_FILE="/var/run/zclock-update.status"
+DEB_PACKAGE="${1:-/tmp/zclockid_update.deb}"
+echo "UPDATING" > "${STATUS_FILE}"
+echo "=== ZclockID Package Update Initiated at $(date) ===" > "${LOG_FILE}"
+if [ ! -f "${DEB_PACKAGE}" ]; then
+    echo "ERROR: Target package ${DEB_PACKAGE} not found!" >> "${LOG_FILE}"
+    echo "ERROR: Package file not found" > "${STATUS_FILE}"
+    exit 1
+fi
+PKG_INFO=$(dpkg-deb -I "${DEB_PACKAGE}" 2>&1)
+PKG_NAME=$(echo "${PKG_INFO}" | grep -E '^\s*Package:' | awk '{print $2}')
+PKG_VER=$(echo "${PKG_INFO}" | grep -E '^\s*Version:' | awk '{print $2}')
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing ${PKG_NAME} ${PKG_VER}..." >> "${LOG_FILE}"
+export DEBIAN_FRONTEND=noninteractive
+dpkg -i "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1 || apt-get install -f -y >> "${LOG_FILE}" 2>&1
+echo "${PKG_VER}" > /opt/zclockid/VERSION 2>/dev/null || true
+systemctl daemon-reload >> "${LOG_FILE}" 2>&1 || true
+systemctl restart zclock-api.service >> "${LOG_FILE}" 2>&1 || true
+sleep 3
+if systemctl is-active --quiet zclock-api.service; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Update to v${PKG_VER} completed successfully!" >> "${LOG_FILE}"
+    echo "COMPLETED: v${PKG_VER}" > "${STATUS_FILE}"
+else
+    systemctl restart zclock-api.service >> "${LOG_FILE}" 2>&1 || true
+    echo "COMPLETED: v${PKG_VER}" > "${STATUS_FILE}"
+fi
+rm -f "${DEB_PACKAGE}" 2>/dev/null || true
+exit 0
+"""
+    with open(fallback_path, "w") as f:
+        f.write(updater_script_content)
+    os.chmod(fallback_path, 0o755)
+    return fallback_path
 
 def hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
     if not salt:
@@ -905,6 +1011,7 @@ def get_system_status():
     return {
         "hostname": os.uname().nodename,
         "uptime_seconds": time.time() - psutil.boot_time(),
+        "version": get_appliance_version(),
         "services": services,
         "overall_health": health,
         "ports": ports_map,
@@ -3644,3 +3751,379 @@ def delete_registration_request(req_id: int):
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Registration record deleted."}
+
+# ----------------- Software Update & Version Management -----------------
+
+class UpdateSettingsModel(BaseModel):
+    github_repo: Optional[str] = "atanude/Inet-ZclockID"
+    custom_manifest_url: Optional[str] = ""
+    auto_check: Optional[bool] = True
+
+class UpdateCheckModel(BaseModel):
+    github_repo: Optional[str] = None
+    custom_manifest_url: Optional[str] = None
+
+class UpdateInstallModel(BaseModel):
+    download_url: Optional[str] = None
+
+def launch_update_runner(updater_script: str, deb_path: Path):
+    """Launches updater in an independent systemd transient unit so API restart doesn't abort it."""
+    code, _, _ = run_cmd(["which", "systemd-run"])
+    if code == 0:
+        subprocess.run(
+            ["systemd-run", "/bin/bash", updater_script, str(deb_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    else:
+        subprocess.Popen(
+            ["/bin/bash", updater_script, str(deb_path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True
+        )
+
+@app.get("/api/v1/system/update/info")
+def get_update_info():
+    """Returns appliance software version, update settings, and cached release information."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM update_settings WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+
+    curr_ver = get_appliance_version()
+    latest_ver = row["latest_version"] if row else ""
+    is_newer = is_newer_version(latest_ver, curr_ver) if latest_ver else False
+
+    # Check status file
+    status_file = Path("/var/run/zclock-update.status")
+    last_status = status_file.read_text().strip() if status_file.exists() else "IDLE"
+
+    # Check process running
+    code, stdout, _ = run_cmd(["pgrep", "-f", "zclock-updater.sh"])
+    is_running = (code == 0 and len(stdout.strip()) > 0)
+
+    return {
+        "current_version": curr_ver,
+        "system_arch": platform.machine(),
+        "python_version": platform.python_version(),
+        "platform_system": platform.system(),
+        "is_running": is_running,
+        "last_update_status": last_status,
+        "update_available": is_newer,
+        "settings": {
+            "github_repo": row["github_repo"] if row else "atanude/Inet-ZclockID",
+            "custom_manifest_url": row["custom_manifest_url"] if row else "",
+            "auto_check": bool(row["auto_check"]) if row else True,
+            "last_checked": row["last_checked"] if row else 0,
+            "latest_version": latest_ver,
+            "latest_release_name": row["latest_release_name"] if row else "",
+            "latest_release_notes": row["latest_release_notes"] if row else "",
+            "latest_download_url": row["latest_download_url"] if row else "",
+            "last_check_status": row["last_check_status"] if row else "NOT_CHECKED"
+        }
+    }
+
+@app.post("/api/v1/system/update/settings")
+def update_update_settings(settings: UpdateSettingsModel):
+    """Configures the remote GitHub repository or custom manifest URL for updates."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE update_settings
+        SET github_repo = ?, custom_manifest_url = ?, auto_check = ?, updated_at = ?
+        WHERE id = 1
+    """, (settings.github_repo.strip(), settings.custom_manifest_url.strip(), 1 if settings.auto_check else 0, time.time()))
+    conn.commit()
+    conn.close()
+    log_audit("UPDATE_SETTINGS_SAVED", "admin", "appliance", "SUCCESS", settings.dict())
+    return {"status": "success", "message": "Update settings saved."}
+
+@app.post("/api/v1/system/update/check")
+def check_for_updates(req: Optional[UpdateCheckModel] = None):
+    """Queries GitHub Releases API or custom manifest for newer versions of ZclockID."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM update_settings WHERE id = 1")
+    row = cursor.fetchone()
+
+    repo = (req.github_repo if req and req.github_repo else (row["github_repo"] if row else "atanude/Inet-ZclockID")).strip()
+    manifest_url = (req.custom_manifest_url if req and req.custom_manifest_url else (row["custom_manifest_url"] if row else "")).strip()
+
+    curr_ver = get_appliance_version()
+    now = time.time()
+
+    # 1. Custom Manifest URL check
+    if manifest_url:
+        try:
+            resp = requests.get(manifest_url, timeout=6, headers={"User-Agent": "ZclockID-Appliance-Updater"})
+            if resp.status_code == 200:
+                data = resp.json()
+                raw_ver = data.get("version", "")
+                clean_ver = re.sub(r'^[vV]', '', str(raw_ver).strip())
+                release_name = data.get("name", f"ZclockID v{clean_ver}")
+                release_notes = data.get("notes", "No changelog provided.")
+                download_url = data.get("download_url", "")
+                is_newer = is_newer_version(clean_ver, curr_ver)
+
+                cursor.execute("""
+                    UPDATE update_settings
+                    SET last_checked = ?, latest_version = ?, latest_release_name = ?,
+                        latest_release_notes = ?, latest_download_url = ?, last_check_status = 'CHECK_SUCCESS'
+                    WHERE id = 1
+                """, (now, clean_ver, release_name, release_notes, download_url))
+                conn.commit()
+                conn.close()
+
+                log_audit("UPDATE_CHECKED", "admin", "custom_manifest", "SUCCESS", {"remote_ver": clean_ver, "newer": is_newer})
+                return {
+                    "status": "success",
+                    "current_version": curr_ver,
+                    "latest_version": clean_ver,
+                    "update_available": is_newer,
+                    "release_name": release_name,
+                    "release_notes": release_notes,
+                    "download_url": download_url,
+                    "source": "custom_manifest"
+                }
+        except Exception as e:
+            cursor.execute("UPDATE update_settings SET last_checked = ?, last_check_status = ? WHERE id = 1", (now, f"ERROR: {str(e)[:50]}"))
+            conn.commit()
+            conn.close()
+            return {
+                "status": "error",
+                "current_version": curr_ver,
+                "update_available": False,
+                "message": f"Failed to check custom manifest: {str(e)}"
+            }
+
+    # 2. GitHub Releases API Check
+    github_url = f"https://api.github.com/repos/{repo}/releases/latest"
+    try:
+        resp = requests.get(github_url, timeout=6, headers={
+            "User-Agent": "ZclockID-Appliance-Updater",
+            "Accept": "application/vnd.github.v3+json"
+        })
+        if resp.status_code == 200:
+            data = resp.json()
+            tag = data.get("tag_name", "")
+            clean_ver = re.sub(r'^[vV]', '', tag.strip())
+            release_name = data.get("name") or f"ZclockID v{clean_ver}"
+            release_notes = data.get("body") or "No release notes provided."
+            published_at = data.get("published_at", "")
+
+            # Locate .deb asset
+            download_url = ""
+            asset_size = 0
+            for asset in data.get("assets", []):
+                if asset.get("name", "").endswith(".deb"):
+                    download_url = asset.get("browser_download_url", "")
+                    asset_size = asset.get("size", 0)
+                    break
+
+            is_newer = is_newer_version(clean_ver, curr_ver)
+
+            cursor.execute("""
+                UPDATE update_settings
+                SET last_checked = ?, latest_version = ?, latest_release_name = ?,
+                    latest_release_notes = ?, latest_download_url = ?, last_check_status = 'CHECK_SUCCESS'
+                WHERE id = 1
+            """, (now, clean_ver, release_name, release_notes, download_url))
+            conn.commit()
+            conn.close()
+
+            log_audit("UPDATE_CHECKED", "admin", repo, "SUCCESS", {"remote_ver": clean_ver, "newer": is_newer})
+            return {
+                "status": "success",
+                "current_version": curr_ver,
+                "latest_version": clean_ver,
+                "update_available": is_newer,
+                "release_name": release_name,
+                "release_notes": release_notes,
+                "download_url": download_url,
+                "asset_size": asset_size,
+                "published_at": published_at,
+                "source": "github_releases"
+            }
+        elif resp.status_code == 404:
+            cursor.execute("UPDATE update_settings SET last_checked = ?, last_check_status = 'NO_RELEASES' WHERE id = 1", (now,))
+            conn.commit()
+            conn.close()
+            return {
+                "status": "no_releases",
+                "current_version": curr_ver,
+                "update_available": False,
+                "message": f"No releases found on GitHub for repository '{repo}'. You can still upload a .deb package manually."
+            }
+        else:
+            err_msg = f"GitHub API returned HTTP {resp.status_code}"
+            cursor.execute("UPDATE update_settings SET last_checked = ?, last_check_status = ? WHERE id = 1", (now, err_msg))
+            conn.commit()
+            conn.close()
+            return {
+                "status": "warning",
+                "current_version": curr_ver,
+                "update_available": False,
+                "message": f"{err_msg}. You can update via manual .deb upload."
+            }
+    except Exception as e:
+        cursor.execute("UPDATE update_settings SET last_checked = ?, last_check_status = 'NETWORK_ERROR' WHERE id = 1", (now,))
+        conn.commit()
+        conn.close()
+        return {
+            "status": "offline",
+            "current_version": curr_ver,
+            "update_available": False,
+            "message": f"Could not reach update server ({str(e)}). Manual .deb file upload is available below."
+        }
+
+@app.post("/api/v1/system/update/upload")
+async def upload_update_package(package: UploadFile = File(...), auto_install: bool = Form(False)):
+    """Accepts manual upload of a zclockid .deb package and verifies integrity before installation."""
+    if not package.filename.endswith(".deb"):
+        raise HTTPException(status_code=400, detail="Only Debian (.deb) package archives are supported.")
+
+    dest_path = Path("/tmp/zclockid_update.deb")
+    with open(dest_path, "wb") as f:
+        shutil.copyfileobj(package.file, f)
+
+    file_size = dest_path.stat().st_size
+    if file_size < 1000:
+        dest_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Uploaded file is too small to be a valid package.")
+
+    # Validate package with dpkg-deb
+    code, stdout, stderr = run_cmd(["dpkg-deb", "-I", str(dest_path)])
+    if code != 0:
+        dest_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=f"Corrupted or invalid Debian package: {stderr}")
+
+    pkg_name = ""
+    pkg_ver = ""
+    pkg_arch = ""
+    for line in stdout.splitlines():
+        if line.strip().startswith("Package:"):
+            pkg_name = line.split(":", 1)[1].strip()
+        elif line.strip().startswith("Version:"):
+            pkg_ver = line.split(":", 1)[1].strip()
+        elif line.strip().startswith("Architecture:"):
+            pkg_arch = line.split(":", 1)[1].strip()
+
+    if pkg_name != "zclockid":
+        dest_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=f"Invalid package '{pkg_name}'. Expected 'zclockid'.")
+
+    log_audit("UPDATE_PACKAGE_UPLOADED", "admin", "appliance", "SUCCESS", {"version": pkg_ver, "size": file_size, "arch": pkg_arch})
+
+    # If auto_install requested, launch the updater runner
+    if auto_install:
+        updater_script = ensure_updater_script()
+        launch_update_runner(updater_script, dest_path)
+        return {
+            "status": "installing",
+            "package": pkg_name,
+            "version": pkg_ver,
+            "arch": pkg_arch,
+            "size_bytes": file_size,
+            "message": f"Package v{pkg_ver} uploaded and update initiated! The system will restart services in a few seconds."
+        }
+
+    return {
+        "status": "ready",
+        "package": pkg_name,
+        "version": pkg_ver,
+        "arch": pkg_arch,
+        "size_bytes": file_size,
+        "message": f"Package v{pkg_ver} ({pkg_arch}) verified and staged successfully. Click 'Install Update' to apply."
+    }
+
+@app.post("/api/v1/system/update/install")
+def install_update(req: Optional[UpdateInstallModel] = None):
+    """Downloads remote update or runs installer on already staged package in background."""
+    target_deb = Path("/tmp/zclockid_update.deb")
+
+    # If download URL provided, fetch it
+    download_url = req.download_url if req and req.download_url else None
+    if not download_url and not target_deb.exists():
+        # Check DB for latest download URL
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT latest_download_url FROM update_settings WHERE id = 1")
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0]:
+            download_url = row[0]
+
+    if download_url:
+        try:
+            logger.info(f"Downloading update from: {download_url}")
+            resp = requests.get(download_url, stream=True, timeout=30, headers={"User-Agent": "ZclockID-Appliance-Updater"})
+            if resp.status_code == 200:
+                with open(target_deb, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+            else:
+                raise HTTPException(status_code=400, detail=f"Failed to download update package: HTTP {resp.status_code}")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Download error: {str(e)}")
+
+    if not target_deb.exists():
+        raise HTTPException(status_code=400, detail="No update package staged on appliance. Please upload a .deb file or check for updates first.")
+
+    # Validate with dpkg-deb
+    code, stdout, stderr = run_cmd(["dpkg-deb", "-I", str(target_deb)])
+    if code != 0:
+        target_deb.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail=f"Invalid package file: {stderr}")
+
+    pkg_ver = "unknown"
+    for line in stdout.splitlines():
+        if line.strip().startswith("Version:"):
+            pkg_ver = line.split(":", 1)[1].strip()
+
+    updater_script = ensure_updater_script()
+
+    # Launch detached update runner
+    launch_update_runner(updater_script, target_deb)
+
+    log_audit("SYSTEM_UPDATE_STARTED", "admin", "appliance", "STARTED", {"target_version": pkg_ver})
+
+    return {
+        "status": "started",
+        "target_version": pkg_ver,
+        "message": f"Update to v{pkg_ver} initiated in background. The API will restart automatically once files are unpacked."
+    }
+
+@app.get("/api/v1/system/update/status")
+def get_update_status():
+    """Returns the live execution state of any background package updater."""
+    status_file = Path("/var/run/zclock-update.status")
+    status_text = status_file.read_text().strip() if status_file.exists() else "IDLE"
+
+    code, stdout, _ = run_cmd(["pgrep", "-f", "zclock-updater.sh"])
+    is_running = (code == 0 and len(stdout.strip()) > 0)
+
+    return {
+        "is_running": is_running,
+        "status": status_text,
+        "current_version": get_appliance_version()
+    }
+
+@app.get("/api/v1/system/update/log")
+def get_update_log():
+    """Returns the complete live update log from /var/log/zclock-update.log."""
+    log_file = Path("/var/log/zclock-update.log")
+    if not log_file.exists():
+        return {"log": "No update log found. No updates have been run yet.", "lines": []}
+    content = log_file.read_text()
+    return {
+        "log": content,
+        "lines": content.splitlines()[-100:],
+        "size": len(content)
+    }
+
