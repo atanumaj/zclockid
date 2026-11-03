@@ -61,7 +61,7 @@
                     <i class="fa-solid fa-clock w-4"></i> NTP Time Server
                 </button>
                 <button onclick="showTab('users')" id="nav-users" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-users w-4"></i> Users & Security Groups
+                    <i class="fa-solid fa-users-gear w-4"></i> Users, Groups & Computers
                 </button>
                 <button onclick="showTab('dns')" id="nav-dns" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-server w-4"></i> DNS & Kerberos SRV
@@ -855,74 +855,136 @@
                 </div>
             </section>
 
-            <!-- ==================== TAB 3: USERS & GROUPS ==================== -->
+            <!-- ==================== TAB 3: USERS, GROUPS & COMPUTERS ==================== -->
             <section id="tab-users" class="space-y-6 hidden">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-user-shield text-emerald-400"></i> Active Directory Domain Users
-                            </h3>
-                            <p class="text-xs text-slate-400">Manage individual domain user accounts, login credentials, and user-specific bandwidth profiles</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="openUserModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-user-plus"></i> New User
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th class="px-4 py-2.5">User Account & UPN</th>
-                                    <th class="px-4 py-2.5">Full Name</th>
-                                    <th class="px-4 py-2.5">Department</th>
-                                    <th class="px-4 py-2.5">Bandwidth Tier</th>
-                                    <th class="px-4 py-2.5">Account State</th>
-                                    <th class="px-4 py-2.5 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="users-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
-                            </tbody>
-                        </table>
+                <!-- Directory Subtab Navigation -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-2">
+                        <button onclick="switchDirectorySubtab('users')" id="btn-subtab-users" class="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-2 transition">
+                            <i class="fa-solid fa-user"></i> Domain Users
+                            <span id="badge-users-count" class="px-1.5 py-0.2 rounded-full bg-indigo-900/60 text-indigo-300 text-[10px] font-mono">0</span>
+                        </button>
+                        <button onclick="switchDirectorySubtab('groups')" id="btn-subtab-groups" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent flex items-center gap-2 transition">
+                            <i class="fa-solid fa-users-rectangle"></i> Security Groups
+                            <span id="badge-groups-count" class="px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono">0</span>
+                        </button>
+                        <button onclick="switchDirectorySubtab('computers')" id="btn-subtab-computers" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent flex items-center gap-2 transition">
+                            <i class="fa-solid fa-desktop"></i> Domain Computers
+                            <span id="badge-computers-count" class="px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono">0</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Active Directory Security Groups & Gateway / Bandwidth Policies -->
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-users-rectangle text-indigo-400"></i> Active Directory Security Groups & Gateway Policies
-                            </h3>
-                            <p class="text-xs text-slate-400">Manage security groups, member counts, and FreeRADIUS captive portal / gateway bandwidth profiles</p>
+                <!-- SUB-PANE 1: DOMAIN USERS -->
+                <div id="dir-pane-users" class="space-y-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-user-shield text-emerald-400"></i> Active Directory Domain Users
+                                </h3>
+                                <p class="text-xs text-slate-400">Manage individual domain user accounts, login credentials, and user-specific bandwidth profiles</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="openUserModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-user-plus"></i> New User
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="openGroupModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-folder-plus"></i> New Security Group
-                            </button>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">User Account & UPN</th>
+                                        <th class="px-4 py-2.5">Full Name</th>
+                                        <th class="px-4 py-2.5">Department</th>
+                                        <th class="px-4 py-2.5">Bandwidth Tier</th>
+                                        <th class="px-4 py-2.5">Account State</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
+                </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th class="px-4 py-2.5">Security Group Name</th>
-                                    <th class="px-4 py-2.5">Scope / Type</th>
-                                    <th class="px-4 py-2.5">Description / Purpose</th>
-                                    <th class="px-4 py-2.5">Active Members</th>
-                                    <th class="px-4 py-2.5">Gateway / Bandwidth Policy</th>
-                                    <th class="px-4 py-2.5 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="groups-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading security groups...</td></tr>
-                            </tbody>
-                        </table>
+                <!-- SUB-PANE 2: SECURITY GROUPS -->
+                <div id="dir-pane-groups" class="space-y-4 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-users-rectangle text-indigo-400"></i> Active Directory Security Groups
+                                </h3>
+                                <p class="text-xs text-slate-400">Domain groups mapped to FreeRADIUS captive portal / gateway bandwidth profiles</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 hover:text-slate-200">
+                                    <input type="checkbox" id="chk-show-builtin-groups" onchange="renderGroupsTable()" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+                                    <span class="text-[11px]">Show Built-in System Groups</span>
+                                </label>
+                                <button onclick="openGroupModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-folder-plus"></i> New Security Group
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Security Group Name</th>
+                                        <th class="px-4 py-2.5">Scope / Type</th>
+                                        <th class="px-4 py-2.5">Description / Purpose</th>
+                                        <th class="px-4 py-2.5">Active Members</th>
+                                        <th class="px-4 py-2.5">Gateway / Bandwidth Policy</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="groups-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading security groups...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PANE 3: DOMAIN COMPUTERS -->
+                <div id="dir-pane-computers" class="space-y-4 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-desktop text-cyan-400"></i> Active Directory Domain Computers & Servers
+                                </h3>
+                                <p class="text-xs text-slate-400">Workstations, member servers, and domain controllers registered in this forest</p>
+                            </div>
+                            <button onclick="fetchComputers()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate"></i> Refresh Computers
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Computer Account</th>
+                                        <th class="px-4 py-2.5">DNS Hostname</th>
+                                        <th class="px-4 py-2.5">Operating System & Version</th>
+                                        <th class="px-4 py-2.5">Role</th>
+                                        <th class="px-4 py-2.5">Joined Date</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="computers-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Querying joined computers...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -3907,7 +3969,7 @@
             // Lazy load tab data
             if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); fetchFunctionalLevels(); }
             else if (tabId === 'ntp') { fetchNtpStatus(); fetchNtpConfig(); }
-            else if (tabId === 'users') { fetchRadiusBandwidth(); fetchUsers(); fetchGroups(); }
+            else if (tabId === 'users') { fetchRadiusBandwidth(); fetchUsers(); fetchGroups(); fetchComputers(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
             else if (tabId === 'radius') {
                 fetchRadiusClients();
@@ -5618,12 +5680,40 @@
             copyToClipboard(pre.innerText, `Copied ${activeRawConfigFile} config to clipboard!`);
         }
 
-        // 5. Users & Groups
+        // 5. Users, Groups & Computers
+        let globalComputers = [];
+        let currentDirectorySubtab = 'users';
+
+        function switchDirectorySubtab(subtab) {
+            currentDirectorySubtab = subtab;
+            const subtabs = ['users', 'groups', 'computers'];
+            subtabs.forEach(t => {
+                const btn = document.getElementById(`btn-subtab-${t}`);
+                const pane = document.getElementById(`dir-pane-${t}`);
+                if (btn && pane) {
+                    if (t === subtab) {
+                        btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-2 transition';
+                        pane.classList.remove('hidden');
+                    } else {
+                        btn.className = 'px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent flex items-center gap-2 transition';
+                        pane.classList.add('hidden');
+                    }
+                }
+            });
+
+            if (subtab === 'users') fetchUsers();
+            else if (subtab === 'groups') fetchGroups();
+            else if (subtab === 'computers') fetchComputers();
+        }
+
         async function fetchUsers() {
             try {
                 const res = await fetch(`${API_BASE}/users`);
                 const data = await res.json();
                 globalUsers = data.users || [];
+                const badge = document.getElementById('badge-users-count');
+                if (badge) badge.innerText = globalUsers.length;
+
                 const tbody = document.getElementById('users-table-body');
                 if (globalUsers.length > 0) {
                     tbody.innerHTML = globalUsers.map(u => {
@@ -5813,61 +5903,76 @@
             }
         }
 
-        // 5. Users & Groups
+        // 5. Users, Groups & Computers
+        function renderGroupsTable() {
+            const chk = document.getElementById('chk-show-builtin-groups');
+            const showBuiltin = chk ? chk.checked : false;
+            const groupsToRender = showBuiltin ? globalGroups : globalGroups.filter(g => !g.is_built_in);
+
+            const badgeCount = document.getElementById('badge-groups-count');
+            if (badgeCount) {
+                const customCount = globalGroups.filter(g => !g.is_built_in).length;
+                badgeCount.innerText = showBuiltin ? `${globalGroups.length}` : `${customCount}`;
+            }
+
+            const tbody = document.getElementById('groups-table-body');
+            if (!tbody) return;
+
+            if (groupsToRender.length > 0) {
+                tbody.innerHTML = groupsToRender.map(g => {
+                    let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> No Custom Policy</span>';
+                    if (g.bandwidth_profile_name) {
+                        bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${g.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${g.bandwidth_profile_name} (${g.bandwidth_rate || ''})</span>`;
+                    }
+
+                    const isBuiltin = g.is_built_in;
+                    const memberCount = g.member_count !== undefined ? g.member_count : (g.members ? g.members.length : 0);
+
+                    return `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5">
+                                <div class="font-bold text-white flex items-center gap-1.5 flex-wrap">
+                                    <i class="fa-solid fa-users text-indigo-400 text-[10px]"></i> ${g.group_name}
+                                    ${isBuiltin ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/80 uppercase font-mono font-bold">Built-in Group</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Custom Group</span>'}
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-mono">${g.dn ? g.dn.split(',')[1] || '' : ''}</div>
+                            </td>
+                            <td class="px-4 py-2.5">
+                                ${isBuiltin ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono flex items-center gap-1 w-max"><i class="fa-solid fa-users text-indigo-400"></i> Custom Group</span>'}
+                            </td>
+                            <td class="px-4 py-2.5 text-slate-300 font-sans text-xs">
+                                ${g.description || '<span class="text-slate-600 italic">No description</span>'}
+                            </td>
+                            <td class="px-4 py-2.5">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 border border-slate-800 text-slate-300">
+                                    <i class="fa-solid fa-user-group text-slate-500 mr-1"></i>${memberCount} members
+                                </span>
+                            </td>
+                            <td class="px-4 py-2.5">${bwBadge}</td>
+                            <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                ${!isBuiltin ? `
+                                    <button onclick="openEditGroupModal('${g.group_name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Group Policy & Bandwidth Tier">
+                                        <i class="fa-solid fa-pen"></i> Edit Policy
+                                    </button>
+                                    <button onclick="deleteGroup('${g.group_name}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete Security Group">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : '<span class="px-2 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[10px] flex items-center gap-1 w-max ml-auto"><i class="fa-solid fa-lock text-slate-600"></i> Built-in</span>'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">No custom security groups found. Create one using "+ New Security Group" or check "Show Built-in System Groups".</td></tr>';
+            }
+        }
+
         async function fetchGroups() {
             try {
                 const res = await fetch(`${API_BASE}/groups`);
                 const data = await res.json();
                 globalGroups = data.groups || [];
-                const tbody = document.getElementById('groups-table-body');
-                if (!tbody) return;
-                if (globalGroups.length > 0) {
-                    tbody.innerHTML = globalGroups.map(g => {
-                        let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> No Custom Policy</span>';
-                        if (g.bandwidth_profile_name) {
-                            bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${g.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${g.bandwidth_profile_name} (${g.bandwidth_rate || ''})</span>`;
-                        }
-
-                        const isBuiltin = g.is_built_in;
-                        const memberCount = g.member_count !== undefined ? g.member_count : (g.members ? g.members.length : 0);
-
-                        return `
-                            <tr class="hover:bg-slate-800/30">
-                                <td class="px-4 py-2.5">
-                                    <div class="font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                        <i class="fa-solid fa-users text-indigo-400 text-[10px]"></i> ${g.group_name}
-                                        ${isBuiltin ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/80 uppercase font-mono font-bold">Built-in Group</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Custom Group</span>'}
-                                    </div>
-                                    <div class="text-[10px] text-slate-500 font-mono">${g.dn ? g.dn.split(',')[1] || '' : ''}</div>
-                                </td>
-                                <td class="px-4 py-2.5">
-                                    ${isBuiltin ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono flex items-center gap-1 w-max"><i class="fa-solid fa-users text-indigo-400"></i> Custom Group</span>'}
-                                </td>
-                                <td class="px-4 py-2.5 text-slate-300 font-sans text-xs">
-                                    ${g.description || '<span class="text-slate-600 italic">No description</span>'}
-                                </td>
-                                <td class="px-4 py-2.5">
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 border border-slate-800 text-slate-300">
-                                        <i class="fa-solid fa-user-group text-slate-500 mr-1"></i>${memberCount} members
-                                    </span>
-                                </td>
-                                <td class="px-4 py-2.5">${bwBadge}</td>
-                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                                    ${!isBuiltin ? `
-                                        <button onclick="openEditGroupModal('${g.group_name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Group Policy & Bandwidth Tier">
-                                            <i class="fa-solid fa-pen"></i> Edit Policy
-                                        </button>
-                                        <button onclick="deleteGroup('${g.group_name}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete Security Group">
-                                            <i class="fa-solid fa-trash-can"></i>
-                                        </button>
-                                    ` : '<span class="px-2 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[10px] flex items-center gap-1 w-max ml-auto"><i class="fa-solid fa-lock text-slate-600"></i> Built-in</span>'}
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No security groups found.</td></tr>';
-                }
+                renderGroupsTable();
             } catch (err) {
                 console.error('Error fetching groups:', err);
             }
@@ -5983,6 +6088,74 @@
                 }
             } catch (err) {
                 alert(`Error deleting group: ${err}`);
+            }
+        }
+
+        async function fetchComputers() {
+            try {
+                const res = await fetch(`${API_BASE}/computers`);
+                const data = await res.json();
+                globalComputers = data.computers || [];
+                const badge = document.getElementById('badge-computers-count');
+                if (badge) badge.innerText = globalComputers.length;
+
+                const tbody = document.getElementById('computers-table-body');
+                if (!tbody) return;
+
+                if (globalComputers.length > 0) {
+                    tbody.innerHTML = globalComputers.map(c => {
+                        const icon = c.is_dc ? 'fa-server text-indigo-400' : 'fa-desktop text-cyan-400';
+                        const roleBadge = c.is_dc
+                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-indigo-400"></i> Domain Controller</span>'
+                            : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700 font-mono flex items-center gap-1 w-max"><i class="fa-solid fa-desktop text-slate-400"></i> Domain Workstation</span>';
+
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5">
+                                    <div class="font-bold text-white flex items-center gap-1.5 font-mono">
+                                        <i class="fa-solid ${icon} text-[11px]"></i> ${c.name}
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title="${c.dn}">${c.dn ? c.dn.split(',')[1] || '' : ''}</div>
+                                </td>
+                                <td class="px-4 py-2.5 font-mono text-cyan-300 text-xs">
+                                    ${c.dns_hostname || '-'}
+                                </td>
+                                <td class="px-4 py-2.5">
+                                    <div class="font-semibold text-slate-200">${c.operating_system}</div>
+                                    <div class="text-[10px] text-slate-400 font-mono">Version: ${c.os_version}</div>
+                                </td>
+                                <td class="px-4 py-2.5">${roleBadge}</td>
+                                <td class="px-4 py-2.5 text-slate-400 font-mono text-[11px]">${c.created_at || '-'}</td>
+                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                    ${!c.is_dc ? `
+                                        <button onclick="deleteComputer('${c.name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 text-xs transition" title="Disjoin / Remove Computer Account">
+                                            <i class="fa-solid fa-trash-can mr-1"></i> Remove
+                                        </button>
+                                    ` : '<span class="px-2 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[10px] flex items-center gap-1 w-max ml-auto"><i class="fa-solid fa-lock text-slate-600"></i> Primary DC</span>'}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">No domain computers found. Workstations will appear here automatically when joined to the domain.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Error fetching computers:', err);
+            }
+        }
+
+        async function deleteComputer(compName) {
+            if (!confirm(`Are you sure you want to delete computer account '${compName}' from Active Directory? Workstations using this trust account will lose domain connectivity.`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/computers/${encodeURIComponent(compName)}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchComputers();
+                } else {
+                    const data = await res.json();
+                    alert(`Failed to delete computer: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting computer: ${err}`);
             }
         }
 

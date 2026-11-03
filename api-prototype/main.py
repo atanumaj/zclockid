@@ -2495,6 +2495,118 @@ def delete_domain_group(group_name: str):
     log_audit("GROUP_DELETED", "admin", group_name, "SUCCESS", {})
     return {"status": "success", "message": f"Security group '{group_name}' deleted successfully."}
 
+# ----------------- Domain Computers (Active Directory Joined Workstations & Servers) -----------------
+
+@app.get("/api/v1/computers")
+def list_domain_computers():
+    """Lists all Active Directory joined domain computers and servers."""
+    code, stdout, stderr = run_cmd([
+        "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
+        "(objectClass=computer)",
+        "sAMAccountName", "dNSHostName", "operatingSystem", "operatingSystemVersion",
+        "whenCreated", "userAccountControl", "dn"
+    ], timeout=10)
+
+    computers = []
+    if code == 0:
+        current_comp = {}
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                if current_comp.get("name"):
+                    uac = current_comp.get("uac", 4096)
+                    is_dc = ("ou=domain controllers" in current_comp.get("dn", "").lower()) or ((uac & 8192) != 0)
+                    is_disabled = (uac & 2) != 0
+
+                    created_raw = current_comp.get("whenCreated", "")
+                    created_str = created_raw[:8] if len(created_raw) >= 8 else "-"
+                    if len(created_raw) >= 8:
+                        try:
+                            created_str = f"{created_raw[0:4]}-{created_raw[4:6]}-{created_raw[6:8]}"
+                        except:
+                            pass
+
+                    computers.append({
+                        "name": current_comp["name"],
+                        "dns_hostname": current_comp.get("dNSHostName") or f"{current_comp['name'].lower()}.inet.net",
+                        "operating_system": current_comp.get("operatingSystem") or "Windows / Linux Client",
+                        "os_version": current_comp.get("operatingSystemVersion") or "-",
+                        "is_dc": is_dc,
+                        "role": "Domain Controller" if is_dc else "Domain Workstation",
+                        "status": "disabled" if is_disabled else "active",
+                        "is_disabled": is_disabled,
+                        "created_at": created_str,
+                        "dn": current_comp.get("dn", "")
+                    })
+                current_comp = {}
+                continue
+
+            if line.startswith("dn:"):
+                current_comp["dn"] = line.split(":", 1)[1].strip()
+            elif line.startswith("sAMAccountName:"):
+                val = line.split(":", 1)[1].strip()
+                if val.endswith("$"):
+                    val = val[:-1]
+                current_comp["name"] = val
+            elif line.startswith("dNSHostName:"):
+                current_comp["dNSHostName"] = line.split(":", 1)[1].strip()
+            elif line.startswith("operatingSystem:"):
+                current_comp["operatingSystem"] = line.split(":", 1)[1].strip()
+            elif line.startswith("operatingSystemVersion:"):
+                current_comp["operatingSystemVersion"] = line.split(":", 1)[1].strip()
+            elif line.startswith("whenCreated:"):
+                current_comp["whenCreated"] = line.split(":", 1)[1].strip()
+            elif line.startswith("userAccountControl:"):
+                try:
+                    current_comp["uac"] = int(line.split(":", 1)[1].strip())
+                except:
+                    current_comp["uac"] = 4096
+
+        if current_comp.get("name"):
+            uac = current_comp.get("uac", 4096)
+            is_dc = ("ou=domain controllers" in current_comp.get("dn", "").lower()) or ((uac & 8192) != 0)
+            is_disabled = (uac & 2) != 0
+            created_raw = current_comp.get("whenCreated", "")
+            created_str = created_raw[:8] if len(created_raw) >= 8 else "-"
+            if len(created_raw) >= 8:
+                try:
+                    created_str = f"{created_raw[0:4]}-{created_raw[4:6]}-{created_raw[6:8]}"
+                except:
+                    pass
+
+            computers.append({
+                "name": current_comp["name"],
+                "dns_hostname": current_comp.get("dNSHostName") or f"{current_comp['name'].lower()}.inet.net",
+                "operating_system": current_comp.get("operatingSystem") or "Windows / Linux Client",
+                "os_version": current_comp.get("operatingSystemVersion") or "-",
+                "is_dc": is_dc,
+                "role": "Domain Controller" if is_dc else "Domain Workstation",
+                "status": "disabled" if is_disabled else "active",
+                "is_disabled": is_disabled,
+                "created_at": created_str,
+                "dn": current_comp.get("dn", "")
+            })
+
+    return {"count": len(computers), "computers": computers}
+
+@app.delete("/api/v1/computers/{computer_name}")
+def delete_domain_computer(computer_name: str):
+    """Deletes a computer account from Active Directory."""
+    c_d, o_d, _ = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(&(objectClass=computer)(sAMAccountName={computer_name}$))", "dn", "userAccountControl"])
+    if c_d != 0 or "dn: " not in o_d:
+        raise HTTPException(status_code=404, detail=f"Computer account '{computer_name}' not found.")
+
+    if "ou=domain controllers" in o_d.lower() or computer_name.upper() in ["INET-ZCLOCKID", "ZCLOCKID"]:
+        raise HTTPException(status_code=400, detail="Cannot delete Domain Controller computer accounts.")
+
+    admin_user, admin_pass = get_ad_creds()
+    code, stdout, stderr = run_cmd(["samba-tool", "computer", "delete", computer_name, f"-U{admin_user}", f"--password={admin_pass}"], timeout=15)
+    if code != 0:
+        raise HTTPException(status_code=400, detail=f"Failed to delete computer: {stderr or stdout}")
+
+    log_audit("COMPUTER_DELETED", "admin", computer_name, "SUCCESS", {})
+    return {"status": "success", "message": f"Computer account '{computer_name}' deleted successfully."}
+
 # ----------------- DNS Forwarders & Zones & Kerberos Records (Zentyal Style) -----------------
 
 @app.get("/api/v1/dns/forwarders")
