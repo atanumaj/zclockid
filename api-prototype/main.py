@@ -818,6 +818,11 @@ class UserPasswordReset(BaseModel):
 class GroupCreateRequest(BaseModel):
     group_name: str = Field(..., example="SG-IT-Admins")
     description: Optional[str] = None
+    bandwidth_profile_id: Optional[int] = None
+
+class GroupUpdateRequest(BaseModel):
+    description: Optional[str] = None
+    bandwidth_profile_id: Optional[int] = None
 
 class DnsRecordRequest(BaseModel):
     zone: str = Field(..., example="inet.net")
@@ -2230,24 +2235,244 @@ def update_user_upn_endpoint(username: str, req: UserUpnUpdateRequest):
 
 @app.get("/api/v1/groups")
 def list_domain_groups():
-    code, stdout, stderr = run_cmd(["samba-tool", "group", "list"], timeout=10)
+    """Lists all Active Directory security groups with member counts, descriptions, and assigned bandwidth profiles."""
+    code, stdout, stderr = run_cmd([
+        "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
+        "(objectClass=group)",
+        "sAMAccountName", "description", "info", "member"
+    ], timeout=10)
+
+    # Fetch SQLite bandwidth profile mappings
+    group_bw_map = {}
+    profiles_by_name = {}
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM radius_bandwidth_profiles WHERE is_active = 1")
+        for row in c.fetchall():
+            r = dict(row)
+            profiles_by_name[r["name"].lower()] = r
+            if r.get("ad_group"):
+                group_bw_map[r["ad_group"].lower()] = r
+            if r.get("target_type") == "GROUP" and r.get("target_name"):
+                group_bw_map[r["target_name"].lower()] = r
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to query bandwidth profiles for groups: {e}")
+
+    protected_builtins = {
+        "administrators", "domain admins", "enterprise admins", "schema admins",
+        "domain users", "domain guests", "domain computers", "domain controllers",
+        "group policy creator owners", "cert publishers", "ras and ias servers",
+        "allowed rodc password replication group", "denied rodc password replication group",
+        "read-only domain controllers", "enterprise read-only domain controllers",
+        "dnsadmins", "dnsupdateproxy"
+    }
+
     groups = []
     if code == 0:
+        current_grp = {}
+        members = []
         for line in stdout.splitlines():
-            g = line.strip()
-            if g: groups.append({"group_name": g})
+            line = line.strip()
+            if not line:
+                if current_grp.get("group_name"):
+                    g_name = current_grp["group_name"]
+                    is_builtin = g_name.lower() in protected_builtins
+                    info_raw = current_grp.get("info")
+                    bw_parsed = parse_bw_info(info_raw)
+                    bw_entry = group_bw_map.get(g_name.lower())
+
+                    p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
+                    p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
+                    d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+                    u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
+                    rate_str = f"{d_val:g}M/{u_val:g}M" if (d_val is not None and u_val is not None) else None
+
+                    groups.append({
+                        "group_name": g_name,
+                        "description": current_grp.get("description", ""),
+                        "member_count": len(members),
+                        "is_built_in": is_builtin,
+                        "bandwidth_profile_id": p_id,
+                        "bandwidth_profile_name": p_name,
+                        "bandwidth_rate": rate_str
+                    })
+                current_grp = {}
+                members = []
+                continue
+
+            if line.startswith("sAMAccountName:"):
+                current_grp["group_name"] = line.split(":", 1)[1].strip()
+            elif line.startswith("description:"):
+                current_grp["description"] = line.split(":", 1)[1].strip()
+            elif line.startswith("info:"):
+                current_grp["info"] = line.split(":", 1)[1].strip()
+            elif line.startswith("member:"):
+                members.append(line.split(":", 1)[1].strip())
+
+        if current_grp.get("group_name"):
+            g_name = current_grp["group_name"]
+            is_builtin = g_name.lower() in protected_builtins
+            info_raw = current_grp.get("info")
+            bw_parsed = parse_bw_info(info_raw)
+            bw_entry = group_bw_map.get(g_name.lower())
+
+            p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
+            p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
+            d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+            u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
+            rate_str = f"{d_val:g}M/{u_val:g}M" if (d_val is not None and u_val is not None) else None
+
+            groups.append({
+                "group_name": g_name,
+                "description": current_grp.get("description", ""),
+                "member_count": len(members),
+                "is_built_in": is_builtin,
+                "bandwidth_profile_id": p_id,
+                "bandwidth_profile_name": p_name,
+                "bandwidth_rate": rate_str
+            })
+
+    # Sort custom groups first, then alphabetically
+    groups.sort(key=lambda x: (x["is_built_in"], x["group_name"].lower()))
     return {"count": len(groups), "groups": groups}
 
 @app.post("/api/v1/groups")
 def create_domain_group(req: GroupCreateRequest):
+    """Creates a new Active Directory Security Group and assigns optional Bandwidth/Gateway policy."""
     admin_user, admin_pass = get_ad_creds()
     cmd = ["samba-tool", "group", "add", req.group_name, f"-U{admin_user}", f"--password={admin_pass}"]
     if req.description: cmd.extend(["--description", req.description])
     code, stdout, stderr = run_cmd(cmd, timeout=15)
     if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to create group: {stderr}")
-    log_audit("GROUP_CREATED", "admin", req.group_name, "SUCCESS", {})
-    return {"status": "success", "group_name": req.group_name, "message": "Group created successfully."}
+        raise HTTPException(status_code=400, detail=f"Failed to create group: {stderr or stdout}")
+
+    # If bandwidth profile is assigned, store in group's AD info attribute (DRS Replicated) & SQLite
+    if req.bandwidth_profile_id and req.bandwidth_profile_id > 0:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
+            p_row = c.fetchone()
+            if p_row:
+                p = dict(p_row)
+                bw_tag = f"ZCLOCKID_BW:{p['name']};down={p['download_mbps']};up={p['upload_mbps']};sess={p.get('session_timeout_mins', 120)};idle={p.get('idle_timeout_mins', 30)};quota={p.get('daily_quota_mb', 0)}"
+                c_d, o_d, _ = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(&(objectClass=group)(sAMAccountName={req.group_name}))", "dn"])
+                if c_d == 0 and "dn: " in o_d:
+                    for l in o_d.splitlines():
+                        if l.startswith("dn: "):
+                            g_dn = l[4:].strip()
+                            ldif = f"dn: {g_dn}\nchangetype: modify\nreplace: info\ninfo: {bw_tag}\n-\n"
+                            subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif, text=True, capture_output=True)
+                            break
+
+                # Update SQLite profile mapping
+                c.execute("UPDATE radius_bandwidth_profiles SET ad_group = ? WHERE id = ?", (req.group_name, req.bandwidth_profile_id))
+                conn.commit()
+            conn.close()
+            sync_freeradius_policies()
+        except Exception as e:
+            logger.warning(f"Failed to assign bandwidth profile to group: {e}")
+
+    log_audit("GROUP_CREATED", "admin", req.group_name, "SUCCESS", {"bandwidth_profile_id": req.bandwidth_profile_id})
+    return {"status": "success", "group_name": req.group_name, "message": f"Security group '{req.group_name}' created successfully."}
+
+@app.put("/api/v1/groups/{group_name}")
+def update_domain_group(group_name: str, req: GroupUpdateRequest):
+    """Updates Active Directory Security Group description and assigned Bandwidth / Gateway policy."""
+    c_d, o_d, _ = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(&(objectClass=group)(sAMAccountName={group_name}))", "dn"])
+    if c_d != 0 or "dn: " not in o_d:
+        raise HTTPException(status_code=404, detail=f"Group '{group_name}' not found in Active Directory.")
+
+    g_dn = None
+    for l in o_d.splitlines():
+        if l.startswith("dn: "):
+            g_dn = l[4:].strip()
+            break
+
+    ldif_lines = [f"dn: {g_dn}", "changetype: modify"]
+    has_mod = False
+
+    if req.description is not None:
+        d_val = req.description.strip()
+        if d_val:
+            ldif_lines.extend(["replace: description", f"description: {d_val}", "-"])
+        else:
+            ldif_lines.extend(["replace: description", "-"])
+        has_mod = True
+
+    bw_info_tag = None
+    if req.bandwidth_profile_id is not None:
+        if req.bandwidth_profile_id > 0:
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                conn.row_factory = sqlite3.Row
+                c = conn.cursor()
+                c.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
+                p_row = c.fetchone()
+                if p_row:
+                    p = dict(p_row)
+                    bw_info_tag = f"ZCLOCKID_BW:{p['name']};down={p['download_mbps']};up={p['upload_mbps']};sess={p.get('session_timeout_mins', 120)};idle={p.get('idle_timeout_mins', 30)};quota={p.get('daily_quota_mb', 0)}"
+                    c.execute("UPDATE radius_bandwidth_profiles SET ad_group = ? WHERE id = ?", (group_name, req.bandwidth_profile_id))
+                    conn.commit()
+                conn.close()
+            except Exception as e:
+                logger.warning(f"Failed to lookup profile: {e}")
+        else:
+            bw_info_tag = ""
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute("UPDATE radius_bandwidth_profiles SET ad_group = '' WHERE ad_group = ?", (group_name,))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+
+    if bw_info_tag is not None:
+        if bw_info_tag:
+            ldif_lines.extend(["replace: info", f"info: {bw_info_tag}", "-"])
+        else:
+            ldif_lines.extend(["replace: info", "-"])
+        has_mod = True
+
+    if has_mod:
+        ldif_content = "\n".join(ldif_lines) + "\n"
+        proc = subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif_content, text=True, capture_output=True)
+        if proc.returncode != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to update group attributes: {proc.stderr}")
+
+    sync_freeradius_policies()
+    log_audit("GROUP_UPDATED", "admin", group_name, "SUCCESS", {"bandwidth_profile_id": req.bandwidth_profile_id})
+    return {"status": "success", "group_name": group_name, "message": f"Group '{group_name}' updated successfully."}
+
+@app.delete("/api/v1/groups/{group_name}")
+def delete_domain_group(group_name: str):
+    """Deletes an Active Directory Security Group."""
+    protected = {"administrators", "domain admins", "enterprise admins", "schema admins", "domain users", "domain guests", "domain computers", "domain controllers"}
+    if group_name.lower() in protected:
+        raise HTTPException(status_code=400, detail=f"Cannot delete protected built-in group '{group_name}'.")
+
+    admin_user, admin_pass = get_ad_creds()
+    code, stdout, stderr = run_cmd(["samba-tool", "group", "delete", group_name, f"-U{admin_user}", f"--password={admin_pass}"], timeout=15)
+    if code != 0:
+        raise HTTPException(status_code=400, detail=f"Failed to delete group: {stderr or stdout}")
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("UPDATE radius_bandwidth_profiles SET ad_group = '' WHERE ad_group = ?", (group_name,))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+    sync_freeradius_policies()
+    log_audit("GROUP_DELETED", "admin", group_name, "SUCCESS", {})
+    return {"status": "success", "message": f"Security group '{group_name}' deleted successfully."}
 
 # ----------------- DNS Forwarders & Zones & Kerberos Records (Zentyal Style) -----------------
 
@@ -2689,20 +2914,56 @@ def sync_freeradius_policies():
                 lines.append(f'\tMikrotik-Total-Limit = {quota_bytes},')
             lines.append('\tFall-Through = No\n')
 
-    # 3. Active Directory Group Bandwidth Profiles
+    # 3. Active Directory Group Bandwidth Profiles (DRS Multi-Master Replicated)
+    # Query AD SAM LDB for any group with ZCLOCKID_BW in info attribute (Set via ZclockID OR Windows RSAT Notes tab)
+    ad_group_overrides = {}
+    code_g, out_g, _ = run_cmd([
+        "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
+        "(&(objectClass=group)(info=ZCLOCKID_BW:*))", "sAMAccountName", "info"
+    ], timeout=5)
+    if code_g == 0:
+        c_g = {}
+        for line in out_g.splitlines():
+            line = line.strip()
+            if not line:
+                if c_g.get("group_name") and c_g.get("info"):
+                    bw = parse_bw_info(c_g["info"])
+                    if bw:
+                        ad_group_overrides[c_g["group_name"]] = bw
+                c_g = {}
+                continue
+            if line.startswith("sAMAccountName:"):
+                c_g["group_name"] = line.split(":", 1)[1].strip()
+            elif line.startswith("info:"):
+                c_g["info"] = line.split(":", 1)[1].strip()
+        if c_g.get("group_name") and c_g.get("info"):
+            bw = parse_bw_info(c_g["info"])
+            if bw:
+                ad_group_overrides[c_g["group_name"]] = bw
+
     group_profiles = [b for b in bw_rows if (b.get('ad_group') or (b.get('target_type') == 'GROUP' and b.get('target_name'))) and not b.get('is_default')]
-    if group_profiles:
-        lines.append("# --- Active Directory Group Bandwidth Profiles ---")
-        for bw in group_profiles:
-            group_name = bw.get('target_name') if bw.get('target_type') == 'GROUP' and bw.get('target_name') else bw.get('ad_group')
+
+    # Merge SQLite group profiles and AD DRS replicated group profiles
+    merged_group_bw = {}
+    for bw in group_profiles:
+        g_target = bw.get('target_name') if bw.get('target_type') == 'GROUP' and bw.get('target_name') else bw.get('ad_group')
+        if g_target:
+            merged_group_bw[g_target] = bw
+
+    for g_target, g_bw in ad_group_overrides.items():
+        merged_group_bw[g_target] = g_bw
+
+    if merged_group_bw:
+        lines.append("# --- Active Directory Group Bandwidth Profiles (DRS Multi-Master Replicated) ---")
+        for group_name, bw in sorted(merged_group_bw.items()):
             down_bps = int(bw['download_mbps'] * 1000000)
             up_bps = int(bw['upload_mbps'] * 1000000)
             mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
-            sess_sec = int(bw['session_timeout_mins'] * 60) if bw.get('session_timeout_mins') else 0
-            idle_sec = int(bw['idle_timeout_mins'] * 60) if bw.get('idle_timeout_mins') else 0
-            quota_bytes = int(bw['daily_quota_mb'] * 1024 * 1024) if bw.get('daily_quota_mb') else 0
+            sess_sec = int(bw.get('session_timeout_mins', 0) * 60)
+            idle_sec = int(bw.get('idle_timeout_mins', 0) * 60)
+            quota_bytes = int(bw.get('daily_quota_mb', 0) * 1024 * 1024)
 
-            lines.append(f'# Group Profile: {bw["name"]} (AD Group: {group_name}) - {bw.get("description", "")}')
+            lines.append(f'# Group Profile: {bw.get("name", "Custom")} (AD Group: {group_name}) [DRS Replicated]')
             lines.append(f'DEFAULT Group == "{group_name}"')
             lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
             lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')

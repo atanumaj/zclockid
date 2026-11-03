@@ -893,6 +893,40 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Active Directory Security Groups & Gateway / Bandwidth Policies -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-users-rectangle text-indigo-400"></i> Active Directory Security Groups & Gateway Policies
+                            </h3>
+                            <p class="text-xs text-slate-400">Manage security groups, member counts, and FreeRADIUS captive portal / gateway bandwidth profiles</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="openGroupModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-folder-plus"></i> New Security Group
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">Security Group Name</th>
+                                    <th class="px-4 py-2.5">Description / Purpose</th>
+                                    <th class="px-4 py-2.5">Active Members</th>
+                                    <th class="px-4 py-2.5">Gateway / Bandwidth Policy</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="groups-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Loading security groups...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </section>
 
             <!-- ==================== TAB 4: DNS & KERBEROS SRV (Zentyal Style) ==================== -->
@@ -3764,12 +3798,62 @@
             </div>
             <div class="space-y-3 text-xs">
                 <div>
-                    <label class="text-slate-400 block mb-1">Group Name</label>
+                    <label class="text-slate-400 block mb-1">Group Name <span class="text-rose-400">*</span></label>
                     <input id="grp-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="SG-Engineering">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Description / Notes</label>
+                    <input id="grp-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-sans" placeholder="Engineering department team members">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1 flex items-center justify-between">
+                        <span>Gateway / Bandwidth Policy</span>
+                        <span class="text-[10px] text-indigo-400 font-mono">FreeRADIUS WISPr</span>
+                    </label>
+                    <select id="grp-bw-profile-input" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono text-xs">
+                        <option value="0">None (Default Tier)</option>
+                    </select>
+                    <p class="text-[10px] text-slate-500 mt-1">Users in this group will automatically inherit this upload/download rate limit on captive portal login.</p>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeGroupModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
                     <button type="button" onclick="submitCreateGroup()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Group</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Group Modal -->
+    <div id="edit-group-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users-gear text-indigo-400"></i> Edit Security Group & Gateway Policy</h3>
+                <button onclick="closeEditGroupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 block mb-1">Security Group Name</label>
+                    <input id="edit-grp-name" type="text" disabled class="w-full bg-slate-950/60 border border-slate-800 rounded-lg p-2 text-slate-400 font-mono cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Description / Notes</label>
+                    <input id="edit-grp-desc" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-sans" placeholder="Group description...">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1 flex items-center justify-between">
+                        <span>Gateway / Bandwidth Policy</span>
+                        <span class="text-[10px] text-cyan-400 font-mono">RADIUS WISPr & MikroTik</span>
+                    </label>
+                    <select id="edit-grp-bw-profile" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono text-xs">
+                        <option value="0">None (Default Tier)</option>
+                    </select>
+                    <p class="text-[10px] text-slate-500 mt-1">Replicates across AD DCs and applies to FreeRADIUS captive portal / dynamic gateway rate enforcement.</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeEditGroupModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" id="btn-save-group" onclick="submitEditGroup()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Group Policy
+                    </button>
                 </div>
             </div>
         </div>
@@ -3825,7 +3909,7 @@
             // Lazy load tab data
             if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); fetchFunctionalLevels(); }
             else if (tabId === 'ntp') { fetchNtpStatus(); fetchNtpConfig(); }
-            else if (tabId === 'users') { fetchUsers(); }
+            else if (tabId === 'users') { fetchRadiusBandwidth(); fetchUsers(); fetchGroups(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
             else if (tabId === 'radius') {
                 fetchRadiusClients();
@@ -5113,11 +5197,14 @@
 
         let globalBandwidthProfiles = [];
         let globalUsers = [];
+        let globalGroups = [];
 
         function populateBandwidthSelects() {
             const selects = [
                 document.getElementById('usr-bw-profile-input'),
-                document.getElementById('edit-usr-bandwidth-profile')
+                document.getElementById('edit-usr-bandwidth-profile'),
+                document.getElementById('grp-bw-profile-input'),
+                document.getElementById('edit-grp-bw-profile')
             ];
             const optionsHtml = '<option value="0">Default (Inherit from Group / Captive Portal)</option>' +
                 globalBandwidthProfiles.map(p => `
@@ -5725,27 +5812,172 @@
             }
         }
 
-        function openGroupModal() { document.getElementById('group-modal').classList.remove('hidden'); }
-        function closeGroupModal() { document.getElementById('group-modal').classList.add('hidden'); }
+        // 5. Users & Groups
+        async function fetchGroups() {
+            try {
+                const res = await fetch(`${API_BASE}/groups`);
+                const data = await res.json();
+                globalGroups = data.groups || [];
+                const tbody = document.getElementById('groups-table-body');
+                if (!tbody) return;
+                if (globalGroups.length > 0) {
+                    tbody.innerHTML = globalGroups.map(g => {
+                        let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> No Custom Policy</span>';
+                        if (g.bandwidth_profile_name) {
+                            bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${g.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${g.bandwidth_profile_name} (${g.bandwidth_rate || ''})</span>`;
+                        }
+
+                        const isBuiltin = g.is_built_in;
+                        const memberCount = g.member_count !== undefined ? g.member_count : (g.members ? g.members.length : 0);
+
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5">
+                                    <div class="font-bold text-white flex items-center gap-1.5">
+                                        <i class="fa-solid fa-users text-indigo-400 text-[10px]"></i> ${g.group_name}
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 font-mono">${g.dn ? g.dn.split(',')[1] || '' : ''}</div>
+                                </td>
+                                <td class="px-4 py-2.5 text-slate-300 font-sans text-xs">
+                                    ${g.description || '<span class="text-slate-600 italic">No description</span>'}
+                                </td>
+                                <td class="px-4 py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 border border-slate-800 text-slate-300">
+                                        <i class="fa-solid fa-user-group text-slate-500 mr-1"></i>${memberCount} members
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2.5">${bwBadge}</td>
+                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                    <button onclick="openEditGroupModal('${g.group_name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Group Policy & Bandwidth Tier">
+                                        <i class="fa-solid fa-pen"></i> Edit Policy
+                                    </button>
+                                    ${!isBuiltin ? `
+                                        <button onclick="deleteGroup('${g.group_name}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete Security Group">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    ` : '<span class="text-slate-600 font-sans italic text-[10px] ml-1">Built-in</span>'}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No security groups found.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Error fetching groups:', err);
+            }
+        }
+
+        function openGroupModal() {
+            populateBandwidthSelects();
+            const grpInput = document.getElementById('grp-name-input');
+            const descInput = document.getElementById('grp-desc-input');
+            const bwInput = document.getElementById('grp-bw-profile-input');
+            if (grpInput) grpInput.value = '';
+            if (descInput) descInput.value = '';
+            if (bwInput) bwInput.value = '0';
+            document.getElementById('group-modal').classList.remove('hidden');
+        }
+
+        function closeGroupModal() {
+            document.getElementById('group-modal').classList.add('hidden');
+        }
 
         async function submitCreateGroup() {
             const name = document.getElementById('grp-name-input').value.trim();
+            const desc = document.getElementById('grp-desc-input') ? document.getElementById('grp-desc-input').value.trim() : '';
+            const bwSelect = document.getElementById('grp-bw-profile-input');
+            const bwId = bwSelect && parseInt(bwSelect.value, 10) > 0 ? parseInt(bwSelect.value, 10) : null;
             if (!name) return alert('Group name is required.');
             try {
                 const res = await fetch(`${API_BASE}/groups`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ group_name: name })
+                    body: JSON.stringify({
+                        group_name: name,
+                        description: desc,
+                        bandwidth_profile_id: bwId
+                    })
                 });
                 const data = await res.json();
                 if (res.ok) {
                     closeGroupModal();
-                    alert(`Group '${name}' created!`);
+                    fetchGroups();
+                    fetchRadiusBandwidth();
                 } else {
                     alert(`Failed to create group: ${data.detail}`);
                 }
             } catch (err) {
                 alert(`Error creating group: ${err}`);
+            }
+        }
+
+        function openEditGroupModal(groupName) {
+            populateBandwidthSelects();
+            const g = globalGroups.find(x => x.group_name.toLowerCase() === groupName.toLowerCase());
+            if (!g) return alert(`Group '${groupName}' not found in active list.`);
+
+            document.getElementById('edit-grp-name').value = g.group_name;
+            document.getElementById('edit-grp-desc').value = g.description || '';
+            const bwSelect = document.getElementById('edit-grp-bw-profile');
+            if (bwSelect) {
+                bwSelect.value = (g.bandwidth_profile_id) ? String(g.bandwidth_profile_id) : '0';
+            }
+            document.getElementById('edit-group-modal').classList.remove('hidden');
+        }
+
+        function closeEditGroupModal() {
+            document.getElementById('edit-group-modal').classList.add('hidden');
+        }
+
+        async function submitEditGroup() {
+            const groupName = document.getElementById('edit-grp-name').value;
+            const desc = document.getElementById('edit-grp-desc').value.trim();
+            const bwVal = document.getElementById('edit-grp-bw-profile').value;
+            const bwId = parseInt(bwVal, 10) > 0 ? parseInt(bwVal, 10) : null;
+
+            const btn = document.getElementById('btn-save-group');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/groups/${encodeURIComponent(groupName)}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        description: desc,
+                        bandwidth_profile_id: bwId
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeEditGroupModal();
+                    fetchGroups();
+                    fetchRadiusBandwidth();
+                } else {
+                    alert(`Failed to update group: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving group: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Save Group Policy`;
+            }
+        }
+
+        async function deleteGroup(groupName) {
+            if (!confirm(`Are you sure you want to delete Active Directory group '${groupName}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/groups/${encodeURIComponent(groupName)}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchGroups();
+                    fetchRadiusBandwidth();
+                } else {
+                    const data = await res.json();
+                    alert(`Delete failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error deleting group: ${err}`);
             }
         }
 
@@ -7455,6 +7687,7 @@
         // Initialize dashboard and telemetry polling
         document.addEventListener('DOMContentLoaded', () => {
             fetchSystemStatus();
+            fetchRadiusBandwidth();
             setInterval(fetchSystemStatus, 5000);
         });
     </script>
