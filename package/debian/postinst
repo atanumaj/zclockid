@@ -3,47 +3,88 @@ set -e
 
 case "$1" in
     configure)
+        echo "[ZclockID] Running post-installation configuration..."
+
         # 1. Disable native host firewalls (UFW / Firewalld)
+        # Domain controllers require dynamic RPC ports (49152-65535), Kerberos, SMB, and LDAP.
         if command -v ufw >/dev/null 2>&1; then
-            ufw disable || true
-            systemctl stop ufw || true
-            systemctl disable ufw || true
-            systemctl mask ufw || true
+            ufw disable >/dev/null 2>&1 || true
+            systemctl stop ufw >/dev/null 2>&1 || true
+            systemctl disable ufw >/dev/null 2>&1 || true
+            systemctl mask ufw >/dev/null 2>&1 || true
         fi
 
         # 2. Decouple systemd-resolved stub listener from Port 53
-        # Preserves host Netplan configuration while freeing port 53 for BIND9
+        # Preserves host Netplan network configuration while releasing port 53 for BIND9
         if [ -f /etc/systemd/resolved.conf ]; then
             sed -i 's/^#*DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
-            systemctl restart systemd-resolved || true
+            systemctl restart systemd-resolved >/dev/null 2>&1 || true
         fi
 
-        # 3. Mask standard smbd/nmbd in favor of samba-ad-dc
-        systemctl stop smbd nmbd winbind || true
-        systemctl disable smbd nmbd winbind || true
-        systemctl mask smbd nmbd winbind || true
+        # 3. Mask standard standalone smbd/nmbd in favor of samba-ad-dc
+        systemctl stop smbd nmbd winbind >/dev/null 2>&1 || true
+        systemctl disable smbd nmbd winbind >/dev/null 2>&1 || true
+        systemctl mask smbd nmbd winbind >/dev/null 2>&1 || true
 
         # 4. Service user privilege grants
-        if getent group winbindd_priv >/dev/null; then
-            usermod -aG winbindd_priv freerad || true
+        if getent group winbindd_priv >/dev/null 2>&1; then
+            usermod -aG winbindd_priv freerad >/dev/null 2>&1 || true
         fi
 
         # Chrony NTP signing socket
         mkdir -p /var/lib/samba/ntp_signd
-        chown -R root:_chrony /var/lib/samba/ntp_signd || true
-        chmod 750 /var/lib/samba/ntp_signd || true
+        chown -R root:_chrony /var/lib/samba/ntp_signd >/dev/null 2>&1 || true
+        chmod 750 /var/lib/samba/ntp_signd >/dev/null 2>&1 || true
 
         # BIND access to Samba private directory
         mkdir -p /var/lib/samba/private
-        chown -R root:bind /var/lib/samba/private || true
-        chmod 750 /var/lib/samba/private || true
+        chown -R root:bind /var/lib/samba/private >/dev/null 2>&1 || true
+        chmod 750 /var/lib/samba/private >/dev/null 2>&1 || true
 
-        # 5. Reload and enable ZclockID services
+        # Net-SNMP Telemetry helper executable
+        if [ -f /opt/zclockid/scripts/zclock-telemetry.sh ]; then
+            cp -f /opt/zclockid/scripts/zclock-telemetry.sh /usr/local/bin/zclock-telemetry.sh
+            chmod 755 /usr/local/bin/zclock-telemetry.sh
+        fi
+
+        # 5. Generate appliance self-signed TLS certificates if absent
+        mkdir -p /etc/zclockid/certs /var/lib/zclockid /var/backups/zclockid
+        if [ ! -f /etc/zclockid/certs/appliance.crt ]; then
+            openssl req -x509 -nodes -days 1825 -newkey rsa:2048 \
+                -keyout /etc/zclockid/certs/appliance.key \
+                -out /etc/zclockid/certs/appliance.crt \
+                -subj "/CN=$(hostname -f 2>/dev/null || echo 'zclockid.local')/O=Inet Secure Labs/OU=ZclockID" >/dev/null 2>&1 || true
+            chmod 600 /etc/zclockid/certs/appliance.key
+        fi
+
+        # 6. Configure Nginx Ingress Reverse Proxy
+        if [ -f /etc/nginx/sites-available/zclockid.conf ]; then
+            rm -f /etc/nginx/sites-enabled/default >/dev/null 2>&1 || true
+            ln -sf /etc/nginx/sites-available/zclockid.conf /etc/nginx/sites-enabled/
+            systemctl restart nginx >/dev/null 2>&1 || true
+        fi
+
+        # 7. Ensure FastAPI multipart support is verified
+        if ! python3 -c "import multipart" >/dev/null 2>&1; then
+            pip3 install --break-system-packages python-multipart >/dev/null 2>&1 || true
+        fi
+
+        # 8. Reload systemd units and restart services
         systemctl daemon-reload
-        systemctl enable zclock-api.service || true
-        systemctl restart zclock-api.service || true
+        systemctl enable zclock-api.service >/dev/null 2>&1 || true
+        systemctl restart zclock-api.service >/dev/null 2>&1 || true
+
+        echo ""
+        echo "================================================================="
+        echo "   ZclockID Active Directory & IAM Appliance Installed!          "
+        echo "================================================================="
+        echo "Web Management Console: https://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<server-ip>')/"
+        echo "First-Time Setup:       https://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<server-ip>')/setup.html"
+        echo "Self-Registration:      https://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<server-ip>')/register.html"
+        echo "REST API Docs:          http://127.0.0.1:8000/docs"
+        echo "================================================================="
+        echo ""
         ;;
 esac
 
 exit 0
-

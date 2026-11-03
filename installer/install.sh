@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # ZclockID Appliance Automated Bootstrap Installer
-# Converts a raw Ubuntu LTS VM into a purpose-built ZclockID Domain Controller.
+# Converts a raw Ubuntu LTS VM (22.04+) into a purpose-built ZclockID Domain Controller.
 # ==============================================================================
 
 set -eo pipefail
@@ -23,188 +23,77 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-log_info "Starting ZclockID Appliance Bootstrap Installation..."
-
-# 2. Disable Native Host Firewalls (UFW / Firewalld)
-# Domain controllers require dozens of dynamic RPC ports (49152-65535), Kerberos, SMB, and LDAP.
-# Host-level packet filters create subtle replication and authentication deadlocks.
-log_info "Teardown of host-level firewalls (UFW / Firewalld)..."
-if command -v ufw >/dev/null 2>&1; then
-    ufw disable || true
-    systemctl stop ufw || true
-    systemctl disable ufw || true
-    systemctl mask ufw || true
-    log_success "UFW disabled and masked."
+# Check Ubuntu version (>= 22.04)
+if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    if [[ "$ID" != "ubuntu" ]]; then
+        log_warn "This installer is targeted for Ubuntu LTS. Detected: ${NAME}."
+    fi
+    OS_VER_MAJOR=$(echo "$VERSION_ID" | cut -d. -f1)
+    if [[ "$OS_VER_MAJOR" -lt 22 ]]; then
+        log_error "Ubuntu 22.04 LTS or newer is required. Detected: ${VERSION_ID}."
+        exit 1
+    fi
+    log_info "Detected OS: ${PRETTY_NAME}"
 fi
 
-if systemctl is-active --quiet firewalld; then
-    systemctl stop firewalld || true
-    systemctl disable firewalld || true
-    log_success "Firewalld disabled."
+log_info "Starting ZclockID Modular Appliance Installation..."
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo "/tmp")"
+PACKAGE_FILE=""
+
+# Check if a built deb package exists locally
+LOCAL_DEB=$(ls -1 "${SCRIPT_DIR}"/zclockid_*_all.deb 2>/dev/null | head -n1 || true)
+if [[ -n "$LOCAL_DEB" && -f "$LOCAL_DEB" ]]; then
+    log_info "Found local ZclockID Debian package: ${LOCAL_DEB}"
+    PACKAGE_FILE="$LOCAL_DEB"
+elif [[ -f "${SCRIPT_DIR}/package/build-deb.sh" ]]; then
+    log_info "Building local thin .deb package from repository source..."
+    "${SCRIPT_DIR}/package/build-deb.sh" "1.0.0"
+    PACKAGE_FILE=$(ls -1 "${SCRIPT_DIR}"/zclockid_*_all.deb 2>/dev/null | head -n1 || true)
 fi
 
-# 3. Decouple systemd-resolved from Port 53
-# systemd-resolved binds a stub listener to 127.0.0.53:53, which blocks BIND9.
-# We disable the stub listener while strictly PRESERVING host network configuration (Netplan).
-log_info "Decoupling systemd-resolved stub listener from Port 53..."
-if [[ -f /etc/systemd/resolved.conf ]]; then
-    sed -i 's/^#*DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf
-    systemctl restart systemd-resolved || true
-    log_success "systemd-resolved stub listener disabled. Port 53 released for BIND9."
+# If package not found locally, download from GitHub Releases
+if [[ -z "$PACKAGE_FILE" || ! -f "$PACKAGE_FILE" ]]; then
+    log_info "Downloading latest ZclockID thin package from GitHub Releases..."
+    TMP_DEB="/tmp/zclockid_latest_all.deb"
+    DEB_URL="https://github.com/atanude/Inet-ZclockID/releases/latest/download/zclockid_1.0.0_all.deb"
+    
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$DEB_URL" -o "$TMP_DEB" || true
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q "$DEB_URL" -O "$TMP_DEB" || true
+    fi
+
+    if [[ -f "$TMP_DEB" && -s "$TMP_DEB" ]]; then
+        PACKAGE_FILE="$TMP_DEB"
+    else
+        log_error "Could not find local or remote zclockid .deb package."
+        log_error "Please build it with './package/build-deb.sh' or specify package path."
+        exit 1
+    fi
 fi
 
-# 4. Install Core System Packages
-log_info "Updating apt cache and installing core engine dependencies..."
+# 2. Update APT cache and install thin package with all upstream dependencies
+log_info "Installing ZclockID via APT (upstream Samba, BIND9, FreeRADIUS, Chrony, Nginx)..."
 export DEBIAN_FRONTEND=noninteractive
-echo "krb5-config krb5-config/default_realm string CORP.EXAMPLE.COM" | debconf-set-selections 2>/dev/null || true
-echo "krb5-config krb5-config/kerberos_servers string dc1.corp.example.com" | debconf-set-selections 2>/dev/null || true
-echo "krb5-config krb5-config/admin_server string dc1.corp.example.com" | debconf-set-selections 2>/dev/null || true
+
+# Pre-seed kerberos prompts so apt never hangs interactively
+echo "krb5-config krb5-config/default_realm string INET.NET" | debconf-set-selections 2>/dev/null || true
+echo "krb5-config krb5-config/kerberos_servers string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
+echo "krb5-config krb5-config/admin_server string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
+
 apt-get update -y
-apt-get install -y --no-install-recommends \
-    samba \
-    samba-ad-dc \
-    samba-ad-provision \
-    samba-dsdb-modules \
-    samba-vfs-modules \
-    smbclient \
-    winbind \
-    libpam-winbind \
-    libnss-winbind \
-    tdb-tools \
-    ldb-tools \
-    krb5-user \
-    bind9 \
-    bind9utils \
-    bind9-dnsutils \
-    bind9-libs \
-    freeradius \
-    freeradius-utils \
-    freeradius-ldap \
-    nginx \
-    snmpd \
-    snmp \
-    chrony \
-    acl \
-    attr \
-    python3 \
-    python3-fastapi \
-    python3-uvicorn \
-    python3-pydantic \
-    python3-multipart \
-    python3-psutil \
-    python3-pip \
-    python3-venv \
-    curl \
-    git \
-    jq
+apt-get install -y --no-install-recommends "$PACKAGE_FILE"
 
-log_success "Core engine packages installed."
+PRIMARY_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
 
-# 5. Mask and Stop Standard Samba File Services (AD DC uses samba-ad-dc)
-log_info "Disabling standard smbd/nmbd in favor of samba-ad-dc..."
-systemctl stop smbd nmbd winbind || true
-systemctl disable smbd nmbd winbind || true
-systemctl mask smbd nmbd winbind || true
-
-# 6. Service Group & Permission Tuning
-log_info "Configuring service accounts and privilege groups..."
-
-# FreeRADIUS access to Samba Winbind privileged pipe
-if getent group winbindd_priv >/dev/null; then
-    usermod -aG winbindd_priv freerad || true
-fi
-
-# Chrony access to MS-SNTP signing socket & NTP Server configuration
-mkdir -p /var/lib/samba/ntp_signd
-chown -R root:_chrony /var/lib/samba/ntp_signd || true
-chmod 750 /var/lib/samba/ntp_signd || true
-
-mkdir -p /etc/chrony/conf.d /etc/chrony/sources.d
-if [[ -f "${SCRIPT_DIR}/config-templates/chrony/zclockid-ntp-server.conf" ]]; then
-    cp "${SCRIPT_DIR}/config-templates/chrony/zclockid-ntp-server.conf" /etc/chrony/conf.d/
-fi
-if [[ -f "${SCRIPT_DIR}/config-templates/chrony/zclockid-upstream.sources" ]]; then
-    cp "${SCRIPT_DIR}/config-templates/chrony/zclockid-upstream.sources" /etc/chrony/sources.d/
-fi
-systemctl restart chrony || true
-
-# BIND access to Samba DLZ databases
-mkdir -p /var/lib/samba/private
-chown -R root:bind /var/lib/samba/private || true
-chmod 750 /var/lib/samba/private || true
-
-# 7. Deploy ZclockID Application Code
-log_info "Deploying ZclockID binaries, scripts, web dashboard, and systemd units..."
-INSTALL_DIR="/opt/zclockid"
-mkdir -p "${INSTALL_DIR}/api" "${INSTALL_DIR}/scripts" "${INSTALL_DIR}/web" "/etc/zclockid/certs"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-# Generate self-signed TLS cert for appliance if not present
-if [[ ! -f /etc/zclockid/certs/appliance.crt ]]; then
-    log_info "Generating initial appliance TLS certificates..."
-    openssl req -x509 -nodes -days 1825 -newkey rsa:2048 \
-        -keyout /etc/zclockid/certs/appliance.key \
-        -out /etc/zclockid/certs/appliance.crt \
-        -subj "/CN=$(hostname -f 2>/dev/null || echo 'zclockid.local')/O=Inet Secure Labs/OU=ZclockID" >/dev/null 2>&1 || true
-fi
-
-# Copy Web Dashboard & Registration Portal
-cp "${SCRIPT_DIR}/web/index.html" "${INSTALL_DIR}/web/"
-cp "${SCRIPT_DIR}/web/register.html" "${INSTALL_DIR}/web/"
-
-# Copy API files
-cp "${SCRIPT_DIR}/api-prototype/main.py" "${INSTALL_DIR}/api/"
-cp "${SCRIPT_DIR}/api-prototype/requirements.txt" "${INSTALL_DIR}/api/"
-
-# Copy Scripts
-cp "${SCRIPT_DIR}/scripts/zclock-sysvold.py" "${INSTALL_DIR}/scripts/"
-cp "${SCRIPT_DIR}/scripts/zclock-telemetry.sh" "${INSTALL_DIR}/scripts/"
-cp "${SCRIPT_DIR}/scripts/zclock-azuresync.py" "${INSTALL_DIR}/scripts/"
-chmod +x "${INSTALL_DIR}/scripts/"*
-
-# Copy Azure Sync baseline config if not exists
-if [[ ! -f /etc/zclockid/azure-sync.json && -f "${SCRIPT_DIR}/config-templates/azure/azure-sync.json" ]]; then
-    cp "${SCRIPT_DIR}/config-templates/azure/azure-sync.json" /etc/zclockid/
-fi
-
-# Configure Nginx
-if [[ -f "${SCRIPT_DIR}/config-templates/nginx/zclockid.conf" ]]; then
-    cp "${SCRIPT_DIR}/config-templates/nginx/zclockid.conf" /etc/nginx/sites-available/
-    rm -f /etc/nginx/sites-enabled/default || true
-    ln -sf /etc/nginx/sites-available/zclockid.conf /etc/nginx/sites-enabled/
-    systemctl restart nginx || true
-    log_success "Nginx ingress proxy configured on Port 80 and 443."
-fi
-
-# Python requirements are provided natively via apt
-log_info "Verifying Python dependencies for ZclockID API..."
-python3 -c "import fastapi, uvicorn, pydantic, psutil; print('All Python dependencies verified.')"
-
-# Copy Systemd Services
-cp "${SCRIPT_DIR}/systemd/zclock-api.service" /etc/systemd/system/
-cp "${SCRIPT_DIR}/systemd/zclock-sysvold.service" /etc/systemd/system/
-cp "${SCRIPT_DIR}/systemd/zclock-azuresync.service" /etc/systemd/system/
-
-systemctl daemon-reload
-systemctl enable zclock-api.service
-systemctl restart zclock-api.service
-
-log_success "ZclockID Headless REST API service started on port 8000."
-
-# 8. Summary Notice
 echo -e "\n${GREEN}=================================================================${NC}"
-echo -e "${GREEN}       ZclockID Appliance Bootstrap Installation Completed!      ${NC}"
+echo -e "${GREEN}       ZclockID Modular Appliance Installation Completed!        ${NC}"
 echo -e "${GREEN}=================================================================${NC}"
-echo -e "Host Network Configuration: ${YELLOW}Preserved intact (Netplan untouched)${NC}"
-echo -e "Host Firewalls:             ${YELLOW}Disabled and masked (UFW)${NC}"
-echo -e "Port 53 Status:             ${GREEN}Released for BIND9 DLZ${NC}"
-echo -e "Management REST API:        ${GREEN}http://<host-ip>:8000/docs${NC}"
-echo -e "Engines Ready for Domain Provisioning:"
-echo -e "  - Samba AD DC (samba-ad-dc)"
-echo -e "  - BIND9 DLZ (with native DoH)"
-echo -e "  - FreeRADIUS (with ntlm_auth)"
-echo -e "  - Net-SNMP Telemetry"
-echo -e "  - Sysvol NTACL Self-Healing Daemon"
+echo -e "Web Management Console: ${GREEN}https://${PRIMARY_IP}/${NC}"
+echo -e "Initial Setup Wizard:   ${GREEN}https://${PRIMARY_IP}/setup.html${NC}"
+echo -e "User Self-Registration: ${GREEN}https://${PRIMARY_IP}/register.html${NC}"
+echo -e "Headless REST API:      ${BLUE}http://${PRIMARY_IP}:8000/docs${NC}"
+echo -e "\nAll upstream services (Samba, FreeRADIUS, BIND9, Chrony, Nginx) are linked to standard Ubuntu security updates."
 echo -e "${GREEN}=================================================================${NC}\n"
-

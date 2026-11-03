@@ -6,12 +6,14 @@
 set -eo pipefail
 
 PACKAGE_NAME="zclockid"
-VERSION="1.0.0"
-ARCH="amd64"
+VERSION="${1:-1.0.0}"
+ARCH="all"
 DIST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_ROOT="/tmp/zclockid-deb-build"
 
+echo "================================================================="
 echo "Building ${PACKAGE_NAME}_${VERSION}_${ARCH}.deb..."
+echo "================================================================="
 
 rm -rf "${BUILD_ROOT}"
 mkdir -p "${BUILD_ROOT}/DEBIAN"
@@ -22,41 +24,64 @@ mkdir -p "${BUILD_ROOT}/etc/systemd/system"
 mkdir -p "${BUILD_ROOT}/etc/nginx/sites-available"
 mkdir -p "${BUILD_ROOT}/etc/chrony/conf.d"
 mkdir -p "${BUILD_ROOT}/etc/chrony/sources.d"
-mkdir -p "${BUILD_ROOT}/etc/zclockid"
+mkdir -p "${BUILD_ROOT}/etc/zclockid/templates"
+mkdir -p "${BUILD_ROOT}/var/lib/zclockid"
+mkdir -p "${BUILD_ROOT}/var/backups/zclockid"
 
-# Copy package metadata
-cp "${DIST_DIR}/package/debian/control" "${BUILD_ROOT}/DEBIAN/"
+# 1. Copy package metadata
+sed "s/^Version:.*/Version: ${VERSION}/" "${DIST_DIR}/package/debian/control" > "${BUILD_ROOT}/DEBIAN/control"
 cp "${DIST_DIR}/package/debian/postinst" "${BUILD_ROOT}/DEBIAN/"
 chmod 755 "${BUILD_ROOT}/DEBIAN/postinst"
 
-# Copy payload
+# 2. Copy API backend
 cp "${DIST_DIR}/api-prototype/main.py" "${BUILD_ROOT}/opt/zclockid/api/"
-cp "${DIST_DIR}/api-prototype/requirements.txt" "${BUILD_ROOT}/opt/zclockid/api/"
+if [[ -f "${DIST_DIR}/api-prototype/requirements.txt" ]]; then
+    cp "${DIST_DIR}/api-prototype/requirements.txt" "${BUILD_ROOT}/opt/zclockid/api/"
+fi
+
+# 3. Copy Daemons and Telemetry Scripts
 cp "${DIST_DIR}/scripts/zclock-sysvold.py" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-telemetry.sh" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-azuresync.py" "${BUILD_ROOT}/opt/zclockid/scripts/"
 chmod 755 "${BUILD_ROOT}/opt/zclockid/scripts/"*
+
+# 4. Copy Web Console Assets
 cp "${DIST_DIR}/web/index.html" "${BUILD_ROOT}/opt/zclockid/web/"
+cp "${DIST_DIR}/web/login.html" "${BUILD_ROOT}/opt/zclockid/web/"
 cp "${DIST_DIR}/web/register.html" "${BUILD_ROOT}/opt/zclockid/web/"
 cp "${DIST_DIR}/web/setup.html" "${BUILD_ROOT}/opt/zclockid/web/"
-cp "${DIST_DIR}/config-templates/azure/azure-sync.json" "${BUILD_ROOT}/etc/zclockid/"
 
-# Copy Nginx Ingress template
-cp "${DIST_DIR}/config-templates/nginx/zclockid.conf" "${BUILD_ROOT}/etc/nginx/sites-available/"
+# 5. Copy Configuration Templates
+if [[ -f "${DIST_DIR}/config-templates/azure/azure-sync.json" ]]; then
+    cp "${DIST_DIR}/config-templates/azure/azure-sync.json" "${BUILD_ROOT}/etc/zclockid/"
+fi
+if [[ -f "${DIST_DIR}/config-templates/nginx/zclockid.conf" ]]; then
+    cp "${DIST_DIR}/config-templates/nginx/zclockid.conf" "${BUILD_ROOT}/etc/nginx/sites-available/"
+fi
+if [[ -f "${DIST_DIR}/config-templates/chrony/zclockid-ntp-server.conf" ]]; then
+    cp "${DIST_DIR}/config-templates/chrony/zclockid-ntp-server.conf" "${BUILD_ROOT}/etc/chrony/conf.d/"
+fi
+if [[ -f "${DIST_DIR}/config-templates/chrony/zclockid-upstream.sources" ]]; then
+    cp "${DIST_DIR}/config-templates/chrony/zclockid-upstream.sources" "${BUILD_ROOT}/etc/chrony/sources.d/"
+fi
+if [[ -f "${DIST_DIR}/config-templates/snmp/snmpd.conf" ]]; then
+    cp "${DIST_DIR}/config-templates/snmp/snmpd.conf" "${BUILD_ROOT}/etc/zclockid/templates/"
+fi
+if [[ -f "${DIST_DIR}/config-templates/bind9/named.conf.options" ]]; then
+    cp "${DIST_DIR}/config-templates/bind9/named.conf.options" "${BUILD_ROOT}/etc/zclockid/templates/"
+fi
 
-# Copy Chrony Authoritative NTP Server templates
-cp "${DIST_DIR}/config-templates/chrony/zclockid-ntp-server.conf" "${BUILD_ROOT}/etc/chrony/conf.d/"
-cp "${DIST_DIR}/config-templates/chrony/zclockid-upstream.sources" "${BUILD_ROOT}/etc/chrony/sources.d/"
+# 6. Copy systemd unit files
+for svc in zclock-api.service zclock-sysvold.service zclock-azuresync.service; do
+    if [[ -f "${DIST_DIR}/systemd/${svc}" ]]; then
+        cp "${DIST_DIR}/systemd/${svc}" "${BUILD_ROOT}/etc/systemd/system/"
+    fi
+done
 
-# Copy systemd unit files
-cp "${DIST_DIR}/systemd/zclock-api.service" "${BUILD_ROOT}/etc/systemd/system/"
-cp "${DIST_DIR}/systemd/zclock-sysvold.service" "${BUILD_ROOT}/etc/systemd/system/"
-cp "${DIST_DIR}/systemd/zclock-azuresync.service" "${BUILD_ROOT}/etc/systemd/system/"
-
-# Build debian binary package
+# 7. Build debian binary package
 OUTPUT_DEB="${DIST_DIR}/${PACKAGE_NAME}_${VERSION}_${ARCH}.deb"
-dpkg-deb --build "${BUILD_ROOT}" "${OUTPUT_DEB}"
+dpkg-deb --root-owner-group --build "${BUILD_ROOT}" "${OUTPUT_DEB}"
 
 echo "Debian package successfully built at: ${OUTPUT_DEB}"
+ls -lh "${OUTPUT_DEB}"
 rm -rf "${BUILD_ROOT}"
-
