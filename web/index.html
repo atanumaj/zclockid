@@ -879,14 +879,16 @@
                         <table class="w-full text-xs text-left text-slate-300">
                             <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                 <tr>
-                                    <th class="px-4 py-2.5">sAMAccountName</th>
+                                    <th class="px-4 py-2.5">User Account & UPN</th>
+                                    <th class="px-4 py-2.5">Full Name</th>
                                     <th class="px-4 py-2.5">Department</th>
+                                    <th class="px-4 py-2.5">Bandwidth Tier</th>
                                     <th class="px-4 py-2.5">Account State</th>
                                     <th class="px-4 py-2.5 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="users-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
+                                <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -3633,15 +3635,123 @@
                         <input id="usr-sur-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="Doe">
                     </div>
                 </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Email</label>
+                        <input id="usr-email-input" type="email" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe@inetcsc.com">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Mobile / Phone</label>
+                        <input id="usr-mobile-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="+919876543210">
+                    </div>
+                </div>
                 <div>
                     <label class="text-slate-400 block mb-1">Department</label>
                     <input id="usr-dept-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="Engineering">
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1 flex items-center justify-between">
+                        <span><i class="fa-solid fa-gauge-high text-cyan-400 mr-1"></i> Bandwidth Profile</span>
+                        <span class="text-[10px] text-cyan-400">WISPr + MikroTik</span>
+                    </label>
+                    <select id="usr-bw-profile-input" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white text-xs">
+                        <option value="0">Default (Inherit from Group / Captive Portal)</option>
+                    </select>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
                     <button type="button" onclick="submitCreateUser()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Create Account</button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-pen text-indigo-400"></i> Edit Active Directory User
+                </h3>
+                <button onclick="closeEditUserModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="edit-user-form" onsubmit="submitEditUser(event)" class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">sAMAccountName (Username)</label>
+                        <input id="edit-usr-name" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-400 font-mono" readonly>
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Account State</label>
+                        <select id="edit-usr-status" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white">
+                            <option value="active">Active (Enabled)</option>
+                            <option value="disabled">Disabled (Locked Out)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Given Name (First)</label>
+                        <input id="edit-usr-given" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="John">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Surname (Last)</label>
+                        <input id="edit-usr-sur" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="Doe">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Email (<code class="text-slate-400 font-mono">mail</code>)</label>
+                        <input id="edit-usr-email" type="email" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe@inetcsc.com">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Mobile / Phone (<code class="text-slate-400 font-mono">telephoneNumber</code>)</label>
+                        <input id="edit-usr-mobile" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="+919876543210">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Department</label>
+                        <input id="edit-usr-dept" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white" placeholder="Engineering">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">User Principal Name (UPN)</label>
+                        <input id="edit-usr-upn" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-mono" placeholder="john.doe@inet.net">
+                    </div>
+                </div>
+
+                <!-- Bandwidth Profile Assignment -->
+                <div class="p-3 bg-slate-950 rounded-xl border border-indigo-900/40 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-slate-300 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-gauge-high text-cyan-400"></i> FreeRADIUS Captive Portal Bandwidth Tier
+                        </label>
+                        <span class="text-[10px] text-cyan-400 font-mono">WISPr + MikroTik</span>
+                    </div>
+                    <select id="edit-usr-bandwidth-profile" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs">
+                        <option value="0">Default (Inherit from Group / Captive Portal)</option>
+                    </select>
+                    <p class="text-[10px] text-slate-400">
+                        Individual profile overrides AD group rates with top priority in FreeRADIUS (<code class="text-cyan-300">WISPr-Bandwidth-Max-*</code> & <code class="text-cyan-300">Mikrotik-Rate-Limit</code>).
+                    </p>
+                </div>
+
+                <!-- Password Reset -->
+                <div>
+                    <label class="text-slate-400 block mb-1">Reset Password <span class="text-slate-500 font-normal">(Leave blank to keep current password)</span></label>
+                    <input id="edit-usr-pass" type="password" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Enter new password to reset">
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button type="button" onclick="closeEditUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs transition">Cancel</button>
+                    <button id="btn-submit-edit-user" type="submit" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Save User Changes
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -5001,11 +5111,35 @@
             }
         }
 
+        let globalBandwidthProfiles = [];
+        let globalUsers = [];
+
+        function populateBandwidthSelects() {
+            const selects = [
+                document.getElementById('usr-bw-profile-input'),
+                document.getElementById('edit-usr-bandwidth-profile')
+            ];
+            const optionsHtml = '<option value="0">Default (Inherit from Group / Captive Portal)</option>' +
+                globalBandwidthProfiles.map(p => `
+                    <option value="${p.id}">${p.name} (${p.download_mbps}M Down / ${p.upload_mbps}M Up)${p.is_default ? ' [Default]' : ''}</option>
+                `).join('');
+
+            selects.forEach(s => {
+                if (s) {
+                    const currentVal = s.value;
+                    s.innerHTML = optionsHtml;
+                    if (currentVal) s.value = currentVal;
+                }
+            });
+        }
+
         // Captive Portal Bandwidth Management & Rate Limiting
         async function fetchRadiusBandwidth() {
             try {
                 const res = await fetch(`${API_BASE}/radius/bandwidth-profiles`);
                 const data = await res.json();
+                globalBandwidthProfiles = data.profiles || [];
+                populateBandwidthSelects();
                 const tbody = document.getElementById('radius-bandwidth-table-body');
                 if (data.profiles && data.profiles.length > 0) {
                     tbody.innerHTML = data.profiles.map(p => {
@@ -5404,37 +5538,64 @@
             try {
                 const res = await fetch(`${API_BASE}/users`);
                 const data = await res.json();
+                globalUsers = data.users || [];
                 const tbody = document.getElementById('users-table-body');
-                if (data.users && data.users.length > 0) {
-                    tbody.innerHTML = data.users.map(u => `
-                        <tr class="hover:bg-slate-800/30">
-                            <td class="px-4 py-2.5">
-                                <div class="font-bold text-white">${u.username}</div>
-                                <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
-                            </td>
-                            <td class="px-4 py-2.5 text-slate-400">${u.department || '-'}</td>
-                            <td class="px-4 py-2.5">
-                                <span class="px-2 py-0.5 rounded text-[10px] ${u.status === 'active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${u.status.toUpperCase()}</span>
-                            </td>
-                            <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                                ${!u.is_built_in ? `
-                                    <button onclick="openChangeUpnModal('${u.username}', '${u.user_principal_name || ''}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-mono text-[10px] transition mr-1.5" title="Change User Principal Name">
-                                        <i class="fa-solid fa-at"></i> UPN
+                if (globalUsers.length > 0) {
+                    tbody.innerHTML = globalUsers.map(u => {
+                        const nameDisplay = u.name || u.username;
+                        const contactDetails = [];
+                        if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${u.email}</span>`);
+                        if (u.mobile) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-phone text-slate-500 mr-1"></i>${u.mobile}</span>`);
+                        
+                        let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-users text-slate-600"></i> Group Default</span>';
+                        if (u.bandwidth_profile_name) {
+                            bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${u.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${u.bandwidth_profile_name} (${u.bandwidth_rate || ''})</span>`;
+                        }
+
+                        const statusBadge = u.status === 'active'
+                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>'
+                            : '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-400 border border-rose-800">DISABLED</span>';
+
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5">
+                                    <div class="font-bold text-white flex items-center gap-1.5">
+                                        <i class="fa-solid fa-user text-slate-500 text-[10px]"></i> ${u.username}
+                                    </div>
+                                    <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
+                                </td>
+                                <td class="px-4 py-2.5">
+                                    <div class="font-semibold text-slate-200">${nameDisplay}</div>
+                                    <div class="flex flex-col gap-0.5 mt-0.5">${contactDetails.join('')}</div>
+                                </td>
+                                <td class="px-4 py-2.5 text-slate-400 font-sans">${u.department || '-'}</td>
+                                <td class="px-4 py-2.5">${bwBadge}</td>
+                                <td class="px-4 py-2.5">${statusBadge}</td>
+                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                    <button onclick="openEditUserModal('${u.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit User Account, Credentials & Bandwidth">
+                                        <i class="fa-solid fa-user-pen"></i> Edit
                                     </button>
-                                    <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-1" title="Delete User">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
-                                ` : '<span class="text-slate-600 font-sans italic text-[10px]">Built-in</span>'}
-                            </td>
-                        </tr>
-                    `).join('');
+                                    ${!u.is_built_in ? `
+                                        <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete User">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    ` : '<span class="text-slate-600 font-sans italic text-[10px] ml-1">Built-in</span>'}
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No domain users found.</td></tr>';
                 }
             } catch (err) {
                 console.error('Error fetching users:', err);
             }
         }
 
-        function openUserModal() { document.getElementById('user-modal').classList.remove('hidden'); }
+        function openUserModal() {
+            populateBandwidthSelects();
+            document.getElementById('user-modal').classList.remove('hidden');
+        }
         function closeUserModal() { document.getElementById('user-modal').classList.add('hidden'); }
 
         async function submitCreateUser() {
@@ -5442,7 +5603,10 @@
             const password = document.getElementById('usr-pass-input').value;
             const givenName = document.getElementById('usr-given-input').value.trim();
             const surname = document.getElementById('usr-sur-input').value.trim();
+            const email = (document.getElementById('usr-email-input') ? document.getElementById('usr-email-input').value.trim() : '');
+            const mobile = (document.getElementById('usr-mobile-input') ? document.getElementById('usr-mobile-input').value.trim() : '');
             const department = document.getElementById('usr-dept-input').value.trim();
+            const bwId = parseInt(document.getElementById('usr-bw-profile-input') ? document.getElementById('usr-bw-profile-input').value : 0) || 0;
 
             if (!username || !password) return alert('Username and password are required.');
 
@@ -5455,7 +5619,10 @@
                         password: password,
                         given_name: givenName,
                         surname: surname,
-                        department: department
+                        email: email,
+                        mobile: mobile,
+                        department: department,
+                        bandwidth_profile_id: bwId
                     })
                 });
                 const data = await res.json();
@@ -5467,6 +5634,79 @@
                 }
             } catch (err) {
                 alert(`Error creating user: ${err}`);
+            }
+        }
+
+        // ==================== Edit User Modal Logic ====================
+        function openEditUserModal(username) {
+            populateBandwidthSelects();
+            const u = globalUsers.find(x => x.username.toLowerCase() === username.toLowerCase());
+            if (!u) return alert(`User '${username}' not found in active list.`);
+
+            document.getElementById('edit-usr-name').value = u.username;
+            document.getElementById('edit-usr-status').value = (u.status === 'disabled' || u.is_disabled) ? 'disabled' : 'active';
+            document.getElementById('edit-usr-given').value = u.given_name || '';
+            document.getElementById('edit-usr-sur').value = u.surname || '';
+            document.getElementById('edit-usr-email').value = u.email || '';
+            document.getElementById('edit-usr-mobile').value = u.mobile || '';
+            document.getElementById('edit-usr-dept').value = u.department || '';
+            document.getElementById('edit-usr-upn').value = u.user_principal_name || '';
+            document.getElementById('edit-usr-bandwidth-profile').value = u.bandwidth_profile_id || 0;
+            document.getElementById('edit-usr-pass').value = '';
+
+            document.getElementById('edit-user-modal').classList.remove('hidden');
+        }
+
+        function closeEditUserModal() {
+            document.getElementById('edit-user-modal').classList.add('hidden');
+        }
+
+        async function submitEditUser(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-submit-edit-user');
+            const username = document.getElementById('edit-usr-name').value.trim();
+            const statusVal = document.getElementById('edit-usr-status').value;
+            const givenName = document.getElementById('edit-usr-given').value.trim();
+            const surname = document.getElementById('edit-usr-sur').value.trim();
+            const email = document.getElementById('edit-usr-email').value.trim();
+            const mobile = document.getElementById('edit-usr-mobile').value.trim();
+            const dept = document.getElementById('edit-usr-dept').value.trim();
+            const upn = document.getElementById('edit-usr-upn').value.trim();
+            const bwId = parseInt(document.getElementById('edit-usr-bandwidth-profile').value) || 0;
+            const passVal = document.getElementById('edit-usr-pass').value;
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+
+            try {
+                const res = await fetch(`${API_BASE}/users/${username}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        given_name: givenName,
+                        surname: surname,
+                        email: email,
+                        mobile: mobile,
+                        department: dept,
+                        user_principal_name: upn,
+                        bandwidth_profile_id: bwId,
+                        is_disabled: statusVal === 'disabled',
+                        new_password: passVal ? passVal : null
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    closeEditUserModal();
+                    fetchUsers();
+                    fetchRadiusBandwidth();
+                } else {
+                    alert(`Failed to update user: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error saving user: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Save User Changes`;
             }
         }
 

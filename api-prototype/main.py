@@ -232,6 +232,8 @@ def init_db():
             session_timeout_mins INTEGER DEFAULT 120,
             idle_timeout_mins INTEGER DEFAULT 30,
             daily_quota_mb INTEGER DEFAULT 0,
+            target_type TEXT DEFAULT 'GROUP', -- 'GROUP', 'USER', 'DEFAULT'
+            target_name TEXT DEFAULT '',
             ad_group TEXT DEFAULT '',
             is_default INTEGER DEFAULT 0,
             description TEXT,
@@ -239,17 +241,33 @@ def init_db():
             created_at REAL
         )
     """)
+    # Migration for target_type and target_name columns if not present
+    for col, ctype, cdef in [("target_type", "TEXT", "'GROUP'"), ("target_name", "TEXT", "''")]:
+        try:
+            cursor.execute(f"ALTER TABLE radius_bandwidth_profiles ADD COLUMN {col} {ctype} DEFAULT {cdef}")
+        except Exception:
+            pass
+
     cursor.execute("SELECT COUNT(*) FROM radius_bandwidth_profiles")
     if cursor.fetchone()[0] == 0:
         now_ts = time.time()
         cursor.execute("""
-            INSERT INTO radius_bandwidth_profiles (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, ad_group, is_default, description, is_active, created_at)
+            INSERT INTO radius_bandwidth_profiles (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, target_type, target_name, ad_group, is_default, description, is_active, created_at)
             VALUES 
-            ('VIP-Executive', 50.0, 25.0, 1440, 60, 0, 'Domain Admins', 0, 'Unrestricted high-speed priority tier for leadership & admins', 1, ?),
-            ('Staff-Standard', 20.0, 10.0, 720, 30, 0, 'Corporate-Users', 0, 'Standard enterprise employee work profile', 1, ?),
-            ('Guest-Captive-Portal', 5.0, 2.0, 120, 15, 2048, '', 1, 'Default captive portal profile for visitor Wi-Fi & OTP self-registrations', 1, ?),
-            ('Limited-Public', 2.0, 0.5, 30, 10, 500, '', 0, 'Throttled public access tier with 500 MB data cap', 1, ?)
+            ('VIP-Executive', 50.0, 25.0, 1440, 60, 0, 'GROUP', 'Domain Admins', 'Domain Admins', 0, 'Unrestricted high-speed priority tier for leadership & admins', 1, ?),
+            ('Staff-Standard', 20.0, 10.0, 720, 30, 0, 'GROUP', 'Corporate-Users', 'Corporate-Users', 0, 'Standard enterprise employee work profile', 1, ?),
+            ('Guest-Captive-Portal', 5.0, 2.0, 120, 15, 2048, 'DEFAULT', 'ALL', '', 1, 'Default captive portal profile for visitor Wi-Fi & OTP self-registrations', 1, ?),
+            ('Limited-Public', 2.0, 0.5, 30, 10, 500, 'GROUP', '', '', 0, 'Throttled public access tier with 500 MB data cap', 1, ?)
         """, (now_ts, now_ts, now_ts, now_ts))
+
+    # Individual User to Bandwidth Profile Mapping
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_user_bandwidth (
+            username TEXT PRIMARY KEY,
+            profile_id INTEGER NOT NULL,
+            updated_at REAL
+        )
+    """)
 
     # MAC Authentication Bypass (MAB) for Headless Devices (Advanced Mode)
     cursor.execute("""
@@ -748,8 +766,21 @@ class UserCreateRequest(BaseModel):
     given_name: Optional[str] = Field(None, example="John")
     surname: Optional[str] = Field(None, example="Doe")
     email: Optional[str] = Field(None, example="john.doe@corp.example.com")
+    mobile: Optional[str] = Field(None, example="+919876543210")
     department: Optional[str] = None
     target_group: Optional[str] = "Domain Users"
+    bandwidth_profile_id: Optional[int] = None
+
+class UserUpdateRequest(BaseModel):
+    given_name: Optional[str] = None
+    surname: Optional[str] = None
+    email: Optional[str] = None
+    mobile: Optional[str] = None
+    department: Optional[str] = None
+    user_principal_name: Optional[str] = None
+    bandwidth_profile_id: Optional[int] = None
+    new_password: Optional[str] = None
+    is_disabled: Optional[bool] = None
 
 class UserPasswordReset(BaseModel):
     new_password: str = Field(..., min_length=8, example="NewSecureP@ss2026!")
@@ -791,6 +822,8 @@ class RadiusBandwidthProfileRequest(BaseModel):
     session_timeout_mins: Optional[int] = 120
     idle_timeout_mins: Optional[int] = 30
     daily_quota_mb: Optional[int] = 0 # 0 for unlimited
+    target_type: Optional[str] = "GROUP" # 'GROUP', 'USER', 'DEFAULT'
+    target_name: Optional[str] = ""
     ad_group: Optional[str] = ""
     is_default: Optional[bool] = False
     description: Optional[str] = ""
@@ -1744,8 +1777,26 @@ def list_domain_users():
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
         "(objectClass=user)",
-        "sAMAccountName", "userPrincipalName", "mail", "telephoneNumber", "department", "userAccountControl"
+        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "userAccountControl"
     ], timeout=10)
+
+    # Fetch bandwidth mappings
+    user_bw_map = {}
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT u.username, u.profile_id, p.name as profile_name, p.download_mbps, p.upload_mbps
+            FROM radius_user_bandwidth u
+            JOIN radius_bandwidth_profiles p ON u.profile_id = p.id
+            WHERE p.is_active = 1
+        """)
+        for row in cursor.fetchall():
+            user_bw_map[row["username"]] = dict(row)
+        conn.close()
+    except Exception as e:
+        logger.warning(f"Failed to read radius_user_bandwidth: {e}")
 
     users = []
     if code == 0:
@@ -1760,14 +1811,25 @@ def list_domain_users():
                         uac = current_user.get("uac", 512)
                         is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                         upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
+                        bw_entry = user_bw_map.get(u)
+                        g_name = current_user.get("given_name") or ""
+                        s_name = current_user.get("surname") or ""
+                        full_name = current_user.get("display_name") or f"{g_name} {s_name}".strip() or u
                         users.append({
                             "username": u,
+                            "name": full_name,
+                            "given_name": g_name,
+                            "surname": s_name,
                             "user_principal_name": upn,
                             "email": current_user.get("email") or "",
                             "mobile": current_user.get("mobile") or "",
                             "department": current_user.get("department") or ("IT Operations" if u in ["Administrator", "admin"] else "Corporate Staff"),
                             "status": "disabled" if is_disabled else "active",
-                            "is_built_in": is_built_in
+                            "is_disabled": is_disabled,
+                            "is_built_in": is_built_in,
+                            "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
+                            "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
+                            "bandwidth_rate": f"{bw_entry['download_mbps']:g}M/{bw_entry['upload_mbps']:g}M" if bw_entry else None
                         })
                 current_user = {}
                 continue
@@ -1775,6 +1837,12 @@ def list_domain_users():
                 current_user["username"] = line.split(":", 1)[1].strip()
             elif line.startswith("userPrincipalName:"):
                 current_user["user_principal_name"] = line.split(":", 1)[1].strip()
+            elif line.startswith("givenName:"):
+                current_user["given_name"] = line.split(":", 1)[1].strip()
+            elif line.startswith("sn:"):
+                current_user["surname"] = line.split(":", 1)[1].strip()
+            elif line.startswith("displayName:"):
+                current_user["display_name"] = line.split(":", 1)[1].strip()
             elif line.startswith("mail:"):
                 current_user["email"] = line.split(":", 1)[1].strip()
             elif line.startswith("telephoneNumber:"):
@@ -1794,14 +1862,25 @@ def list_domain_users():
                 uac = current_user.get("uac", 512)
                 is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                 upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
+                bw_entry = user_bw_map.get(u)
+                g_name = current_user.get("given_name") or ""
+                s_name = current_user.get("surname") or ""
+                full_name = current_user.get("display_name") or f"{g_name} {s_name}".strip() or u
                 users.append({
                     "username": u,
+                    "name": full_name,
+                    "given_name": g_name,
+                    "surname": s_name,
                     "user_principal_name": upn,
                     "email": current_user.get("email") or "",
                     "mobile": current_user.get("mobile") or "",
                     "department": current_user.get("department") or ("IT Operations" if u in ["Administrator", "admin"] else "Corporate Staff"),
                     "status": "disabled" if is_disabled else "active",
-                    "is_built_in": is_built_in
+                    "is_disabled": is_disabled,
+                    "is_built_in": is_built_in,
+                    "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
+                    "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
+                    "bandwidth_rate": f"{bw_entry['download_mbps']:g}M/{bw_entry['upload_mbps']:g}M" if bw_entry else None
                 })
 
     if not users:
@@ -1810,17 +1889,34 @@ def list_domain_users():
             for u in out2.splitlines():
                 u = u.strip()
                 if u and not u.endswith("$"):
+                    bw_entry = user_bw_map.get(u)
                     users.append({
                         "username": u,
+                        "name": u,
+                        "given_name": "",
+                        "surname": "",
                         "user_principal_name": f"{u}@{primary_realm}",
                         "email": "",
                         "mobile": "",
                         "department": "Corporate Staff",
                         "status": "active" if u not in ["Guest", "krbtgt"] else "disabled",
-                        "is_built_in": u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"]
+                        "is_disabled": u in ["Guest", "krbtgt"],
+                        "is_built_in": u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"],
+                        "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
+                        "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
+                        "bandwidth_rate": f"{bw_entry['download_mbps']:g}M/{bw_entry['upload_mbps']:g}M" if bw_entry else None
                     })
 
     return {"count": len(users), "users": users}
+
+@app.get("/api/v1/users/{username}")
+def get_domain_user(username: str):
+    """Returns detailed information for a single user account."""
+    all_users = list_domain_users()["users"]
+    for u in all_users:
+        if u["username"].lower() == username.lower():
+            return u
+    raise HTTPException(status_code=404, detail=f"User '{username}' not found.")
 
 @app.post("/api/v1/users", status_code=status.HTTP_201_CREATED)
 def create_domain_user(req: UserCreateRequest):
@@ -1832,6 +1928,7 @@ def create_domain_user(req: UserCreateRequest):
     if req.given_name: cmd.extend(["--given-name", req.given_name])
     if req.surname: cmd.extend(["--surname", req.surname])
     if req.email: cmd.extend(["--mail-address", req.email])
+    if req.mobile: cmd.extend(["--telephone-number", req.mobile])
     if req.department: cmd.extend(["--department", req.department])
 
     code, stdout, stderr = run_cmd(cmd, timeout=20)
@@ -1841,8 +1938,134 @@ def create_domain_user(req: UserCreateRequest):
     if req.target_group and req.target_group != "Domain Users":
         run_cmd(["samba-tool", "group", "addmembers", req.target_group, req.username, f"-U{admin_user}", f"--password={admin_pass}"])
 
-    log_audit("USER_CREATED", "admin", req.username, "SUCCESS", {"group": req.target_group})
+    if req.bandwidth_profile_id and req.bandwidth_profile_id > 0:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO radius_user_bandwidth (username, profile_id, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(username) DO UPDATE SET profile_id = excluded.profile_id, updated_at = excluded.updated_at
+            """, (req.username, req.bandwidth_profile_id, time.time()))
+            conn.commit()
+            conn.close()
+            sync_freeradius_policies()
+        except Exception as e:
+            logger.warning(f"Failed to assign user bandwidth on create: {e}")
+
+    log_audit("USER_CREATED", "admin", req.username, "SUCCESS", {"group": req.target_group, "bandwidth_profile_id": req.bandwidth_profile_id})
     return {"status": "success", "username": req.username, "message": f"User {req.username} provisioned successfully."}
+
+@app.put("/api/v1/users/{username}")
+def update_domain_user(username: str, req: UserUpdateRequest):
+    """Updates user attributes (names, email, mobile, department, UPN), password, status, and bandwidth tier."""
+    # 1. Verify user exists in SAM LDB
+    code, stdout, stderr = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={username})", "dn"])
+    if code != 0:
+        raise HTTPException(status_code=500, detail=f"Failed to query SAM LDB: {stderr}")
+    dn = None
+    for line in stdout.splitlines():
+        if line.startswith("dn: "):
+            dn = line[4:].strip()
+            break
+    if not dn:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found in Active Directory.")
+
+    # 2. Modify AD attributes via ldbmodify
+    ldif_lines = [f"dn: {dn}", "changetype: modify"]
+    has_modifications = False
+
+    attr_map = [
+        ("givenName", req.given_name),
+        ("sn", req.surname),
+        ("mail", req.email),
+        ("telephoneNumber", req.mobile),
+        ("department", req.department),
+        ("userPrincipalName", req.user_principal_name)
+    ]
+
+    for attr, val in attr_map:
+        if val is not None:
+            val_clean = str(val).strip()
+            if val_clean:
+                ldif_lines.extend([f"replace: {attr}", f"{attr}: {val_clean}", "-"])
+            else:
+                ldif_lines.extend([f"replace: {attr}", "-"])
+            has_modifications = True
+
+    # If givenName or surname was updated, update displayName as well
+    if req.given_name is not None or req.surname is not None:
+        g = req.given_name if req.given_name is not None else ""
+        s = req.surname if req.surname is not None else ""
+        disp = f"{g} {s}".strip() or username
+        ldif_lines.extend(["replace: displayName", f"displayName: {disp}", "-"])
+        has_modifications = True
+
+    if has_modifications:
+        ldif_content = "\n".join(ldif_lines) + "\n"
+        proc = subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif_content, text=True, capture_output=True)
+        if proc.returncode != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to update user attributes: {proc.stderr}")
+
+    admin_user, admin_pass = get_ad_creds()
+
+    # 3. Handle Password Reset if requested
+    if req.new_password:
+        p_code, p_out, p_err = run_cmd([
+            "samba-tool", "user", "setpassword", username,
+            f"--newpassword={req.new_password}",
+            f"-U{admin_user}", f"--password={admin_pass}"
+        ], timeout=15)
+        if p_code != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to reset password: {p_err or p_out}")
+
+    # 4. Handle Account Status (Enable/Disable)
+    if req.is_disabled is not None:
+        action = "disable" if req.is_disabled else "enable"
+        s_code, s_out, s_err = run_cmd([
+            "samba-tool", "user", action, username,
+            f"-U{admin_user}", f"--password={admin_pass}"
+        ], timeout=15)
+        if s_code != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to {action} user: {s_err or s_out}")
+
+    # 5. Handle Bandwidth Profile Assignment
+    if req.bandwidth_profile_id is not None:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            now_ts = time.time()
+            if req.bandwidth_profile_id > 0:
+                cursor.execute("""
+                    INSERT INTO radius_user_bandwidth (username, profile_id, updated_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(username) DO UPDATE SET profile_id = excluded.profile_id, updated_at = excluded.updated_at
+                """, (username, req.bandwidth_profile_id, now_ts))
+            else:
+                cursor.execute("DELETE FROM radius_user_bandwidth WHERE username = ?", (username,))
+            conn.commit()
+            conn.close()
+            sync_freeradius_policies()
+        except Exception as e:
+            logger.warning(f"Failed to update user bandwidth profile: {e}")
+
+    log_audit("USER_UPDATED", "admin", username, "SUCCESS", {
+        "given_name": req.given_name,
+        "surname": req.surname,
+        "email": req.email,
+        "mobile": req.mobile,
+        "department": req.department,
+        "user_principal_name": req.user_principal_name,
+        "bandwidth_profile_id": req.bandwidth_profile_id,
+        "is_disabled": req.is_disabled,
+        "password_reset": bool(req.new_password)
+    })
+
+    return {
+        "status": "success",
+        "username": username,
+        "message": f"User '{username}' updated successfully."
+    }
 
 @app.post("/api/v1/users/{username}/password")
 def set_user_password(username: str, req: UserPasswordReset):
@@ -1880,6 +2103,17 @@ def delete_user(username: str):
     code, stdout, stderr = run_cmd(["samba-tool", "user", "delete", username, f"-U{admin_user}", f"--password={admin_pass}"])
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to delete user: {stderr}")
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM radius_user_bandwidth WHERE username = ?", (username,))
+        conn.commit()
+        conn.close()
+        sync_freeradius_policies()
+    except Exception:
+        pass
+
     log_audit("USER_DELETED", "admin", username, "SUCCESS", {})
     return {"status": "success", "message": f"User {username} permanently removed."}
 
@@ -2259,6 +2493,16 @@ def sync_freeradius_policies():
     cursor.execute("SELECT * FROM radius_mab_devices WHERE is_active = 1 ORDER BY id ASC")
     mab_rows = [dict(r) for r in cursor.fetchall()]
 
+    # Individual User Bandwidth Mappings
+    cursor.execute("""
+        SELECT u.username, p.name, p.download_mbps, p.upload_mbps, p.session_timeout_mins, p.idle_timeout_mins, p.daily_quota_mb
+        FROM radius_user_bandwidth u
+        JOIN radius_bandwidth_profiles p ON u.profile_id = p.id
+        WHERE p.is_active = 1
+        ORDER BY u.username ASC
+    """)
+    user_bw_rows = [dict(r) for r in cursor.fetchall()]
+
     cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE is_active = 1 ORDER BY is_default ASC, id ASC")
     bw_rows = [dict(r) for r in cursor.fetchall()]
 
@@ -2288,28 +2532,19 @@ def sync_freeradius_policies():
                 lines.append(f'\tFramed-IP-Address = {mab["static_ip"]},')
             lines.append(f'\tFall-Through = Yes\n')
 
-    # 2. Captive Portal Bandwidth Profiles & Rate Limits (pfSense, MikroTik, TP-Link Omada)
-    if bw_rows:
-        lines.append("# --- Captive Portal Bandwidth Management & Rate Limits (WISPr + MikroTik) ---")
-        for bw in bw_rows:
-            down_bps = int(bw['download_mbps'] * 1000000)
-            up_bps = int(bw['upload_mbps'] * 1000000)
-            mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
-            sess_sec = int(bw['session_timeout_mins'] * 60) if bw.get('session_timeout_mins') else 0
-            idle_sec = int(bw['idle_timeout_mins'] * 60) if bw.get('idle_timeout_mins') else 0
-            quota_bytes = int(bw['daily_quota_mb'] * 1024 * 1024) if bw.get('daily_quota_mb') else 0
+    # 2. Individual User Bandwidth Profiles (Highest Priority)
+    if user_bw_rows:
+        lines.append("# --- Individual User Bandwidth Profiles (Top Priority) ---")
+        for ubw in user_bw_rows:
+            down_bps = int(ubw['download_mbps'] * 1000000)
+            up_bps = int(ubw['upload_mbps'] * 1000000)
+            mk_rate = f"{ubw['upload_mbps']:g}M/{ubw['download_mbps']:g}M"
+            sess_sec = int(ubw['session_timeout_mins'] * 60) if ubw.get('session_timeout_mins') else 0
+            idle_sec = int(ubw['idle_timeout_mins'] * 60) if ubw.get('idle_timeout_mins') else 0
+            quota_bytes = int(ubw['daily_quota_mb'] * 1024 * 1024) if ubw.get('daily_quota_mb') else 0
 
-            if bw.get('ad_group'):
-                lines.append(f'# Profile: {bw["name"]} (AD Group: {bw["ad_group"]}) - {bw.get("description", "")}')
-                lines.append(f'DEFAULT Group == "{bw["ad_group"]}"')
-            elif bw.get('is_default'):
-                lines.append(f'# Default Captive Portal Tier: {bw["name"]} (Self-Registration Fallback) - {bw.get("description", "")}')
-                lines.append('DEFAULT')
-            else:
-                lines.append(f'# Tier: {bw["name"]} - {bw.get("description", "")}')
-                lines.append(f'DEFAULT Profile-Name == "{bw["name"]}"')
-
-            # Universal WISPr (pfSense, TP-Link, UniFi) + MikroTik attributes
+            lines.append(f'# User Override: {ubw["username"]} -> Tier: {ubw["name"]} ({ubw["download_mbps"]:g}M/{ubw["upload_mbps"]:g}M)')
+            lines.append(f'"{ubw["username"]}"')
             lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
             lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
             lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
@@ -2321,9 +2556,63 @@ def sync_freeradius_policies():
             if quota_bytes > 0:
                 lines.append(f'\tChilliSpot-Max-Total-Octets = {quota_bytes},')
                 lines.append(f'\tMikrotik-Total-Limit = {quota_bytes},')
-            lines.append('\tFall-Through = Yes\n')
+            lines.append('\tFall-Through = No\n')
 
-    # 3. Custom Vendor Attributes
+    # 3. Active Directory Group Bandwidth Profiles
+    group_profiles = [b for b in bw_rows if (b.get('ad_group') or (b.get('target_type') == 'GROUP' and b.get('target_name'))) and not b.get('is_default')]
+    if group_profiles:
+        lines.append("# --- Active Directory Group Bandwidth Profiles ---")
+        for bw in group_profiles:
+            group_name = bw.get('target_name') if bw.get('target_type') == 'GROUP' and bw.get('target_name') else bw.get('ad_group')
+            down_bps = int(bw['download_mbps'] * 1000000)
+            up_bps = int(bw['upload_mbps'] * 1000000)
+            mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
+            sess_sec = int(bw['session_timeout_mins'] * 60) if bw.get('session_timeout_mins') else 0
+            idle_sec = int(bw['idle_timeout_mins'] * 60) if bw.get('idle_timeout_mins') else 0
+            quota_bytes = int(bw['daily_quota_mb'] * 1024 * 1024) if bw.get('daily_quota_mb') else 0
+
+            lines.append(f'# Group Profile: {bw["name"]} (AD Group: {group_name}) - {bw.get("description", "")}')
+            lines.append(f'DEFAULT Group == "{group_name}"')
+            lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
+            lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
+            lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
+            lines.append('\tAcct-Interim-Interval = 300,')
+            if sess_sec > 0:
+                lines.append(f'\tSession-Timeout = {sess_sec},')
+            if idle_sec > 0:
+                lines.append(f'\tIdle-Timeout = {idle_sec},')
+            if quota_bytes > 0:
+                lines.append(f'\tChilliSpot-Max-Total-Octets = {quota_bytes},')
+                lines.append(f'\tMikrotik-Total-Limit = {quota_bytes},')
+            lines.append('\tFall-Through = No\n')
+
+    # 4. Default Captive Portal Tier (Fallback for Visitors & Unmapped Users)
+    default_profiles = [b for b in bw_rows if b.get('is_default') or b.get('target_type') == 'DEFAULT']
+    if default_profiles:
+        bw = default_profiles[0]
+        down_bps = int(bw['download_mbps'] * 1000000)
+        up_bps = int(bw['upload_mbps'] * 1000000)
+        mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
+        sess_sec = int(bw['session_timeout_mins'] * 60) if bw.get('session_timeout_mins') else 0
+        idle_sec = int(bw['idle_timeout_mins'] * 60) if bw.get('idle_timeout_mins') else 0
+        quota_bytes = int(bw['daily_quota_mb'] * 1024 * 1024) if bw.get('daily_quota_mb') else 0
+
+        lines.append(f'# Default Captive Portal Tier: {bw["name"]} (Fallback for Visitors & Unmapped Users)')
+        lines.append('DEFAULT')
+        lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
+        lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
+        lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
+        lines.append('\tAcct-Interim-Interval = 300,')
+        if sess_sec > 0:
+            lines.append(f'\tSession-Timeout = {sess_sec},')
+        if idle_sec > 0:
+            lines.append(f'\tIdle-Timeout = {idle_sec},')
+        if quota_bytes > 0:
+            lines.append(f'\tChilliSpot-Max-Total-Octets = {quota_bytes},')
+            lines.append(f'\tMikrotik-Total-Limit = {quota_bytes},')
+        lines.append('\tFall-Through = Yes\n')
+
+    # 5. Custom Vendor Attributes
     if custom_rows:
         lines.append("# --- Custom RADIUS Attributes & Policies ---")
         for attr in custom_rows:
@@ -2481,31 +2770,36 @@ def save_radius_bandwidth_profile(req: RadiusBandwidthProfileRequest):
     cursor = conn.cursor()
     now_ts = time.time()
     
+    is_def = 1 if (req.is_default or req.target_type == "DEFAULT") else 0
     # If marking as default fallback, unmark others
-    if req.is_default:
+    if is_def:
         cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0")
+
+    t_type = req.target_type or ("DEFAULT" if is_def else "GROUP")
+    t_name = req.target_name or req.ad_group or ""
+    ad_grp = t_name if t_type == "GROUP" else (req.ad_group or "")
 
     if req.id:
         cursor.execute("""
             UPDATE radius_bandwidth_profiles
             SET name = ?, download_mbps = ?, upload_mbps = ?, session_timeout_mins = ?,
-                idle_timeout_mins = ?, daily_quota_mb = ?, ad_group = ?, is_default = ?,
-                description = ?, is_active = ?
+                idle_timeout_mins = ?, daily_quota_mb = ?, target_type = ?, target_name = ?,
+                ad_group = ?, is_default = ?, description = ?, is_active = ?
             WHERE id = ?
         """, (
             req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
-            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, req.ad_group or "",
-            1 if req.is_default else 0, req.description or "", 1 if req.is_active else 0, req.id
+            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, t_type, t_name,
+            ad_grp, is_def, req.description or "", 1 if req.is_active else 0, req.id
         ))
     else:
         cursor.execute("""
             INSERT INTO radius_bandwidth_profiles
-            (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, ad_group, is_default, description, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, target_type, target_name, ad_group, is_default, description, is_active, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
-            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, req.ad_group or "",
-            1 if req.is_default else 0, req.description or "", 1 if req.is_active else 0, now_ts
+            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, t_type, t_name,
+            ad_grp, is_def, req.description or "", 1 if req.is_active else 0, now_ts
         ))
     conn.commit()
     conn.close()
