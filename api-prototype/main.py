@@ -1852,12 +1852,62 @@ def list_domain_users():
         for row in cursor.fetchall():
             user_bw_map[row["username"]] = dict(row)
 
-        cursor.execute("SELECT id, name FROM radius_bandwidth_profiles")
-        profiles_by_name = {r["name"].lower(): r["id"] for r in cursor.fetchall()}
+        cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE is_active = 1")
+        all_profiles = [dict(r) for r in cursor.fetchall()]
+        profiles_by_name = {r["name"].lower(): r["id"] for r in all_profiles}
         conn.close()
     except Exception as e:
         logger.warning(f"Failed to read radius_user_bandwidth: {e}")
         profiles_by_name = {}
+        all_profiles = []
+
+    # Fetch AD groups with bandwidth policies to resolve group bandwidth tier
+    group_bw_map = {}
+    code_grp, out_grp, _ = run_cmd([
+        "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
+        "(&(objectClass=group)(info=ZCLOCKID_BW:*))", "sAMAccountName", "info"
+    ], timeout=5)
+    if code_grp == 0:
+        c_g = {}
+        for line in out_grp.splitlines():
+            line = line.strip()
+            if not line:
+                if c_g.get("name") and c_g.get("info"):
+                    bw = parse_bw_info(c_g["info"])
+                    if bw:
+                        group_bw_map[c_g["name"].lower()] = {
+                            "group_name": c_g["name"],
+                            "profile_name": bw["name"],
+                            "download_mbps": bw["download_mbps"],
+                            "upload_mbps": bw["upload_mbps"],
+                            "rate_str": format_bw_rate_str(bw["download_mbps"], bw["upload_mbps"])
+                        }
+                c_g = {}
+                continue
+            if line.startswith("sAMAccountName:"):
+                c_g["name"] = line.split(":", 1)[1].strip()
+            elif line.startswith("info:"):
+                c_g["info"] = line.split(":", 1)[1].strip()
+        if c_g.get("name") and c_g.get("info"):
+            bw = parse_bw_info(c_g["info"])
+            if bw:
+                group_bw_map[c_g["name"].lower()] = {
+                    "group_name": c_g["name"],
+                    "profile_name": bw["name"],
+                    "download_mbps": bw["download_mbps"],
+                    "upload_mbps": bw["upload_mbps"],
+                    "rate_str": format_bw_rate_str(bw["download_mbps"], bw["upload_mbps"])
+                }
+    for prof in all_profiles:
+        grp = prof.get("ad_group") or (prof.get("target_name") if prof.get("target_type") == "GROUP" else None)
+        if grp and grp.lower() not in group_bw_map:
+            group_bw_map[grp.lower()] = {
+                "group_name": grp,
+                "profile_name": prof["name"],
+                "download_mbps": prof["download_mbps"],
+                "upload_mbps": prof["upload_mbps"],
+                "rate_str": format_bw_rate_str(prof["download_mbps"], prof["upload_mbps"])
+            }
 
     users = []
     if code == 0:
@@ -1886,6 +1936,19 @@ def list_domain_users():
                         s_name = current_user.get("surname") or ""
                         full_name = current_user.get("display_name") or f"{g_name} {s_name}".strip() or u
                         dept_val = "Built-in" if is_built_in else (current_user.get("department") or "-")
+
+                        best_grp_bw = None
+                        for grp_item in current_user.get("groups", []):
+                            g_pol = group_bw_map.get(grp_item.lower())
+                            if g_pol:
+                                if best_grp_bw is None:
+                                    best_grp_bw = g_pol
+                                else:
+                                    speed_new = float('inf') if (g_pol["download_mbps"] == 0 or g_pol["download_mbps"] is None) else g_pol["download_mbps"]
+                                    speed_cur = float('inf') if (best_grp_bw["download_mbps"] == 0 or best_grp_bw["download_mbps"] is None) else best_grp_bw["download_mbps"]
+                                    if speed_new > speed_cur:
+                                        best_grp_bw = g_pol
+
                         users.append({
                             "username": u,
                             "name": full_name,
@@ -1902,7 +1965,10 @@ def list_domain_users():
                             "groups": current_user.get("groups", []),
                             "bandwidth_profile_id": p_id,
                             "bandwidth_profile_name": p_name,
-                            "bandwidth_rate": bw_rate_str
+                            "bandwidth_rate": bw_rate_str,
+                            "group_bandwidth_profile_name": best_grp_bw["profile_name"] if best_grp_bw else None,
+                            "group_bandwidth_rate": best_grp_bw["rate_str"] if best_grp_bw else None,
+                            "group_bandwidth_group": best_grp_bw["group_name"] if best_grp_bw else None
                         })
                 current_user = {"groups": []}
                 continue

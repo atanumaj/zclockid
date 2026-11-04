@@ -903,13 +903,14 @@
                                         <th class="px-4 py-2.5">User Account & UPN</th>
                                         <th class="px-4 py-2.5">Full Name</th>
                                         <th class="px-4 py-2.5">Department</th>
-                                        <th class="px-4 py-2.5">Bandwidth Tier</th>
+                                        <th class="px-4 py-2.5">User Bandwidth Tier</th>
+                                        <th class="px-4 py-2.5">Group Bandwidth Tier</th>
                                         <th class="px-4 py-2.5">Account State</th>
                                         <th class="px-4 py-2.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="users-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
+                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -5404,6 +5405,9 @@
                 } else {
                     tbody.innerHTML = `<tr><td colspan="8" class="px-4 py-4 text-center font-sans text-slate-500">No bandwidth profiles configured.</td></tr>`;
                 }
+                if (typeof renderUsersTable === 'function' && typeof globalUsers !== 'undefined' && globalUsers.length > 0) {
+                    renderUsersTable();
+                }
             } catch (err) {
                 console.error('Error fetching bandwidth profiles:', err);
             }
@@ -5853,9 +5857,54 @@
                     if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${u.email}</span>`);
                     if (u.mobile) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-phone text-slate-500 mr-1"></i>${u.mobile}</span>`);
                     
-                    let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-users text-slate-600"></i> Inherit / None</span>';
+                    // 1. Explicit User Bandwidth Override
+                    let userBwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> None</span>';
                     if (u.bandwidth_profile_name) {
-                        bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${u.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${u.bandwidth_profile_name} (${u.bandwidth_rate || ''})</span>`;
+                        userBwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="Explicit User Override (takes precedence) - WISPr/MikroTik: ${u.bandwidth_rate || ''}"><i class="fa-solid fa-user-shield text-cyan-400"></i> ${u.bandwidth_profile_name} (${u.bandwidth_rate || ''})</span>`;
+                    }
+
+                    // 2. Inherited Group Bandwidth Policy
+                    let groupBwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> None</span>';
+                    let bestGroup = null;
+                    if (u.group_bandwidth_profile_name && u.group_bandwidth_group) {
+                        bestGroup = {
+                            group_name: u.group_bandwidth_group,
+                            bandwidth_profile_name: u.group_bandwidth_profile_name,
+                            bandwidth_rate: u.group_bandwidth_rate || ''
+                        };
+                    } else if (u.groups && u.groups.length > 0 && Array.isArray(globalGroups)) {
+                        const matchingGroupsWithBw = [];
+                        u.groups.forEach(grpName => {
+                            const found = globalGroups.find(g => g.group_name && g.group_name.toLowerCase() === grpName.toLowerCase() && g.bandwidth_profile_name);
+                            if (found) matchingGroupsWithBw.push(found);
+                        });
+
+                        if (matchingGroupsWithBw.length > 0) {
+                            bestGroup = matchingGroupsWithBw[0];
+                            if (matchingGroupsWithBw.length > 1 && Array.isArray(globalBandwidthProfiles)) {
+                                const getSpeed = (grp) => {
+                                    const prof = globalBandwidthProfiles.find(p => p.id === grp.bandwidth_profile_id || (p.name && p.name.toLowerCase() === grp.bandwidth_profile_name.toLowerCase()));
+                                    if (!prof) return 0;
+                                    const d = prof.download_mbps;
+                                    return (d === 0 || d === null || d === undefined) ? Infinity : d;
+                                };
+                                matchingGroupsWithBw.sort((a, b) => getSpeed(b) - getSpeed(a));
+                                bestGroup = matchingGroupsWithBw[0];
+                            }
+                        }
+                    }
+
+                    if (bestGroup) {
+                        groupBwBadge = `
+                            <div>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800 flex items-center gap-1 w-max" title="Inherited from group ${bestGroup.group_name}${u.bandwidth_profile_name ? ' (User override active)' : ''}">
+                                    <i class="fa-solid fa-users text-indigo-400"></i> ${bestGroup.bandwidth_profile_name} (${bestGroup.bandwidth_rate || ''})
+                                </span>
+                                <div class="text-[9px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                                    <span class="text-slate-500">via</span> ${bestGroup.group_name}
+                                </div>
+                            </div>
+                        `;
                     }
 
                     const statusBadge = u.status === 'active'
@@ -5888,7 +5937,8 @@
                             <td class="px-4 py-2.5">
                                 ${isBuiltin ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : `<span class="text-slate-300 font-sans">${u.department || '-'}</span>`}
                             </td>
-                            <td class="px-4 py-2.5">${bwBadge}</td>
+                            <td class="px-4 py-2.5">${userBwBadge}</td>
+                            <td class="px-4 py-2.5">${groupBwBadge}</td>
                             <td class="px-4 py-2.5">${statusBadge}</td>
                             <td class="px-4 py-2.5 text-right whitespace-nowrap">
                                 <button onclick="openEditUserModal('${u.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit User Account, Credentials & Bandwidth">
@@ -5904,7 +5954,7 @@
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">No domain users found. Create one using "+ New User".</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center font-sans text-slate-500">No domain users found. Create one using "+ New User".</td></tr>';
             }
         }
 
@@ -6187,6 +6237,9 @@
                 const data = await res.json();
                 globalGroups = data.groups || [];
                 renderGroupsTable();
+                if (typeof renderUsersTable === 'function' && typeof globalUsers !== 'undefined' && globalUsers.length > 0) {
+                    renderUsersTable();
+                }
             } catch (err) {
                 console.error('Error fetching groups:', err);
             }
