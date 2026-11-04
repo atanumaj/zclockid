@@ -64,6 +64,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # ----------------- Database & State Initialization -----------------
 
 DATA_DIR = Path(os.environ.get("ZCLOCKID_DATA_DIR", "/var/lib/zclockid"))
@@ -5284,6 +5293,10 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     clean_user = req.username.strip().lower()
     if not re.match(r"^[a-zA-Z0-9._-]{3,32}$", clean_user):
         raise HTTPException(status_code=400, detail="Username must be 3-32 characters (letters, numbers, dots, dashes).")
+
+    reserved_users = ["admin", "administrator", "root", "guest", "krbtgt", "system", "daemon", "bin", "sys"]
+    if clean_user in reserved_users:
+        raise HTTPException(status_code=400, detail=f"Username '{clean_user}' is a reserved administrative account name. Please choose a different username.")
 
     # Strict Active Directory Password Complexity Enforcement
     pwd_ok, pwd_msg = validate_ad_password_complexity(req.password, clean_user, f"{req.given_name} {req.surname}")

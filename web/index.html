@@ -890,6 +890,9 @@
                                     <input type="checkbox" id="chk-show-system-users" onchange="renderUsersTable()" class="rounded bg-slate-900 border-slate-700 text-emerald-600 focus:ring-0">
                                     <span class="text-[11px]">Show System Accounts (krbtgt, Guest)</span>
                                 </label>
+                                <button onclick="fetchUsers()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700" title="Reload Domain Users">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                                </button>
                                 <button onclick="openUserModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                     <i class="fa-solid fa-user-plus"></i> New User
                                 </button>
@@ -6097,7 +6100,7 @@
 
         async function fetchUsers() {
             try {
-                const res = await fetch(`${API_BASE}/users`);
+                const res = await fetch(`${API_BASE}/users?_t=${Date.now()}`);
                 const data = await res.json();
                 globalUsers = data.users || [];
                 renderUsersTable();
@@ -6370,7 +6373,7 @@
 
         async function fetchGroups() {
             try {
-                const res = await fetch(`${API_BASE}/groups`);
+                const res = await fetch(`${API_BASE}/groups?_t=${Date.now()}`);
                 const data = await res.json();
                 globalGroups = data.groups || [];
                 renderGroupsTable();
@@ -7617,7 +7620,7 @@
 
             const tbody = document.getElementById('registrations-table-body');
             try {
-                const res = await fetch(`${API_BASE}/registrations/requests?status_filter=${encodeURIComponent(filter)}`);
+                const res = await fetch(`${API_BASE}/registrations/requests?status_filter=${encodeURIComponent(filter)}&_t=${Date.now()}`);
                 const data = await res.json();
 
                 if (res.ok && data.requests) {
