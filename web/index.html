@@ -2812,6 +2812,36 @@
                     </div>
                 </div>
 
+                <!-- Organization Departments Configuration (Max 100) -->
+                <div class="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-building text-indigo-400"></i> Organization Departments (Self-Registration)
+                        </span>
+                        <span id="reg-dept-count-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-400">0 / 100 configured</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Configure organizational departments available during portal registration. Departments are saved to the user's Active Directory profile.</p>
+
+                    <div class="flex gap-2">
+                        <input type="text" id="reg-new-dept-input" placeholder="Enter department name (e.g. DevOps, Legal, Sales)"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();addRegistrationDepartment();}"
+                            class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none font-sans">
+                        <button type="button" onclick="addRegistrationDepartment()"
+                            class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Add
+                        </button>
+                    </div>
+
+                    <div id="reg-dept-tags-container" class="flex flex-wrap gap-1.5 min-h-[44px] p-2 bg-slate-900/60 border border-slate-800/80 rounded-lg max-h-36 overflow-y-auto custom-scroll">
+                        <!-- Rendered dynamically -->
+                    </div>
+
+                    <div class="flex justify-between items-center text-[10px] text-slate-500 pt-1">
+                        <span>Click <i class="fa-solid fa-xmark text-slate-400"></i> to remove a department. Max limit: 100.</span>
+                        <button type="button" onclick="resetDefaultRegistrationDepartments()" class="text-indigo-400 hover:underline">Reset to Default List</button>
+                    </div>
+                </div>
+
                 <!-- SMS Gateway Provider Configuration -->
                 <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
                     <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -6028,6 +6058,7 @@
                                     ${u.username.toLowerCase() === 'administrator' 
                                         ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/80 uppercase font-mono font-bold">Domain Admin</span>' 
                                         : (isBuiltin ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 uppercase font-mono">System Account</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Domain User</span>')}
+                                    ${u.is_self_registered ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono font-semibold flex items-center gap-1" title="Account created via User Self-Registration Portal"><i class="fa-solid fa-id-badge text-cyan-400"></i> Self-Registered</span>' : ''}
                                 </div>
                                 <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
                                 ${(u.groups && u.groups.length > 0) ? `
@@ -7435,10 +7466,64 @@
 
                     document.getElementById('reg-stat-sms').innerText = (s.sms_gateway_type || 'simulated').toUpperCase();
                     document.getElementById('reg-queue-domain').innerText = s.default_domain || 'inet.net';
+
+                    // Populate organization departments tag manager
+                    const rawDepts = s.allowed_departments || 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations';
+                    currentRegDepartments = rawDepts.split(',').map(d => d.trim()).filter(Boolean);
+                    renderRegDeptTags();
                 }
             } catch (err) {
                 console.error('Error fetching registration settings:', err);
             }
+        }
+
+        let currentRegDepartments = [];
+
+        function renderRegDeptTags() {
+            const container = document.getElementById('reg-dept-tags-container');
+            const badge = document.getElementById('reg-dept-count-badge');
+            if (badge) badge.innerText = `${currentRegDepartments.length} / 100 configured`;
+            if (!container) return;
+            if (currentRegDepartments.length === 0) {
+                container.innerHTML = '<span class="text-slate-500 text-[11px] italic p-1">No departments configured. Default "General" will be used.</span>';
+                return;
+            }
+            container.innerHTML = currentRegDepartments.map(d => `
+                <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-sans flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-briefcase text-[9px] text-indigo-400"></i> ${d}
+                    <button type="button" onclick="removeRegistrationDepartment('${d.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400 transition ml-0.5" title="Remove ${d}">
+                        <i class="fa-solid fa-xmark text-[10px]"></i>
+                    </button>
+                </span>
+            `).join('');
+        }
+
+        function addRegistrationDepartment() {
+            const input = document.getElementById('reg-new-dept-input');
+            if (!input) return;
+            const val = input.value.trim();
+            if (!val) return;
+            if (currentRegDepartments.length >= 100) {
+                alert('Maximum 100 departments allowed. Please remove a department before adding another.');
+                return;
+            }
+            if (currentRegDepartments.some(d => d.toLowerCase() === val.toLowerCase())) {
+                alert(`Department "${val}" already exists in the list.`);
+                return;
+            }
+            currentRegDepartments.push(val);
+            input.value = '';
+            renderRegDeptTags();
+        }
+
+        function removeRegistrationDepartment(deptName) {
+            currentRegDepartments = currentRegDepartments.filter(d => d.toLowerCase() !== deptName.toLowerCase());
+            renderRegDeptTags();
+        }
+
+        function resetDefaultRegistrationDepartments() {
+            currentRegDepartments = ['Engineering', 'IT Operations', 'Finance', 'Human Resources', 'Sales & Marketing', 'Operations'];
+            renderRegDeptTags();
         }
 
         function toggleSmsProviderFields() {
@@ -7480,6 +7565,7 @@
                 default_domain: (document.getElementById('reg-cfg-domain').value || 'inet.net').trim(),
                 default_group: (document.getElementById('reg-cfg-group').value || 'Domain Users').trim(),
                 default_bandwidth_profile_id: parseInt(document.getElementById('reg-cfg-bw-profile').value, 10) || 0,
+                allowed_departments: currentRegDepartments.join(','),
                 sms_gateway_type: document.getElementById('reg-cfg-sms-type').value,
                 sms_gateway_url: document.getElementById('reg-cfg-sms-url').value.trim(),
                 sms_api_key: document.getElementById('reg-cfg-sms-key').value.trim(),

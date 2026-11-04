@@ -169,11 +169,13 @@ def init_db():
             updated_at REAL
         )
     """)
-    # Safe migration: ensure default_bandwidth_profile_id exists
+    # Safe migration: ensure default_bandwidth_profile_id and allowed_departments exist
     cursor.execute("PRAGMA table_info(self_registration_settings)")
     sreg_cols = [row[1] for row in cursor.fetchall()]
     if "default_bandwidth_profile_id" not in sreg_cols:
         cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN default_bandwidth_profile_id INTEGER DEFAULT 0")
+    if "allowed_departments" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN allowed_departments TEXT DEFAULT 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations'")
     try:
         cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0 WHERE is_default != 0")
     except Exception:
@@ -585,6 +587,7 @@ def get_self_registration_settings() -> dict:
         "default_domain": primary_realm,
         "default_group": "Domain Users",
         "default_bandwidth_profile_id": 0,
+        "allowed_departments": "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations",
         "sms_gateway_type": "simulated",
         "sms_gateway_url": "",
         "sms_api_key": "",
@@ -773,7 +776,40 @@ def update_user_upn(username: str, new_upn: str) -> str:
         raise Exception(f"Failed to update userPrincipalName: {proc.stderr}")
     return dn
 
-def provision_user_in_ad(username: str, password: str, given_name: str, surname: str, email: str, mobile: str, department: str, default_domain: str = None, default_group: str = None, default_bandwidth_profile_id: int = 0) -> bool:
+def validate_ad_password_complexity(password: str, username: str = "", full_name: str = "") -> tuple[bool, str]:
+    """
+    Validates password against standard Active Directory complexity policy:
+    - Minimum length of 8 characters.
+    - Contains characters from at least 3 of 4 categories:
+      1. Uppercase English letters (A-Z)
+      2. Lowercase English letters (a-z)
+      3. Base 10 digits (0-9)
+      4. Non-alphanumeric special characters (!@#$%^&*()_+-=[]{}|;:,.<>?)
+    - Does not contain user's sAMAccountName or parts of their full name.
+    """
+    if not password or len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+
+    has_upper = bool(re.search(r'[A-Z]', password))
+    has_lower = bool(re.search(r'[a-z]', password))
+    has_digit = bool(re.search(r'[0-9]', password))
+    has_special = bool(re.search(r'[^a-zA-Z0-9]', password))
+
+    categories = sum([has_upper, has_lower, has_digit, has_special])
+    if categories < 3:
+        return False, "Password must contain characters from at least 3 categories: uppercase letters (A-Z), lowercase letters (a-z), numbers (0-9), and special symbols (!@#$%^&*)."
+
+    if username and len(username) >= 3 and username.lower() in password.lower():
+        return False, "Password cannot contain your account username."
+
+    if full_name:
+        for part in re.split(r'[\s,._-]+', full_name):
+            if len(part) >= 3 and part.lower() in password.lower():
+                return False, f"Password cannot contain parts of your name ('{part}')."
+
+    return True, ""
+
+def provision_user_in_ad(username: str, password: str, given_name: str, surname: str, email: str, mobile: str, department: str, default_domain: str = None, default_group: str = None, default_bandwidth_profile_id: int = 0, is_self_registered: bool = True) -> bool:
     admin_user, admin_pass = get_ad_creds()
     cmd = [
         "samba-tool", "user", "create", username, password,
@@ -784,12 +820,36 @@ def provision_user_in_ad(username: str, password: str, given_name: str, surname:
     if email: cmd.extend(["--mail-address", email])
     if mobile: cmd.extend(["--telephone-number", mobile])
     if department: cmd.extend(["--department", department])
+    if is_self_registered:
+        cmd.extend(["--description", "Self-Registered via ZclockID Portal"])
 
     code, stdout, stderr = run_cmd(cmd, timeout=25)
     if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to create user in Active Directory: {stderr or stdout}")
+        err_out = (stderr or stdout or "").strip()
+        if "check_password_restrictions" in err_out:
+            err_out = "The password does not meet Active Directory complexity requirements (minimum 8 characters, containing uppercase, lowercase, numbers, and special symbols)."
+        raise HTTPException(status_code=400, detail=f"Failed to create user in Active Directory: {err_out}")
 
     run_cmd(["samba-tool", "user", "setexpiry", username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+
+    # Permanent Active Directory Schema Attribute Synchronization via sam.ldb
+    try:
+        c_d, o_d, _ = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={username})", "dn"])
+        if c_d == 0 and "dn: " in o_d:
+            u_dn = [l[4:].strip() for l in o_d.splitlines() if l.startswith("dn: ")][0]
+            mod_lines = [f"dn: {u_dn}", "changetype: modify"]
+            if department and department.strip():
+                mod_lines.extend(["replace: department", f"department: {department.strip()}", "-"])
+            if is_self_registered:
+                mod_lines.extend([
+                    "replace: employeeType", "employeeType: Self-Registered", "-",
+                    "replace: comment", "comment: ZCLOCKID_SELF_REGISTERED", "-",
+                    "replace: description", "description: Self-Registered via ZclockID Portal", "-"
+                ])
+            ldif_payload = "\n".join(mod_lines) + "\n"
+            subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif_payload, text=True, capture_output=True)
+    except Exception as e:
+        logger.warning(f"Could not apply extended LDAP attributes to user {username}: {e}")
 
     if default_domain and default_domain.lower() != get_primary_realm().lower():
         try:
@@ -1059,6 +1119,7 @@ class SelfRegistrationSettingsRequest(BaseModel):
     default_domain: Optional[str] = "inet.net"
     default_group: Optional[str] = "Domain Users"
     default_bandwidth_profile_id: Optional[int] = 0
+    allowed_departments: Optional[str] = "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
     sms_gateway_type: Optional[str] = "simulated"  # simulated, webhook, twilio, fast2sms, msg91
     sms_gateway_url: Optional[str] = ""
     sms_api_key: Optional[str] = ""
@@ -1908,7 +1969,7 @@ def list_domain_users():
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
         "(objectClass=user)",
-        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "info", "userAccountControl", "memberOf"
+        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "info", "userAccountControl", "memberOf", "employeeType", "comment", "description"
     ], timeout=10)
 
     # Fetch bandwidth mappings from local SQLite
@@ -2023,6 +2084,11 @@ def list_domain_users():
                                     if speed_new > speed_cur:
                                         best_grp_bw = g_pol
 
+                        emp_type = (current_user.get("employee_type") or "").lower()
+                        u_comment = current_user.get("comment") or ""
+                        u_desc = (current_user.get("description") or "").lower()
+                        is_self_reg = (emp_type == "self-registered") or ("ZCLOCKID_SELF_REGISTERED" in u_comment) or ("self-registered" in u_desc)
+
                         users.append({
                             "username": u,
                             "name": full_name,
@@ -2036,6 +2102,7 @@ def list_domain_users():
                             "is_disabled": is_disabled,
                             "is_built_in": is_built_in,
                             "is_system_hidden": is_system_hidden,
+                            "is_self_registered": is_self_reg,
                             "groups": current_user.get("groups", []),
                             "bandwidth_profile_id": p_id,
                             "bandwidth_profile_name": p_name,
@@ -2064,6 +2131,12 @@ def list_domain_users():
                 current_user["department"] = line.split(":", 1)[1].strip()
             elif line.startswith("info:"):
                 current_user["info"] = line.split(":", 1)[1].strip()
+            elif line.startswith("employeeType:"):
+                current_user["employee_type"] = line.split(":", 1)[1].strip()
+            elif line.startswith("comment:"):
+                current_user["comment"] = line.split(":", 1)[1].strip()
+            elif line.startswith("description:"):
+                current_user["description"] = line.split(":", 1)[1].strip()
             elif line.startswith("memberOf:"):
                 dn_val = line.split(":", 1)[1].strip()
                 for part in dn_val.split(","):
@@ -5184,9 +5257,11 @@ def test_snmp_query(req: SnmpTestQueryRequest):
 
 @app.get("/api/v1/public/register/config")
 def get_public_registration_config():
-    """Returns self-registration availability and verification requirements for the public portal."""
+    """Returns self-registration availability, verification requirements, and allowed departments for the public portal."""
     settings = get_self_registration_settings()
     primary_realm = get_primary_realm().lower()
+    raw_depts = settings.get("allowed_departments") or "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
+    dept_list = [d.strip() for d in raw_depts.split(",") if d.strip()][:100]
     return {
         "status": "success",
         "enabled": bool(settings.get("enabled", 1)),
@@ -5194,7 +5269,8 @@ def get_public_registration_config():
         "auto_approve_with_otp": bool(settings.get("auto_approve_with_otp", 1)),
         "default_domain": settings.get("default_domain") or primary_realm,
         "primary_realm": primary_realm,
-        "sms_provider": settings.get("sms_gateway_type", "simulated")
+        "sms_provider": settings.get("sms_gateway_type", "simulated"),
+        "departments": dept_list
     }
 
 @app.post("/api/v1/public/register/initiate")
@@ -5209,8 +5285,20 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     if not re.match(r"^[a-zA-Z0-9._-]{3,32}$", clean_user):
         raise HTTPException(status_code=400, detail="Username must be 3-32 characters (letters, numbers, dots, dashes).")
 
-    if len(req.password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long.")
+    # Strict Active Directory Password Complexity Enforcement
+    pwd_ok, pwd_msg = validate_ad_password_complexity(req.password, clean_user, f"{req.given_name} {req.surname}")
+    if not pwd_ok:
+        raise HTTPException(status_code=400, detail=f"Active Directory Password Complexity: {pwd_msg}")
+
+    # Validate and resolve department from allowed departments
+    raw_depts = settings.get("allowed_departments") or "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
+    valid_depts = [d.strip() for d in raw_depts.split(",") if d.strip()]
+    req_dept = (req.department or "").strip()
+    if req_dept:
+        matched = next((d for d in valid_depts if d.lower() == req_dept.lower()), None)
+        chosen_dept = matched or req_dept[:64]
+    else:
+        chosen_dept = valid_depts[0] if valid_depts else "General"
 
     clean_mobile = re.sub(r"[^\d+]", "", req.mobile.strip())
     if len(clean_mobile.replace("+", "")) < 8:
@@ -5246,7 +5334,7 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
                 status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes
             ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, ?, ?)
         """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
-              req.department or "Engineering", clean_mobile, client_ip, time.time(),
+              chosen_dept, clean_mobile, client_ip, time.time(),
               otp, expiry, req.password, req.justification or ""))
         reg_id = cursor.lastrowid
         conn.commit()
@@ -5274,7 +5362,7 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
                 status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes
             ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, NULL, NULL, 0, ?, ?)
         """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
-              req.department or "Engineering", clean_mobile, client_ip, time.time(),
+              chosen_dept, clean_mobile, client_ip, time.time(),
               req.password, req.justification or ""))
         reg_id = cursor.lastrowid
         conn.commit()
@@ -5415,6 +5503,19 @@ def get_registration_settings_endpoint():
 @app.post("/api/v1/registrations/settings")
 def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
     """Updates self-registration, OTP verification, and SMS gateway parameters."""
+    # Clean and validate allowed_departments (limit max 100)
+    raw_depts = req.allowed_departments or ""
+    dept_tokens = [d.strip() for d in re.split(r'[,;\n]+', raw_depts) if d.strip()]
+    seen_depts = set()
+    cleaned_depts = []
+    for d in dept_tokens:
+        if d.lower() not in seen_depts:
+            seen_depts.add(d.lower())
+            cleaned_depts.append(d)
+    if len(cleaned_depts) > 100:
+        raise HTTPException(status_code=400, detail="Organization departments cannot exceed 100 entries.")
+    final_depts = ",".join(cleaned_depts) if cleaned_depts else "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -5425,6 +5526,7 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
             default_domain = ?,
             default_group = ?,
             default_bandwidth_profile_id = ?,
+            allowed_departments = ?,
             sms_gateway_type = ?,
             sms_gateway_url = ?,
             sms_api_key = ?,
@@ -5445,6 +5547,7 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
         req.default_domain or get_primary_realm().lower(),
         req.default_group or "Domain Users",
         req.default_bandwidth_profile_id or 0,
+        final_depts,
         req.sms_gateway_type or "simulated",
         req.sms_gateway_url or "",
         req.sms_api_key or "",

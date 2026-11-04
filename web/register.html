@@ -74,29 +74,62 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Password *</label>
-                        <input type="password" id="password" required minlength="8" placeholder="••••••••••••"
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium text-slate-300">Password *</label>
+                            <button type="button" onclick="togglePasswordVisibility('password', 'eye-p1')" class="text-[11px] text-slate-400 hover:text-white">
+                                <i id="eye-p1" class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <input type="password" id="password" required minlength="8" placeholder="••••••••••••" oninput="checkPasswordComplexity()"
                             class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                        <p class="text-[10px] text-slate-500 mt-0.5">Min 8 chars, mixed case, numbers</p>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Confirm Password *</label>
-                        <input type="password" id="confirm_password" required minlength="8" placeholder="••••••••••••"
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium text-slate-300">Confirm Password *</label>
+                            <button type="button" onclick="togglePasswordVisibility('confirm_password', 'eye-p2')" class="text-[11px] text-slate-400 hover:text-white">
+                                <i id="eye-p2" class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                        <input type="password" id="confirm_password" required minlength="8" placeholder="••••••••••••" oninput="checkPasswordComplexity()"
                             class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Active Directory Password Complexity Checklist -->
+                <div class="p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl space-y-1.5 text-[11px]">
+                    <div class="text-[10px] uppercase font-mono tracking-wider text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved text-indigo-400"></i> Active Directory Password Policy Requirements
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1 pt-1 font-sans">
+                        <div id="rule-len" data-label="Minimum 8 characters" class="text-slate-500 flex items-center gap-1">
+                            <i class="fa-regular fa-circle text-[10px]"></i> Minimum 8 characters
+                        </div>
+                        <div id="rule-upper" data-label="Uppercase letter (A-Z)" class="text-slate-500 flex items-center gap-1">
+                            <i class="fa-regular fa-circle text-[10px]"></i> Uppercase letter (A-Z)
+                        </div>
+                        <div id="rule-lower" data-label="Lowercase letter (a-z)" class="text-slate-500 flex items-center gap-1">
+                            <i class="fa-regular fa-circle text-[10px]"></i> Lowercase letter (a-z)
+                        </div>
+                        <div id="rule-num" data-label="Number or symbol (0-9, !@#$)" class="text-slate-500 flex items-center gap-1">
+                            <i class="fa-regular fa-circle text-[10px]"></i> Number or symbol (0-9, !@#$)
+                        </div>
+                        <div id="rule-user" data-label="Does not contain username" class="text-slate-500 flex items-center gap-1">
+                            <i class="fa-regular fa-circle text-[10px]"></i> Does not contain username
+                        </div>
+                        <div id="rule-match" data-label="Passwords match exactly" class="text-slate-500 flex items-center gap-1">
+                            <i class="fa-regular fa-circle text-[10px]"></i> Passwords match exactly
+                        </div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Department</label>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Department *</label>
                         <select id="department" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                            <option value="Engineering">Engineering</option>
-                            <option value="IT Operations">IT Operations</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Human Resources">Human Resources</option>
-                            <option value="Sales & Marketing">Sales & Marketing</option>
-                            <option value="Contractor / Vendor">Contractor / Vendor</option>
+                            <!-- Populated dynamically from Self-Registration Settings -->
+                            <option value="Loading...">Loading departments...</option>
                         </select>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Assigned to your Active Directory account profile</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-300 mb-1">Access Justification (Optional)</label>
@@ -221,6 +254,13 @@
                 if (res.ok) {
                     publicConfig = data;
                     document.getElementById('reg-primary-domain').innerText = data.default_domain || data.primary_realm || 'inet.net';
+                    
+                    // Dynamically populate department dropdown configured by administrator
+                    const deptSelect = document.getElementById('department');
+                    if (deptSelect && data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
+                        deptSelect.innerHTML = data.departments.map(d => `<option value="${d}">${d}</option>`).join('');
+                    }
+
                     if (!data.enabled) {
                         showStatus('error', 'User self-registration is currently disabled by administrator policy.');
                         document.getElementById('submit-btn').disabled = true;
@@ -230,6 +270,62 @@
                 document.getElementById('reg-primary-domain').innerText = 'inet.net';
             }
         });
+
+        function togglePasswordVisibility(fieldId, iconId) {
+            const input = document.getElementById(fieldId);
+            const icon = document.getElementById(iconId);
+            if (!input || !icon) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash text-indigo-400';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye text-slate-400';
+            }
+        }
+
+        function checkPasswordComplexity() {
+            const p1 = document.getElementById('password').value;
+            const p2 = document.getElementById('confirm_password').value;
+            const u = (document.getElementById('username').value || '').trim().toLowerCase();
+            const fn = (document.getElementById('given_name').value || '').trim().toLowerCase();
+            const ln = (document.getElementById('surname').value || '').trim().toLowerCase();
+
+            const hasLen = p1.length >= 8;
+            const hasUpper = /[A-Z]/.test(p1);
+            const hasLower = /[a-z]/.test(p1);
+            const hasDigitOrSpecial = /[0-9!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~`]/.test(p1);
+            
+            let noUser = true;
+            if (u && u.length >= 3 && p1.toLowerCase().includes(u)) noUser = false;
+            if (fn && fn.length >= 3 && p1.toLowerCase().includes(fn)) noUser = false;
+            if (ln && ln.length >= 3 && p1.toLowerCase().includes(ln)) noUser = false;
+
+            const matches = p1.length > 0 && p1 === p2;
+
+            const updateRule = (id, valid) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const label = el.getAttribute('data-label');
+                if (valid) {
+                    el.className = 'text-emerald-400 flex items-center gap-1 font-medium';
+                    el.innerHTML = `<i class="fa-solid fa-circle-check text-[10px]"></i> ${label}`;
+                } else {
+                    el.className = 'text-slate-500 flex items-center gap-1';
+                    el.innerHTML = `<i class="fa-regular fa-circle text-[10px]"></i> ${label}`;
+                }
+            };
+
+            updateRule('rule-len', hasLen);
+            updateRule('rule-upper', hasUpper);
+            updateRule('rule-lower', hasLower);
+            updateRule('rule-num', hasDigitOrSpecial);
+            updateRule('rule-user', noUser);
+            updateRule('rule-match', matches);
+
+            const categoriesMet = [hasUpper, hasLower, /[0-9]/.test(p1), /[^a-zA-Z0-9]/.test(p1)].filter(Boolean).length;
+            return hasLen && categoriesMet >= 3 && noUser && matches;
+        }
 
         function showStatus(type, msg) {
             const box = document.getElementById('status-box');
@@ -258,6 +354,11 @@
 
             if (p1 !== p2) {
                 showStatus('error', '<i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Passwords do not match. Please verify and try again.');
+                return;
+            }
+
+            if (!checkPasswordComplexity()) {
+                showStatus('error', '<i class="fa-solid fa-shield-halved mr-1.5"></i> Password does not meet Active Directory complexity requirements. Please satisfy all requirements indicated below.');
                 return;
             }
 

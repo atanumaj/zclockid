@@ -246,12 +246,20 @@ Bandwidth profiles are **independent QoS policy objects** defined under **Radius
 
 The appliance provides an integrated self-registration workflow for guest Wi-Fi and Bring-Your-Own-Device (BYOD) onboarding:
 
+* **Active Directory Password Policy Enforcement:** Real-time client-side checklist and strict backend verification requiring passwords to satisfy Active Directory complexity (minimum 8 characters, at least 3 categories: uppercase, lowercase, numbers, and symbols, with username and name exclusion).
+* **Dynamic Organization Departments (Max 100):** Administrators can define corporate departments under Settings (e.g. `DevOps`, `Finance`, `Operations`). The registration portal dynamically renders this exact list in the department dropdown.
 * **Default Provisioning Domain:** Dropdown selector offering the Primary AD Forest Root Realm alongside any registered alternate UPN/SPN suffixes (e.g. `inetcsc.com`, `corp.inet.net`). New users are automatically created with this UPN domain.
 * **Default Security Group:** Dropdown populated directly from Active Directory groups (defaults to `Domain Users` if blank or unselected).
 * **Default Bandwidth Profile:** Dropdown populated from the Bandwidth & Rate Limit policy objects (defaults to `None` if unselected).
   * When set, this profile acts as the **Global Fallback Captive Portal Profile** in FreeRADIUS for any unregistered or unassigned client.
   * When a self-registered user is approved (or verifies via SMS OTP), this bandwidth tier is automatically provisioned into their Active Directory LDAP `info` attribute and local database.
-* **SMS Gateway Integration:** Supports simulated gateway, Twilio, or custom HTTP GET/POST endpoints for instant OTP delivery.
+* **Active Directory Identity Tagging:** All self-registered users automatically receive native Active Directory schema attributes:
+  * `department`: User's selected organization department.
+  * `employeeType`: Stored as `Self-Registered`.
+  * `description`: Stored as `Self-Registered via ZclockID Portal` (visible in RSAT `dsa.msc`).
+  * `comment`: Tagged with `ZCLOCKID_SELF_REGISTERED`.
+  * **Domain Users Table Badge:** Self-registered accounts display a distinct `Self-Registered` badge distinguishing them from accounts created by administrators.
+* **SMS Gateway Integration:** Supports simulated gateway, Twilio, Fast2SMS, MSG91, or custom webhook HTTP GET/POST endpoints for instant OTP delivery.
 
 ---
 
