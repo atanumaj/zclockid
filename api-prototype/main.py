@@ -822,6 +822,7 @@ def provision_user_in_ad(username: str, password: str, given_name: str, surname:
     admin_user, admin_pass = get_ad_creds()
     cmd = [
         "samba-tool", "user", "create", username, password,
+        "--use-username-as-cn",
         f"-U{admin_user}", f"--password={admin_pass}"
     ]
     if given_name: cmd.extend(["--given-name", given_name])
@@ -2241,6 +2242,7 @@ def create_domain_user(req: UserCreateRequest):
     admin_user, admin_pass = get_ad_creds()
     cmd = [
         "samba-tool", "user", "create", req.username, req.password,
+        "--use-username-as-cn",
         f"-U{admin_user}", f"--password={admin_pass}"
     ]
     if req.given_name: cmd.extend(["--given-name", req.given_name])
