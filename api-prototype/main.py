@@ -3038,7 +3038,7 @@ def sync_freeradius_policies():
     ad_user_overrides = {}
     code_ad, out_ad, _ = run_cmd([
         "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
-        "(info=ZCLOCKID_BW:*)", "sAMAccountName", "info"
+        "(&(sAMAccountType=805306368)(info=ZCLOCKID_BW:*))", "sAMAccountName", "info"
     ], timeout=5)
     if code_ad == 0:
         c_u = {}
@@ -3139,7 +3139,13 @@ def sync_freeradius_policies():
 
     if merged_group_bw:
         lines.append("# --- Active Directory Group Bandwidth Profiles (DRS Multi-Master Replicated) ---")
-        for group_name, bw in sorted(merged_group_bw.items()):
+        # Sort descending by download bandwidth (then upload) so the highest-tier policy wins if a user is in multiple groups
+        sorted_groups = sorted(
+            merged_group_bw.items(),
+            key=lambda item: (item[1].get('download_mbps', 0), item[1].get('upload_mbps', 0)),
+            reverse=True
+        )
+        for group_name, bw in sorted_groups:
             down_bps = int(bw['download_mbps'] * 1000000)
             up_bps = int(bw['upload_mbps'] * 1000000)
             mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
