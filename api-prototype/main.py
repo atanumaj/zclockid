@@ -1471,6 +1471,29 @@ def get_domain_info():
 
     fl_info = get_functional_level()
 
+    # Determine Domain Controller Type (Master / Primary vs Alternate / Backup vs RODC)
+    pdc_holder = fsmo.get("PdcEmulationMaster") or fsmo.get("PdcEmulator") or ""
+    schema_holder = fsmo.get("SchemaMaster") or ""
+    my_nb = netbios_name.upper()
+
+    is_rodc = "rodc" in server_role.lower()
+    is_master = False
+
+    if is_rodc:
+        dc_type = "Read-Only DC (RODC)"
+        dc_type_label = "RODC"
+        dc_type_desc = "Read-Only Directory Replica"
+    elif (pdc_holder and pdc_holder.upper() == my_nb) or (schema_holder and schema_holder.upper() == my_nb) or (pdc_holder.lower() in ["unassigned", ""]):
+        is_master = True
+        dc_type = "Master (Primary DC)"
+        dc_type_label = "PRIMARY"
+        dc_type_desc = "PDC Emulator & FSMO Role Master"
+    else:
+        is_master = False
+        dc_type = "Alternate (Backup DC)"
+        dc_type_label = "BACKUP"
+        dc_type_desc = f"DRS Replica (PDC: {pdc_holder or 'Remote PDC'})"
+
     return {
         "realm": realm,
         "domain_netbios": domain,
@@ -1480,6 +1503,11 @@ def get_domain_info():
         "hostname": hostname,
         "fqdn": fqdn,
         "domain_sid": domain_sid,
+        "dc_type": dc_type,
+        "dc_type_label": dc_type_label,
+        "dc_type_desc": dc_type_desc,
+        "is_master": is_master,
+        "pdc_holder": pdc_holder,
         "forest_functional_level": fl_info.get("forest_level_label", "Windows Server 2016"),
         "domain_functional_level": fl_info.get("domain_level_label", "Windows Server 2016"),
         "lowest_dc_level": fl_info.get("lowest_dc_level_label", "Windows Server 2016"),

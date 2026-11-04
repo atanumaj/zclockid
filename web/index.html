@@ -532,13 +532,13 @@
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <div class="flex justify-between items-center">
-                                <span class="text-slate-500 text-[10px] uppercase font-sans">Functional Levels</span>
-                                <button onclick="openFunctionalLevelModal()" class="text-indigo-400 hover:text-indigo-300 text-[10px] font-semibold flex items-center gap-1" title="Raise Domain/Forest Functional Levels">
-                                    <i class="fa-solid fa-arrow-up-right-dots"></i> Change
-                                </button>
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Domain Controller Type</span>
+                                <span id="domain-dc-type-badge" class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">PRIMARY</span>
                             </div>
-                            <div id="domain-fl-val" class="text-indigo-300 font-bold text-xs truncate">Windows Server 2016</div>
-                            <span id="domain-fl-sub" class="text-[10px] text-slate-500 font-sans block pt-0.5 truncate">Domain & Forest: 2016</span>
+                            <div id="domain-dc-type-val" class="text-emerald-300 font-bold text-xs truncate flex items-center gap-1.5">
+                                <i class="fa-solid fa-crown text-amber-400 text-[11px]"></i> Master (Primary DC)
+                            </div>
+                            <span id="domain-dc-type-sub" class="text-[10px] text-slate-400 font-sans block pt-0.5 truncate">PDC Emulator & FSMO Role Master</span>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <span class="text-slate-500 text-[10px] uppercase font-sans">Domain SID</span>
@@ -4376,6 +4376,43 @@
                 if (document.getElementById('domain-desc-val')) document.getElementById('domain-desc-val').innerText = data.server_description || 'ZclockID Active Directory Domain Controller';
                 if (document.getElementById('domain-fqdn-val')) document.getElementById('domain-fqdn-val').innerText = data.fqdn || `${data.hostname || 'inet-zclockid'}.${(data.realm || 'inet.net').toLowerCase()}`;
 
+                // Domain Controller Type Widget (Master / Primary vs Alternate / Backup vs RODC)
+                const dcTypeBadge = document.getElementById('domain-dc-type-badge');
+                const dcTypeVal = document.getElementById('domain-dc-type-val');
+                const dcTypeSub = document.getElementById('domain-dc-type-sub');
+
+                const isMaster = data.is_master !== undefined 
+                    ? data.is_master 
+                    : (!data.fsmo_roles || data.fsmo_roles.PdcEmulationMaster === data.netbios_name || data.fsmo_roles.PdcEmulator === data.netbios_name || data.fsmo_roles.SchemaMaster === data.netbios_name);
+
+                if (dcTypeVal) {
+                    if (data.dc_type_label === 'RODC') {
+                        if (dcTypeBadge) {
+                            dcTypeBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-800';
+                            dcTypeBadge.innerText = 'RODC';
+                        }
+                        dcTypeVal.className = 'text-amber-300 font-bold text-xs truncate flex items-center gap-1.5';
+                        dcTypeVal.innerHTML = '<i class="fa-solid fa-shield text-amber-400 text-[11px]"></i> Read-Only DC (RODC)';
+                        if (dcTypeSub) dcTypeSub.innerText = data.dc_type_desc || 'Read-Only Directory Replica';
+                    } else if (isMaster) {
+                        if (dcTypeBadge) {
+                            dcTypeBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
+                            dcTypeBadge.innerText = 'PRIMARY';
+                        }
+                        dcTypeVal.className = 'text-emerald-300 font-bold text-xs truncate flex items-center gap-1.5';
+                        dcTypeVal.innerHTML = '<i class="fa-solid fa-crown text-amber-400 text-[11px]"></i> Master (Primary DC)';
+                        if (dcTypeSub) dcTypeSub.innerText = data.dc_type_desc || 'PDC Emulator & FSMO Role Master';
+                    } else {
+                        if (dcTypeBadge) {
+                            dcTypeBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-800';
+                            dcTypeBadge.innerText = 'BACKUP';
+                        }
+                        dcTypeVal.className = 'text-indigo-300 font-bold text-xs truncate flex items-center gap-1.5';
+                        dcTypeVal.innerHTML = '<i class="fa-solid fa-server text-indigo-400 text-[11px]"></i> Alternate (Backup DC)';
+                        if (dcTypeSub) dcTypeSub.innerText = data.dc_type_desc || `DRS Replica (PDC: ${data.pdc_holder || 'Remote PDC'})`;
+                    }
+                }
+
                 // FSMO Roles Table
                 const tbody = document.getElementById('fsmo-table-body');
                 if (tbody && data.fsmo_roles) {
@@ -4466,12 +4503,6 @@
         }
 
         function renderFunctionalLevels(data) {
-            // Identity widget
-            const flVal = document.getElementById('domain-fl-val');
-            const flSub = document.getElementById('domain-fl-sub');
-            if (flVal) flVal.innerText = data.domain_level_label || 'Windows Server 2016';
-            if (flSub) flSub.innerText = `Domain: ${data.domain_level} | Forest: ${data.forest_level}`;
-
             // Dedicated Card
             const dflBadge = document.getElementById('card-dfl-badge');
             const dflTitle = document.getElementById('card-dfl-title');
