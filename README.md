@@ -24,6 +24,7 @@ Engineered on Ubuntu Linux LTS, ZclockID replaces legacy monolithic suites (such
 Inet-ZclockID/
 ├── README.md                           # Master Project Overview
 ├── docs/
+│   ├── USER_GUIDE.md                   # Administrator & User Manual (Sizing, Install, Bandwidth, DNS)
 │   ├── FEASIBILITY_ANALYSIS.md         # Comprehensive Feasibility & Zentyal Comparison
 │   ├── ARCHITECTURE.md                 # System Architecture, Port Matrix & Data Flows
 │   ├── ENGINES_SPECIFICATION.md        # Technical Specs for Samba, BIND9, FreeRADIUS, Sysvol, SSO
