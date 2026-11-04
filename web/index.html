@@ -67,7 +67,7 @@
                     <i class="fa-solid fa-server w-4"></i> DNS & Kerberos SRV
                 </button>
                 <button onclick="showTab('radius')" id="nav-radius" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-tower-broadcast w-4"></i> 802.1X Access (RADIUS)
+                    <i class="fa-solid fa-tower-broadcast w-4"></i> Radius
                 </button>
                 <button onclick="showTab('sysvol')" id="nav-sysvol" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-folder-tree w-4"></i> Sysvol Guardian
@@ -1213,47 +1213,59 @@
                 </div>
             </section>
 
-            <!-- ==================== TAB 5: 802.1X ACCESS (RADIUS - Option 2: Tiered Mode) ==================== -->
-            <section id="tab-radius" class="space-y-6 hidden">
-                <!-- Tiered Sub-nav Tabs -->
-                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="px-2 py-1 rounded text-[10px] font-mono uppercase bg-amber-950 text-amber-400 border border-amber-800 font-bold">Standard</span>
-                        <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition">
-                            <i class="fa-solid fa-network-wired mr-1.5"></i> NAS Clients & APs
-                        </button>
-                        <button onclick="switchRadiusSubTab('bandwidth')" id="rad-tab-bandwidth" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-gauge-high mr-1.5"></i> Bandwidth & Rate Limits
-                        </button>
-                        <button onclick="switchRadiusSubTab('eap')" id="rad-tab-eap" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-shield-halved mr-1.5"></i> EAP & Certificates
-                        </button>
-                        <button onclick="switchRadiusSubTab('accounting')" id="rad-tab-accounting" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-chart-line mr-1.5"></i> Live Sessions & Acct
-                        </button>
-
-                        <span class="text-slate-700">|</span>
-
-                        <span class="px-2 py-1 rounded text-[10px] font-mono uppercase bg-indigo-950 text-indigo-400 border border-indigo-800 font-bold">Advanced</span>
-                        <button onclick="switchRadiusSubTab('mab')" id="rad-tab-mab" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-print mr-1.5"></i> MAB (MAC Bypass)
-                        </button>
-                        <button onclick="switchRadiusSubTab('custom')" id="rad-tab-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-code-branch mr-1.5"></i> Custom Attributes
-                        </button>
-                        <button onclick="switchRadiusSubTab('settings')" id="rad-tab-settings" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-sliders mr-1.5"></i> Engine & Logging
-                        </button>
-                        <button onclick="switchRadiusSubTab('config')" id="rad-tab-config" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition">
-                            <i class="fa-solid fa-file-code mr-1.5"></i> View Raw Config
-                        </button>
+            <!-- ==================== TAB 5: RADIUS ==================== -->
+            <section id="tab-radius" class="space-y-5 hidden">
+                <!-- Top Header & Primary Tabs (General vs Advance) -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <!-- Primary Mode Switcher (General vs Advance) -->
+                        <div class="inline-flex p-1 bg-slate-950 border border-slate-800 rounded-xl">
+                            <button onclick="switchRadiusMainTab('general')" id="rad-main-tab-general" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 transition">
+                                <i class="fa-solid fa-tower-broadcast"></i> General
+                            </button>
+                            <button onclick="switchRadiusMainTab('advance')" id="rad-main-tab-advance" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition">
+                                <i class="fa-solid fa-gears"></i> Advance
+                            </button>
+                        </div>
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <button onclick="controlService('freeradius', 'restart')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition flex items-center gap-1.5 border border-slate-700">
+                        <button onclick="controlService('freeradius', 'restart')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-rotate text-amber-400"></i> Restart FreeRADIUS
                         </button>
                     </div>
+                </div>
+
+                <!-- Sub-Navigation for General -->
+                <div id="rad-subnav-general" class="flex flex-wrap items-center gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80">
+                    <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-network-wired"></i> NAS Clients & APs
+                    </button>
+                    <button onclick="switchRadiusSubTab('bandwidth')" id="rad-tab-bandwidth" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-gauge-high"></i> Bandwidth & Rate Limits
+                    </button>
+                    <button onclick="switchRadiusSubTab('eap')" id="rad-tab-eap" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved"></i> EAP & Certificates
+                    </button>
+                    <button onclick="switchRadiusSubTab('accounting')" id="rad-tab-accounting" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-line"></i> Live Sessions & Acct
+                    </button>
+                </div>
+
+                <!-- Sub-Navigation for Advance -->
+                <div id="rad-subnav-advance" class="flex flex-wrap items-center gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80 hidden">
+                    <button onclick="switchRadiusSubTab('mab')" id="rad-tab-mab" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> MAB (MAC Bypass)
+                    </button>
+                    <button onclick="switchRadiusSubTab('custom')" id="rad-tab-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-code-branch"></i> Custom Attributes (VSA)
+                    </button>
+                    <button onclick="switchRadiusSubTab('settings')" id="rad-tab-settings" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-sliders"></i> Engine Parameters & Logging
+                    </button>
+                    <button onclick="switchRadiusSubTab('config')" id="rad-tab-config" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-code"></i> View Raw Config
+                    </button>
                 </div>
 
                 <!-- SUB-SECTION 1: NAS Clients -->
@@ -4005,6 +4017,7 @@
             else if (tabId === 'users') { fetchRadiusBandwidth(); fetchUsers(); fetchGroups(); fetchComputers(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
             else if (tabId === 'radius') {
+                switchRadiusMainTab(currentRadiusMainTab || 'general');
                 fetchRadiusClients();
                 fetchRadiusBandwidth();
                 fetchRadiusEap();
@@ -4022,9 +4035,67 @@
             else if (tabId === 'update') { loadUpdateInfo(); }
         }
 
-        // Sub-tabs in RADIUS (Tiered: Standard & Advanced)
+        // Primary Tabs in RADIUS: General & Advance
+        let currentRadiusMainTab = 'general';
+        let currentRadiusGeneralSub = 'clients';
+        let currentRadiusAdvanceSub = 'mab';
+
+        function switchRadiusMainTab(mainTab) {
+            currentRadiusMainTab = mainTab;
+            const btnGen = document.getElementById('rad-main-tab-general');
+            const btnAdv = document.getElementById('rad-main-tab-advance');
+            const subGen = document.getElementById('rad-subnav-general');
+            const subAdv = document.getElementById('rad-subnav-advance');
+
+            if (mainTab === 'general') {
+                if (btnGen) btnGen.className = 'px-4 py-2 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 transition';
+                if (btnAdv) btnAdv.className = 'px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition';
+                if (subGen) subGen.classList.remove('hidden');
+                if (subAdv) subAdv.classList.add('hidden');
+                switchRadiusSubTab(currentRadiusGeneralSub || 'clients');
+            } else {
+                if (btnGen) btnGen.className = 'px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition';
+                if (btnAdv) btnAdv.className = 'px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-2 transition';
+                if (subGen) subGen.classList.add('hidden');
+                if (subAdv) subAdv.classList.remove('hidden');
+                switchRadiusSubTab(currentRadiusAdvanceSub || 'mab');
+            }
+        }
+
+        // Sub-tabs in RADIUS (General & Advance)
         function switchRadiusSubTab(sub) {
             const allSubs = ['clients', 'bandwidth', 'eap', 'accounting', 'mab', 'custom', 'settings', 'config'];
+            const isAdvance = ['mab', 'custom', 'settings', 'config'].includes(sub);
+
+            // Synchronize primary mode tab if deep linked or switched directly
+            if (isAdvance) {
+                currentRadiusAdvanceSub = sub;
+                if (currentRadiusMainTab !== 'advance') {
+                    currentRadiusMainTab = 'advance';
+                    const btnGen = document.getElementById('rad-main-tab-general');
+                    const btnAdv = document.getElementById('rad-main-tab-advance');
+                    const subGen = document.getElementById('rad-subnav-general');
+                    const subAdv = document.getElementById('rad-subnav-advance');
+                    if (btnGen) btnGen.className = 'px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition';
+                    if (btnAdv) btnAdv.className = 'px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-2 transition';
+                    if (subGen) subGen.classList.add('hidden');
+                    if (subAdv) subAdv.classList.remove('hidden');
+                }
+            } else {
+                currentRadiusGeneralSub = sub;
+                if (currentRadiusMainTab !== 'general') {
+                    currentRadiusMainTab = 'general';
+                    const btnGen = document.getElementById('rad-main-tab-general');
+                    const btnAdv = document.getElementById('rad-main-tab-advance');
+                    const subGen = document.getElementById('rad-subnav-general');
+                    const subAdv = document.getElementById('rad-subnav-advance');
+                    if (btnGen) btnGen.className = 'px-4 py-2 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 transition';
+                    if (btnAdv) btnAdv.className = 'px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition';
+                    if (subGen) subGen.classList.remove('hidden');
+                    if (subAdv) subAdv.classList.add('hidden');
+                }
+            }
+
             allSubs.forEach(s => {
                 const sec = document.getElementById(`radius-sec-${s}`);
                 if (sec) sec.classList.add('hidden');
@@ -4042,9 +4113,8 @@
             const activeBtn = document.getElementById(`rad-tab-${sub}`);
             if (activeBtn) {
                 activeBtn.classList.remove('text-slate-400', 'font-medium');
-                const isAdvanced = ['mab', 'custom', 'settings', 'config'].includes(sub);
-                const colorClass = isAdvanced ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' : 'bg-amber-600/20 text-amber-400 border border-amber-500/30';
-                activeBtn.className = `px-3 py-1.5 rounded-lg text-xs font-bold ${colorClass} transition`;
+                const colorClass = isAdvance ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30' : 'bg-amber-600/20 text-amber-400 border border-amber-500/30';
+                activeBtn.className = `px-3.5 py-2 rounded-lg text-xs font-bold ${colorClass} transition flex items-center gap-1.5`;
             }
 
             // Lazy data fetch on sub-tab switch

@@ -211,13 +211,27 @@ Navigate to the **Directory Services** tab in the ZclockID Web Console to manage
 
 ---
 
-## 7. FreeRADIUS 802.1X & Captive Portal Bandwidth Management
+## 7. RADIUS & Network Access Control (General & Advance)
 
-ZclockID features a decoupled bandwidth and rate-limiting subsystem designed for enterprise Wi-Fi (802.1X PEAP/MS-CHAPv2) and Captive Portals (pfSense, Mikrotik, TP-Link Omada, UniFi).
+The **Radius** management suite in ZclockID is organized into two primary tabs for clean operational clarity:
+
+### 1. General Mode
+* **NAS Clients & APs:** Authorized Network Access Servers (Switches, pfSense firewalls, and Wi-Fi Access Points) allowed to authenticate supplicants against Active Directory with shared secret keys.
+* **Bandwidth & Rate Limits:** Decoupled Captive Portal rate-limiting profiles defining download/upload speeds, session timeouts, and daily quotas (with `0 Mbps` Unlimited support).
+* **EAP & Certificates:** 802.1X PEAP/MS-CHAPv2 and TLS certificate management.
+* **Live Sessions & Accounting:** Real-time active RADIUS sessions, interim update intervals, and historical accounting data.
+
+### 2. Advance Mode
+* **MAB (MAC Authentication Bypass):** Authorize headless devices (MFP printers, VoIP phones, IoT sensors, IP cameras) using MAC addresses with static IP assignment and dedicated rate limits.
+* **Custom Attributes (VSA):** Inject vendor-specific RADIUS check/reply items (such as `Cisco-AVPair`, `Mikrotik-Rate-Limit`, or `RFC 3580` Dynamic VLAN IDs: `Tunnel-Type`, `Tunnel-Medium-Type`, `Tunnel-Private-Group-Id`) globally or per-group.
+* **Engine Parameters & Logging:** Adjust FreeRADIUS daemon ports, thread pools, and brute-force audit logging.
+* **View Raw Config:** Live pfSense-style inspector for `/etc/freeradius/3.0/users`, `clients.conf`, `mschap`, and `eap.conf`.
+
+---
 
 ### Decoupled Bandwidth Architecture
 
-Bandwidth profiles are **independent policy objects** defined under **FreeRADIUS -> Bandwidth & Rate Limits**:
+Bandwidth profiles are **independent policy objects** defined under **Radius -> General -> Bandwidth & Rate Limits**:
 
 * **Bandwidth Policy Object:** Defines download speed (Mbps), upload speed (Mbps), session timeout (minutes), idle timeout (minutes), and daily data quota (MB).
 * **Unlimited Wire Speed (0 Mbps):** Setting Download or Upload to `0` designates **Unlimited** wire speed. In FreeRADIUS, this automatically omits rate-limiting attributes (`WISPr-Bandwidth-Max-*` and `Mikrotik-Rate-Limit`), allowing full hardware line rate.
@@ -328,3 +342,4 @@ Active Directory backups must preserve both the directory database and the Sysvo
 ### Diagnostic REST Endpoints
 * **Interactive API Documentation:** `https://<Appliance-IP>/docs`
 * **Raw Configuration Inspector:** Available directly in the Web UI under **FreeRADIUS -> Raw Config Viewer**, allowing you to inspect `/etc/freeradius/3.0/users`, `clients.conf`, and `mschap` live.
+
