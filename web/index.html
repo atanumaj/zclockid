@@ -3748,7 +3748,7 @@
                         <span class="text-[10px] text-cyan-400">WISPr + MikroTik</span>
                     </label>
                     <select id="usr-bw-profile-input" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white text-xs">
-                        <option value="0">Default (Inherit from Group / Captive Portal)</option>
+                        <option value="0">None (No Override - Inherit from Group / Default)</option>
                     </select>
                 </div>
 
@@ -3842,7 +3842,7 @@
                         <span class="text-[10px] text-cyan-400 font-mono">WISPr + MikroTik</span>
                     </div>
                     <select id="edit-usr-bandwidth-profile" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs">
-                        <option value="0">Default (Inherit from Group / Captive Portal)</option>
+                        <option value="0">None (No Override - Inherit from Group / Default)</option>
                     </select>
                     <p class="text-[10px] text-slate-400">
                         Individual profile overrides AD group rates with top priority in FreeRADIUS (<code class="text-cyan-300">WISPr-Bandwidth-Max-*</code> & <code class="text-cyan-300">Mikrotik-Rate-Limit</code>).
@@ -3903,7 +3903,7 @@
                         <span class="text-[10px] text-indigo-400 font-mono">FreeRADIUS WISPr</span>
                     </label>
                     <select id="grp-bw-profile-input" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono text-xs">
-                        <option value="0">None (Default Tier)</option>
+                        <option value="0">None (Standard Group - No Bandwidth Policy)</option>
                     </select>
                     <p class="text-[10px] text-slate-500 mt-1">Users in this group will automatically inherit this upload/download rate limit on captive portal login.</p>
                 </div>
@@ -3937,7 +3937,7 @@
                         <span class="text-[10px] text-cyan-400 font-mono">RADIUS WISPr & MikroTik</span>
                     </label>
                     <select id="edit-grp-bw-profile" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono text-xs">
-                        <option value="0">None (Default Tier)</option>
+                        <option value="0">None (Standard Group - No Bandwidth Policy)</option>
                     </select>
                     <p class="text-[10px] text-slate-500 mt-1">Replicates across AD DCs and applies to FreeRADIUS captive portal / dynamic gateway rate enforcement.</p>
                 </div>
@@ -5292,24 +5292,42 @@
         let globalGroups = [];
 
         function populateBandwidthSelects() {
-            const selects = [
-                document.getElementById('usr-bw-profile-input'),
-                document.getElementById('edit-usr-bandwidth-profile'),
+            const groupSelects = [
                 document.getElementById('grp-bw-profile-input'),
                 document.getElementById('edit-grp-bw-profile')
             ];
-            const optionsHtml = '<option value="0">Default (Inherit from Group / Captive Portal)</option>' +
+            const userSelects = [
+                document.getElementById('usr-bw-profile-input'),
+                document.getElementById('edit-usr-bandwidth-profile')
+            ];
+
+            const groupOptionsHtml = '<option value="0">None (Standard Group - No Bandwidth Policy)</option>' +
                 globalBandwidthProfiles.map(p => {
                     const downStr = p.download_mbps > 0 ? `${p.download_mbps}M Down` : 'Unlimited Down';
                     const upStr = p.upload_mbps > 0 ? `${p.upload_mbps}M Up` : 'Unlimited Up';
-                    return `<option value="${p.id}">${p.name} (${downStr} / ${upStr})${p.is_default ? ' [Default]' : ''}</option>`;
+                    return `<option value="${p.id}">${p.name} (${downStr} / ${upStr})${p.is_default ? ' [Default Portal]' : ''}</option>`;
                 }).join('');
 
-            selects.forEach(s => {
+            const userOptionsHtml = '<option value="0">None (No Override - Inherit from Group / Default)</option>' +
+                globalBandwidthProfiles.map(p => {
+                    const downStr = p.download_mbps > 0 ? `${p.download_mbps}M Down` : 'Unlimited Down';
+                    const upStr = p.upload_mbps > 0 ? `${p.upload_mbps}M Up` : 'Unlimited Up';
+                    return `<option value="${p.id}">${p.name} (${downStr} / ${upStr})${p.is_default ? ' [Default Portal]' : ''}</option>`;
+                }).join('');
+
+            groupSelects.forEach(s => {
                 if (s) {
                     const currentVal = s.value;
-                    s.innerHTML = optionsHtml;
-                    if (currentVal) s.value = currentVal;
+                    s.innerHTML = groupOptionsHtml;
+                    if (currentVal !== undefined && currentVal !== '') s.value = currentVal;
+                }
+            });
+
+            userSelects.forEach(s => {
+                if (s) {
+                    const currentVal = s.value;
+                    s.innerHTML = userOptionsHtml;
+                    if (currentVal !== undefined && currentVal !== '') s.value = currentVal;
                 }
             });
         }
@@ -5835,7 +5853,7 @@
                     if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${u.email}</span>`);
                     if (u.mobile) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-phone text-slate-500 mr-1"></i>${u.mobile}</span>`);
                     
-                    let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-users text-slate-600"></i> Group Default</span>';
+                    let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-users text-slate-600"></i> Inherit / None</span>';
                     if (u.bandwidth_profile_name) {
                         bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${u.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${u.bandwidth_profile_name} (${u.bandwidth_rate || ''})</span>`;
                     }
@@ -6116,7 +6134,7 @@
 
             if (groupsToRender.length > 0) {
                 tbody.innerHTML = groupsToRender.map(g => {
-                    let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> No Custom Policy</span>';
+                    let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> None</span>';
                     if (g.bandwidth_profile_name) {
                         bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${g.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${g.bandwidth_profile_name} (${g.bandwidth_rate || ''})</span>`;
                     }
