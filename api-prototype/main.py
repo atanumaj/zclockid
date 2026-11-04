@@ -728,6 +728,23 @@ def parse_bw_info(info_str: Optional[str]) -> Optional[dict]:
                 pass
     return data
 
+def format_bw_rate_str(d_val: Optional[float], u_val: Optional[float]) -> Optional[str]:
+    """Formats download/upload speeds into human-readable rate strings, treating 0 as Unlimited."""
+    if d_val is None or u_val is None:
+        return None
+    try:
+        d = float(d_val)
+        u = float(u_val)
+    except (ValueError, TypeError):
+        return None
+    if d <= 0 and u <= 0:
+        return "Unlimited"
+    if d <= 0:
+        return f"Unlimited / {u:g}M"
+    if u <= 0:
+        return f"{d:g}M / Unlimited"
+    return f"{d:g}M/{u:g}M"
+
 def update_user_upn(username: str, new_upn: str) -> str:
     code, stdout, stderr = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={username})", "dn"])
     if code != 0:
@@ -1863,7 +1880,7 @@ def list_domain_users():
                         p_id = bw_entry["profile_id"] if bw_entry else (profiles_by_name.get(p_name.lower()) if p_name else None)
                         d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
                         u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
-                        bw_rate_str = f"{d_val:g}M/{u_val:g}M" if (d_val is not None and u_val is not None) else None
+                        bw_rate_str = format_bw_rate_str(d_val, u_val)
 
                         g_name = current_user.get("given_name") or ""
                         s_name = current_user.get("surname") or ""
@@ -1983,7 +2000,7 @@ def list_domain_users():
                         "groups": [],
                         "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
                         "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
-                        "bandwidth_rate": f"{bw_entry['download_mbps']:g}M/{bw_entry['upload_mbps']:g}M" if bw_entry else None
+                        "bandwidth_rate": format_bw_rate_str(bw_entry['download_mbps'], bw_entry['upload_mbps']) if bw_entry else None
                     })
 
     return {"count": len(users), "users": users}
@@ -2345,11 +2362,11 @@ def list_domain_groups():
                     bw_parsed = parse_bw_info(info_raw)
                     bw_entry = group_bw_map.get(g_name.lower())
 
-                    p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
-                    p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
-                    d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
-                    u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
-                    rate_str = f"{d_val:g}M/{u_val:g}M" if (d_val is not None and u_val is not None) else None
+                    p_name = bw_parsed["name"] if bw_parsed else None
+                    p_id = profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None
+                    d_val = bw_parsed["download_mbps"] if bw_parsed else None
+                    u_val = bw_parsed["upload_mbps"] if bw_parsed else None
+                    rate_str = format_bw_rate_str(d_val, u_val)
 
                     groups.append({
                         "group_name": g_name,
@@ -2386,11 +2403,11 @@ def list_domain_groups():
             bw_parsed = parse_bw_info(info_raw)
             bw_entry = group_bw_map.get(g_name.lower())
 
-            p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
-            p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
-            d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
-            u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
-            rate_str = f"{d_val:g}M/{u_val:g}M" if (d_val is not None and u_val is not None) else None
+            p_name = bw_parsed["name"] if bw_parsed else None
+            p_id = profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None
+            d_val = bw_parsed["download_mbps"] if bw_parsed else None
+            u_val = bw_parsed["upload_mbps"] if bw_parsed else None
+            rate_str = format_bw_rate_str(d_val, u_val)
 
             groups.append({
                 "group_name": g_name,
@@ -3076,18 +3093,23 @@ def sync_freeradius_policies():
     if merged_user_bw:
         lines.append("# --- Individual User Bandwidth Profiles (Top Priority - DRS Multi-Master Replicated) ---")
         for u_name, ubw in sorted(merged_user_bw.items()):
-            down_bps = int(ubw['download_mbps'] * 1000000)
-            up_bps = int(ubw['upload_mbps'] * 1000000)
-            mk_rate = f"{ubw['upload_mbps']:g}M/{ubw['download_mbps']:g}M"
+            down_mbps = float(ubw.get('download_mbps', 0))
+            up_mbps = float(ubw.get('upload_mbps', 0))
+            down_bps = int(down_mbps * 1000000)
+            up_bps = int(up_mbps * 1000000)
+            rate_label = format_bw_rate_str(down_mbps, up_mbps) or "Default"
             sess_sec = int(ubw.get('session_timeout_mins', 0) * 60)
             idle_sec = int(ubw.get('idle_timeout_mins', 0) * 60)
             quota_bytes = int(ubw.get('daily_quota_mb', 0) * 1024 * 1024)
 
-            lines.append(f'# User Override: {u_name} -> Tier: {ubw["name"]} ({ubw["download_mbps"]:g}M/{ubw["upload_mbps"]:g}M) [DRS Replicated]')
+            lines.append(f'# User Override: {u_name} -> Tier: {ubw.get("name", "Custom")} ({rate_label}) [DRS Replicated]')
             lines.append(f'"{u_name}"')
-            lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
-            lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
-            lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
+            if down_bps > 0:
+                lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
+            if up_bps > 0:
+                lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
+            if down_bps > 0 or up_bps > 0:
+                lines.append(f'\tMikrotik-Rate-Limit = "{up_mbps:g}M/{down_mbps:g}M",')
             lines.append('\tAcct-Interim-Interval = 300,')
             if sess_sec > 0:
                 lines.append(f'\tSession-Timeout = {sess_sec},')
@@ -3125,39 +3147,37 @@ def sync_freeradius_policies():
             if bw:
                 ad_group_overrides[c_g["group_name"]] = bw
 
-    group_profiles = [b for b in bw_rows if (b.get('ad_group') or (b.get('target_type') == 'GROUP' and b.get('target_name'))) and not b.get('is_default')]
-
-    # Merge SQLite group profiles and AD DRS replicated group profiles
-    merged_group_bw = {}
-    for bw in group_profiles:
-        g_target = bw.get('target_name') if bw.get('target_type') == 'GROUP' and bw.get('target_name') else bw.get('ad_group')
-        if g_target:
-            merged_group_bw[g_target] = bw
-
-    for g_target, g_bw in ad_group_overrides.items():
-        merged_group_bw[g_target] = g_bw
+    merged_group_bw = dict(ad_group_overrides)
 
     if merged_group_bw:
         lines.append("# --- Active Directory Group Bandwidth Profiles (DRS Multi-Master Replicated) ---")
-        # Sort descending by download bandwidth (then upload) so the highest-tier policy wins if a user is in multiple groups
-        sorted_groups = sorted(
-            merged_group_bw.items(),
-            key=lambda item: (item[1].get('download_mbps', 0), item[1].get('upload_mbps', 0)),
-            reverse=True
-        )
+        # Sort descending by download bandwidth (then upload) - 0 means Unlimited (highest priority)
+        def group_sort_key(item):
+            d = float(item[1].get('download_mbps', 0))
+            u = float(item[1].get('upload_mbps', 0))
+            effective_d = float('inf') if d <= 0 else d
+            effective_u = float('inf') if u <= 0 else u
+            return (effective_d, effective_u)
+
+        sorted_groups = sorted(merged_group_bw.items(), key=group_sort_key, reverse=True)
         for group_name, bw in sorted_groups:
-            down_bps = int(bw['download_mbps'] * 1000000)
-            up_bps = int(bw['upload_mbps'] * 1000000)
-            mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
+            down_mbps = float(bw.get('download_mbps', 0))
+            up_mbps = float(bw.get('upload_mbps', 0))
+            down_bps = int(down_mbps * 1000000)
+            up_bps = int(up_mbps * 1000000)
+            rate_label = format_bw_rate_str(down_mbps, up_mbps) or "Default"
             sess_sec = int(bw.get('session_timeout_mins', 0) * 60)
             idle_sec = int(bw.get('idle_timeout_mins', 0) * 60)
             quota_bytes = int(bw.get('daily_quota_mb', 0) * 1024 * 1024)
 
-            lines.append(f'# Group Profile: {bw.get("name", "Custom")} (AD Group: {group_name}) [DRS Replicated]')
+            lines.append(f'# Group Profile: {bw.get("name", "Custom")} (AD Group: {group_name}) ({rate_label}) [DRS Replicated]')
             lines.append(f'DEFAULT Group == "{group_name}"')
-            lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
-            lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
-            lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
+            if down_bps > 0:
+                lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
+            if up_bps > 0:
+                lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
+            if down_bps > 0 or up_bps > 0:
+                lines.append(f'\tMikrotik-Rate-Limit = "{up_mbps:g}M/{down_mbps:g}M",')
             lines.append('\tAcct-Interim-Interval = 300,')
             if sess_sec > 0:
                 lines.append(f'\tSession-Timeout = {sess_sec},')
@@ -3172,18 +3192,23 @@ def sync_freeradius_policies():
     default_profiles = [b for b in bw_rows if b.get('is_default') or b.get('target_type') == 'DEFAULT']
     if default_profiles:
         bw = default_profiles[0]
-        down_bps = int(bw['download_mbps'] * 1000000)
-        up_bps = int(bw['upload_mbps'] * 1000000)
-        mk_rate = f"{bw['upload_mbps']:g}M/{bw['download_mbps']:g}M"
+        down_mbps = float(bw.get('download_mbps', 0))
+        up_mbps = float(bw.get('upload_mbps', 0))
+        down_bps = int(down_mbps * 1000000)
+        up_bps = int(up_mbps * 1000000)
+        rate_label = format_bw_rate_str(down_mbps, up_mbps) or "Default"
         sess_sec = int(bw['session_timeout_mins'] * 60) if bw.get('session_timeout_mins') else 0
         idle_sec = int(bw['idle_timeout_mins'] * 60) if bw.get('idle_timeout_mins') else 0
         quota_bytes = int(bw['daily_quota_mb'] * 1024 * 1024) if bw.get('daily_quota_mb') else 0
 
-        lines.append(f'# Default Captive Portal Tier: {bw["name"]} (Fallback for Visitors & Unmapped Users)')
+        lines.append(f'# Default Captive Portal Tier: {bw["name"]} ({rate_label}) (Fallback for Visitors & Unmapped Users)')
         lines.append('DEFAULT')
-        lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
-        lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
-        lines.append(f'\tMikrotik-Rate-Limit = "{mk_rate}",')
+        if down_bps > 0:
+            lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
+        if up_bps > 0:
+            lines.append(f'\tWISPr-Bandwidth-Max-Up = {up_bps},')
+        if down_bps > 0 or up_bps > 0:
+            lines.append(f'\tMikrotik-Rate-Limit = "{up_mbps:g}M/{down_mbps:g}M",')
         lines.append('\tAcct-Interim-Interval = 300,')
         if sess_sec > 0:
             lines.append(f'\tSession-Timeout = {sess_sec},')

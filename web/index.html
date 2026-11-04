@@ -3521,12 +3521,12 @@
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-slate-400 block mb-1">Download Speed (Mbps)</label>
-                        <input id="rad-bw-down-input" type="number" step="0.5" min="0.1" value="5.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="5.0">
+                        <label class="text-slate-400 block mb-1">Download Speed (Mbps) <span class="text-slate-500 font-normal">(0 = Unlimited)</span></label>
+                        <input id="rad-bw-down-input" type="number" step="0.5" min="0" value="5.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="0 = Unlimited">
                     </div>
                     <div>
-                        <label class="text-slate-400 block mb-1">Upload Speed (Mbps)</label>
-                        <input id="rad-bw-up-input" type="number" step="0.5" min="0.1" value="2.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="2.0">
+                        <label class="text-slate-400 block mb-1">Upload Speed (Mbps) <span class="text-slate-500 font-normal">(0 = Unlimited)</span></label>
+                        <input id="rad-bw-up-input" type="number" step="0.5" min="0" value="2.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="0 = Unlimited">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -5299,9 +5299,11 @@
                 document.getElementById('edit-grp-bw-profile')
             ];
             const optionsHtml = '<option value="0">Default (Inherit from Group / Captive Portal)</option>' +
-                globalBandwidthProfiles.map(p => `
-                    <option value="${p.id}">${p.name} (${p.download_mbps}M Down / ${p.upload_mbps}M Up)${p.is_default ? ' [Default]' : ''}</option>
-                `).join('');
+                globalBandwidthProfiles.map(p => {
+                    const downStr = p.download_mbps > 0 ? `${p.download_mbps}M Down` : 'Unlimited Down';
+                    const upStr = p.upload_mbps > 0 ? `${p.upload_mbps}M Up` : 'Unlimited Up';
+                    return `<option value="${p.id}">${p.name} (${downStr} / ${upStr})${p.is_default ? ' [Default]' : ''}</option>`;
+                }).join('');
 
             selects.forEach(s => {
                 if (s) {
@@ -5329,6 +5331,27 @@
                             ? '<span class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-star text-[9px]"></i> DEFAULT (FALLBACK)</span>'
                             : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-sans border border-slate-700/60">Policy Template</span>';
 
+                        const downStr = p.download_mbps > 0 
+                            ? `▼ ${p.download_mbps} Mbps` 
+                            : '<span class="text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-infinity"></i> Unlimited</span>';
+                        const upStr = p.upload_mbps > 0 
+                            ? `▲ ${p.upload_mbps} Mbps` 
+                            : '<span class="text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-infinity"></i> Unlimited</span>';
+
+                        let attrDisplay = '';
+                        if (p.download_mbps <= 0 && p.upload_mbps <= 0) {
+                            attrDisplay = '<div class="text-[10px] text-emerald-400 font-mono flex items-center gap-1"><i class="fa-solid fa-bolt"></i> Uncapped Wire Speed (No Limits)</div>';
+                        } else {
+                            const wDown = p.download_mbps > 0 ? `▼${p.download_mbps}M` : 'Unlimited';
+                            const wUp = p.upload_mbps > 0 ? `▲${p.upload_mbps}M` : 'Unlimited';
+                            const mkDown = p.download_mbps > 0 ? `${p.download_mbps}M` : '0';
+                            const mkUp = p.upload_mbps > 0 ? `${p.upload_mbps}M` : '0';
+                            attrDisplay = `
+                                <div>WISPr: <span class="text-slate-400">${wDown} / ${wUp}</span></div>
+                                <div>MikroTik: <span class="text-cyan-400 font-bold">"${mkUp}/${mkDown}"</span></div>
+                            `;
+                        }
+
                         return `
                             <tr class="hover:bg-slate-800/30">
                                 <td class="px-4 py-2.5">
@@ -5337,15 +5360,14 @@
                                     </div>
                                     <div class="text-[10px] text-slate-400">${p.description || '-'}</div>
                                 </td>
-                                <td class="px-4 py-2.5 text-cyan-300 font-mono font-bold">▼ ${p.download_mbps} Mbps</td>
-                                <td class="px-4 py-2.5 text-amber-300 font-mono font-bold">▲ ${p.upload_mbps} Mbps</td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-mono font-bold">${downStr}</td>
+                                <td class="px-4 py-2.5 text-amber-300 font-mono font-bold">${upStr}</td>
                                 <td class="px-4 py-2.5 text-slate-300 font-mono">${sessStr} / ${idleStr}</td>
                                 <td class="px-4 py-2.5 text-emerald-400 font-mono font-semibold">${quotaStr}</td>
                                 <td class="px-4 py-2.5">${targetBadge}</td>
                                 <td class="px-4 py-2.5">
                                     <div class="text-[10px] font-mono text-slate-300 space-y-0.5">
-                                        <div>WISPr: <span class="text-slate-400">▼${p.download_mbps}M / ▲${p.upload_mbps}M</span></div>
-                                        <div>MikroTik: <span class="text-cyan-400 font-bold">"${p.upload_mbps}M/${p.download_mbps}M"</span></div>
+                                        ${attrDisplay}
                                     </div>
                                 </td>
                                 <td class="px-4 py-2.5 text-right whitespace-nowrap">
@@ -5420,7 +5442,7 @@
             const isDef = document.getElementById('rad-bw-default-input').checked;
             const desc = document.getElementById('rad-bw-desc-input').value.trim();
 
-            if (!name || isNaN(down) || isNaN(up)) return alert('Profile name, Download speed, and Upload speed are required.');
+            if (!name || isNaN(down) || isNaN(up) || down < 0 || up < 0) return alert('Profile name, Download speed, and Upload speed are required (must be 0 or greater, where 0 = Unlimited).');
 
             const btn = document.getElementById('btn-save-bw-profile');
             btn.disabled = true;
@@ -6218,7 +6240,7 @@
             const groupName = document.getElementById('edit-grp-name').value;
             const desc = document.getElementById('edit-grp-desc').value.trim();
             const bwVal = document.getElementById('edit-grp-bw-profile').value;
-            const bwId = parseInt(bwVal, 10) > 0 ? parseInt(bwVal, 10) : null;
+            const bwId = parseInt(bwVal, 10) || 0;
 
             const btn = document.getElementById('btn-save-group');
             btn.disabled = true;
