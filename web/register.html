@@ -382,9 +382,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const data = await res.json();
+                let data = null;
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    console.error('Failed to parse JSON response:', e);
+                }
 
-                if (res.ok) {
+                if (res.ok && data) {
                     if (data.status === 'otp_required') {
                         // Transition to Step 2: OTP Verification
                         currentRegId = data.registration_id;
@@ -412,7 +417,8 @@
                         `);
                     }
                 } else {
-                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.detail || 'Registration failed.'}`);
+                    const errorDetail = (data && data.detail) ? data.detail : `Registration failed with status ${res.status}.`;
+                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${errorDetail}`);
                 }
             } catch (err) {
                 showStatus('error', '<i class="fa-solid fa-circle-xmark mr-1.5"></i> Network error: could not connect to ZclockID API.');

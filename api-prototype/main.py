@@ -5329,13 +5329,8 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT id, status FROM self_registrations 
-        WHERE (username = ? OR mobile = ?) AND status IN ('PENDING_OTP', 'PENDING_APPROVAL')
-    """, (clean_user, clean_mobile))
-    existing = cursor.fetchone()
-    if existing:
-        cursor.execute("DELETE FROM self_registrations WHERE id = ?", (existing[0],))
+    # Safely clear any obsolete / rejected / pending registration records for this username or mobile
+    cursor.execute("DELETE FROM self_registrations WHERE username = ? OR mobile = ?", (clean_user, clean_mobile))
 
     if require_otp:
         otp = f"{secrets.randbelow(900000) + 100000}"
