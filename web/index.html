@@ -2778,19 +2778,37 @@
                     </div>
                 </div>
 
-                <!-- Domain & Provisioning Targets -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-slate-300 block mb-1 font-medium">Default Provisioning Domain (Primary Realm)</label>
-                        <input type="text" id="reg-cfg-domain" required
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
-                        <p class="text-[10px] text-slate-500 mt-1">Users are provisioned as `user@default_domain`</p>
+                <!-- Domain, Group & Bandwidth Provisioning Targets -->
+                <div class="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-plus text-indigo-400"></i> Provisioning Defaults for Self-Registered Accounts
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-500">Auto-Assigned on Registration</span>
                     </div>
-                    <div>
-                        <label class="text-slate-300 block mb-1 font-medium">Default Security Group</label>
-                        <input type="text" id="reg-cfg-group" value="Domain Users" required
-                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
-                        <p class="text-[10px] text-slate-500 mt-1">Default: `Domain Users`</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Default Provisioning Domain</label>
+                            <select id="reg-cfg-domain" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none font-mono">
+                                <!-- Populated dynamically: Primary realm + alternate UPN suffixes -->
+                            </select>
+                            <p class="text-[10px] text-slate-500 mt-1">Default primary realm selected</p>
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Default Group</label>
+                            <select id="reg-cfg-group" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none font-mono">
+                                <!-- Populated dynamically with AD security groups -->
+                            </select>
+                            <p class="text-[10px] text-slate-500 mt-1">Default group Domain Users if blank</p>
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Default BW Profile</label>
+                            <select id="reg-cfg-bw-profile" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none font-mono">
+                                <!-- Populated dynamically with Bandwidth Profiles -->
+                            </select>
+                            <p class="text-[10px] text-slate-500 mt-1">Default bw profile none if blank</p>
+                        </div>
                     </div>
                 </div>
 
@@ -3555,12 +3573,6 @@
                 <div>
                     <label class="text-slate-400 block mb-1">Daily Data Quota (MB) <span class="text-slate-500 font-normal">(0 = Unlimited, e.g. 2048 MB = 2 GB)</span></label>
                     <input id="rad-bw-quota-input" type="number" min="0" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="0 = Unlimited">
-                </div>
-                <div>
-                    <label class="flex items-center gap-2 cursor-pointer pt-1">
-                        <input type="checkbox" id="rad-bw-default-input" class="rounded bg-slate-950 border-slate-800 text-cyan-500 focus:ring-0">
-                        <span class="text-slate-300">Set as Default Fallback Profile for Captive Portal & OTP Registrations</span>
-                    </label>
                 </div>
                 <div>
                     <label class="text-slate-400 block mb-1">Description</label>
@@ -5447,9 +5459,7 @@
                         const sessStr = p.session_timeout_mins > 0 ? `${p.session_timeout_mins}m` : 'Unlimited';
                         const idleStr = p.idle_timeout_mins > 0 ? `${p.idle_timeout_mins}m` : 'None';
                         const quotaStr = p.daily_quota_mb > 0 ? `${p.daily_quota_mb} MB` : 'Unlimited';
-                        const targetBadge = p.is_default
-                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-star text-[9px]"></i> DEFAULT (FALLBACK)</span>'
-                            : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-sans border border-slate-700/60">Policy Template</span>';
+                        const targetBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-cyan-300 font-sans border border-slate-700/60 font-medium">Policy Object</span>';
 
                         const downStr = p.download_mbps > 0 
                             ? `▼ ${p.download_mbps} Mbps` 
@@ -5494,11 +5504,9 @@
                                     <button onclick="openEditBandwidthModal(${p.id})" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Bandwidth Profile">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
-                                    ${!p.is_default ? `
-                                        <button onclick="deleteBandwidthProfile(${p.id}, '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1 transition" title="Delete Profile">
-                                            <i class="fa-solid fa-trash-can"></i>
-                                        </button>
-                                    ` : '<span class="text-slate-600 font-sans italic text-[10px]">Default</span>'}
+                                    <button onclick="deleteBandwidthProfile(${p.id}, '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1 transition" title="Delete Profile">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
                                 </td>
                             </tr>
                         `;
@@ -5525,7 +5533,6 @@
             document.getElementById('rad-bw-sess-input').value = '120';
             document.getElementById('rad-bw-idle-input').value = '30';
             document.getElementById('rad-bw-quota-input').value = '0';
-            document.getElementById('rad-bw-default-input').checked = false;
             document.getElementById('rad-bw-desc-input').value = '';
             document.getElementById('radius-bandwidth-modal').classList.remove('hidden');
         }
@@ -5546,7 +5553,6 @@
             document.getElementById('rad-bw-sess-input').value = p.session_timeout_mins || 0;
             document.getElementById('rad-bw-idle-input').value = p.idle_timeout_mins || 0;
             document.getElementById('rad-bw-quota-input').value = p.daily_quota_mb || 0;
-            document.getElementById('rad-bw-default-input').checked = !!p.is_default;
             document.getElementById('rad-bw-desc-input').value = p.description || '';
             document.getElementById('radius-bandwidth-modal').classList.remove('hidden');
         }
@@ -5562,7 +5568,6 @@
             const sess = parseInt(document.getElementById('rad-bw-sess-input').value) || 0;
             const idle = parseInt(document.getElementById('rad-bw-idle-input').value) || 0;
             const quota = parseInt(document.getElementById('rad-bw-quota-input').value) || 0;
-            const isDef = document.getElementById('rad-bw-default-input').checked;
             const desc = document.getElementById('rad-bw-desc-input').value.trim();
 
             if (!name || isNaN(down) || isNaN(up) || down < 0 || up < 0) return alert('Profile name, Download speed, and Upload speed are required (must be 0 or greater, where 0 = Unlimited).');
@@ -7344,14 +7349,66 @@
 
         async function fetchRegistrationSettings() {
             try {
-                const res = await fetch(`${API_BASE}/registrations/settings`);
-                const data = await res.json();
-                if (res.ok && data.settings) {
-                    const s = data.settings;
+                // Concurrently fetch settings, UPN suffixes, AD groups, and Bandwidth Profiles
+                const [resSettings, resUpn, resGroups, resBw] = await Promise.all([
+                    fetch(`${API_BASE}/registrations/settings`).then(r => r.json()),
+                    fetch(`${API_BASE}/domain/upn`).then(r => r.json()).catch(() => ({ primary_realm: 'inet.net', alternate_suffixes: [] })),
+                    fetch(`${API_BASE}/groups`).then(r => r.json()).catch(() => ({ groups: [] })),
+                    fetch(`${API_BASE}/radius/bandwidth-profiles`).then(r => r.json()).catch(() => ({ profiles: [] }))
+                ]);
+
+                if (resSettings && resSettings.settings) {
+                    const s = resSettings.settings;
+
+                    // 1. Populate Default Provisioning Domain Dropdown (Primary Realm + Alternate UPN suffixes)
+                    const domSelect = document.getElementById('reg-cfg-domain');
+                    if (domSelect) {
+                        const primRealm = (resUpn.primary_realm || 'inet.net').toLowerCase();
+                        let domOptions = `<option value="${primRealm}">${primRealm} (Primary Forest Root)</option>`;
+                        if (resUpn.alternate_suffixes && Array.isArray(resUpn.alternate_suffixes)) {
+                            resUpn.alternate_suffixes.forEach(suf => {
+                                const sufClean = suf.toLowerCase();
+                                if (sufClean !== primRealm) {
+                                    domOptions += `<option value="${sufClean}">${sufClean} (Alternate Domain / SPN)</option>`;
+                                }
+                            });
+                        }
+                        domSelect.innerHTML = domOptions;
+                        domSelect.value = s.default_domain ? s.default_domain.toLowerCase() : primRealm;
+                    }
+
+                    // 2. Populate Default Security Group Dropdown
+                    const grpSelect = document.getElementById('reg-cfg-group');
+                    if (grpSelect) {
+                        let grpOptions = `<option value="Domain Users">Domain Users (Default)</option>`;
+                        if (resGroups.groups && Array.isArray(resGroups.groups)) {
+                            resGroups.groups.forEach(g => {
+                                if (g.group_name && g.group_name.toLowerCase() !== 'domain users' && !g.is_built_in) {
+                                    grpOptions += `<option value="${g.group_name}">${g.group_name}</option>`;
+                                }
+                            });
+                        }
+                        grpSelect.innerHTML = grpOptions;
+                        grpSelect.value = s.default_group || 'Domain Users';
+                    }
+
+                    // 3. Populate Default Bandwidth Profile Dropdown
+                    const bwSelect = document.getElementById('reg-cfg-bw-profile');
+                    if (bwSelect) {
+                        let bwOptions = `<option value="0">None (No Bandwidth Rate Limit)</option>`;
+                        if (resBw.profiles && Array.isArray(resBw.profiles)) {
+                            resBw.profiles.forEach(p => {
+                                const downStr = p.download_mbps > 0 ? `${p.download_mbps}M` : 'Unlimited';
+                                const upStr = p.upload_mbps > 0 ? `${p.upload_mbps}M` : 'Unlimited';
+                                bwOptions += `<option value="${p.id}">${p.name} (${downStr} / ${upStr})</option>`;
+                            });
+                        }
+                        bwSelect.innerHTML = bwOptions;
+                        bwSelect.value = s.default_bandwidth_profile_id || 0;
+                    }
+
                     document.getElementById('reg-cfg-enabled').checked = s.enabled !== 0;
                     document.getElementById('reg-cfg-otp').checked = s.require_mobile_otp !== 0;
-                    document.getElementById('reg-cfg-domain').value = s.default_domain || 'inet.net';
-                    document.getElementById('reg-cfg-group').value = s.default_group || 'Domain Users';
                     document.getElementById('reg-cfg-sms-type').value = s.sms_gateway_type || 'simulated';
                     document.getElementById('reg-cfg-sms-url').value = s.sms_gateway_url || '';
                     document.getElementById('reg-cfg-sms-key').value = s.sms_api_key || '';
@@ -7420,8 +7477,9 @@
                 enabled: document.getElementById('reg-cfg-enabled').checked,
                 require_mobile_otp: document.getElementById('reg-cfg-otp').checked,
                 auto_approve_with_otp: document.getElementById('reg-cfg-otp').checked,
-                default_domain: document.getElementById('reg-cfg-domain').value.trim(),
-                default_group: document.getElementById('reg-cfg-group').value.trim(),
+                default_domain: (document.getElementById('reg-cfg-domain').value || 'inet.net').trim(),
+                default_group: (document.getElementById('reg-cfg-group').value || 'Domain Users').trim(),
+                default_bandwidth_profile_id: parseInt(document.getElementById('reg-cfg-bw-profile').value, 10) || 0,
                 sms_gateway_type: document.getElementById('reg-cfg-sms-type').value,
                 sms_gateway_url: document.getElementById('reg-cfg-sms-url').value.trim(),
                 sms_api_key: document.getElementById('reg-cfg-sms-key').value.trim(),

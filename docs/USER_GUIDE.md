@@ -229,15 +229,31 @@ The **Radius** management suite in ZclockID is organized into two primary tabs f
 
 ---
 
-### Decoupled Bandwidth Architecture
+### Decoupled Bandwidth Architecture & Policy Objects
 
-Bandwidth profiles are **independent policy objects** defined under **Radius -> General -> Bandwidth & Rate Limits**:
+Bandwidth profiles are **independent QoS policy objects** defined under **Radius -> General -> Bandwidth & Rate Limits**:
 
-* **Bandwidth Policy Object:** Defines download speed (Mbps), upload speed (Mbps), session timeout (minutes), idle timeout (minutes), and daily data quota (MB).
+* **Pure Policy Objects:** Bandwidth profiles act solely as reusable QoS rate limit definitions. They do not store default flags, eliminating ambiguity.
 * **Unlimited Wire Speed (0 Mbps):** Setting Download or Upload to `0` designates **Unlimited** wire speed. In FreeRADIUS, this automatically omits rate-limiting attributes (`WISPr-Bandwidth-Max-*` and `Mikrotik-Rate-Limit`), allowing full hardware line rate.
-* **Association:** Bandwidth profiles can be assigned to:
-  1. An entire **Active Directory Security Group** (propagating to all members).
-  2. An individual **Domain User** as an explicit override.
+* **Association Hierarchy:** Bandwidth profiles can be assigned to:
+  1. An individual **Domain User** as an explicit override.
+  2. An entire **Active Directory Security Group** (propagating to all member users).
+  3. The **Global Fallback Tier** for guests and newly self-registered accounts (managed under **Self-Registration Settings**).
+
+---
+
+### Self-Registration & Captive Portal Provisioning Settings
+
+The appliance provides an integrated self-registration workflow for guest Wi-Fi and Bring-Your-Own-Device (BYOD) onboarding:
+
+* **Default Provisioning Domain:** Dropdown selector offering the Primary AD Forest Root Realm alongside any registered alternate UPN/SPN suffixes (e.g. `inetcsc.com`, `corp.inet.net`). New users are automatically created with this UPN domain.
+* **Default Security Group:** Dropdown populated directly from Active Directory groups (defaults to `Domain Users` if blank or unselected).
+* **Default Bandwidth Profile:** Dropdown populated from the Bandwidth & Rate Limit policy objects (defaults to `None` if unselected).
+  * When set, this profile acts as the **Global Fallback Captive Portal Profile** in FreeRADIUS for any unregistered or unassigned client.
+  * When a self-registered user is approved (or verifies via SMS OTP), this bandwidth tier is automatically provisioned into their Active Directory LDAP `info` attribute and local database.
+* **SMS Gateway Integration:** Supports simulated gateway, Twilio, or custom HTTP GET/POST endpoints for instant OTP delivery.
+
+---
 
 ### Precedence & Evaluation Rules: User Tier vs Group Tier
 

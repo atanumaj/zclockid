@@ -154,6 +154,7 @@ def init_db():
             auto_approve_with_otp INTEGER DEFAULT 1,
             default_domain TEXT DEFAULT 'inet.net',
             default_group TEXT DEFAULT 'Domain Users',
+            default_bandwidth_profile_id INTEGER DEFAULT 0,
             sms_gateway_type TEXT DEFAULT 'simulated',
             sms_gateway_url TEXT DEFAULT '',
             sms_api_key TEXT DEFAULT '',
@@ -168,6 +169,15 @@ def init_db():
             updated_at REAL
         )
     """)
+    # Safe migration: ensure default_bandwidth_profile_id exists
+    cursor.execute("PRAGMA table_info(self_registration_settings)")
+    sreg_cols = [row[1] for row in cursor.fetchall()]
+    if "default_bandwidth_profile_id" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN default_bandwidth_profile_id INTEGER DEFAULT 0")
+    try:
+        cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0 WHERE is_default != 0")
+    except Exception:
+        pass
     cursor.execute("SELECT COUNT(*) FROM self_registration_settings")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""
@@ -574,6 +584,7 @@ def get_self_registration_settings() -> dict:
         "auto_approve_with_otp": 1,
         "default_domain": primary_realm,
         "default_group": "Domain Users",
+        "default_bandwidth_profile_id": 0,
         "sms_gateway_type": "simulated",
         "sms_gateway_url": "",
         "sms_api_key": "",
@@ -762,7 +773,7 @@ def update_user_upn(username: str, new_upn: str) -> str:
         raise Exception(f"Failed to update userPrincipalName: {proc.stderr}")
     return dn
 
-def provision_user_in_ad(username: str, password: str, given_name: str, surname: str, email: str, mobile: str, department: str, default_domain: str = None) -> bool:
+def provision_user_in_ad(username: str, password: str, given_name: str, surname: str, email: str, mobile: str, department: str, default_domain: str = None, default_group: str = None, default_bandwidth_profile_id: int = 0) -> bool:
     admin_user, admin_pass = get_ad_creds()
     cmd = [
         "samba-tool", "user", "create", username, password,
@@ -785,6 +796,40 @@ def provision_user_in_ad(username: str, password: str, given_name: str, surname:
             update_user_upn(username, f"{username}@{default_domain.lower()}")
         except Exception as e:
             logger.warning(f"Could not set custom UPN {username}@{default_domain}: {e}")
+
+    # Add user to default security group if not Domain Users
+    if default_group and default_group.strip() and default_group.strip().lower() != "domain users":
+        grp_clean = default_group.strip()
+        run_cmd(["samba-tool", "group", "addmembers", grp_clean, username, f"-U{admin_user}", f"--password={admin_pass}"], timeout=15)
+
+    # Assign default bandwidth profile if specified
+    if default_bandwidth_profile_id and int(default_bandwidth_profile_id) > 0:
+        bw_id = int(default_bandwidth_profile_id)
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (bw_id,))
+            p_row = cursor.fetchone()
+            if p_row:
+                p = dict(p_row)
+                cursor.execute("""
+                    INSERT INTO radius_user_bandwidth (username, profile_id, updated_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(username) DO UPDATE SET profile_id = excluded.profile_id, updated_at = excluded.updated_at
+                """, (username, bw_id, time.time()))
+                conn.commit()
+
+                bw_tag = f"ZCLOCKID_BW:{p['name']};down={p['download_mbps']};up={p['upload_mbps']};sess={p.get('session_timeout_mins', 120)};idle={p.get('idle_timeout_mins', 30)};quota={p.get('daily_quota_mb', 0)}"
+                c_d, o_d, _ = run_cmd(["ldbsearch", "-H", "/var/lib/samba/private/sam.ldb", f"(sAMAccountName={username})", "dn"])
+                if c_d == 0 and "dn: " in o_d:
+                    u_dn = [l[4:].strip() for l in o_d.splitlines() if l.startswith("dn: ")][0]
+                    ldif = f"dn: {u_dn}\nchangetype: modify\nreplace: info\ninfo: {bw_tag}\n-\n"
+                    subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif, text=True, capture_output=True)
+            conn.close()
+            sync_freeradius_policies()
+        except Exception as e:
+            logger.warning(f"Failed to assign default bandwidth profile to self-registered user {username}: {e}")
 
     return True
 
@@ -1013,6 +1058,7 @@ class SelfRegistrationSettingsRequest(BaseModel):
     auto_approve_with_otp: bool = True
     default_domain: Optional[str] = "inet.net"
     default_group: Optional[str] = "Domain Users"
+    default_bandwidth_profile_id: Optional[int] = 0
     sms_gateway_type: Optional[str] = "simulated"  # simulated, webhook, twilio, fast2sms, msg91
     sms_gateway_url: Optional[str] = ""
     sms_api_key: Optional[str] = ""
@@ -3282,20 +3328,21 @@ def sync_freeradius_policies():
                 lines.append(f'\tMikrotik-Total-Limit = {quota_bytes},')
             lines.append('\tFall-Through = No\n')
 
-    # 4. Default Captive Portal Tier (Fallback for Visitors & Unmapped Users)
-    default_profiles = [b for b in bw_rows if b.get('is_default') or b.get('target_type') == 'DEFAULT']
-    if default_profiles:
-        bw = default_profiles[0]
-        down_mbps = float(bw.get('download_mbps', 0))
-        up_mbps = float(bw.get('upload_mbps', 0))
+    # 4. Default Captive Portal Tier (Fallback for Visitors & Unmapped Users from Self-Registration Settings)
+    reg_settings = get_self_registration_settings()
+    def_bw_id = reg_settings.get("default_bandwidth_profile_id") or 0
+    default_bw = next((b for b in bw_rows if b.get('id') == def_bw_id), None)
+    if default_bw:
+        down_mbps = float(default_bw.get('download_mbps', 0))
+        up_mbps = float(default_bw.get('upload_mbps', 0))
         down_bps = int(down_mbps * 1000000)
         up_bps = int(up_mbps * 1000000)
         rate_label = format_bw_rate_str(down_mbps, up_mbps) or "Default"
-        sess_sec = int(bw['session_timeout_mins'] * 60) if bw.get('session_timeout_mins') else 0
-        idle_sec = int(bw['idle_timeout_mins'] * 60) if bw.get('idle_timeout_mins') else 0
-        quota_bytes = int(bw['daily_quota_mb'] * 1024 * 1024) if bw.get('daily_quota_mb') else 0
+        sess_sec = int(default_bw['session_timeout_mins'] * 60) if default_bw.get('session_timeout_mins') else 0
+        idle_sec = int(default_bw['idle_timeout_mins'] * 60) if default_bw.get('idle_timeout_mins') else 0
+        quota_bytes = int(default_bw['daily_quota_mb'] * 1024 * 1024) if default_bw.get('daily_quota_mb') else 0
 
-        lines.append(f'# Default Captive Portal Tier: {bw["name"]} ({rate_label}) (Fallback for Visitors & Unmapped Users)')
+        lines.append(f'# Default Captive Portal Tier: {default_bw["name"]} ({rate_label}) (Configured in Self-Registration Settings)')
         lines.append('DEFAULT')
         if down_bps > 0:
             lines.append(f'\tWISPr-Bandwidth-Max-Down = {down_bps},')
@@ -3311,6 +3358,11 @@ def sync_freeradius_policies():
         if quota_bytes > 0:
             lines.append(f'\tChilliSpot-Max-Total-Octets = {quota_bytes},')
             lines.append(f'\tMikrotik-Total-Limit = {quota_bytes},')
+        lines.append('\tFall-Through = Yes\n')
+    else:
+        lines.append('# Default Captive Portal Tier: None (Standard Unthrottled Fallback)')
+        lines.append('DEFAULT')
+        lines.append('\tAcct-Interim-Interval = 300,')
         lines.append('\tFall-Through = Yes\n')
 
     # 5. Custom Vendor Attributes
@@ -3459,7 +3511,7 @@ def list_radius_bandwidth_profiles():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM radius_bandwidth_profiles ORDER BY is_default DESC, id ASC")
+    cursor.execute("SELECT * FROM radius_bandwidth_profiles ORDER BY id ASC")
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return {"count": len(rows), "profiles": rows}
@@ -3473,18 +3525,14 @@ def save_radius_bandwidth_profile(req: RadiusBandwidthProfileRequest):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     now_ts = time.time()
-    
-    is_def = 1 if req.is_default else 0
-    if is_def:
-        cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0")
 
     cursor.execute("""
         INSERT INTO radius_bandwidth_profiles
         (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, target_type, target_name, ad_group, is_default, description, is_active, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'TEMPLATE', '', '', ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, 'TEMPLATE', '', '', 0, ?, ?, ?)
     """, (
         req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
-        req.idle_timeout_mins or 0, req.daily_quota_mb or 0, is_def,
+        req.idle_timeout_mins or 0, req.daily_quota_mb or 0,
         req.description or "", 1 if req.is_active else 0, now_ts
     ))
     conn.commit()
@@ -3509,18 +3557,14 @@ def update_radius_bandwidth_profile(profile_id: int, req: RadiusBandwidthProfile
     old_p = dict(existing)
     old_name = old_p["name"]
 
-    is_def = 1 if req.is_default else 0
-    if is_def:
-        cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0 WHERE id != ?", (profile_id,))
-
     cursor.execute("""
         UPDATE radius_bandwidth_profiles
         SET name = ?, download_mbps = ?, upload_mbps = ?, session_timeout_mins = ?,
-            idle_timeout_mins = ?, daily_quota_mb = ?, is_default = ?, description = ?, is_active = ?
+            idle_timeout_mins = ?, daily_quota_mb = ?, is_default = 0, description = ?, is_active = ?
         WHERE id = ?
     """, (
         req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
-        req.idle_timeout_mins or 0, req.daily_quota_mb or 0, is_def,
+        req.idle_timeout_mins or 0, req.daily_quota_mb or 0,
         req.description or "", 1 if req.is_active else 0, profile_id
     ))
     conn.commit()
@@ -5297,7 +5341,9 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest):
             email=email,
             mobile=mobile,
             department=dept,
-            default_domain=domain
+            default_domain=domain,
+            default_group=settings.get("default_group"),
+            default_bandwidth_profile_id=settings.get("default_bandwidth_profile_id", 0)
         )
     except HTTPException:
         conn.close()
@@ -5378,6 +5424,7 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
             auto_approve_with_otp = ?,
             default_domain = ?,
             default_group = ?,
+            default_bandwidth_profile_id = ?,
             sms_gateway_type = ?,
             sms_gateway_url = ?,
             sms_api_key = ?,
@@ -5397,6 +5444,7 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
         1 if req.auto_approve_with_otp else 0,
         req.default_domain or get_primary_realm().lower(),
         req.default_group or "Domain Users",
+        req.default_bandwidth_profile_id or 0,
         req.sms_gateway_type or "simulated",
         req.sms_gateway_url or "",
         req.sms_api_key or "",
@@ -5412,6 +5460,11 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
     ))
     conn.commit()
     conn.close()
+
+    try:
+        sync_freeradius_policies()
+    except Exception as e:
+        logger.warning(f"Failed to sync FreeRADIUS policies after registration settings update: {e}")
 
     log_audit("REGISTRATION_SETTINGS_UPDATED", "admin", "appliance", "SUCCESS", {
         "enabled": req.enabled,
@@ -5483,7 +5536,9 @@ def approve_registration_request(req_id: int, action: SelfRegistrationApprovalAc
             email=email,
             mobile=mobile,
             department=dept,
-            default_domain=domain
+            default_domain=domain,
+            default_group=settings.get("default_group"),
+            default_bandwidth_profile_id=settings.get("default_bandwidth_profile_id", 0)
         )
     except HTTPException:
         conn.close()
