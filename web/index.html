@@ -1299,7 +1299,7 @@
                                 </h3>
                                 <p class="text-xs text-slate-400">Enforces per-user upload/download speeds, session timeouts, and data quotas across pfSense, MikroTik Hotspot, and TP-Link Omada</p>
                             </div>
-                            <button onclick="openBandwidthModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button onclick="openAddBandwidthModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-plus"></i> Add Bandwidth Tier
                             </button>
                         </div>
@@ -1313,7 +1313,7 @@
                                         <th class="px-4 py-2.5">Upload Limit</th>
                                         <th class="px-4 py-2.5">Timeouts (Session / Idle)</th>
                                         <th class="px-4 py-2.5">Daily Quota</th>
-                                        <th class="px-4 py-2.5">Target Scope</th>
+                                        <th class="px-4 py-2.5">Policy Scope</th>
                                         <th class="px-4 py-2.5">Enforced RADIUS Attributes</th>
                                         <th class="px-4 py-2.5 text-right">Actions</th>
                                     </tr>
@@ -3509,14 +3509,15 @@
     <!-- Captive Portal Bandwidth Profile Modal -->
     <div id="radius-bandwidth-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <input type="hidden" id="rad-bw-id-input" value="">
             <div class="flex justify-between items-center">
-                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-gauge-high text-cyan-400"></i> Configure Captive Portal Bandwidth Profile</h3>
+                <h3 id="rad-bw-modal-title" class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-gauge-high text-cyan-400"></i> Configure Captive Portal Bandwidth Profile</h3>
                 <button onclick="closeBandwidthModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
-                    <label class="text-slate-400 block mb-1">Tier / Profile Name</label>
-                    <input id="rad-bw-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Guest-5M or VIP-50M">
+                    <label class="text-slate-400 block mb-1">Bandwidth Policy / Class Name</label>
+                    <input id="rad-bw-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="e.g. VIP-50M, Standard-20M, Guest-5M">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -3538,20 +3539,14 @@
                         <input id="rad-bw-idle-input" type="number" min="0" value="30" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="30">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-slate-400 block mb-1">Daily Data Quota (MB)</label>
-                        <input id="rad-bw-quota-input" type="number" min="0" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="0 = Unlimited, or 2048 MB">
-                    </div>
-                    <div>
-                        <label class="text-slate-400 block mb-1">Optional AD Group Mapping</label>
-                        <input id="rad-bw-group-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="e.g. VIP-Users or leave empty">
-                    </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Daily Data Quota (MB) <span class="text-slate-500 font-normal">(0 = Unlimited, e.g. 2048 MB = 2 GB)</span></label>
+                    <input id="rad-bw-quota-input" type="number" min="0" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="0 = Unlimited">
                 </div>
                 <div>
                     <label class="flex items-center gap-2 cursor-pointer pt-1">
                         <input type="checkbox" id="rad-bw-default-input" class="rounded bg-slate-950 border-slate-800 text-cyan-500 focus:ring-0">
-                        <span class="text-slate-300">Set as Default Profile for Captive Portal & OTP Self-Registrations</span>
+                        <span class="text-slate-300">Set as Default Fallback Profile for Captive Portal & OTP Registrations</span>
                     </label>
                 </div>
                 <div>
@@ -3566,7 +3561,7 @@
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeBandwidthModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitSaveBandwidthProfile()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Save Bandwidth Tier</button>
+                    <button type="button" id="btn-save-bw-profile" onclick="submitSaveBandwidthProfile()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Save Bandwidth Tier</button>
                 </div>
             </div>
         </div>
@@ -5331,8 +5326,8 @@
                         const idleStr = p.idle_timeout_mins > 0 ? `${p.idle_timeout_mins}m` : 'None';
                         const quotaStr = p.daily_quota_mb > 0 ? `${p.daily_quota_mb} MB` : 'Unlimited';
                         const targetBadge = p.is_default
-                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold">DEFAULT (PORTAL/OTP)</span>'
-                            : (p.ad_group ? `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono"><i class="fa-solid fa-users text-cyan-400 mr-1"></i>${p.ad_group}</span>` : '<span class="text-slate-500 font-sans">On-Demand</span>');
+                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-star text-[9px]"></i> DEFAULT (FALLBACK)</span>'
+                            : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-sans border border-slate-700/60">Policy Template</span>';
 
                         return `
                             <tr class="hover:bg-slate-800/30">
@@ -5353,10 +5348,15 @@
                                         <div>MikroTik: <span class="text-cyan-400 font-bold">"${p.upload_mbps}M/${p.download_mbps}M"</span></div>
                                     </div>
                                 </td>
-                                <td class="px-4 py-2.5 text-right">
-                                    <button onclick="deleteBandwidthProfile(${p.id}, '${p.name}')" class="text-slate-500 hover:text-rose-400 transition" title="Delete Profile">
-                                        <i class="fa-solid fa-trash-can"></i>
+                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                    <button onclick="openEditBandwidthModal(${p.id})" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Bandwidth Profile">
+                                        <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
+                                    ${!p.is_default ? `
+                                        <button onclick="deleteBandwidthProfile(${p.id}, '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1 transition" title="Delete Profile">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    ` : '<span class="text-slate-600 font-sans italic text-[10px]">Default</span>'}
                                 </td>
                             </tr>
                         `;
@@ -5369,34 +5369,77 @@
             }
         }
 
-        function openBandwidthModal() { document.getElementById('radius-bandwidth-modal').classList.remove('hidden'); }
+        function openAddBandwidthModal() {
+            document.getElementById('rad-bw-id-input').value = '';
+            document.getElementById('rad-bw-modal-title').innerHTML = '<i class="fa-solid fa-gauge-high text-cyan-400"></i> Create Captive Portal Bandwidth Profile';
+            const btn = document.getElementById('btn-save-bw-profile');
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-plus"></i> Create Bandwidth Tier';
+            document.getElementById('rad-bw-name-input').value = '';
+            document.getElementById('rad-bw-down-input').value = '10.0';
+            document.getElementById('rad-bw-up-input').value = '5.0';
+            document.getElementById('rad-bw-sess-input').value = '120';
+            document.getElementById('rad-bw-idle-input').value = '30';
+            document.getElementById('rad-bw-quota-input').value = '0';
+            document.getElementById('rad-bw-default-input').checked = false;
+            document.getElementById('rad-bw-desc-input').value = '';
+            document.getElementById('radius-bandwidth-modal').classList.remove('hidden');
+        }
+
+        function openBandwidthModal() { openAddBandwidthModal(); }
+
+        function openEditBandwidthModal(id) {
+            const p = globalBandwidthProfiles.find(x => x.id === id);
+            if (!p) return alert(`Bandwidth profile ID ${id} not found.`);
+
+            document.getElementById('rad-bw-id-input').value = p.id;
+            document.getElementById('rad-bw-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-cyan-400"></i> Edit Bandwidth Profile: <span class="text-white">${p.name}</span>`;
+            const btn = document.getElementById('btn-save-bw-profile');
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update Bandwidth Tier';
+            document.getElementById('rad-bw-name-input').value = p.name || '';
+            document.getElementById('rad-bw-down-input').value = p.download_mbps || 0;
+            document.getElementById('rad-bw-up-input').value = p.upload_mbps || 0;
+            document.getElementById('rad-bw-sess-input').value = p.session_timeout_mins || 0;
+            document.getElementById('rad-bw-idle-input').value = p.idle_timeout_mins || 0;
+            document.getElementById('rad-bw-quota-input').value = p.daily_quota_mb || 0;
+            document.getElementById('rad-bw-default-input').checked = !!p.is_default;
+            document.getElementById('rad-bw-desc-input').value = p.description || '';
+            document.getElementById('radius-bandwidth-modal').classList.remove('hidden');
+        }
+
         function closeBandwidthModal() { document.getElementById('radius-bandwidth-modal').classList.add('hidden'); }
 
         async function submitSaveBandwidthProfile() {
+            const idVal = document.getElementById('rad-bw-id-input').value;
+            const profileId = idVal ? parseInt(idVal, 10) : null;
             const name = document.getElementById('rad-bw-name-input').value.trim();
             const down = parseFloat(document.getElementById('rad-bw-down-input').value);
             const up = parseFloat(document.getElementById('rad-bw-up-input').value);
             const sess = parseInt(document.getElementById('rad-bw-sess-input').value) || 0;
             const idle = parseInt(document.getElementById('rad-bw-idle-input').value) || 0;
             const quota = parseInt(document.getElementById('rad-bw-quota-input').value) || 0;
-            const group = document.getElementById('rad-bw-group-input').value.trim();
             const isDef = document.getElementById('rad-bw-default-input').checked;
             const desc = document.getElementById('rad-bw-desc-input').value.trim();
 
             if (!name || isNaN(down) || isNaN(up)) return alert('Profile name, Download speed, and Upload speed are required.');
 
+            const btn = document.getElementById('btn-save-bw-profile');
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
+
             try {
-                const res = await fetch(`${API_BASE}/radius/bandwidth-profiles`, {
-                    method: 'POST',
+                const url = profileId ? `${API_BASE}/radius/bandwidth-profiles/${profileId}` : `${API_BASE}/radius/bandwidth-profiles`;
+                const method = profileId ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method: method,
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
+                        id: profileId,
                         name: name,
                         download_mbps: down,
                         upload_mbps: up,
                         session_timeout_mins: sess,
                         idle_timeout_mins: idle,
                         daily_quota_mb: quota,
-                        ad_group: group,
                         is_default: isDef,
                         description: desc,
                         is_active: true
@@ -5411,6 +5454,9 @@
                 }
             } catch (err) {
                 alert(`Error saving bandwidth profile: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = profileId ? '<i class="fa-solid fa-floppy-disk"></i> Update Bandwidth Tier' : '<i class="fa-solid fa-plus"></i> Create Bandwidth Tier';
             }
         }
 

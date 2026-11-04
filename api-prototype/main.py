@@ -3347,48 +3347,85 @@ def list_radius_bandwidth_profiles():
 
 @app.post("/api/v1/radius/bandwidth-profiles")
 def save_radius_bandwidth_profile(req: RadiusBandwidthProfileRequest):
-    """Creates or updates a Captive Portal bandwidth profile and rate limit policy."""
+    """Creates a Captive Portal bandwidth profile and rate limit policy."""
+    if req.id:
+        return update_radius_bandwidth_profile(req.id, req)
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     now_ts = time.time()
     
-    is_def = 1 if (req.is_default or req.target_type == "DEFAULT") else 0
-    # If marking as default fallback, unmark others
+    is_def = 1 if req.is_default else 0
     if is_def:
         cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0")
 
-    t_type = req.target_type or ("DEFAULT" if is_def else "GROUP")
-    t_name = req.target_name or req.ad_group or ""
-    ad_grp = t_name if t_type == "GROUP" else (req.ad_group or "")
-
-    if req.id:
-        cursor.execute("""
-            UPDATE radius_bandwidth_profiles
-            SET name = ?, download_mbps = ?, upload_mbps = ?, session_timeout_mins = ?,
-                idle_timeout_mins = ?, daily_quota_mb = ?, target_type = ?, target_name = ?,
-                ad_group = ?, is_default = ?, description = ?, is_active = ?
-            WHERE id = ?
-        """, (
-            req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
-            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, t_type, t_name,
-            ad_grp, is_def, req.description or "", 1 if req.is_active else 0, req.id
-        ))
-    else:
-        cursor.execute("""
-            INSERT INTO radius_bandwidth_profiles
-            (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, target_type, target_name, ad_group, is_default, description, is_active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
-            req.idle_timeout_mins or 0, req.daily_quota_mb or 0, t_type, t_name,
-            ad_grp, is_def, req.description or "", 1 if req.is_active else 0, now_ts
-        ))
+    cursor.execute("""
+        INSERT INTO radius_bandwidth_profiles
+        (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, target_type, target_name, ad_group, is_default, description, is_active, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'TEMPLATE', '', '', ?, ?, ?, ?)
+    """, (
+        req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
+        req.idle_timeout_mins or 0, req.daily_quota_mb or 0, is_def,
+        req.description or "", 1 if req.is_active else 0, now_ts
+    ))
     conn.commit()
     conn.close()
 
     sync_freeradius_policies()
     log_audit("RADIUS_BANDWIDTH_PROFILE_SAVED", "admin", req.name, "SUCCESS", req.model_dump())
-    return {"status": "success", "message": f"Bandwidth profile '{req.name}' saved."}
+    return {"status": "success", "message": f"Bandwidth profile '{req.name}' created."}
+
+@app.put("/api/v1/radius/bandwidth-profiles/{profile_id}")
+def update_radius_bandwidth_profile(profile_id: int, req: RadiusBandwidthProfileRequest):
+    """Updates an existing Captive Portal bandwidth profile and propagates changes to AD and FreeRADIUS."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (profile_id,))
+    existing = cursor.fetchone()
+    if not existing:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"Bandwidth profile ID {profile_id} not found.")
+
+    old_p = dict(existing)
+    old_name = old_p["name"]
+
+    is_def = 1 if req.is_default else 0
+    if is_def:
+        cursor.execute("UPDATE radius_bandwidth_profiles SET is_default = 0 WHERE id != ?", (profile_id,))
+
+    cursor.execute("""
+        UPDATE radius_bandwidth_profiles
+        SET name = ?, download_mbps = ?, upload_mbps = ?, session_timeout_mins = ?,
+            idle_timeout_mins = ?, daily_quota_mb = ?, is_default = ?, description = ?, is_active = ?
+        WHERE id = ?
+    """, (
+        req.name, req.download_mbps, req.upload_mbps, req.session_timeout_mins or 0,
+        req.idle_timeout_mins or 0, req.daily_quota_mb or 0, is_def,
+        req.description or "", 1 if req.is_active else 0, profile_id
+    ))
+    conn.commit()
+    conn.close()
+
+    # Propagate updated bandwidth parameters to any AD users or groups referencing this profile
+    new_bw_tag = f"ZCLOCKID_BW:{req.name};down={req.download_mbps};up={req.upload_mbps};sess={req.session_timeout_mins or 120};idle={req.idle_timeout_mins or 30};quota={req.daily_quota_mb or 0}"
+    try:
+        code_s, out_s, _ = run_cmd([
+            "ldbsearch", "-H", "/var/lib/samba/private/sam.ldb",
+            f"(|(info=ZCLOCKID_BW:{old_name};*)(info=ZCLOCKID_BW:{req.name};*))", "dn"
+        ], timeout=5)
+        if code_s == 0:
+            for l in out_s.splitlines():
+                if l.startswith("dn: "):
+                    target_dn = l[4:].strip()
+                    ldif = f"dn: {target_dn}\nchangetype: modify\nreplace: info\ninfo: {new_bw_tag}\n-\n"
+                    subprocess.run(["ldbmodify", "-H", "/var/lib/samba/private/sam.ldb"], input=ldif, text=True, capture_output=True)
+    except Exception as e:
+        logger.warning(f"Failed to propagate updated profile to AD objects: {e}")
+
+    sync_freeradius_policies()
+    log_audit("RADIUS_BANDWIDTH_PROFILE_UPDATED", "admin", req.name, "SUCCESS", req.model_dump())
+    return {"status": "success", "message": f"Bandwidth profile '{req.name}' updated successfully."}
 
 @app.delete("/api/v1/radius/bandwidth-profiles/{profile_id}")
 def delete_radius_bandwidth_profile(profile_id: int):
