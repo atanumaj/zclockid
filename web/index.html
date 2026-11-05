@@ -4726,15 +4726,26 @@
                 <input type="hidden" id="rbac-edit-id" value="">
                 <div>
                     <label class="block text-slate-300 font-medium mb-1">Principal Type</label>
-                    <select id="rbac-principal-type" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                    <select id="rbac-principal-type" onchange="onRbacPrincipalTypeChange()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
                         <option value="group">Active Directory Security Group</option>
                         <option value="user">Specific User Account</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-slate-300 font-medium mb-1">Active Directory Principal Name</label>
-                    <input type="text" id="rbac-principal-name" required placeholder="e.g. Domain Admins, IT-Support" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono">
-                    <p class="text-[10px] text-slate-500 mt-1">Exact name as stored in Samba AD DC (sam.ldb).</p>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-slate-300 font-medium" id="rbac-principal-label">Select Active Directory Group</label>
+                        <span id="rbac-principals-loading" class="text-[10px] text-slate-500 hidden"><i class="fa-solid fa-circle-notch animate-spin"></i> Discovered from AD</span>
+                    </div>
+                    <select id="rbac-principal-select" onchange="onRbacPrincipalSelectChange()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs">
+                        <option value="">-- Loading Active Directory Groups... --</option>
+                    </select>
+                    <div class="mt-1 flex items-center justify-between">
+                        <p class="text-[10px] text-slate-500" id="rbac-principal-hint">Discovered live from Samba AD DC (sam.ldb).</p>
+                        <button type="button" onclick="toggleCustomPrincipalInput()" class="text-[10px] text-amber-400 hover:underline">
+                            <span id="rbac-custom-toggle-text">+ Enter custom name</span>
+                        </button>
+                    </div>
+                    <input type="text" id="rbac-principal-custom" placeholder="Enter custom group or user name" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono mt-1 hidden text-xs">
                 </div>
                 <div>
                     <label class="block text-slate-300 font-medium mb-1">Assigned Appliance Role</label>
@@ -9325,12 +9336,91 @@
             }
         }
 
+        let adPrincipalsCache = { groups: [], users: [] };
+        let isCustomPrincipalMode = false;
+
+        async function loadAdPrincipals() {
+            const loadingSpan = document.getElementById('rbac-principals-loading');
+            if (loadingSpan) loadingSpan.classList.remove('hidden');
+            try {
+                const res = await fetch(`${API_BASE}/rbac/principals`, { headers: getAuthHeaders() });
+                if (res.ok) {
+                    adPrincipalsCache = await res.json();
+                }
+            } catch (e) {
+                console.error('Failed to load AD principals:', e);
+            } finally {
+                if (loadingSpan) loadingSpan.classList.add('hidden');
+                populatePrincipalDropdown();
+            }
+        }
+
+        function onRbacPrincipalTypeChange() {
+            populatePrincipalDropdown();
+        }
+
+        function populatePrincipalDropdown(selectedValue = '') {
+            const type = document.getElementById('rbac-principal-type').value;
+            const select = document.getElementById('rbac-principal-select');
+            const label = document.getElementById('rbac-principal-label');
+            const hint = document.getElementById('rbac-principal-hint');
+            if (!select) return;
+
+            if (type === 'group') {
+                if (label) label.innerText = 'Select Active Directory Security Group';
+                if (hint) hint.innerText = 'Security groups discovered live from Active Directory (sam.ldb).';
+                const list = adPrincipalsCache.groups || [];
+                select.innerHTML = '<option value="">-- Select Active Directory Group --</option>' +
+                    list.map(g => `<option value="${g.name}" ${g.name === selectedValue ? 'selected' : ''}>${g.name}${g.description ? ' — ' + g.description : ''}</option>`).join('');
+            } else {
+                if (label) label.innerText = 'Select Active Directory User Account';
+                if (hint) hint.innerText = 'User accounts discovered live from Active Directory (sam.ldb).';
+                const list = adPrincipalsCache.users || [];
+                select.innerHTML = '<option value="">-- Select Active Directory User --</option>' +
+                    list.map(u => `<option value="${u.name}" ${u.name === selectedValue ? 'selected' : ''}>${u.name}${u.display_name ? ' — ' + u.display_name : ''}</option>`).join('');
+            }
+        }
+
+        function onRbacPrincipalSelectChange() {
+            const select = document.getElementById('rbac-principal-select');
+            const descInput = document.getElementById('rbac-description');
+            if (select && select.value && descInput && !descInput.value) {
+                const type = document.getElementById('rbac-principal-type').value;
+                if (type === 'group') {
+                    const match = (adPrincipalsCache.groups || []).find(g => g.name === select.value);
+                    if (match && match.description) descInput.value = match.description;
+                }
+            }
+        }
+
+        function toggleCustomPrincipalInput() {
+            isCustomPrincipalMode = !isCustomPrincipalMode;
+            const customInput = document.getElementById('rbac-principal-custom');
+            const select = document.getElementById('rbac-principal-select');
+            const toggleText = document.getElementById('rbac-custom-toggle-text');
+            if (isCustomPrincipalMode) {
+                customInput.classList.remove('hidden');
+                select.classList.add('hidden');
+                toggleText.innerText = '← Select from AD dropdown';
+                customInput.focus();
+            } else {
+                customInput.classList.add('hidden');
+                select.classList.remove('hidden');
+                toggleText.innerText = '+ Enter custom name';
+            }
+        }
+
         function openRbacMappingModal() {
             document.getElementById('rbac-edit-id').value = '';
-            document.getElementById('rbac-principal-name').value = '';
             document.getElementById('rbac-description').value = '';
             document.getElementById('modal-rbac-title').innerText = 'Add Role Mapping';
+            isCustomPrincipalMode = false;
+            document.getElementById('rbac-principal-custom').classList.add('hidden');
+            document.getElementById('rbac-principal-select').classList.remove('hidden');
+            document.getElementById('rbac-custom-toggle-text').innerText = '+ Enter custom name';
+
             document.getElementById('modal-rbac-mapping').classList.remove('hidden');
+            loadAdPrincipals();
         }
 
         function closeRbacMappingModal() {
@@ -9343,9 +9433,23 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Saving...';
 
+            let principalName = '';
+            if (isCustomPrincipalMode) {
+                principalName = document.getElementById('rbac-principal-custom').value.trim();
+            } else {
+                principalName = document.getElementById('rbac-principal-select').value.trim();
+            }
+
+            if (!principalName) {
+                alert('Please select or enter an Active Directory principal name.');
+                btn.disabled = false;
+                btn.innerHTML = 'Save Role Mapping';
+                return;
+            }
+
             const payload = {
                 principal_type: document.getElementById('rbac-principal-type').value,
-                principal_name: document.getElementById('rbac-principal-name').value.trim(),
+                principal_name: principalName,
                 role: document.getElementById('rbac-assigned-role').value,
                 description: document.getElementById('rbac-description').value.trim()
             };

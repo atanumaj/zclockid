@@ -9,7 +9,7 @@ import subprocess
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, status
 
-from api.core.config import DB_PATH
+from api.core.config import DB_PATH, SAMBA_LDB_PATH
 from api.services.system_service import log_audit, run_cmd
 from api.schemas.rbac_schema import (
     RbacMappingCreateRequest,
@@ -161,6 +161,60 @@ def list_available_roles():
             }
         ]
     }
+
+@router.get("/principals")
+def list_ad_principals():
+    """Lists Active Directory security groups and user accounts from sam.ldb for RBAC dropdowns."""
+    groups = []
+    users = []
+
+    # 1. Query AD Security Groups
+    code, stdout, _ = run_cmd([
+        "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+        "(objectClass=group)", "sAMAccountName", "description"
+    ], timeout=5)
+    if code == 0 and stdout:
+        cur_name = ""
+        cur_desc = ""
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                if cur_name:
+                    groups.append({"name": cur_name, "description": cur_desc})
+                    cur_name = ""
+                    cur_desc = ""
+            elif line.startswith("sAMAccountName:"):
+                cur_name = line.split(":", 1)[1].strip()
+            elif line.startswith("description:"):
+                cur_desc = line.split(":", 1)[1].strip()
+        if cur_name:
+            groups.append({"name": cur_name, "description": cur_desc})
+
+    # 2. Query AD User Accounts (excluding computer objects)
+    code_u, stdout_u, _ = run_cmd([
+        "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+        "(&(objectClass=user)(!(objectClass=computer)))", "sAMAccountName", "displayName"
+    ], timeout=5)
+    if code_u == 0 and stdout_u:
+        cur_name = ""
+        cur_disp = ""
+        for line in stdout_u.splitlines():
+            line = line.strip()
+            if not line:
+                if cur_name:
+                    users.append({"name": cur_name, "display_name": cur_disp})
+                    cur_name = ""
+                    cur_disp = ""
+            elif line.startswith("sAMAccountName:"):
+                cur_name = line.split(":", 1)[1].strip()
+            elif line.startswith("displayName:"):
+                cur_disp = line.split(":", 1)[1].strip()
+        if cur_name:
+            users.append({"name": cur_name, "display_name": cur_disp})
+
+    groups.sort(key=lambda x: x["name"].lower())
+    users.sort(key=lambda x: x["name"].lower())
+    return {"groups": groups, "users": users}
 
 @router.get("/mappings")
 def list_rbac_mappings():
