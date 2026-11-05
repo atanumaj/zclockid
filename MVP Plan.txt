@@ -1,0 +1,178 @@
+MVP1:
+
+1. Active Directory Core Engine (Samba 4 AD DC)
+Domain Controller Modes: Master (Primary DC), Alternate (Backup DC), and RODC (Read-Only DC).
+FSMO Role Management: View, transfer, and seize all 5 FSMO roles from the GUI.
+DRS Directory Replication: Multi-master replication status and on-demand synchronization.
+Domain Functional Levels: View and raise Forest / Domain levels (up to Windows Server 2016).
+UPN & SPN Suffixes: Add and manage alternate domain logon suffixes.
+Windows RSAT Integration: Full compatibility with native MMC tools (dsa.msc, gpmc.msc, dnsmgmt.msc, dssite.msc) plus 1-click PowerShell install command on the dashboard.
+2. User & Identity Management
+Domain Users & Groups: Create, edit, and delete Active Directory users and security groups.
+Service Account Filter: Toggle to hide/show built-in accounts (krbtgt, Guest, etc.).
+AD Schema Tagging: Native tagging for department, employeeType, description, and comment.
+Account Source Badges: Distinct UI badges separating Self-Registered accounts from Admin-created accounts.
+3. Decoupled Bandwidth & QoS Objects
+Independent QoS Objects: Define Download / Upload speed profiles, daily data quotas, and session timeouts.
+Unlimited Wire Speed: Support for 0 Mbps (automatically omits rate-limiting attributes for full line rate).
+3-Tier Precedence Hierarchy: User Override 
+→
+→ Group Tier 
+→
+→ Global Fallback.
+4. Self-Registration & Captive Portal (/register.html)
+Public Registration Portal: Self-service onboarding for guest Wi-Fi and BYOD devices.
+AD Password Complexity: Enforced on both frontend and backend (8+ characters, uppercase, lowercase, numbers, symbols).
+Custom Organization Departments: Dynamic tag management in settings (up to 100 departments).
+Configurable Provisioning Defaults: Selectable Default Domain (UPN), Default AD Group, and Default Bandwidth tier.
+SMS OTP Verification: Multi-provider support (Twilio, Fast2SMS, MSG91, Webhooks, or Mock).
+Admin Approval Queue: Review, approve, or reject pending self-registrations.
+5. Enterprise FreeRADIUS (802.1X & Access Control)
+Reorganized 2-Tier Tab Structure:
+General: NAS Clients & APs, Bandwidth Objects, EAP/Certificates, Live Sessions.
+Advance: MAB (MAC Bypass), Custom VSAs, Engine Parameters, Raw Config Inspector.
+Corporate 802.1X: PEAP-MSCHAPv2 and EAP-TLS against Active Directory.
+Dynamic VLAN Steering: RFC 3580 attributes (Tunnel-Type, Tunnel-Medium-Type, Tunnel-Private-Group-Id).
+MAB for IoT: MAC address bypass with static IP and dedicated bandwidth tier for printers, VoIP phones, and cameras.
+Live Sessions & Accounting: Real-time active sessions with RFC 3576 Packet of Disconnect (PoD / CoA).
+6. Encrypted DNS (BIND 9.18 DLZ & DoH)
+Zero Delay Memory Driver: Direct memory integration with Samba sam.ldb.
+DNS-over-HTTPS (DoH): RFC 8484 compliant encrypted DNS on /dns-query.
+DNS Records & Forwarders: Forward and reverse lookup management with upstream health checks.
+7. Storage, Time & Cloud Sync
+Sysvol Synchronization (zclock-sysvold): Bi-directional replication with automatic Windows NTACL preservation.
+NTP Server (Chrony): Integrated Stratum clock sync for Kerberos time integrity.
+Azure / Entra ID Sync: Dual-mode cloud sync (built-in Python sync daemon and Microsoft Entra Connect compatibility).
+8. System Management, API & UI
+Headless REST API (FastAPI): Comprehensive backend on port 8000 with interactive Swagger docs (/docs).
+Nginx Ingress (Port 443): Unified SSL reverse proxy for Web UI, REST API, and DoH.
+Modern Appliance UI: Tailwind dark-mode dashboard with "ZclockID — All Identity in One Place" hero banner, live service telemetry, and real-time logs modal.
+
+MVP2:
+
+1. Single Root Directory Layout (/zclockid/)
+
+/zclockid/ ├── config/ # All Engine & Appliance Configurations │ ├── zclockid.yaml # Master appliance configuration & settings │ ├── samba/ # smb.conf (included by /etc/samba/smb.conf) │ ├── freeradius/ # clients.conf, eap, policy objects │ ├── bind/ # named.conf.zclockid, forwarders, DoH rules │ ├── nginx/ # Ingress proxy, SSL, and DoH routing │ ├── chrony/ # NTP server configuration │ └── overrides.d/ # Sysadmin manual terminal config drop-ins │ ├── api/ # FastAPI Orchestration Engine (Modular) │ ├── routers/ # auth, domain, users, dns, radius, sysvol, system │ ├── schemas/ # Pydantic input/output validation models │ ├── services/ # Subsystem controllers & process runners │ └── main.py # FastAPI application entrypoint │ ├── db/ # Database Engine & Schema Migrations │ ├── zclockid.db # SQLite DB (Policies, Guest queue, Audit) │ ├── models/ # SQLAlchemy models │ └── migrations/ # Alembic versioned migration scripts │ ├── templates/ # Jinja2 Templates for generating configs │ ├── samba.j2 │ ├── freeradius.j2 │ ├── bind.j2 │ └── nginx.j2 │ ├── web/ # Presentation Layer (Single-Page App) │ ├── index.html # Admin Dashboard │ ├── login.html # Authentication │ ├── register.html # Guest Self-Registration Portal │ └── assets/ # Minified CSS, JS, icons │ ├── daemons/ # Standalone Daemons & Scripts │ ├── zclock-sysvold.py # Sysvol replication & NTACL healer │ ├── zclock-azuresync.py # Microsoft Entra ID cloud sync │ └── zclock-updater # Safe updater & recovery binary │ ├── logs/ # Centralized Application Logs │ ├── api.log # REST API requests & errors │ ├── sysvold.log # Sysvol sync events │ └── audit.log # Admin action audit trail │ └── data/ # Persistent Data & Symlinks ├── sysvol -> /var/lib/samba/sysvol # Symlink to physical Sysvol ├── backups/ # Daily automatic appliance snapshots (.tar.gz) └── certs/ # Appliance SSL/TLS Web GUI certificates
+
+2. Sysvol Strategy (Option A - Upstream Safe)
+Physical Location:
+Preserved at default /var/lib/samba/sysvol/ for 100% Ubuntu/Debian package upgrade safety.
+Symlink Access:
+/zclockid/data/sysvol -> points directly to /var/lib/samba/sysvol.
+Sysadmins can navigate directly from /zclockid/ to inspect GPOs, scripts, and policies.
+Permission Integrity (NTACL):
+Backups preserve Windows NT Security Descriptors via extended attributes: tar --xattrs --xattrs-include='*' -czf backup.tar.gz /zclockid /var/lib/samba/sysvol
+zclock-sysvold daemon watches /var/lib/samba/sysvol and automatically executes samba-tool ntacl sysvolreset whenever replication finishes.
+3. Engine Integration (How /etc Points to /zclockid)
+
+Operating system services stay standard, but their configuration files point to /zclockid/:
+
+Samba: /etc/samba/smb.conf contains: include = /zclockid/config/samba/smb.conf
+
+FreeRADIUS: /etc/freeradius/3.0/clients.conf contains: $INCLUDE /zclockid/config/freeradius/clients.conf
+
+BIND9: /etc/bind/named.conf.local contains: include "/zclockid/config/bind/named.conf.zclockid";
+
+Nginx: /etc/nginx/sites-enabled/default contains: include /zclockid/config/nginx/zclockid.conf;
+
+Systemd Services: Units live in /etc/systemd/system/zclock-*.service and point directly to execution paths in /zclockid/api/ and /zclockid/daemons/.
+
+4. Terminal Administration & Sysadmin Freedom
+Zero Shadow State:
+Samba sam.ldb is the sole source of truth for AD users/groups.
+Native tools ('samba-tool user add', 'rndc', 'systemctl') work directly.
+Safe Overrides:
+Sysadmins can add custom rules into /zclockid/config/overrides.d/.
+The Web GUI will never overwrite sysadmin terminal overrides.
+Atomic Validation:
+Any config generated by the GUI is pre-validated with native tools ('testparm', 'named-checkconf', 'freeradius -C') before reloading services.
+5. Disaster Recovery & Migration
+Comprehensive Backup Command:
+tar --xattrs --xattrs-include='*' -czf zclockid-backup-$(date +%F).tar.gz /zclockid /var/lib/samba/sysvol
+Clean Restore:
+Extract the backup archive on a fresh machine.
+Re-link systemd units and restart services. Appliance is 100% operational.
+
+MVP3: 
+
+1. Role-Based Access Control (RBAC) & GUI Access
+Architecture & UI Placement:
+Located under: System -> Access Control & RBAC (Dedicated Sub-Tab).
+Hybrid Directory Mapping (AD + Local Break-Glass):
+Primary: Active Directory users and groups map directly to appliance roles.
+Break-Glass: A built-in local admin account is maintained in /zclockid/db/ to guarantee emergency console/GUI access if Samba or LDAP is temporarily down.
+Role Definitions & Permissions:
+fulladmin (Full Administrator):
+Unrestricted read/write across all subsystems.
+Can manage FSMO roles, system identity, API keys, TLS certs, and backups.
+operator (User & Group Manager):
+Can create, edit, unlock, and delete AD Users and Groups.
+Can approve/reject Guest Self-Registrations and assign Bandwidth Profiles.
+Blocked from system-level settings, network configuration, and certificates.
+report (Auditor & Analytics):
+Access to Telemetry, Sysvol sync health, active RADIUS sessions, and Syslog viewers.
+Cannot make any modifications or view sensitive user secrets.
+readonly (Read-Only Inspector):
+Complete view of the entire appliance for inspection and troubleshooting.
+All mutation actions (Save, Delete, Restart, Provision) are disabled/hidden.
+Role Mapping Configuration (In UI):
+Table of Mappings:
+Domain Admins (AD Group) -> fulladmin
+Helpdesk-Tier2 (AD Group) -> operator
+Compliance-Team (AD Group) -> report
+Custom User johndoe -> operator (Direct user override)
+2. API Key Management
+Located Under: System -> API Keys
+Key Generation:
+Generate cryptographically secure API tokens (e.g., zck_live_8f93a1...).
+One-time secret display with 1-click copy.
+Granular Scopes:
+admin:all -> Complete system control (CI/CD and deployment pipelines).
+users:manage -> Provision and update AD accounts (HR software integration).
+radius:read -> Query live sessions and accounting (Billing & portal integration).
+telemetry:read -> Read-only metrics (MSP Fleet Manager / PRTG / Prometheus).
+Security Restrictions:
+CIDR Whitelisting: Restrict key usage to specific management IPs (e.g., 10.10.0.50/32).
+Expiration Dates: Set key validity (30 days, 90 days, 1 year, or Never).
+Immediate Revocation: 1-click revoke button to instantly kill compromised keys.
+3. GUI Certificate Management & TLS Controls
+Located Under: System -> Certificates
+
+Certificate Operations:
+
+Generate Self-Signed Certificate:
+1-click generation with custom Subject Alternative Names (SANs).
+Automatically includes Appliance IP, FQDN (dc1.inet.net), and NetBIOS name.
+Upload Custom Enterprise Certificate:
+Form to upload Certificate (.crt / .pem), Private Key (.key), and Intermediate CA bundle.
+Supports corporate PKI (Microsoft AD CS, DigiCert) and wildcard certs.
+Generate Certificate Signing Request (CSR):
+Generate CSR directly from the appliance to submit to an enterprise CA.
+Let's Encrypt / ACME (Optional):
+Automatic HTTP-01 / DNS-01 issuance and 90-day renewal.
+
+Web Engine & TLS Version Controls:
+
+HTTP -> HTTPS Automatic Redirect toggle.
+Enforce TLS Protocol Version: Select TLS 1.3 Only or TLS 1.2 + TLS 1.3.
+HSTS (HTTP Strict Transport Security) toggle with max-age header.
+Automatic validation: Tests certificate and Nginx configuration before reloading.
+4. Centralized Enterprise Syslog Subsystem
+Located Under: System -> Syslog & Logging
+
+Syslog Forwarder Settings:
+
+Remote Syslog Server: Hostname / IP address (e.g., 192.168.1.50).
+Port & Protocol: UDP (514), TCP (514), or Encrypted TLS (6514 with CA verification).
+Log Format Standard:
+RFC 5424 (Modern structured Syslog with timestamp and hostname).
+RFC 3164 (Legacy BSD Syslog for older SIEM collectors).
+JSON (Structured JSON stream for Splunk, Wazuh, ELK, or Graylog).
+
+Granular Log Source Toggles (Select what to send):
+
+ Samba AD DC Logs: Kerberos authentications, NTLM auth, failed logon attempts, LDAP queries, DRS sync.
+ FreeRADIUS Logs: 802.1X Access-Accept, Access-Reject, Dynamic VLAN assignments, and accounting starts/stops.
+ System & Kernel Logs: Operating system events, hardware health, disk telemetry, network interface link events.
+ Auth & Security Logs: /var/log/auth.log, SSH logins, sudo commands, and console access.
+ ZclockID Management Audit Trail: Tracks every Web GUI and API action: Who made the change, timestamp, source IP, and payload.
