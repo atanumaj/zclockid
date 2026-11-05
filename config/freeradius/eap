@@ -1,0 +1,43 @@
+# /etc/freeradius/3.0/mods-available/eap
+# ZclockID FreeRADIUS EAP Module Configuration
+
+eap {
+    default_eap_type = peap
+    timer_expire = 60
+    ignore_unknown_eap_types = no
+    cisco_accounting_username_bug = yes
+    max_sessions = ${max_requests}
+
+    # TLS Configuration for EAP-PEAP and EAP-TLS
+    tls-config tls-common {
+        certdir = ${confdir}/certs
+        cadir = ${confdir}/certs
+        private_key_file = ${certdir}/server.key
+        certificate_file = ${certdir}/server.pem
+        ca_file = ${cadir}/ca.pem
+        dh_file = ${certdir}/dh
+        cipher_list = "DEFAULT"
+        cipher_server_preference = no
+        tls_min_version = "1.2"
+        tls_max_version = "1.3"
+    }
+
+    # MS-CHAPv2 Inner Tunnel (Active Directory 802.1X PEAP)
+    mschapv2 {
+    }
+
+    # PEAP Inner-Tunnel Outer Authentication
+    peap {
+        tls = tls-common
+        default_eap_type = mschapv2
+        copy_request_to_tunnel = yes
+        use_tunneled_reply = yes
+        virtual_server = "inner-tunnel"
+    }
+
+    # EAP-TLS Certificate Authentication (Smartcards / Machine Certs)
+    tls {
+        tls = tls-common
+    }
+}
+

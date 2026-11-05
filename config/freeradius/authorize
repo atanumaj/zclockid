@@ -1,0 +1,25 @@
+# /etc/freeradius/3.0/mods-config/files/authorize
+# ZclockID FreeRADIUS Authorize Configuration: Dynamic VLAN Steering & MAB Bypass
+
+# 1. MAC Authentication Bypass (MAB) for Headless Devices (Printers, IoT, Cameras)
+# Example: 00:50:56:A1:B2:C3 Auth-Type := Accept, Tunnel-Type = VLAN, Tunnel-Medium-Type = IEEE-802, Tunnel-Private-Group-Id = "70"
+
+# 2. Dynamic 802.1X VLAN Steering via Active Directory Groups (RFC 3580)
+DEFAULT Group == "Domain Admins"
+	Tunnel-Type = VLAN,
+	Tunnel-Medium-Type = IEEE-802,
+	Tunnel-Private-Group-Id = "1",
+	Fall-Through = Yes
+
+DEFAULT Group == "Corporate-Users"
+	Tunnel-Type = VLAN,
+	Tunnel-Medium-Type = IEEE-802,
+	Tunnel-Private-Group-Id = "50",
+	Fall-Through = Yes
+
+DEFAULT Group == "Contractors"
+	Tunnel-Type = VLAN,
+	Tunnel-Medium-Type = IEEE-802,
+	Tunnel-Private-Group-Id = "60",
+	Fall-Through = Yes
+

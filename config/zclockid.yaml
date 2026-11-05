@@ -1,0 +1,54 @@
+# ====================================================================
+#               ZCLOCKID MASTER APPLIANCE CONFIGURATION
+# ====================================================================
+# Single declarative configuration file for ZclockID AD DC Appliance.
+# Managed via ZclockID REST API and safe for manual terminal inspection.
+
+version: "2.0.0"
+appliance:
+  name: "ZclockID Enterprise AD DC"
+  hostname: "inet-zclockid"
+  netbios_name: "INET-ZCLOCKID"
+  description: "ZclockID Active Directory Domain Controller"
+  root_dir: "/zclockid"
+
+domain:
+  realm: "INET.NET"
+  workgroup: "INET"
+  functional_level: "2016"
+  server_role: "master"       # master (Primary DC) | alternate (Backup DC) | rodc
+  use_rfc2307: true
+  min_protocol: "SMB2_10"
+
+dns:
+  backend: "bind9_dlz"
+  doh_enabled: true
+  doh_port: 8053
+  forwarders:
+    - "1.1.1.1"
+    - "8.8.8.8"
+    - "9.9.9.9"
+
+radius:
+  auth_port: 1812
+  acct_port: 1813
+  acct_enabled: true
+  interim_interval: 300
+  eap_peap: true
+  eap_tls: true
+  default_eap_type: "peap"
+
+sysvol:
+  physical_path: "/var/lib/samba/sysvol"
+  symlink_path: "/zclockid/data/sysvol"
+  auto_heal_ntacl: true
+  sync_daemon: true
+
+storage:
+  db_path: "/zclockid/data/zclockid.db"
+  backup_dir: "/zclockid/data/backups"
+  log_dir: "/zclockid/logs"
+
+telemetry:
+  enabled: true
+  refresh_interval_sec: 5

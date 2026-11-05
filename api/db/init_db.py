@@ -1,0 +1,286 @@
+"""
+ZclockID Enterprise Management Appliance - SQLite Database Initialization & Schema Migrations
+Manages local application policies, guest self-registrations, MAB devices, and audit logging.
+Note: Active Directory accounts are stored in Samba sam.ldb, NOT in SQLite (Zero-Shadow Rule).
+"""
+
+import sqlite3
+import time
+from api.core.config import DB_PATH
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Admin users for Web GUI authentication
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS admin_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            salt TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            email TEXT,
+            created_at REAL,
+            last_login REAL
+        )
+    """)
+
+    # Active web sessions
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            created_at REAL,
+            expires_at REAL
+        )
+    """)
+
+    # Self-Registration Queue
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS self_registrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT NOT NULL,
+            given_name TEXT,
+            surname TEXT,
+            department TEXT,
+            mobile TEXT,
+            status TEXT DEFAULT 'PENDING_OTP',
+            ip_address TEXT,
+            created_at REAL,
+            approved_at REAL,
+            approved_by TEXT,
+            notes TEXT,
+            otp_code TEXT,
+            otp_expires_at REAL,
+            otp_verified INTEGER DEFAULT 0,
+            password_hash TEXT
+        )
+    """)
+
+    # Column migrations for self_registrations
+    cursor.execute("PRAGMA table_info(self_registrations)")
+    existing_cols = [row[1] for row in cursor.fetchall()]
+    cols_to_add = {
+        "mobile": "TEXT",
+        "otp_code": "TEXT",
+        "otp_expires_at": "REAL",
+        "otp_verified": "INTEGER DEFAULT 0",
+        "password_hash": "TEXT"
+    }
+    for col_name, col_type in cols_to_add.items():
+        if col_name not in existing_cols:
+            cursor.execute(f"ALTER TABLE self_registrations ADD COLUMN {col_name} {col_type}")
+
+    # Self-Registration & OTP Policy Settings
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS self_registration_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER DEFAULT 1,
+            require_mobile_otp INTEGER DEFAULT 1,
+            auto_approve_with_otp INTEGER DEFAULT 1,
+            default_domain TEXT DEFAULT 'inet.net',
+            default_group TEXT DEFAULT 'Domain Users',
+            default_bandwidth_profile_id INTEGER DEFAULT 0,
+            allowed_departments TEXT DEFAULT 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations',
+            sms_gateway_type TEXT DEFAULT 'simulated',
+            sms_gateway_url TEXT DEFAULT '',
+            sms_api_key TEXT DEFAULT '',
+            sms_sender_id TEXT DEFAULT 'ZCLOCK',
+            sms_template TEXT DEFAULT 'Your ZclockID verification code is {otp}. Valid for 10 minutes.',
+            email_smtp_enabled INTEGER DEFAULT 0,
+            smtp_host TEXT DEFAULT '',
+            smtp_port INTEGER DEFAULT 587,
+            smtp_user TEXT DEFAULT '',
+            smtp_pass TEXT DEFAULT '',
+            smtp_from TEXT DEFAULT 'no-reply@inet.net',
+            updated_at REAL
+        )
+    """)
+
+    cursor.execute("PRAGMA table_info(self_registration_settings)")
+    sreg_cols = [row[1] for row in cursor.fetchall()]
+    if "default_bandwidth_profile_id" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN default_bandwidth_profile_id INTEGER DEFAULT 0")
+    if "allowed_departments" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN allowed_departments TEXT DEFAULT 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations'")
+
+    cursor.execute("SELECT COUNT(*) FROM self_registration_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO self_registration_settings (
+                id, enabled, require_mobile_otp, auto_approve_with_otp, default_domain, default_group,
+                default_bandwidth_profile_id, allowed_departments, sms_gateway_type, sms_sender_id, sms_template, updated_at
+            ) VALUES (
+                1, 1, 1, 1, 'inet.net', 'Domain Users',
+                0, 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations',
+                'simulated', 'ZCLOCK', 'Your ZclockID verification code is {otp}. Valid for 10 minutes.', ?
+            )
+        """, (time.time(),))
+
+    # Audit & Reporting Events
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS audit_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            actor TEXT,
+            target TEXT,
+            status TEXT,
+            details TEXT,
+            timestamp REAL
+        )
+    """)
+
+    # RADIUS Accounting Sessions
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_accounting (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT UNIQUE NOT NULL,
+            username TEXT NOT NULL,
+            nas_ip TEXT NOT NULL,
+            nas_name TEXT,
+            calling_station_id TEXT,
+            framed_ip TEXT,
+            acct_status_type TEXT DEFAULT 'Start',
+            acct_session_time INTEGER DEFAULT 0,
+            input_octets INTEGER DEFAULT 0,
+            output_octets INTEGER DEFAULT 0,
+            terminate_cause TEXT,
+            start_time REAL,
+            last_update REAL
+        )
+    """)
+
+    # Captive Portal Bandwidth & Rate Limiting Profiles (Pure QoS Objects)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_bandwidth_profiles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            download_mbps REAL NOT NULL,
+            upload_mbps REAL NOT NULL,
+            session_timeout_mins INTEGER DEFAULT 120,
+            idle_timeout_mins INTEGER DEFAULT 30,
+            daily_quota_mb INTEGER DEFAULT 0,
+            target_type TEXT DEFAULT 'GROUP',
+            target_name TEXT DEFAULT '',
+            ad_group TEXT DEFAULT '',
+            is_default INTEGER DEFAULT 0,
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at REAL
+        )
+    """)
+
+    for col, ctype, cdef in [("target_type", "TEXT", "'GROUP'"), ("target_name", "TEXT", "''")]:
+        try:
+            cursor.execute(f"ALTER TABLE radius_bandwidth_profiles ADD COLUMN {col} {ctype} DEFAULT {cdef}")
+        except Exception:
+            pass
+
+    cursor.execute("SELECT COUNT(*) FROM radius_bandwidth_profiles")
+    if cursor.fetchone()[0] == 0:
+        now_ts = time.time()
+        cursor.execute("""
+            INSERT INTO radius_bandwidth_profiles (name, download_mbps, upload_mbps, session_timeout_mins, idle_timeout_mins, daily_quota_mb, target_type, target_name, ad_group, is_default, description, is_active, created_at)
+            VALUES 
+            ('VIP-Executive', 50.0, 25.0, 1440, 60, 0, 'GROUP', 'Domain Admins', 'Domain Admins', 0, 'Unrestricted high-speed priority tier for leadership & admins', 1, ?),
+            ('Staff-Standard', 20.0, 10.0, 720, 30, 0, 'GROUP', 'Corporate-Users', 'Corporate-Users', 0, 'Standard enterprise employee work profile', 1, ?),
+            ('Guest-Captive-Portal', 5.0, 2.0, 120, 15, 2048, 'DEFAULT', 'ALL', '', 0, 'Captive portal profile for visitor Wi-Fi & OTP self-registrations', 1, ?),
+            ('Limited-Public', 2.0, 0.5, 30, 10, 500, 'GROUP', '', '', 0, 'Throttled public access tier with 500 MB data cap', 1, ?)
+        """, (now_ts, now_ts, now_ts, now_ts))
+
+    # User to Bandwidth Profile Mapping
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_user_bandwidth (
+            username TEXT PRIMARY KEY,
+            profile_id INTEGER NOT NULL,
+            updated_at REAL
+        )
+    """)
+
+    # MAC Authentication Bypass (MAB) for Headless Devices
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_mab_devices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mac_address TEXT NOT NULL UNIQUE,
+            device_name TEXT NOT NULL,
+            vlan_id INTEGER NOT NULL,
+            static_ip TEXT DEFAULT '',
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at REAL
+        )
+    """)
+
+    # Custom RADIUS Vendor Attributes & Policies
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_custom_attributes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            target_type TEXT NOT NULL,
+            target_name TEXT DEFAULT '',
+            attribute_name TEXT NOT NULL,
+            operator TEXT DEFAULT '=',
+            attribute_value TEXT NOT NULL,
+            description TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at REAL
+        )
+    """)
+
+    # RADIUS General Configuration
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS radius_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            auth_port INTEGER DEFAULT 1812,
+            acct_port INTEGER DEFAULT 1813,
+            acct_enabled INTEGER DEFAULT 1,
+            interim_interval INTEGER DEFAULT 300,
+            listen_ip TEXT DEFAULT '0.0.0.0',
+            log_auth INTEGER DEFAULT 1,
+            log_badpass INTEGER DEFAULT 1,
+            log_stripped_names INTEGER DEFAULT 0,
+            eap_peap_enabled INTEGER DEFAULT 1,
+            eap_tls_enabled INTEGER DEFAULT 1,
+            eap_default_type TEXT DEFAULT 'peap',
+            max_requests INTEGER DEFAULT 1024,
+            max_servers INTEGER DEFAULT 32,
+            updated_at REAL
+        )
+    """)
+    cursor.execute("INSERT OR IGNORE INTO radius_settings (id, auth_port, acct_port, acct_enabled, interim_interval, updated_at) VALUES (1, 1812, 1813, 1, 300, ?)", (time.time(),))
+
+    # System Update & Release Management
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS update_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            github_repo TEXT DEFAULT 'atanumaj/zclockid',
+            custom_manifest_url TEXT DEFAULT '',
+            auto_check INTEGER DEFAULT 1,
+            last_checked REAL DEFAULT 0,
+            latest_version TEXT DEFAULT '',
+            latest_release_name TEXT DEFAULT '',
+            latest_release_notes TEXT DEFAULT '',
+            latest_download_url TEXT DEFAULT '',
+            last_check_status TEXT DEFAULT 'NOT_CHECKED',
+            updated_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM update_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO update_settings (
+                id, github_repo, custom_manifest_url, auto_check, last_checked,
+                latest_version, latest_release_name, latest_release_notes,
+                latest_download_url, last_check_status, updated_at
+            ) VALUES (
+                1, 'atanumaj/zclockid', '', 1, 0, '', '', '', '', 'NOT_CHECKED', ?
+            )
+        """, (time.time(),))
+
+    conn.commit()
+    conn.close()

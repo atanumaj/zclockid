@@ -1,0 +1,21 @@
+# /etc/freeradius/3.0/mods-available/mschap
+# ZclockID FreeRADIUS MS-CHAP Module with Samba ntlm_auth
+
+mschap {
+    use_mppe = yes
+    require_encryption = yes
+    require_strong = yes
+
+    # Winbind ntlm_auth helper: Validates MS-CHAPv2 challenge/response against Samba AD KDC
+    ntlm_auth = "/usr/bin/ntlm_auth --request-nt-key \
+      --domain=CORP \
+      --username=%{mschap:User-Name} \
+      --challenge=%{%{mschap:Challenge}:-00} \
+      --nt-response=%{%{mschap:NT-Response}:-00}"
+
+    passchange {
+        # Optional Windows password change support
+        ntlm_auth = "/usr/bin/ntlm_auth --domain=CORP --username=%{mschap:User-Name} --password=%{mschap:Password}"
+    }
+}
+

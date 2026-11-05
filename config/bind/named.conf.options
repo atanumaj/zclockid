@@ -1,0 +1,37 @@
+// /etc/bind/named.conf.options
+// ZclockID DNS Engine: BIND9 DLZ with Native DNS-over-HTTPS (DoH) multiplexed via Nginx
+
+// 1. HTTP Profile for DoH Endpoints (Multiplexed via local Nginx reverse proxy)
+http doh-http {
+    endpoints { "/dns-query"; };
+};
+
+options {
+    directory "/var/cache/bind";
+    version "none";
+
+    // Standard RFC DNS Listeners (UDP/TCP Port 53)
+    listen-on port 53 { any; };
+    listen-on-v6 { none; };
+
+    // Native DoH HTTP endpoint on localhost:8053 (Nginx terminates TLS on 443)
+    listen-on port 8053 tls none http doh-http { 127.0.0.1; };
+
+    // Query & Recursion ACLs
+    allow-query { any; };
+    allow-recursion { any; };
+    recursion yes;
+
+    // Upstream Forwarders for External Internet Queries
+    forwarders {
+        1.1.1.1;
+        8.8.8.8;
+    };
+
+    dnssec-validation no;
+    auth-nxdomain no;
+    minimal-responses yes;
+
+    // Kerberos GSS-TSIG for dynamic DNS updates from Windows AD clients and DCs
+    tkey-gssapi-keytab "/var/lib/samba/bind-dns/dns.keytab";
+};
