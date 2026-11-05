@@ -41,7 +41,7 @@ else
     echo "Notice: /var/lib/samba/sysvol not present yet; placeholder link ready."
 fi
 
-echo "=== Step 3: Preserving and linking SQLite Database ==="
+echo "=== Step 3: Preserving and linking SQLite Database & Certificates ==="
 if [ -f "/var/lib/zclockid/zclockid.db" ] && [ ! -f "${ZROOT}/data/zclockid.db" ]; then
     cp -a /var/lib/zclockid/zclockid.db "${ZROOT}/data/zclockid.db"
     echo "Copied existing database to ${ZROOT}/data/zclockid.db"
@@ -49,6 +49,13 @@ fi
 # Maintain backward compatibility link
 mkdir -p /var/lib/zclockid
 ln -sfn "${ZROOT}/data/zclockid.db" /var/lib/zclockid/zclockid.db 2>/dev/null || true
+
+# Preserve and link SSL certificates
+if [ -d "/etc/zclockid/certs" ] && [ ! -d "${ZROOT}/data/certs" ]; then
+    mkdir -p "${ZROOT}/data"
+    cp -a /etc/zclockid/certs "${ZROOT}/data/certs"
+fi
+ln -sfn "${ZROOT}/data/certs" /etc/zclockid/certs 2>/dev/null || true
 
 echo "=== Step 4: Ensuring Sysadmin Overrides Directory & Engine Inclusions ==="
 touch "${ZROOT}/config/overrides.d/smb-custom.conf" \
@@ -66,8 +73,22 @@ if [ -f "/etc/bind/named.conf.local" ] && ! grep -q 'bind-custom.conf' /etc/bind
 fi
 
 # Include overrides in FreeRADIUS
-if [ -f "/etc/freeradius/3.0/clients.conf" ] && ! grep -q 'radius-custom.conf' /etc/freeradius/3.0/clients.conf; then
-    echo -e "\n# Native sysadmin overrides drop-in\n\$INCLUDE ${ZROOT}/config/overrides.d/radius-custom.conf" >> /etc/freeradius/3.0/clients.conf
+if [ -f "/etc/freeradius/3.0/clients.conf" ]; then
+    sed -i '/radius-custom.conf/d' /etc/freeradius/3.0/clients.conf
+    echo '# Native sysadmin overrides drop-in' >> /etc/freeradius/3.0/clients.conf
+    echo '$INCLUDE /zclockid/config/overrides.d/radius-custom.conf' >> /etc/freeradius/3.0/clients.conf
+fi
+
+# Update Nginx web root to /zclockid/web
+if [ -f "/etc/nginx/sites-available/zclockid.conf" ]; then
+    sed -i 's|/opt/zclockid/web|/zclockid/web|g' /etc/nginx/sites-available/zclockid.conf
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx >/dev/null 2>&1 || true
+fi
+
+# Update zclock-azuresync service path
+if [ -f "/etc/systemd/system/zclock-azuresync.service" ]; then
+    sed -i 's|/opt/zclockid/scripts/zclock-azuresync.py|/zclockid/daemons/zclock-azuresync.py|g' /etc/systemd/system/zclock-azuresync.service
+    systemctl daemon-reload >/dev/null 2>&1 || true
 fi
 
 echo "=== Step 5: Setting directory permissions & AppArmor profiles ==="
