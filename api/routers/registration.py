@@ -175,6 +175,25 @@ def dispatch_email(to_email: str, subject: str, body: str, settings: dict) -> tu
         logger.error(f"SMTP dispatch failed: {e}")
         return False, str(e)
 
+@router.get("/public/register/config")
+def get_public_registration_config():
+    """Returns self-registration availability, verification requirements, and allowed departments for the public portal."""
+    settings = get_self_registration_settings()
+    primary_realm = get_primary_realm().lower()
+    raw_depts = settings.get("allowed_departments") or "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
+    dept_list = [d.strip() for d in raw_depts.split(",") if d.strip()][:100]
+    return {
+        "status": "success",
+        "enabled": bool(settings.get("enabled", 1)),
+        "require_mobile_otp": bool(settings.get("require_mobile_otp", 1)),
+        "auto_approve_with_otp": bool(settings.get("auto_approve_with_otp", 1)),
+        "default_domain": settings.get("default_domain") or primary_realm,
+        "primary_realm": primary_realm,
+        "sms_provider": settings.get("sms_gateway_type", "simulated"),
+        "departments": dept_list
+    }
+
+@router.post("/public/register/initiate")
 @router.post("/registration/submit")
 def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Request):
     """Submits a new domain account registration. Dispatches mobile OTP if verification enabled."""
