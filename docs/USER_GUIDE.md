@@ -211,6 +211,51 @@ Navigate to the **Directory Services** tab in the ZclockID Web Console to manage
 
 ---
 
+### Microsoft Windows RSAT (Remote Server Administration Tools) Integration
+
+ZclockID implements full Active Directory RPC endpoints (DRSUAPI, SAMR, LSARPC, Netlogon), allowing administrators to manage all users, groups, GPOs, DNS zones, and sites natively from Windows 10 and Windows 11 using **Microsoft RSAT**.
+
+#### 1. Installing RSAT on Windows
+* **Windows 11 / Windows 10 (Version 1809 and later):** RSAT is included as an *Optional Feature*.
+* **Via Settings:**
+  1. Open **Settings -> System -> Optional features** (or **Apps -> Optional features** on Windows 10).
+  2. Click **View features** (or **Add a feature**).
+  3. Search for and select:
+     * `RSAT: Active Directory Domain Services and Lightweight Directory Services Tools`
+     * `RSAT: Group Policy Management Tools`
+     * `RSAT: DNS Server Tools`
+     * `RSAT: Server Manager`
+  4. Click **Install**.
+* **Via PowerShell (Administrator One-Liner):**
+  ```powershell
+  Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online
+  ```
+
+#### 2. Connecting to ZclockID
+1. **Set Preferred DNS:** In the Windows client network adapter IPv4 properties, point the Preferred DNS server to your ZclockID appliance IP (e.g., `192.168.1.41`).
+2. **Join Domain:**
+   * Press `Win + R`, type `sysdm.cpl`, and press Enter.
+   * Under **Computer Name**, click **Change...**
+   * Select **Domain** and enter your AD realm (e.g., `INET.NET`).
+   * Authenticate using `Administrator` credentials.
+   * Reboot when prompted.
+3. **Sign In:** Log into Windows using your Domain Administrator account (e.g. `Administrator@inet.net` or `INET\Administrator`).
+
+#### 3. Native MMC Snap-in Reference
+
+| Tool / MMC Command | Name | What You Can Manage |
+| :--- | :--- | :--- |
+| `dsa.msc` | **Active Directory Users and Computers** | OUs, User accounts, Security Groups, Computer objects, Passwords, Account Lockouts, and Department attributes. |
+| `gpmc.msc` | **Group Policy Management Console** | Create, edit, and link Group Policy Objects (GPOs), configure Sysvol policies, password policies, and drive mappings. |
+| `dnsmgmt.msc` | **DNS Server Manager** | BIND9 DLZ Forward and Reverse Lookup Zones, A, AAAA, CNAME, MX, TXT, and SRV service location records. |
+| `dssite.msc` | **Active Directory Sites and Services** | Multi-site subnets, inter-site replication topology, DRS replication schedules, and NTDS settings. |
+| `adsiedit.msc` | **ADSI Edit** | Low-level directory schema, configuration partition, and raw LDAP attributes. |
+
+> [!TIP]
+> Both the ZclockID Web Console and Windows RSAT operate directly against the same Samba `sam.ldb` directory and BIND9 DLZ engine. Changes made in RSAT reflect immediately in the web portal and vice versa.
+
+---
+
 ## 7. RADIUS & Network Access Control (General & Advance)
 
 The **Radius** management suite in ZclockID is organized into two primary tabs for clean operational clarity:

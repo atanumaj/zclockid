@@ -116,6 +116,48 @@
 
             <!-- ==================== TAB 1: DASHBOARD ==================== -->
             <section id="tab-dashboard" class="space-y-6">
+                <!-- Product Punchline & Identity Hero Banner -->
+                <div class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-900/40 rounded-2xl p-6 shadow-xl shadow-indigo-950/20">
+                    <div class="absolute -right-12 -top-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute -left-12 -bottom-12 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div class="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div class="space-y-2">
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-800/60 text-indigo-300 text-[11px] font-mono tracking-wide">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Unified Identity, Access Control & Network Policy Platform
+                            </div>
+                            <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2 flex-wrap">
+                                <span>ZclockID</span>
+                                <span class="text-slate-500 font-light text-xl sm:text-2xl">—</span>
+                                <span class="bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">All Identity in One Place</span>
+                            </h1>
+                            <p class="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                                Complete enterprise Active Directory Domain Services, FreeRADIUS 802.1X dynamic bandwidth controls, BIND9 DNS-over-HTTPS, and multi-master Sysvol synchronization — all converged in a hardened, high-availability appliance.
+                            </p>
+                        </div>
+
+                        <!-- Quick Telemetry & Management Highlights -->
+                        <div class="flex flex-wrap lg:flex-nowrap gap-2.5 shrink-0">
+                            <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
+                                <div class="text-[10px] text-slate-400 uppercase font-sans font-medium">Domain Controller</div>
+                                <div id="hero-domain-realm" class="text-xs font-bold font-mono text-emerald-400 mt-0.5">INET.NET</div>
+                                <div class="text-[9px] text-slate-500 font-mono mt-0.5">Samba 4.23 AD DC</div>
+                            </div>
+                            <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
+                                <div class="text-[10px] text-slate-400 uppercase font-sans font-medium">802.1X Access</div>
+                                <div class="text-xs font-bold font-mono text-cyan-400 mt-0.5">FreeRADIUS 3</div>
+                                <div class="text-[9px] text-slate-500 font-mono mt-0.5">Dynamic QoS & MAB</div>
+                            </div>
+                            <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
+                                <div class="text-[10px] text-slate-400 uppercase font-sans font-medium">Admin Interface</div>
+                                <div class="text-xs font-bold font-mono text-indigo-400 mt-0.5">RSAT & Web UI</div>
+                                <div class="text-[9px] text-slate-500 font-mono mt-0.5">Microsoft MMC Ready</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Resource Gauges -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
@@ -143,6 +185,135 @@
                         </div>
                         <div class="w-full bg-slate-800 rounded-full h-2">
                             <div id="bar-disk" class="bg-cyan-600 h-2 rounded-full transition-all duration-500" style="width: 10%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Microsoft RSAT (Remote Server Administration Tools) Integration & Quick Guide -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-sky-600/20 border border-sky-500/30 flex items-center justify-center text-sky-400 text-lg shrink-0">
+                                <i class="fa-brands fa-windows"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>Microsoft RSAT Administration & Snap-in Guide</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-950/80 text-sky-300 border border-sky-800/60 font-semibold">100% MMC Compatible</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Manage ZclockID Samba AD DC natively from your Windows workstation using official Microsoft MMC consoles</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a href="https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/remote-server-administration-tools" target="_blank" rel="noopener noreferrer"
+                                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Microsoft RSAT Docs
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 3-Step Setup Guide & Snap-ins Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                        <!-- Step 1: Install RSAT on Windows -->
+                        <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-4 space-y-3 flex flex-col justify-between">
+                            <div class="space-y-2.5">
+                                <div class="flex items-center gap-2 text-xs font-bold text-indigo-400">
+                                    <span class="w-5 h-5 rounded-full bg-indigo-900/80 border border-indigo-700 flex items-center justify-center text-[10px]">1</span>
+                                    Install RSAT on Windows 10 / 11
+                                </div>
+                                <p class="text-[11px] text-slate-300 leading-relaxed">
+                                    RSAT is included with modern Windows as an Optional Feature. Open <strong class="text-white">PowerShell as Administrator</strong> and run:
+                                </p>
+                                <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5 relative font-mono text-[11px] text-cyan-300 break-all select-all">
+                                    <code>Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online</code>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
+                                <span class="text-slate-500">GUI: Settings &rarr; Optional features &rarr; RSAT</span>
+                                <button type="button" onclick="copyToClipboard('Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online', 'Copied RSAT PowerShell install command!')"
+                                    class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] transition flex items-center gap-1">
+                                    <i class="fa-regular fa-copy"></i> Copy Command
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Join Domain & Authenticate -->
+                        <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-4 space-y-3 flex flex-col justify-between">
+                            <div class="space-y-2.5">
+                                <div class="flex items-center gap-2 text-xs font-bold text-cyan-400">
+                                    <span class="w-5 h-5 rounded-full bg-cyan-900/80 border border-cyan-700 flex items-center justify-center text-[10px]">2</span>
+                                    Point DNS & Join Domain
+                                </div>
+                                <div class="space-y-2 text-[11px] text-slate-300">
+                                    <div class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
+                                        <div><strong>Set Preferred DNS:</strong> Point client IPv4 DNS to ZclockID (<code id="rsat-dns-ip" class="text-cyan-300 font-mono">192.168.1.41</code>).</div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
+                                        <div><strong>Join Domain:</strong> In <code class="text-slate-300 font-mono">sysdm.cpl</code>, join domain <strong id="rsat-domain-name" class="text-white font-mono">INET.NET</strong>.</div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
+                                        <div><strong>Log In:</strong> Sign in with Domain Administrator credentials (<code class="text-indigo-300 font-mono">Administrator@inet.net</code>).</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-[10px] text-slate-500 pt-2 border-t border-slate-800/60">
+                                Both Domain Admin and delegated accounts supported
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Launch Native MMC Snap-ins -->
+                        <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
+                            <div class="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                                <span class="w-5 h-5 rounded-full bg-emerald-900/80 border border-emerald-700 flex items-center justify-center text-[10px]">3</span>
+                                Launch MMC Snap-in Consoles
+                            </div>
+                            <p class="text-[11px] text-slate-400">Press <kbd class="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded font-mono text-[10px]">Win + R</kbd> and run any snap-in:</p>
+                            
+                            <div class="space-y-1.5 pt-1">
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-users text-indigo-400 text-xs"></i>
+                                        <span class="text-slate-300">AD Users & Computers</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('dsa.msc', 'Copied dsa.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>dsa.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-sliders text-emerald-400 text-xs"></i>
+                                        <span class="text-slate-300">Group Policy (GPMC)</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('gpmc.msc', 'Copied gpmc.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>gpmc.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-server text-sky-400 text-xs"></i>
+                                        <span class="text-slate-300">DNS Manager Console</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('dnsmgmt.msc', 'Copied dnsmgmt.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>dnsmgmt.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-sitemap text-amber-400 text-xs"></i>
+                                        <span class="text-slate-300">AD Sites & Services</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('dssite.msc', 'Copied dssite.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>dssite.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -4421,6 +4592,11 @@
                 if (document.getElementById('domain-desc-val')) document.getElementById('domain-desc-val').innerText = data.server_description || 'ZclockID Active Directory Domain Controller';
                 if (document.getElementById('domain-fqdn-val')) document.getElementById('domain-fqdn-val').innerText = data.fqdn || `${data.hostname || 'inet-zclockid'}.${(data.realm || 'inet.net').toLowerCase()}`;
 
+                const dRealm = (data.realm || 'INET.NET').toUpperCase();
+                if (document.getElementById('hero-domain-realm')) document.getElementById('hero-domain-realm').innerText = dRealm;
+                if (document.getElementById('rsat-domain-name')) document.getElementById('rsat-domain-name').innerText = dRealm;
+                if (document.getElementById('rsat-dns-ip')) document.getElementById('rsat-dns-ip').innerText = window.location.hostname || '192.168.1.41';
+
                 // Domain Controller Type Widget (Master / Primary vs Alternate / Backup vs RODC)
                 const dcTypeBadge = document.getElementById('domain-dc-type-badge');
                 const dcTypeVal = document.getElementById('domain-dc-type-val');
@@ -8380,6 +8556,7 @@
         // Initialize dashboard and telemetry polling
         document.addEventListener('DOMContentLoaded', () => {
             fetchSystemStatus();
+            fetchDomainInfo();
             fetchRadiusBandwidth();
             setInterval(fetchSystemStatus, 5000);
         });
