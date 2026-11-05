@@ -97,19 +97,28 @@
                     <i class="fa-solid fa-arrows-rotate w-4 text-violet-400"></i> Software Updates
                     <span id="nav-update-badge" class="hidden ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-violet-600 text-white animate-pulse">UPDATE</span>
                 </button>
-                <div class="pt-3 pb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">Security & Management</div>
-                <button onclick="showTab('rbac')" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-user-shield w-4 text-amber-400"></i> Access Control & RBAC
+                <!-- Collapsible Security & Management Section -->
+                <button type="button" onclick="toggleSecurityNavGroup()" id="nav-group-security-btn" class="w-full flex items-center justify-between pt-3 pb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition text-left cursor-pointer group select-none">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved text-[10px] text-amber-500/80 group-hover:text-amber-400"></i>
+                        <span>Security & Management</span>
+                    </span>
+                    <i id="nav-group-security-chevron" class="fa-solid fa-chevron-right text-[9px] text-slate-500 group-hover:text-slate-300 transition-transform duration-200"></i>
                 </button>
-                <button onclick="showTab('apikeys')" id="nav-apikeys" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-key w-4 text-yellow-400"></i> API Keys & Tokens
-                </button>
-                <button onclick="showTab('certs')" id="nav-certs" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-certificate w-4 text-teal-400"></i> SSL/TLS Certificates
-                </button>
-                <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-terminal w-4 text-sky-400"></i> Syslog & Live Logs
-                </button>
+                <div id="nav-group-security-items" class="space-y-1 pl-1 hidden">
+                    <button onclick="showTab('rbac')" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                        <i class="fa-solid fa-user-shield w-4 text-amber-400"></i> Access Control & RBAC
+                    </button>
+                    <button onclick="showTab('apikeys')" id="nav-apikeys" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                        <i class="fa-solid fa-key w-4 text-yellow-400"></i> API Keys & Tokens
+                    </button>
+                    <button onclick="showTab('certs')" id="nav-certs" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                        <i class="fa-solid fa-certificate w-4 text-teal-400"></i> SSL/TLS Certificates
+                    </button>
+                    <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                        <i class="fa-solid fa-terminal w-4 text-sky-400"></i> Syslog & Live Logs
+                    </button>
+                </div>
             </nav>
 
             <div class="pt-4 border-t border-slate-800 space-y-2 text-[11px] text-slate-500 font-mono">
@@ -4959,6 +4968,39 @@
         let currentActiveLogService = '';
         let currentDnsRecords = [];
 
+        // Collapsible Sidebar Security Group
+        function toggleSecurityNavGroup(forceOpen = null) {
+            const container = document.getElementById('nav-group-security-items');
+            const chevron = document.getElementById('nav-group-security-chevron');
+            if (!container) return;
+
+            const shouldOpen = (forceOpen !== null) ? forceOpen : container.classList.contains('hidden');
+            if (shouldOpen) {
+                container.classList.remove('hidden');
+                if (chevron) {
+                    chevron.classList.remove('fa-chevron-right');
+                    chevron.classList.add('fa-chevron-down');
+                }
+                localStorage.setItem('zclockid_security_nav_collapsed', 'false');
+            } else {
+                container.classList.add('hidden');
+                if (chevron) {
+                    chevron.classList.remove('fa-chevron-down');
+                    chevron.classList.add('fa-chevron-right');
+                }
+                localStorage.setItem('zclockid_security_nav_collapsed', 'true');
+            }
+        }
+
+        function initSecurityNavGroupState() {
+            const saved = localStorage.getItem('zclockid_security_nav_collapsed');
+            if (saved === 'false') {
+                toggleSecurityNavGroup(true);
+            } else {
+                toggleSecurityNavGroup(false);
+            }
+        }
+
         // Tab Navigation
         function showTab(tabId) {
             const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update', 'rbac', 'apikeys', 'certs', 'syslog'];
@@ -4978,6 +5020,10 @@
             if (activeNav) {
                 activeNav.classList.remove('text-slate-400');
                 activeNav.classList.add('text-indigo-400', 'bg-indigo-600/10', 'border-indigo-500/20', 'font-semibold');
+            }
+
+            if (['rbac', 'apikeys', 'certs', 'syslog'].includes(tabId)) {
+                toggleSecurityNavGroup(true);
             }
 
             // Lazy load tab data
@@ -10123,6 +10169,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             initSessionInfo();
             initRsatGuideState();
+            initSecurityNavGroupState();
             fetchSystemStatus();
             fetchDomainInfo();
             fetchRadiusBandwidth();
