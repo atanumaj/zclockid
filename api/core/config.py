@@ -48,6 +48,15 @@ RADIUS_EAP_FILE = Path("/etc/freeradius/3.0/mods-available/eap")
 RADIUS_SERVER_CERT = Path("/etc/freeradius/3.0/certs/server.pem")
 RADIUS_CA_CERT = Path("/etc/freeradius/3.0/certs/ca.pem")
 
+# Time Synchronization (Chrony)
+CHRONY_CONF_DIR = Path("/etc/chrony/conf.d")
+CHRONY_SOURCES_DIR = Path("/etc/chrony/sources.d")
+ZCLOCK_NTP_CONF = CHRONY_CONF_DIR / "zclockid-ntp-server.conf"
+ZCLOCK_NTP_SOURCES = CHRONY_SOURCES_DIR / "zclockid-upstream.sources"
+
+# SNMP Agent Configuration
+SNMPD_CONF_FILE = Path("/etc/snmp/snmpd.conf")
+
 # Sysadmin Overrides Directory
 OVERRIDES_DIR = CONFIG_DIR / "overrides.d"
 try:
