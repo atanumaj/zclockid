@@ -50,14 +50,38 @@ fi
 mkdir -p /var/lib/zclockid
 ln -sfn "${ZROOT}/data/zclockid.db" /var/lib/zclockid/zclockid.db 2>/dev/null || true
 
-echo "=== Step 4: Ensuring Sysadmin Overrides Directory ==="
+echo "=== Step 4: Ensuring Sysadmin Overrides Directory & Engine Inclusions ==="
 touch "${ZROOT}/config/overrides.d/smb-custom.conf" \
       "${ZROOT}/config/overrides.d/radius-custom.conf" \
       "${ZROOT}/config/overrides.d/bind-custom.conf"
 
-echo "=== Step 5: Setting directory permissions ==="
+# Include overrides in Samba
+if [ -f "/etc/samba/smb.conf" ] && ! grep -q 'smb-custom.conf' /etc/samba/smb.conf; then
+    echo -e "\n# Native sysadmin overrides drop-in\ninclude = ${ZROOT}/config/overrides.d/smb-custom.conf" >> /etc/samba/smb.conf
+fi
+
+# Include overrides in BIND9
+if [ -f "/etc/bind/named.conf.local" ] && ! grep -q 'bind-custom.conf' /etc/bind/named.conf.local; then
+    echo -e "\n// Native sysadmin overrides drop-in\ninclude \"${ZROOT}/config/overrides.d/bind-custom.conf\";" >> /etc/bind/named.conf.local
+fi
+
+# Include overrides in FreeRADIUS
+if [ -f "/etc/freeradius/3.0/clients.conf" ] && ! grep -q 'radius-custom.conf' /etc/freeradius/3.0/clients.conf; then
+    echo -e "\n# Native sysadmin overrides drop-in\n\$INCLUDE ${ZROOT}/config/overrides.d/radius-custom.conf" >> /etc/freeradius/3.0/clients.conf
+fi
+
+echo "=== Step 5: Setting directory permissions & AppArmor profiles ==="
 chown -R root:root "${ZROOT}"
-chmod 755 "${ZROOT}"
-chmod 700 "${ZROOT}/config" "${ZROOT}/data" "${ZROOT}/logs"
+chmod 755 "${ZROOT}" "${ZROOT}/config" "${ZROOT}/config/overrides.d" "${ZROOT}/api" "${ZROOT}/web" "${ZROOT}/scripts" "${ZROOT}/daemons"
+chmod 644 "${ZROOT}/config/overrides.d/"* 2>/dev/null || true
+chmod 700 "${ZROOT}/data" "${ZROOT}/logs"
+
+# Configure AppArmor for BIND9 if present
+if [ -d "/etc/apparmor.d/local" ] && [ -f "/etc/apparmor.d/local/usr.sbin.named" ]; then
+    if ! grep -q "${ZROOT}/\*\* r," /etc/apparmor.d/local/usr.sbin.named; then
+        echo "${ZROOT}/** r," >> /etc/apparmor.d/local/usr.sbin.named
+        apparmor_parser -r /etc/apparmor.d/usr.sbin.named 2>/dev/null || true
+    fi
+fi
 
 echo "=== Unified /zclockid/ environment provisioned successfully! ==="
