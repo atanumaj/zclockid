@@ -147,30 +147,65 @@ def login(req: LoginRequest):
     cursor = conn.cursor()
     cursor.execute("SELECT password_hash, salt FROM admin_users WHERE username = ?", (req.username,))
     row = cursor.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password.")
 
-    stored_hash, salt = row
-    if not verify_password(req.password, stored_hash, salt):
+    authenticated = False
+    is_local = False
+    role = "readonly"
+
+    # 1. Local admin authentication check (Break-Glass admin fallback)
+    if row:
+        stored_hash, salt = row
+        if verify_password(req.password, stored_hash, salt):
+            authenticated = True
+            is_local = True
+            from api.routers.rbac import resolve_user_role
+            role, _ = resolve_user_role(req.username, is_local_admin=True)
+
+    # 2. If not local or local failed, attempt Active Directory authentication
+    if not authenticated:
+        import subprocess
+        env = os.environ.copy()
+        env["PASSWD"] = req.password
+        try:
+            proc = subprocess.run(
+                ["smbclient", "//127.0.0.1/netlogon", "-U", req.username, "-c", "ls"],
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=5
+            )
+            if proc.returncode == 0:
+                authenticated = True
+                is_local = False
+                from api.routers.rbac import resolve_user_role
+                role, _ = resolve_user_role(req.username, is_local_admin=False)
+        except Exception:
+            pass
+
+    if not authenticated:
         conn.close()
+        log_audit("LOGIN_FAILED", req.username, "web_console", "FAILED", {"detail": "Invalid credentials"})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password.")
 
     token = secrets.token_hex(32)
     now = time.time()
     expires_at = now + 86400  # 24 hours
-    cursor.execute("INSERT INTO sessions (token, username, created_at, expires_at) VALUES (?, ?, ?, ?)",
-                   (token, req.username, now, expires_at))
-    cursor.execute("UPDATE admin_users SET last_login = ? WHERE username = ?", (now, req.username))
+    cursor.execute("INSERT INTO sessions (token, username, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+                   (token, req.username, role, now, expires_at))
+    if is_local:
+        cursor.execute("UPDATE admin_users SET last_login = ? WHERE username = ?", (now, req.username))
     conn.commit()
     conn.close()
 
-    log_audit("ADMIN_LOGIN", req.username, "web_console", "SUCCESS", {})
+    log_audit("ADMIN_LOGIN", req.username, "web_console", "SUCCESS", {"role": role, "is_ad_user": not is_local})
     return {
         "status": "success",
+        "token": token,
         "access_token": token,
         "token_type": "bearer",
         "username": req.username,
+        "role": role,
+        "is_ad_user": not is_local,
         "expires_in": 86400
     }
 

@@ -40,6 +40,11 @@
                 <i class="fa-solid fa-server text-slate-500"></i>
                 <span id="header-host">inet-zclockid</span>
             </div>
+            <div class="flex items-center gap-2 px-3 py-1 bg-slate-950 rounded-lg border border-slate-800">
+                <i class="fa-solid fa-user-shield text-indigo-400"></i>
+                <span id="header-user" class="text-slate-200 font-semibold font-sans">admin</span>
+                <span id="header-role-badge" class="px-1.5 py-0.5 text-[10px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">fulladmin</span>
+            </div>
             <button onclick="logout()" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 transition flex items-center gap-1.5">
                 <i class="fa-solid fa-right-from-bracket"></i>
                 <span class="hidden md:inline font-sans text-xs">Logout</span>
@@ -90,6 +95,19 @@
                 <button onclick="showTab('update')" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-arrows-rotate w-4 text-violet-400"></i> Software Updates
                     <span id="nav-update-badge" class="hidden ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-violet-600 text-white animate-pulse">UPDATE</span>
+                </button>
+                <div class="pt-3 pb-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">Security & Management</div>
+                <button onclick="showTab('rbac')" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-user-shield w-4 text-amber-400"></i> Access Control & RBAC
+                </button>
+                <button onclick="showTab('apikeys')" id="nav-apikeys" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-key w-4 text-yellow-400"></i> API Keys & Tokens
+                </button>
+                <button onclick="showTab('certs')" id="nav-certs" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-certificate w-4 text-teal-400"></i> SSL/TLS Certificates
+                </button>
+                <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <i class="fa-solid fa-terminal w-4 text-sky-400"></i> Syslog & Live Logs
                 </button>
             </nav>
 
@@ -2814,6 +2832,500 @@
                     </div>
                 </div>
             </section>
+
+            <!-- ==================== TAB 14: ACCESS CONTROL & RBAC ==================== -->
+            <section id="tab-rbac" class="space-y-6 hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-950/60 border border-amber-800/40 text-amber-400 font-mono">HYBRID DIRECTORY RBAC</span>
+                            <span class="text-xs text-slate-500 font-mono">AD & LOCAL MAPPINGS</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">Access Control & Role Mappings</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Map Active Directory security groups and accounts to granular appliance management roles with local break-glass admin fallback.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchRbacMappings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Mappings
+                        </button>
+                        <button onclick="openRbacMappingModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Add Role Mapping
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RBAC Metrics Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                            <span>Configured Mappings</span>
+                            <i class="fa-solid fa-users-gear text-amber-400"></i>
+                        </div>
+                        <div class="text-2xl font-bold text-white font-mono" id="rbac-total-mappings">--</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Active Directory & User rules</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                            <span>Your Session Role</span>
+                            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                        </div>
+                        <div class="text-lg font-bold text-emerald-400 font-mono" id="rbac-current-role">fulladmin</div>
+                        <div class="text-[11px] text-slate-500 mt-1" id="rbac-current-role-desc">Full Appliance Administrator</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                            <span>Break-Glass Admin</span>
+                            <i class="fa-solid fa-key text-indigo-400"></i>
+                        </div>
+                        <div class="text-sm font-bold text-slate-200 font-mono">LOCAL FALLBACK ACTIVE</div>
+                        <div class="text-[11px] text-emerald-400 mt-1"><i class="fa-solid fa-check"></i> Built-in admin always fulladmin</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                            <span>Directory Sync</span>
+                            <i class="fa-solid fa-sync text-cyan-400"></i>
+                        </div>
+                        <div class="text-sm font-bold text-cyan-400 font-mono">LIVE SAM.LDB RESOLUTION</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Direct token group inspection</div>
+                    </div>
+                </div>
+
+                <!-- Mappings Table Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-amber-400"></i>
+                            <h3 class="font-bold text-sm text-white">Configured Role Mappings</h3>
+                        </div>
+                        <span id="rbac-mapping-count-pill" class="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-mono">0 mappings</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="py-3 px-4">Principal Type</th>
+                                    <th class="py-3 px-4">Active Directory Principal Name</th>
+                                    <th class="py-3 px-4">Assigned Role</th>
+                                    <th class="py-3 px-4">Description</th>
+                                    <th class="py-3 px-4">Created</th>
+                                    <th class="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rbac-mappings-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
+                                <tr>
+                                    <td colspan="6" class="py-6 text-center text-slate-500">Loading RBAC mappings...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Appliance Role Hierarchy Reference -->
+                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-indigo-400"></i> Appliance Role Hierarchy & Capability Matrix
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-emerald-900/40 space-y-1.5">
+                            <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                                <span class="h-2 w-2 rounded-full bg-emerald-500"></span> fulladmin
+                            </div>
+                            <p class="text-[11px] text-slate-400">Complete, unrestricted read and write control over all domains, RADIUS, DNS, certificates, and system updates.</p>
+                        </div>
+                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-indigo-900/40 space-y-1.5">
+                            <div class="flex items-center gap-2 text-indigo-400 font-bold">
+                                <span class="h-2 w-2 rounded-full bg-indigo-500"></span> operator
+                            </div>
+                            <p class="text-[11px] text-slate-400">Can manage users, groups, RADIUS clients, MAB MAC addresses, and registrations. Cannot modify certs or system settings.</p>
+                        </div>
+                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-cyan-900/40 space-y-1.5">
+                            <div class="flex items-center gap-2 text-cyan-400 font-bold">
+                                <span class="h-2 w-2 rounded-full bg-cyan-500"></span> report
+                            </div>
+                            <p class="text-[11px] text-slate-400">Read-only auditing access to compliance logs, RADIUS telemetry, Sysvol sync health, and active live log viewers.</p>
+                        </div>
+                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-slate-800 space-y-1.5">
+                            <div class="flex items-center gap-2 text-slate-300 font-bold">
+                                <span class="h-2 w-2 rounded-full bg-slate-500"></span> readonly
+                            </div>
+                            <p class="text-[11px] text-slate-400">Safe inspection mode. All configuration modification buttons, provisioning actions, and toggles are locked.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 15: API KEYS & TOKENS ==================== -->
+            <section id="tab-apikeys" class="space-y-6 hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-yellow-950/60 border border-yellow-800/40 text-yellow-400 font-mono">REST API TOKENS</span>
+                            <span class="text-xs text-slate-500 font-mono">SCOPED BEARER KEYS</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">API Key Management</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Issue and revoke cryptographically secure API tokens (<code class="text-yellow-400">zck_live_...</code>) for automated scrapers, CI/CD, and monitoring integrations.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchApiKeys()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Keys
+                        </button>
+                        <button onclick="openApiKeyCreateModal()" class="px-3.5 py-2 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold text-xs rounded-lg shadow-lg shadow-yellow-600/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-key"></i> Generate New Key
+                        </button>
+                    </div>
+                </div>
+
+                <!-- API Keys Table Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-passport text-yellow-400"></i>
+                            <h3 class="font-bold text-sm text-white">Active Programmatic API Keys</h3>
+                        </div>
+                        <span id="api-keys-count-pill" class="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-mono">0 keys</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="py-3 px-4">Key Name</th>
+                                    <th class="py-3 px-4">Token Prefix</th>
+                                    <th class="py-3 px-4">Granted Scopes</th>
+                                    <th class="py-3 px-4">CIDR Whitelist</th>
+                                    <th class="py-3 px-4">Expiration</th>
+                                    <th class="py-3 px-4">Last Used</th>
+                                    <th class="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="api-keys-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
+                                <tr>
+                                    <td colspan="7" class="py-6 text-center text-slate-500">Loading API keys...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Usage Documentation Card -->
+                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-terminal text-yellow-400"></i> Using API Tokens with cURL or Python
+                    </h4>
+                    <p class="text-xs text-slate-400 mb-3">Include the generated live key in the <code class="text-yellow-400">Authorization</code> bearer header or <code class="text-yellow-400">X-API-Key</code> request header:</p>
+                    <pre class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto">curl -k -H "Authorization: Bearer zck_live_xxxxxxxxxxxxxxxxxxxxxxxx" https://192.168.1.41/api/v1/system/status</pre>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 16: SSL/TLS CERTIFICATES ==================== -->
+            <section id="tab-certs" class="space-y-6 hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-teal-950/60 border border-teal-800/40 text-teal-400 font-mono">X.509 PKI & TLS</span>
+                            <span class="text-xs text-slate-500 font-mono">HTTPS ENCRYPTION</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">SSL/TLS Certificate Management</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Manage appliance Web GUI and API certificates with custom SANs, enterprise PEM uploads, and CSR generation.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchActiveCert()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Certificate
+                        </button>
+                        <a href="/api/v1/certificates/download/active" class="px-3 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-teal-600/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-download"></i> Download Active .crt
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Active Certificate Inspector Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-teal-600/20 border border-teal-500/30 flex items-center justify-center text-teal-400 text-lg">
+                                <i class="fa-solid fa-certificate"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-white text-base" id="cert-subject-cn">Active Certificate</h3>
+                                <p class="text-xs text-slate-400 font-mono" id="cert-issuer">Issuer: --</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="cert-status-badge" class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-950 border border-emerald-800 text-emerald-400 font-mono">VALID</span>
+                            <span id="cert-type-badge" class="px-2 py-1 text-xs font-medium rounded-full bg-slate-800 text-slate-300 font-mono">SELF-SIGNED</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-400 block text-[10px] font-mono uppercase">Validity Period</span>
+                            <div class="font-bold text-slate-200" id="cert-valid-from">--</div>
+                            <div class="text-slate-400 text-[11px]">Until: <span id="cert-valid-to" class="text-slate-200 font-mono font-bold">--</span></div>
+                            <div class="text-[11px] text-teal-400 font-bold" id="cert-days-remaining">-- days remaining</div>
+                        </div>
+                        <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-400 block text-[10px] font-mono uppercase">Cryptographic Details</span>
+                            <div>Algorithm: <span id="cert-sig-alg" class="font-mono text-slate-200 font-bold">SHA256</span></div>
+                            <div class="truncate text-slate-400 font-mono text-[11px]">Serial: <span id="cert-serial" class="text-slate-300">--</span></div>
+                        </div>
+                        <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-400 block text-[10px] font-mono uppercase">Subject Alternative Names (SANs)</span>
+                            <div id="cert-sans-container" class="flex flex-wrap gap-1 mt-1">
+                                <span class="text-slate-500 text-[11px]">No SANs found</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificate Operations Grid (3 Tabs/Cards) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Action Card 1: Generate Self-Signed Certificate -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fa-solid fa-wand-magic-sparkles text-teal-400"></i>
+                                <h4 class="font-bold text-sm text-white">Generate Self-Signed Certificate</h4>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-4">Create a new RSA 2048-bit certificate with SANs matching your local DC hostnames and LAN IP addresses.</p>
+                            <form onsubmit="handleGenerateSelfSignedCert(event)" class="space-y-3">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Common Name (CN)</label>
+                                    <input type="text" id="cert-gen-cn" value="inet-zclockid.inet.net" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Subject Alternative Names (comma-separated)</label>
+                                    <input type="text" id="cert-gen-sans" value="192.168.1.41, inet-zclockid.inet.net, inet-zclockid" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Validity (Days)</label>
+                                        <input type="number" id="cert-gen-days" value="365" min="30" max="3650" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Organization</label>
+                                        <input type="text" id="cert-gen-org" value="Inet Secure Labs" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                    </div>
+                                </div>
+                                <button type="submit" id="cert-gen-btn" class="w-full mt-2 py-2 bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-teal-600/30 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-rotate"></i> Generate & Reload Nginx
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Action Card 2: Upload Custom Certificate -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
+                                <h4 class="font-bold text-sm text-white">Upload Enterprise PEM Certificate</h4>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-3">Install an enterprise or CA-signed certificate. Keys are validated against the certificate before Nginx reloads.</p>
+                            <form onsubmit="handleUploadCustomCert(event)" class="space-y-2.5">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Server Certificate PEM</label>
+                                    <textarea id="cert-upload-cert" rows="2" placeholder="-----BEGIN CERTIFICATE-----" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Private Key PEM</label>
+                                    <textarea id="cert-upload-key" rows="2" placeholder="-----BEGIN PRIVATE KEY-----" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Intermediate CA Chain (Optional)</label>
+                                    <textarea id="cert-upload-chain" rows="1" placeholder="-----BEGIN CERTIFICATE----- (Optional)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"></textarea>
+                                </div>
+                                <button type="submit" id="cert-upload-btn" class="w-full mt-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-shield-check"></i> Validate & Install
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Action Card 3: Generate CSR -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fa-solid fa-file-signature text-amber-400"></i>
+                                <h4 class="font-bold text-sm text-white">Generate CSR for Enterprise CA</h4>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-4">Create a Certificate Signing Request to submit to your Active Directory Certificate Services (AD CS) or external CA.</p>
+                            <form onsubmit="handleGenerateCsr(event)" class="space-y-2.5">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Common Name</label>
+                                        <input type="text" id="csr-cn" value="inet-zclockid.inet.net" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Organization</label>
+                                        <input type="text" id="csr-org" value="Inet Secure Labs" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">City</label>
+                                        <input type="text" id="csr-city" value="Chennai" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">State</label>
+                                        <input type="text" id="csr-state" value="Tamil Nadu" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Country</label>
+                                        <input type="text" id="csr-country" value="IN" maxlength="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">SANs (comma-separated)</label>
+                                    <input type="text" id="csr-sans" value="192.168.1.41, inet-zclockid.inet.net" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                </div>
+                                <button type="submit" id="csr-gen-btn" class="w-full mt-2 py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-amber-600/30 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-file-pen"></i> Generate Request (CSR)
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== TAB 17: SYSLOG & LIVE LOGS ==================== -->
+            <section id="tab-syslog" class="space-y-6 hidden">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-sky-950/60 border border-sky-800/40 text-sky-400 font-mono">TELEMETRY & AUDIT STREAM</span>
+                            <span class="text-xs text-slate-500 font-mono">SIEM FORWARDER</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">Remote Syslog & Live Log Streaming</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Stream appliance security and authentication events to remote SIEM collectors (RFC 5424 / RFC 3164) and inspect live categorized logs.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchLiveSyslog()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Logs
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Remote Forwarder Configuration Form Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                        <div class="flex items-center gap-2.5">
+                            <i class="fa-solid fa-tower-broadcast text-sky-400 text-lg"></i>
+                            <div>
+                                <h3 class="font-bold text-sm text-white">Remote Syslog Collector Configuration</h3>
+                                <p class="text-xs text-slate-400">Transmit Samba AD, FreeRADIUS, and administrative audit events to an external SIEM.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="syslog-enabled-toggle" class="sr-only peer">
+                                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                            </label>
+                            <span class="text-xs font-mono text-slate-300" id="syslog-toggle-label">Disabled</span>
+                        </div>
+                    </div>
+
+                    <form onsubmit="handleSaveSyslogConfig(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">Target Host / IP</label>
+                                <input type="text" id="syslog-host" placeholder="192.168.1.50" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">Port</label>
+                                <input type="number" id="syslog-port" value="514" min="1" max="65535" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">Protocol</label>
+                                <select id="syslog-protocol" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-sky-500">
+                                    <option value="UDP">UDP (Standard Syslog)</option>
+                                    <option value="TCP">TCP (Reliable Syslog)</option>
+                                    <option value="TLS">TLS (Encrypted Syslog)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">Format Standard</label>
+                                <select id="syslog-format" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-sky-500">
+                                    <option value="RFC5424">RFC 5424 (Modern Structured Syslog)</option>
+                                    <option value="RFC3164">RFC 3164 (Legacy BSD Syslog)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
+                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                <input type="checkbox" id="syslog-send-samba" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                <span class="text-slate-300">Samba AD Events</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                <input type="checkbox" id="syslog-send-radius" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                <span class="text-slate-300">FreeRADIUS Accounting</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                <input type="checkbox" id="syslog-send-auth" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                <span class="text-slate-300">Security & PAM Logins</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                <input type="checkbox" id="syslog-send-system" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                <span class="text-slate-300">Systemd Core Journal</span>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+                            <button type="button" onclick="sendSyslogTestProbe()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-paper-plane"></i> Send Test Probe Packet
+                            </button>
+                            <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-sky-600/30 flex items-center gap-1.5">
+                                <i class="fa-solid fa-floppy-disk"></i> Save Forwarder Settings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Categorized Live Log Console Viewer -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/50">
+                        <!-- Category Switcher Tabs -->
+                        <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+                            <button onclick="setLogCategory('samba')" id="logcat-samba" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition">
+                                <i class="fa-solid fa-network-wired mr-1"></i> Samba AD DC
+                            </button>
+                            <button onclick="setLogCategory('radius')" id="logcat-radius" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                <i class="fa-solid fa-tower-broadcast mr-1"></i> FreeRADIUS
+                            </button>
+                            <button onclick="setLogCategory('auth')" id="logcat-auth" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                <i class="fa-solid fa-key mr-1"></i> Auth & SSH
+                            </button>
+                            <button onclick="setLogCategory('audit')" id="logcat-audit" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                <i class="fa-solid fa-file-shield mr-1"></i> ZclockID Audit DB
+                            </button>
+                            <button onclick="setLogCategory('system')" id="logcat-system" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                <i class="fa-solid fa-microchip mr-1"></i> System Journal
+                            </button>
+                        </div>
+
+                        <!-- Filter and Controls -->
+                        <div class="flex items-center gap-2">
+                            <div class="relative">
+                                <input type="text" id="live-log-filter" oninput="debounceFilterLogs()" placeholder="Filter logs..." class="bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none w-44">
+                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+                            </div>
+                            <select id="live-log-lines" onchange="fetchLiveSyslog()" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none">
+                                <option value="50">50 lines</option>
+                                <option value="100" selected>100 lines</option>
+                                <option value="250">250 lines</option>
+                                <option value="500">500 lines</option>
+                            </select>
+                            <button onclick="copyLiveLogs()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition border border-slate-700" title="Copy visible logs">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Monospace Log Stream Terminal -->
+                    <div class="p-4 bg-slate-950 font-mono text-xs leading-relaxed max-h-96 overflow-y-auto custom-scroll" id="live-log-terminal">
+                        <div class="text-slate-500 text-center py-8">Select a log category above to inspect live system activity...</div>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -4200,6 +4712,170 @@
         </div>
     </div>
 
+    <!-- Modal: Add/Edit RBAC Mapping -->
+    <div id="modal-rbac-mapping" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-user-shield text-amber-400"></i>
+                    <h3 class="font-bold text-sm text-white" id="modal-rbac-title">Add Role Mapping</h3>
+                </div>
+                <button onclick="closeRbacMappingModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleSaveRbacMapping(event)" class="p-5 space-y-4 text-xs">
+                <input type="hidden" id="rbac-edit-id" value="">
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Principal Type</label>
+                    <select id="rbac-principal-type" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                        <option value="group">Active Directory Security Group</option>
+                        <option value="user">Specific User Account</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Active Directory Principal Name</label>
+                    <input type="text" id="rbac-principal-name" required placeholder="e.g. Domain Admins, IT-Support" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono">
+                    <p class="text-[10px] text-slate-500 mt-1">Exact name as stored in Samba AD DC (sam.ldb).</p>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Assigned Appliance Role</label>
+                    <select id="rbac-assigned-role" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                        <option value="fulladmin">Full Administrator (Unrestricted)</option>
+                        <option value="operator">User & Identity Operator</option>
+                        <option value="report">Auditor & Reporting (Compliance/Logs)</option>
+                        <option value="readonly">Read-Only Inspector</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Description / Notes</label>
+                    <input type="text" id="rbac-description" placeholder="e.g. Tier-2 Helpdesk Team" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeRbacMappingModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
+                    <button type="submit" id="rbac-save-btn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition shadow-lg shadow-amber-600/30">Save Role Mapping</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create API Key -->
+    <div id="modal-api-key-create" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-key text-yellow-400"></i>
+                    <h3 class="font-bold text-sm text-white">Generate Programmatic API Key</h3>
+                </div>
+                <button onclick="closeApiKeyCreateModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleCreateApiKey(event)" class="p-5 space-y-4 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">Token Name / Integration Label</label>
+                    <input type="text" id="apikey-name" required placeholder="e.g. CI/CD Deployment Script or Datadog Scraper" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1.5">Granted Scopes & Capabilities</label>
+                    <div class="grid grid-cols-2 gap-2 p-3 bg-slate-950 rounded-lg border border-slate-800">
+                        <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="api_scope" value="admin:all" class="rounded bg-slate-800 border-slate-700 text-yellow-500">
+                            <span><code class="text-yellow-400">admin:all</code> (Full API)</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="api_scope" value="users:manage" checked class="rounded bg-slate-800 border-slate-700 text-yellow-500">
+                            <span><code class="text-indigo-400">users:manage</code></span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="api_scope" value="radius:read" checked class="rounded bg-slate-800 border-slate-700 text-yellow-500">
+                            <span><code class="text-amber-400">radius:read</code></span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="api_scope" value="telemetry:read" checked class="rounded bg-slate-800 border-slate-700 text-yellow-500">
+                            <span><code class="text-emerald-400">telemetry:read</code></span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="api_scope" value="dns:manage" class="rounded bg-slate-800 border-slate-700 text-yellow-500">
+                            <span><code class="text-sky-400">dns:manage</code></span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-300 cursor-pointer">
+                            <input type="checkbox" name="api_scope" value="sysvol:read" class="rounded bg-slate-800 border-slate-700 text-yellow-500">
+                            <span><code class="text-teal-400">sysvol:read</code></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">CIDR Whitelist Restriction</label>
+                        <input type="text" id="apikey-cidr" value="0.0.0.0/0" placeholder="0.0.0.0/0 or 192.168.1.0/24" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-medium mb-1">Key Expiration</label>
+                        <select id="apikey-expires" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                            <option value="30">30 Days</option>
+                            <option value="90" selected>90 Days</option>
+                            <option value="180">180 Days</option>
+                            <option value="365">1 Year (365 Days)</option>
+                            <option value="0">Never Expires</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeApiKeyCreateModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
+                    <button type="submit" id="apikey-submit-btn" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold rounded-lg transition shadow-lg shadow-yellow-600/30">Generate Token</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: API Key Token Reveal -->
+    <div id="modal-api-key-token-reveal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden p-6 space-y-4">
+            <div class="flex items-center gap-3 text-emerald-400">
+                <div class="h-10 w-10 rounded-full bg-emerald-950 border border-emerald-800 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-white">API Token Generated</h3>
+                    <p class="text-xs text-slate-400">Copy this key now. It cannot be recovered after this modal is closed.</p>
+                </div>
+            </div>
+            <div class="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-xs text-amber-300 flex items-start gap-2">
+                <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                <span>This token grants direct programmatic API access. Keep it secure and never commit it to public repositories.</span>
+            </div>
+            <div class="relative">
+                <input type="text" id="reveal-token-input" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-yellow-400 select-all pr-24">
+                <button type="button" onclick="copyRevealedToken()" id="reveal-copy-btn" class="absolute right-2 top-2 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold rounded-lg text-xs transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-copy"></i> Copy
+                </button>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button type="button" onclick="closeApiKeyTokenRevealModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-semibold text-xs">Done & Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: CSR View & Copy -->
+    <div id="modal-cert-csr-view" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-file-signature text-amber-400"></i>
+                    <h3 class="font-bold text-sm text-white">Certificate Signing Request (CSR)</h3>
+                </div>
+                <button onclick="closeCsrModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-300">Copy the CSR PEM below and submit it to your CA. The private key has been safely generated and saved on the appliance.</p>
+            <div class="relative">
+                <textarea id="csr-output-textarea" rows="8" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-emerald-400 select-all focus:outline-none"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" onclick="copyCsrText()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-copy"></i> Copy CSR
+                </button>
+                <button type="button" onclick="closeCsrModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ==================== JAVASCRIPT CONTROLLERS ==================== -->
     <script>
         const API_BASE = '/api/v1';
@@ -4208,7 +4884,7 @@
 
         // Tab Navigation
         function showTab(tabId) {
-            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update'];
+            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update', 'rbac', 'apikeys', 'certs', 'syslog'];
             tabs.forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const nav = document.getElementById(`nav-${t}`);
@@ -4249,6 +4925,10 @@
             else if (tabId === 'backup') { fetchBackups(); }
             else if (tabId === 'snmp') { fetchSnmpStatus(); fetchSnmpConfig(); }
             else if (tabId === 'update') { loadUpdateInfo(); }
+            else if (tabId === 'rbac') { fetchRbacMappings(); }
+            else if (tabId === 'apikeys') { fetchApiKeys(); }
+            else if (tabId === 'certs') { fetchActiveCert(); }
+            else if (tabId === 'syslog') { fetchSyslogSettings(); fetchLiveSyslog(); }
         }
 
         // Primary Tabs in RADIUS: General & Advance
@@ -8549,12 +9229,622 @@
             });
         }
 
-        function logout() {
+        // ==================== MVP 3: ACCESS CONTROL & RBAC ====================
+        function getAuthHeaders() {
+            const token = localStorage.getItem('zclockid_token');
+            const h = { 'Content-Type': 'application/json' };
+            if (token) h['Authorization'] = `Bearer ${token}`;
+            return h;
+        }
+
+        async function initSessionInfo() {
+            const username = localStorage.getItem('zclockid_user') || 'admin';
+            const role = localStorage.getItem('zclockid_role') || 'fulladmin';
+            const uEl = document.getElementById('header-user');
+            const rEl = document.getElementById('header-role-badge');
+            if (uEl) uEl.innerText = username;
+            if (rEl) {
+                rEl.innerText = role;
+                if (role === 'fulladmin') {
+                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono';
+                } else if (role === 'operator') {
+                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-indigo-950/80 border border-indigo-800/60 text-indigo-400 font-mono';
+                } else if (role === 'report') {
+                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-cyan-950/80 border border-cyan-800/60 text-cyan-400 font-mono';
+                } else {
+                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono';
+                }
+            }
+            const curRoleEl = document.getElementById('rbac-current-role');
+            const curRoleDescEl = document.getElementById('rbac-current-role-desc');
+            if (curRoleEl) curRoleEl.innerText = role;
+            if (curRoleDescEl) {
+                const descMap = {
+                    'fulladmin': 'Full Appliance Administrator',
+                    'operator': 'User & Identity Operator',
+                    'report': 'Auditor & Compliance Inspector',
+                    'readonly': 'Read-Only Inspector'
+                };
+                curRoleDescEl.innerText = descMap[role] || role;
+            }
+        }
+
+        async function fetchRbacMappings() {
+            const tbody = document.getElementById('rbac-mappings-tbody');
+            if (!tbody) return;
+            try {
+                const res = await fetch(`${API_BASE}/rbac/mappings`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load RBAC mappings');
+                const data = await res.json();
+                const mappings = data.mappings || [];
+
+                document.getElementById('rbac-total-mappings').innerText = mappings.length;
+                document.getElementById('rbac-mapping-count-pill').innerText = `${mappings.length} mappings`;
+
+                if (mappings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">No role mappings configured yet. Click "Add Role Mapping" to map an AD group.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = mappings.map(m => {
+                    const typeBadge = m.principal_type === 'group'
+                        ? '<span class="px-2 py-0.5 text-[10px] rounded bg-indigo-950 border border-indigo-800 text-indigo-400 font-mono"><i class="fa-solid fa-users mr-1"></i> GROUP</span>'
+                        : '<span class="px-2 py-0.5 text-[10px] rounded bg-sky-950 border border-sky-800 text-sky-400 font-mono"><i class="fa-solid fa-user mr-1"></i> USER</span>';
+
+                    let roleColor = 'text-slate-300 bg-slate-800 border-slate-700';
+                    if (m.role === 'fulladmin') roleColor = 'text-emerald-400 bg-emerald-950 border-emerald-800';
+                    else if (m.role === 'operator') roleColor = 'text-indigo-400 bg-indigo-950 border-indigo-800';
+                    else if (m.role === 'report') roleColor = 'text-cyan-400 bg-cyan-950 border-cyan-800';
+
+                    const roleBadge = `<span class="px-2 py-0.5 text-[10px] rounded border font-mono font-bold ${roleColor}">${m.role}</span>`;
+                    const dateStr = m.created_at ? new Date(m.created_at * 1000).toLocaleDateString() : '--';
+                    const isProtected = (m.principal_name === 'Domain Admins' && m.principal_type === 'group');
+
+                    return `
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="py-3 px-4">${typeBadge}</td>
+                            <td class="py-3 px-4 font-mono font-bold text-white flex items-center gap-2">
+                                ${m.principal_name}
+                                ${isProtected ? '<span class="text-[10px] text-amber-400" title="Protected core group mapping"><i class="fa-solid fa-lock"></i></span>' : ''}
+                            </td>
+                            <td class="py-3 px-4">${roleBadge}</td>
+                            <td class="py-3 px-4 text-slate-400 text-xs">${m.description || '--'}</td>
+                            <td class="py-3 px-4 text-slate-500 font-mono text-[11px]">${dateStr}</td>
+                            <td class="py-3 px-4 text-right">
+                                ${isProtected ? '<span class="text-[11px] text-slate-600 font-mono">LOCKED</span>' : `
+                                    <button onclick="deleteRbacMapping(${m.id}, '${m.principal_name}')" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded transition text-xs">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Delete
+                                    </button>
+                                `}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-rose-400 font-mono">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function openRbacMappingModal() {
+            document.getElementById('rbac-edit-id').value = '';
+            document.getElementById('rbac-principal-name').value = '';
+            document.getElementById('rbac-description').value = '';
+            document.getElementById('modal-rbac-title').innerText = 'Add Role Mapping';
+            document.getElementById('modal-rbac-mapping').classList.remove('hidden');
+        }
+
+        function closeRbacMappingModal() {
+            document.getElementById('modal-rbac-mapping').classList.add('hidden');
+        }
+
+        async function handleSaveRbacMapping(e) {
+            e.preventDefault();
+            const btn = document.getElementById('rbac-save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Saving...';
+
+            const payload = {
+                principal_type: document.getElementById('rbac-principal-type').value,
+                principal_name: document.getElementById('rbac-principal-name').value.trim(),
+                role: document.getElementById('rbac-assigned-role').value,
+                description: document.getElementById('rbac-description').value.trim()
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/rbac/mappings`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save mapping');
+                closeRbacMappingModal();
+                fetchRbacMappings();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Save Role Mapping';
+            }
+        }
+
+        async function deleteRbacMapping(id, name) {
+            if (!confirm(`Are you sure you want to remove the role mapping for '${name}'?`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/rbac/mappings/${id}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to delete mapping');
+                fetchRbacMappings();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        // ==================== MVP 3: API KEYS & TOKENS ====================
+        async function fetchApiKeys() {
+            const tbody = document.getElementById('api-keys-tbody');
+            if (!tbody) return;
+            try {
+                const res = await fetch(`${API_BASE}/api-keys`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load API keys');
+                const keys = await res.json();
+
+                document.getElementById('api-keys-count-pill').innerText = `${keys.length} keys`;
+
+                if (keys.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-500">No API keys issued. Click "Generate New Key" to create a programmatic token.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = keys.map(k => {
+                    const scopesBadges = k.scopes.map(s => {
+                        let color = 'bg-slate-800 text-slate-300 border-slate-700';
+                        if (s === 'admin:all') color = 'bg-yellow-950 text-yellow-400 border-yellow-800';
+                        else if (s.includes('manage')) color = 'bg-indigo-950 text-indigo-400 border-indigo-800';
+                        else if (s.includes('read')) color = 'bg-emerald-950 text-emerald-400 border-emerald-800';
+                        return `<span class="px-1.5 py-0.5 text-[9px] rounded border font-mono ${color}">${s}</span>`;
+                    }).join(' ');
+
+                    const expiryStr = k.expires_at ? new Date(k.expires_at * 1000).toLocaleDateString() : 'Never';
+                    const lastUsedStr = k.last_used_at ? new Date(k.last_used_at * 1000).toLocaleString() : 'Never';
+
+                    return `
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="py-3 px-4 font-semibold text-white">${k.name}</td>
+                            <td class="py-3 px-4 font-mono text-yellow-400 font-bold">${k.key_prefix}</td>
+                            <td class="py-3 px-4"><div class="flex flex-wrap gap-1">${scopesBadges}</div></td>
+                            <td class="py-3 px-4 font-mono text-slate-400">${k.cidr_whitelist}</td>
+                            <td class="py-3 px-4 font-mono text-slate-400">${expiryStr}</td>
+                            <td class="py-3 px-4 font-mono text-slate-500 text-[11px]">${lastUsedStr}</td>
+                            <td class="py-3 px-4 text-right">
+                                <button onclick="revokeApiKey(${k.id}, '${k.name}')" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded transition text-xs">
+                                    <i class="fa-solid fa-ban mr-1"></i> Revoke
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-rose-400 font-mono">Error: ${err.message}</td></tr>`;
+            }
+        }
+
+        function openApiKeyCreateModal() {
+            document.getElementById('apikey-name').value = '';
+            document.getElementById('apikey-cidr').value = '0.0.0.0/0';
+            document.getElementById('modal-api-key-create').classList.remove('hidden');
+        }
+
+        function closeApiKeyCreateModal() {
+            document.getElementById('modal-api-key-create').classList.add('hidden');
+        }
+
+        async function handleCreateApiKey(e) {
+            e.preventDefault();
+            const checkedScopes = Array.from(document.querySelectorAll('input[name="api_scope"]:checked')).map(cb => cb.value);
+            if (checkedScopes.length === 0) {
+                alert('Please select at least one permission scope.');
+                return;
+            }
+
+            const btn = document.getElementById('apikey-submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Generating...';
+
+            const daysVal = parseInt(document.getElementById('apikey-expires').value);
+
+            const payload = {
+                name: document.getElementById('apikey-name').value.trim(),
+                scopes: checkedScopes,
+                cidr_whitelist: document.getElementById('apikey-cidr').value.trim() || '0.0.0.0/0',
+                expires_days: daysVal > 0 ? daysVal : null
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api-keys`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to create API key');
+
+                closeApiKeyCreateModal();
+                fetchApiKeys();
+
+                // Show token reveal modal
+                document.getElementById('reveal-token-input').value = data.full_api_key;
+                document.getElementById('modal-api-key-token-reveal').classList.remove('hidden');
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Generate Token';
+            }
+        }
+
+        function closeApiKeyTokenRevealModal() {
+            document.getElementById('modal-api-key-token-reveal').classList.add('hidden');
+        }
+
+        function copyRevealedToken() {
+            const input = document.getElementById('reveal-token-input');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => {
+                const btn = document.getElementById('reveal-copy-btn');
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+                setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy'; }, 2000);
+            });
+        }
+
+        async function revokeApiKey(id, name) {
+            if (!confirm(`Permanently revoke and invalidate API key '${name}'? Any service using this key will immediately fail authentication.`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/api-keys/${id}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to revoke API key');
+                fetchApiKeys();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        // ==================== MVP 3: SSL/TLS CERTIFICATES ====================
+        async function fetchActiveCert() {
+            try {
+                const res = await fetch(`${API_BASE}/certificates/active`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to inspect active certificate');
+                const cert = await res.json();
+
+                // Update Inspector Card
+                document.getElementById('cert-subject-cn').innerText = cert.subject;
+                document.getElementById('cert-issuer').innerText = `Issuer: ${cert.issuer}`;
+                document.getElementById('cert-valid-from').innerText = `Valid from: ${cert.valid_from}`;
+                document.getElementById('cert-valid-to').innerText = cert.valid_to;
+                document.getElementById('cert-days-remaining').innerText = `${cert.days_remaining} days remaining`;
+                document.getElementById('cert-sig-alg').innerText = cert.signature_algorithm;
+                document.getElementById('cert-serial').innerText = cert.serial_number;
+
+                const statusBadge = document.getElementById('cert-status-badge');
+                if (cert.status === 'VALID') {
+                    statusBadge.className = 'px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-950 border border-emerald-800 text-emerald-400 font-mono';
+                    statusBadge.innerText = 'VALID';
+                } else if (cert.status === 'EXPIRING_SOON') {
+                    statusBadge.className = 'px-2.5 py-1 text-xs font-bold rounded-full bg-amber-950 border border-amber-800 text-amber-400 font-mono';
+                    statusBadge.innerText = 'EXPIRING SOON';
+                } else {
+                    statusBadge.className = 'px-2.5 py-1 text-xs font-bold rounded-full bg-rose-950 border border-rose-800 text-rose-400 font-mono';
+                    statusBadge.innerText = 'EXPIRED';
+                }
+
+                const typeBadge = document.getElementById('cert-type-badge');
+                typeBadge.innerText = cert.is_self_signed ? 'SELF-SIGNED' : 'CA-SIGNED / ENTERPRISE';
+
+                const sansBox = document.getElementById('cert-sans-container');
+                if (cert.san_list && cert.san_list.length > 0) {
+                    sansBox.innerHTML = cert.san_list.map(s => `
+                        <span class="px-2 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-teal-300 font-mono">${s}</span>
+                    `).join('');
+                } else {
+                    sansBox.innerHTML = '<span class="text-slate-500 text-[11px]">No SANs found</span>';
+                }
+            } catch (err) {
+                console.error('Cert inspection error:', err);
+            }
+        }
+
+        async function handleGenerateSelfSignedCert(e) {
+            e.preventDefault();
+            if (!confirm('Generating a new self-signed certificate will restart HTTPS sessions. Proceed?')) return;
+
+            const btn = document.getElementById('cert-gen-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Generating & Reloading Nginx...';
+
+            const sans = document.getElementById('cert-gen-sans').value.split(',').map(s => s.trim()).filter(Boolean);
+            const payload = {
+                common_name: document.getElementById('cert-gen-cn').value.trim(),
+                san_list: sans,
+                validity_days: parseInt(document.getElementById('cert-gen-days').value) || 365,
+                organization: document.getElementById('cert-gen-org').value.trim() || 'Inet Secure Labs'
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/certificates/self-signed`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to generate self-signed certificate');
+                alert(data.message || 'New self-signed certificate generated and activated.');
+                fetchActiveCert();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Generate & Reload Nginx';
+            }
+        }
+
+        async function handleUploadCustomCert(e) {
+            e.preventDefault();
+            const certPem = document.getElementById('cert-upload-cert').value.trim();
+            const keyPem = document.getElementById('cert-upload-key').value.trim();
+            const chainPem = document.getElementById('cert-upload-chain').value.trim();
+
+            if (!certPem || !keyPem) {
+                alert('Both Certificate PEM and Private Key PEM are required.');
+                return;
+            }
+
+            const btn = document.getElementById('cert-upload-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Validating & Installing...';
+
+            const payload = { cert_pem: certPem, key_pem: keyPem, chain_pem: chainPem || null };
+
+            try {
+                const res = await fetch(`${API_BASE}/certificates/upload`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to install custom certificate');
+                alert(data.message || 'Enterprise certificate validated and installed successfully.');
+                document.getElementById('cert-upload-cert').value = '';
+                document.getElementById('cert-upload-key').value = '';
+                document.getElementById('cert-upload-chain').value = '';
+                fetchActiveCert();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Validate & Install';
+            }
+        }
+
+        async function handleGenerateCsr(e) {
+            e.preventDefault();
+            const btn = document.getElementById('csr-gen-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Generating CSR...';
+
+            const sans = document.getElementById('csr-sans').value.split(',').map(s => s.trim()).filter(Boolean);
+            const payload = {
+                common_name: document.getElementById('csr-cn').value.trim(),
+                organization: document.getElementById('csr-org').value.trim(),
+                city: document.getElementById('csr-city').value.trim(),
+                state: document.getElementById('csr-state').value.trim(),
+                country: document.getElementById('csr-country').value.trim().toUpperCase(),
+                san_list: sans
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/certificates/csr`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to generate CSR');
+
+                document.getElementById('csr-output-textarea').value = data.csr_pem;
+                document.getElementById('modal-cert-csr-view').classList.remove('hidden');
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-file-pen"></i> Generate Request (CSR)';
+            }
+        }
+
+        function closeCsrModal() {
+            document.getElementById('modal-cert-csr-view').classList.add('hidden');
+        }
+
+        function copyCsrText() {
+            const ta = document.getElementById('csr-output-textarea');
+            ta.select();
+            navigator.clipboard.writeText(ta.value).then(() => {
+                alert('CSR copied to clipboard.');
+            });
+        }
+
+        // ==================== MVP 3: SYSLOG & LIVE LOG STREAMING ====================
+        let currentLogCategory = 'samba';
+        let logFilterTimer = null;
+
+        async function fetchSyslogSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/syslog/settings`, { headers: getAuthHeaders() });
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const toggle = document.getElementById('syslog-enabled-toggle');
+                if (toggle) toggle.checked = !!data.enabled;
+                const label = document.getElementById('syslog-toggle-label');
+                if (label) label.innerText = data.enabled ? 'Active Forwarding' : 'Disabled';
+
+                document.getElementById('syslog-host').value = data.remote_host || '';
+                document.getElementById('syslog-port').value = data.remote_port || 514;
+                document.getElementById('syslog-protocol').value = data.protocol || 'UDP';
+                document.getElementById('syslog-format').value = data.log_format || 'RFC5424';
+
+                document.getElementById('syslog-send-samba').checked = !!data.send_samba_logs;
+                document.getElementById('syslog-send-radius').checked = !!data.send_radius_logs;
+                document.getElementById('syslog-send-auth').checked = !!data.send_auth_logs;
+                document.getElementById('syslog-send-system').checked = !!data.send_system_logs;
+            } catch (err) {
+                console.error('Syslog settings error:', err);
+            }
+        }
+
+        async function handleSaveSyslogConfig(e) {
+            e.preventDefault();
+            const payload = {
+                enabled: document.getElementById('syslog-enabled-toggle').checked,
+                remote_host: document.getElementById('syslog-host').value.trim(),
+                remote_port: parseInt(document.getElementById('syslog-port').value) || 514,
+                protocol: document.getElementById('syslog-protocol').value,
+                facility: 'local0',
+                log_format: document.getElementById('syslog-format').value,
+                send_samba_logs: document.getElementById('syslog-send-samba').checked,
+                send_radius_logs: document.getElementById('syslog-send-radius').checked,
+                send_auth_logs: document.getElementById('syslog-send-auth').checked,
+                send_system_logs: document.getElementById('syslog-send-system').checked
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/syslog/settings`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save settings');
+                alert('Syslog forwarder configuration saved successfully.');
+                fetchSyslogSettings();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        async function sendSyslogTestProbe() {
+            try {
+                const res = await fetch(`${API_BASE}/syslog/test`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ message: 'ZclockID Syslog Test Probe Event' })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to transmit probe');
+                alert(data.message || 'Probe packet transmitted successfully!');
+            } catch (err) {
+                alert(`Syslog Probe Failed: ${err.message}`);
+            }
+        }
+
+        function setLogCategory(cat) {
+            currentLogCategory = cat;
+            ['samba', 'radius', 'auth', 'audit', 'system'].forEach(c => {
+                const btn = document.getElementById(`logcat-${c}`);
+                if (btn) {
+                    if (c === cat) {
+                        btn.className = 'px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition';
+                    } else {
+                        btn.className = 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition';
+                    }
+                }
+            });
+            fetchLiveSyslog();
+        }
+
+        async function fetchLiveSyslog() {
+            const terminal = document.getElementById('live-log-terminal');
+            if (!terminal) return;
+
+            const lines = document.getElementById('live-log-lines').value || 100;
+            const filter = document.getElementById('live-log-filter').value.trim();
+
+            let url = `${API_BASE}/syslog/logs?category=${currentLogCategory}&lines=${lines}`;
+            if (filter) url += `&filter=${encodeURIComponent(filter)}`;
+
+            try {
+                const res = await fetch(url, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to fetch daemon logs');
+                const data = await res.json();
+                const logs = data.logs || [];
+
+                if (logs.length === 0) {
+                    terminal.innerHTML = `<div class="text-slate-500 text-center py-8">No log entries found for [${currentLogCategory}]${filter ? ' matching filter' : ''}.</div>`;
+                    return;
+                }
+
+                terminal.innerHTML = logs.map(l => {
+                    let levelColor = 'text-emerald-400';
+                    let levelBg = 'bg-emerald-950/40 border-emerald-800/40';
+                    if (l.level === 'ERROR') {
+                        levelColor = 'text-rose-400';
+                        levelBg = 'bg-rose-950/40 border-rose-800/40';
+                    } else if (l.level === 'WARN') {
+                        levelColor = 'text-amber-400';
+                        levelBg = 'bg-amber-950/40 border-amber-800/40';
+                    }
+
+                    return `
+                        <div class="flex items-start gap-2 py-0.5 hover:bg-slate-900/50 rounded px-1">
+                            <span class="text-slate-500 shrink-0 text-[11px]">${l.timestamp}</span>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold border ${levelBg} ${levelColor}">${l.level}</span>
+                            <span class="text-slate-300 break-all">${l.message}</span>
+                        </div>
+                    `;
+                }).join('');
+                terminal.scrollTop = terminal.scrollHeight;
+            } catch (err) {
+                terminal.innerHTML = `<div class="text-rose-400 text-center py-6 font-mono">Error: ${err.message}</div>`;
+            }
+        }
+
+        function debounceFilterLogs() {
+            clearTimeout(logFilterTimer);
+            logFilterTimer = setTimeout(fetchLiveSyslog, 300);
+        }
+
+        function copyLiveLogs() {
+            const terminal = document.getElementById('live-log-terminal');
+            if (!terminal) return;
+            navigator.clipboard.writeText(terminal.innerText).then(() => {
+                alert('Logs copied to clipboard.');
+            });
+        }
+
+        async function logout() {
+            const token = localStorage.getItem('zclockid_token');
+            try {
+                if (token) {
+                    await fetch(`${API_BASE}/auth/logout`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                }
+            } catch(e) {}
+            localStorage.removeItem('zclockid_token');
+            localStorage.removeItem('zclockid_user');
+            localStorage.removeItem('zclockid_role');
             window.location.href = '/login.html';
         }
 
         // Initialize dashboard and telemetry polling
         document.addEventListener('DOMContentLoaded', () => {
+            initSessionInfo();
             fetchSystemStatus();
             fetchDomainInfo();
             fetchRadiusBandwidth();

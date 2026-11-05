@@ -35,10 +35,16 @@ def init_db():
         CREATE TABLE IF NOT EXISTS sessions (
             token TEXT PRIMARY KEY,
             username TEXT NOT NULL,
+            role TEXT DEFAULT 'fulladmin',
             created_at REAL,
             expires_at REAL
         )
     """)
+    # Migration: ensure role column exists in sessions
+    cursor.execute("PRAGMA table_info(sessions)")
+    sess_cols = [row[1] for row in cursor.fetchall()]
+    if "role" not in sess_cols:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN role TEXT DEFAULT 'fulladmin'")
 
     # Self-Registration Queue
     cursor.execute("""
@@ -281,6 +287,64 @@ def init_db():
                 1, 'atanumaj/zclockid', '', 1, 0, '', '', '', '', 'NOT_CHECKED', ?
             )
         """, (time.time(),))
+
+    # RBAC Role Mappings (Active Directory Users / Groups -> Appliance Roles)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS rbac_mappings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            principal_type TEXT NOT NULL,
+            principal_name TEXT NOT NULL UNIQUE,
+            role TEXT NOT NULL,
+            description TEXT,
+            created_at REAL,
+            updated_at REAL
+        )
+    """)
+    # Seed default RBAC mappings
+    cursor.execute("""
+        INSERT OR IGNORE INTO rbac_mappings (principal_type, principal_name, role, description, created_at, updated_at)
+        VALUES 
+            ('group', 'Domain Admins', 'fulladmin', 'Active Directory Domain Administrators', ?, ?),
+            ('group', 'Enterprise Admins', 'fulladmin', 'Active Directory Enterprise Administrators', ?, ?)
+    """, (time.time(), time.time(), time.time(), time.time()))
+
+    # API Keys Management
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            key_prefix TEXT NOT NULL,
+            key_hash TEXT NOT NULL,
+            scopes TEXT NOT NULL,
+            cidr_whitelist TEXT DEFAULT '0.0.0.0/0',
+            expires_at REAL,
+            last_used_at REAL,
+            is_active INTEGER DEFAULT 1,
+            created_at REAL
+        )
+    """)
+
+    # Syslog Remote Forwarding & Settings
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS syslog_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER DEFAULT 0,
+            remote_host TEXT DEFAULT '',
+            remote_port INTEGER DEFAULT 514,
+            protocol TEXT DEFAULT 'UDP',
+            facility TEXT DEFAULT 'local0',
+            log_format TEXT DEFAULT 'RFC5424',
+            send_samba_logs INTEGER DEFAULT 1,
+            send_radius_logs INTEGER DEFAULT 1,
+            send_auth_logs INTEGER DEFAULT 1,
+            send_system_logs INTEGER DEFAULT 1,
+            updated_at REAL
+        )
+    """)
+    cursor.execute("""
+        INSERT OR IGNORE INTO syslog_settings (id, enabled, remote_host, remote_port, protocol, facility, log_format, updated_at)
+        VALUES (1, 0, '', 514, 'UDP', 'local0', 'RFC5424', ?)
+    """, (time.time(),))
 
     conn.commit()
     conn.close()

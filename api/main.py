@@ -39,7 +39,11 @@ from api.routers import (
     dns,
     sysvol,
     azure,
-    ntp
+    ntp,
+    rbac,
+    api_keys,
+    certificates,
+    syslog
 )
 
 app = FastAPI(
@@ -80,6 +84,10 @@ app.include_router(dns.router)
 app.include_router(sysvol.router)
 app.include_router(azure.router)
 app.include_router(ntp.router)
+app.include_router(rbac.router)
+app.include_router(api_keys.router)
+app.include_router(certificates.router)
+app.include_router(syslog.router)
 
 # Mount Web GUI static files if available
 if WEB_DIR.exists() and (WEB_DIR / "index.html").exists():
