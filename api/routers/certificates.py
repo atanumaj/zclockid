@@ -359,3 +359,4 @@ def generate_csr(req: CsrGenerateRequest):
         "private_key_saved": True,
         "message": "Certificate Signing Request generated. Copy and submit the CSR to your CA. The private key has been saved on the appliance ready for your signed certificate upload."
     }
+

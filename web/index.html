@@ -40,11 +40,12 @@
                 <i class="fa-solid fa-server text-slate-500"></i>
                 <span id="header-host">inet-zclockid</span>
             </div>
-            <div class="flex items-center gap-2 px-3 py-1 bg-slate-950 rounded-lg border border-slate-800">
-                <i class="fa-solid fa-user-shield text-indigo-400"></i>
+            <button onclick="openProfileModal()" class="flex items-center gap-2 px-3 py-1 bg-slate-950 hover:bg-slate-850 rounded-lg border border-slate-800 hover:border-indigo-500/50 transition text-left group cursor-pointer" title="Manage Profile & Security">
+                <i class="fa-solid fa-user-shield text-indigo-400 group-hover:text-indigo-300"></i>
                 <span id="header-user" class="text-slate-200 font-semibold font-sans">admin</span>
                 <span id="header-role-badge" class="px-1.5 py-0.5 text-[10px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">fulladmin</span>
-            </div>
+                <i class="fa-solid fa-gear text-[11px] text-slate-500 group-hover:text-indigo-400 ml-0.5 transition"></i>
+            </button>
             <button onclick="logout()" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 transition flex items-center gap-1.5">
                 <i class="fa-solid fa-right-from-bracket"></i>
                 <span class="hidden md:inline font-sans text-xs">Logout</span>
@@ -4712,6 +4713,113 @@
         </div>
     </div>
 
+    <!-- Modal: User Profile & Security Settings -->
+    <div id="modal-user-profile" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                <div class="flex items-center gap-2.5">
+                    <div class="h-8 w-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-white">Administrator Security & Profile</h3>
+                        <p class="text-[11px] text-slate-400 font-mono" id="profile-modal-subtitle">Current Session: admin</p>
+                    </div>
+                </div>
+                <button onclick="closeProfileModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <!-- Tab Headers -->
+            <div class="flex border-b border-slate-800 bg-slate-950/40 text-xs font-semibold px-4 pt-2 gap-2">
+                <button onclick="switchProfileModalTab('me')" id="profile-tab-btn-me" class="pb-2.5 px-3 border-b-2 border-indigo-500 text-indigo-400 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-key"></i> Change My Password
+                </button>
+                <button onclick="switchProfileModalTab('breakglass')" id="profile-tab-btn-bg" class="pb-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-shield-halved text-amber-400"></i> Break-Glass Emergency Account
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 text-xs">
+                <!-- TAB 1: My Account Password -->
+                <div id="profile-tab-me" class="space-y-4">
+                    <!-- Identity Badge -->
+                    <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex items-center justify-between">
+                        <div class="space-y-0.5">
+                            <span class="text-[10px] text-slate-500 font-mono uppercase block">Active Principal</span>
+                            <div class="font-bold text-white text-sm flex items-center gap-2">
+                                <span id="profile-identity-name">admin</span>
+                                <span id="profile-type-badge" class="px-2 py-0.5 text-[10px] font-mono rounded bg-indigo-950 text-indigo-400 border border-indigo-800">LOCAL</span>
+                            </div>
+                        </div>
+                        <div class="text-right space-y-0.5">
+                            <span class="text-[10px] text-slate-500 font-mono uppercase block">Privilege Tier</span>
+                            <span id="profile-role-badge" class="px-2 py-0.5 text-[10px] font-mono font-bold rounded bg-emerald-950 text-emerald-400 border border-emerald-800">fulladmin</span>
+                        </div>
+                    </div>
+
+                    <form onsubmit="handleChangePassword(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 font-medium mb-1">Current Password</label>
+                            <input type="password" id="chg-current-pass" required placeholder="••••••••••••" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">New Password</label>
+                                <input type="password" id="chg-new-pass" required minlength="8" placeholder="Min. 8 characters" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">Confirm New Password</label>
+                                <input type="password" id="chg-confirm-pass" required minlength="8" placeholder="Repeat new password" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                            <button type="button" onclick="closeProfileModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
+                            <button type="submit" id="chg-pass-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-lg shadow-indigo-600/30 flex items-center gap-1.5">
+                                <i class="fa-solid fa-floppy-disk"></i> Update Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TAB 2: Break-Glass Admin Emergency Settings -->
+                <div id="profile-tab-breakglass" class="space-y-4 hidden">
+                    <div class="p-3 bg-amber-950/30 border border-amber-800/50 rounded-xl text-xs text-amber-300 space-y-1">
+                        <div class="font-bold flex items-center gap-1.5 text-amber-400">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Emergency Break-Glass Account
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-relaxed">
+                            The local <code class="text-amber-400">admin</code> account is isolated in SQLite (<code class="text-slate-400">/zclockid/data/zclockid.db</code>). It guarantees console access even if Samba AD DC or DNS services are offline.
+                        </p>
+                    </div>
+
+                    <form onsubmit="handleUpdateBreakGlass(event)" class="space-y-3">
+                        <div>
+                            <label class="block text-slate-300 font-medium mb-1">Recovery Alert Email Address</label>
+                            <input type="email" id="bg-admin-email" placeholder="security@inetcsc.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">New Break-Glass Password</label>
+                                <input type="password" id="bg-new-pass" placeholder="Leave blank to keep current" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                            </div>
+                            <div>
+                                <label class="block text-slate-300 font-medium mb-1">Confirm Break-Glass Password</label>
+                                <input type="password" id="bg-confirm-pass" placeholder="Leave blank to keep current" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                            <button type="button" onclick="closeProfileModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
+                            <button type="submit" id="bg-save-btn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition shadow-lg shadow-amber-600/30 flex items-center gap-1.5">
+                                <i class="fa-solid fa-shield-check"></i> Save Emergency Credentials
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal: Add/Edit RBAC Mapping -->
     <div id="modal-rbac-mapping" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -9238,6 +9346,139 @@
             }).catch(() => {
                 alert('Could not copy log automatically.');
             });
+        }
+
+        // ==================== ADMINISTRATOR PROFILE & SECURITY ====================
+        async function openProfileModal() {
+            try {
+                const res = await fetch(`${API_BASE}/auth/profile`, { headers: getAuthHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('profile-modal-subtitle').innerText = `Session: ${data.username} (${data.role})`;
+                    document.getElementById('profile-identity-name').innerText = data.username;
+                    const typeBadge = document.getElementById('profile-type-badge');
+                    if (data.is_ad_user) {
+                        typeBadge.className = 'px-2 py-0.5 text-[10px] font-mono rounded bg-sky-950 text-sky-400 border border-sky-800';
+                        typeBadge.innerText = 'ACTIVE DIRECTORY';
+                    } else {
+                        typeBadge.className = 'px-2 py-0.5 text-[10px] font-mono rounded bg-amber-950 text-amber-400 border border-amber-800';
+                        typeBadge.innerText = 'BREAK-GLASS LOCAL';
+                    }
+                    const roleBadge = document.getElementById('profile-role-badge');
+                    roleBadge.innerText = data.role;
+                    if (data.break_glass_admin && data.break_glass_admin.email) {
+                        document.getElementById('bg-admin-email').value = data.break_glass_admin.email;
+                    }
+                }
+            } catch (e) {
+                console.error('Profile fetch failed:', e);
+            }
+            // Clear password inputs
+            document.getElementById('chg-current-pass').value = '';
+            document.getElementById('chg-new-pass').value = '';
+            document.getElementById('chg-confirm-pass').value = '';
+            document.getElementById('bg-new-pass').value = '';
+            document.getElementById('bg-confirm-pass').value = '';
+            switchProfileModalTab('me');
+            document.getElementById('modal-user-profile').classList.remove('hidden');
+        }
+
+        function closeProfileModal() {
+            document.getElementById('modal-user-profile').classList.add('hidden');
+        }
+
+        function switchProfileModalTab(tab) {
+            const btnMe = document.getElementById('profile-tab-btn-me');
+            const btnBg = document.getElementById('profile-tab-btn-bg');
+            const viewMe = document.getElementById('profile-tab-me');
+            const viewBg = document.getElementById('profile-tab-breakglass');
+
+            if (tab === 'me') {
+                btnMe.className = 'pb-2.5 px-3 border-b-2 border-indigo-500 text-indigo-400 flex items-center gap-1.5 transition';
+                btnBg.className = 'pb-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition';
+                viewMe.classList.remove('hidden');
+                viewBg.classList.add('hidden');
+            } else {
+                btnBg.className = 'pb-2.5 px-3 border-b-2 border-amber-500 text-amber-400 flex items-center gap-1.5 transition';
+                btnMe.className = 'pb-2.5 px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition';
+                viewBg.classList.remove('hidden');
+                viewMe.classList.add('hidden');
+            }
+        }
+
+        async function handleChangePassword(e) {
+            e.preventDefault();
+            const curPass = document.getElementById('chg-current-pass').value;
+            const newPass = document.getElementById('chg-new-pass').value;
+            const confirmPass = document.getElementById('chg-confirm-pass').value;
+
+            if (newPass !== confirmPass) {
+                alert('New password and confirmation do not match.');
+                return;
+            }
+
+            const btn = document.getElementById('chg-pass-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Updating...';
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/change-password`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ current_password: curPass, new_password: newPass })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Password update failed');
+                alert(data.message || 'Password changed successfully!');
+                closeProfileModal();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update Password';
+            }
+        }
+
+        async function handleUpdateBreakGlass(e) {
+            e.preventDefault();
+            const email = document.getElementById('bg-admin-email').value.trim();
+            const newPass = document.getElementById('bg-new-pass').value;
+            const confirmPass = document.getElementById('bg-confirm-pass').value;
+
+            if (newPass && newPass !== confirmPass) {
+                alert('Break-glass new password and confirmation do not match.');
+                return;
+            }
+
+            const payload = {};
+            if (email) payload.email = email;
+            if (newPass) payload.new_password = newPass;
+
+            if (Object.keys(payload).length === 0) {
+                alert('Please enter an email or new password.');
+                return;
+            }
+
+            const btn = document.getElementById('bg-save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Saving...';
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/break-glass`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to update break-glass settings');
+                alert(data.message || 'Emergency break-glass settings saved successfully!');
+                closeProfileModal();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-shield-check"></i> Save Emergency Credentials';
+            }
         }
 
         // ==================== MVP 3: ACCESS CONTROL & RBAC ====================

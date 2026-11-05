@@ -40,3 +40,4 @@ class ApiKeyItemResponse(BaseModel):
     last_used_at: Optional[float]
     is_active: bool
     created_at: float
+

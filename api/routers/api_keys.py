@@ -202,3 +202,4 @@ def validate_token_header(raw_token: str, client_ip: str, required_scope: Option
     conn.commit()
     conn.close()
     return True
+

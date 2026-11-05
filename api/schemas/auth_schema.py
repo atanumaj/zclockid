@@ -21,3 +21,11 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, description="Minimum 8 characters")
+
+class BreakGlassUpdateRequest(BaseModel):
+    new_password: Optional[str] = Field(None, min_length=8)
+    email: Optional[str] = Field(None)
+

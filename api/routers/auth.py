@@ -15,9 +15,14 @@ from api.core.config import (
     AD_CREDS_FILE,
     APP_VERSION
 )
-from api.core.security import hash_password, verify_password
+from api.core.security import hash_password, verify_password, get_ad_creds
 from api.services.system_service import run_cmd, log_audit
-from api.schemas.auth_schema import SetupProvisionRequest, LoginRequest
+from api.schemas.auth_schema import (
+    SetupProvisionRequest,
+    LoginRequest,
+    ChangePasswordRequest,
+    BreakGlassUpdateRequest
+)
 
 router = APIRouter(prefix="/api/v1", tags=["Authentication & Setup"])
 
@@ -223,4 +228,156 @@ def logout(authorization: Optional[str] = Header(None)):
     except Exception:
         pass
     return {"status": "success", "message": "Logged out successfully."}
+
+def get_session_user(authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
+    token = authorization.replace("Bearer ", "").strip()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT username, role, expires_at FROM sessions WHERE token = ?", (token,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row or row["expires_at"] < time.time():
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired or invalid.")
+    return dict(row)
+
+@router.get("/auth/profile")
+def get_user_profile(authorization: Optional[str] = Header(None)):
+    """Returns current authenticated administrator profile and emergency break-glass details."""
+    session_user = get_session_user(authorization)
+    username = session_user["username"]
+    role = session_user["role"]
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT username, email, last_login, created_at FROM admin_users WHERE username = ?", (username,))
+    local_row = cursor.fetchone()
+
+    cursor.execute("SELECT username, email, last_login FROM admin_users WHERE username = 'admin'")
+    bg_admin_row = cursor.fetchone()
+    conn.close()
+
+    is_local = (local_row is not None)
+
+    ad_groups = []
+    ad_display_name = ""
+    ad_mail = ""
+    if not is_local:
+        from api.routers.rbac import get_user_ad_groups
+        ad_groups = get_user_ad_groups(username)
+        from api.core.config import SAMBA_LDB_PATH
+        code, stdout, _ = run_cmd([
+            "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+            f"(&(objectClass=user)(sAMAccountName={username}))",
+            "displayName", "mail"
+        ], timeout=5)
+        if code == 0 and stdout:
+            for line in stdout.splitlines():
+                if line.startswith("displayName:"):
+                    ad_display_name = line.split(":", 1)[1].strip()
+                elif line.startswith("mail:"):
+                    ad_mail = line.split(":", 1)[1].strip()
+
+    return {
+        "username": username,
+        "role": role,
+        "is_ad_user": not is_local,
+        "email": local_row["email"] if is_local else ad_mail,
+        "display_name": ad_display_name if not is_local else "Local Administrator",
+        "ad_groups": ad_groups,
+        "break_glass_admin": {
+            "username": "admin",
+            "email": bg_admin_row["email"] if bg_admin_row else "",
+            "last_login": bg_admin_row["last_login"] if bg_admin_row else None
+        } if bg_admin_row else None
+    }
+
+@router.post("/auth/change-password")
+def change_password(req: ChangePasswordRequest, authorization: Optional[str] = Header(None)):
+    """Changes the password for the currently logged-in account (local or AD)."""
+    session_user = get_session_user(authorization)
+    username = session_user["username"]
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT password_hash, salt FROM admin_users WHERE username = ?", (username,))
+    local_row = cursor.fetchone()
+
+    if local_row:
+        # Local Break-Glass Account
+        stored_hash, salt = local_row
+        if not verify_password(req.current_password, stored_hash, salt):
+            conn.close()
+            raise HTTPException(status_code=400, detail="Current password verification failed.")
+
+        new_hash, new_salt = hash_password(req.new_password)
+        cursor.execute("UPDATE admin_users SET salt = ?, password_hash = ? WHERE username = ?",
+                       (new_salt, new_hash, username))
+        conn.commit()
+        conn.close()
+        log_audit("LOCAL_ADMIN_PASSWORD_CHANGED", username, username, "SUCCESS", {})
+        return {"status": "success", "message": "Break-glass admin password updated successfully."}
+
+    conn.close()
+
+    # Active Directory Domain Account
+    import subprocess
+    env = os.environ.copy()
+    env["PASSWD"] = req.current_password
+    proc = subprocess.run(
+        ["smbclient", "//127.0.0.1/netlogon", "-U", username, "-c", "ls"],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5
+    )
+    if proc.returncode != 0:
+        raise HTTPException(status_code=400, detail="Current domain password verification failed.")
+
+    admin_user, admin_pass = get_ad_creds()
+    code, stdout, stderr = run_cmd([
+        "samba-tool", "user", "setpassword", username,
+        f"--newpassword={req.new_password}",
+        f"-U{admin_user}", f"--password={admin_pass}"
+    ], timeout=15)
+    if code != 0:
+        raise HTTPException(status_code=400, detail=f"Failed to set Active Directory password: {stderr or stdout}")
+
+    log_audit("AD_USER_PASSWORD_CHANGED", username, username, "SUCCESS", {})
+    return {"status": "success", "message": f"Active Directory password for '{username}' updated successfully."}
+
+@router.post("/auth/break-glass")
+def update_break_glass_admin(req: BreakGlassUpdateRequest, authorization: Optional[str] = Header(None)):
+    """Allows authenticated Full Administrators to update the offline emergency break-glass account."""
+    session_user = get_session_user(authorization)
+    if session_user["role"] != "fulladmin":
+        raise HTTPException(status_code=403, detail="Only Full Administrators can configure the break-glass account.")
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    updates = []
+    params = []
+    if req.new_password:
+        new_hash, new_salt = hash_password(req.new_password)
+        updates.extend(["salt = ?", "password_hash = ?"])
+        params.extend([new_salt, new_hash])
+    if req.email is not None:
+        updates.append("email = ?")
+        params.append(req.email.strip())
+
+    if not updates:
+        conn.close()
+        return {"status": "success", "message": "No changes requested."}
+
+    params.append("admin")
+    cursor.execute(f"UPDATE admin_users SET {', '.join(updates)} WHERE username = ?", tuple(params))
+    conn.commit()
+    conn.close()
+
+    log_audit("BREAK_GLASS_SETTINGS_UPDATED", session_user["username"], "admin", "SUCCESS", {
+        "password_changed": bool(req.new_password),
+        "email_changed": bool(req.email)
+    })
+    return {"status": "success", "message": "Break-glass emergency admin settings updated successfully."}
 

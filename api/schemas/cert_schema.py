@@ -36,3 +36,4 @@ class ActiveCertDetailsResponse(BaseModel):
     serial_number: str
     is_self_signed: bool
     status: str  # VALID, EXPIRING_SOON, EXPIRED
+

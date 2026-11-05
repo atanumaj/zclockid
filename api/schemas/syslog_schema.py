@@ -19,3 +19,4 @@ class SyslogConfigRequest(BaseModel):
 
 class SyslogTestEventRequest(BaseModel):
     message: Optional[str] = "ZclockID Syslog Test Probe Event"
+

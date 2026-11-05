@@ -33,3 +33,4 @@ class UserPermissionsResponse(BaseModel):
     is_ad_user: bool
     permissions: List[str]
     groups: List[str] = []
+
