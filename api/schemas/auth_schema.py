@@ -20,3 +20,4 @@ class SetupProvisionRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+

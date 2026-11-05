@@ -203,3 +203,4 @@ def trigger_ntp_sync_now():
         raise HTTPException(status_code=500, detail=f"Failed to force clock step: {err or out}")
     log_audit("NTP_MAKESTEP_TRIGGERED", "admin", "chrony", "SUCCESS", {})
     return {"status": "success", "message": out.strip() or "Clock stepped successfully."}
+

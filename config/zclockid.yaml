@@ -52,3 +52,4 @@ storage:
 telemetry:
   enabled: true
   refresh_interval_sec: 5
+

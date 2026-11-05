@@ -28,3 +28,4 @@ class DohTestRequest(BaseModel):
     query_type: Optional[str] = "A"
     qname: Optional[str] = None
     rtype: Optional[str] = None
+

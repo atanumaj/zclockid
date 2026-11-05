@@ -184,3 +184,4 @@ def trigger_azure_sync_now():
         "output": stdout.strip(),
         "error": stderr.strip() if code != 0 else None
     }
+

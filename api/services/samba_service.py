@@ -145,3 +145,4 @@ def provision_user_in_ad(
         run_cmd(grp_cmd, timeout=15)
 
     return True
+

@@ -790,3 +790,4 @@ def delete_domain_computer(computer_name: str):
 
     log_audit("COMPUTER_DELETED", "admin", computer_name, "SUCCESS", {})
     return {"status": "success", "message": f"Computer account '{computer_name}' deleted successfully."}
+

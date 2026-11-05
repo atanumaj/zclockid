@@ -57,6 +57,7 @@ ALL_MANAGED_SERVICES = [
     "chrony",
     "zclock-sysvold",
     "zclock-azuresync",
+    "zclock-exporter",
     "zclock-api",
     "nginx",
     "snmpd"
@@ -83,6 +84,7 @@ def is_newer_version(candidate: str, baseline: str) -> bool:
 
 def ensure_updater_script() -> str:
     standard_paths = [
+        str(ZCLOCKID_ROOT / "daemons" / "zclock-updater"),
         str(ZCLOCKID_ROOT / "daemons" / "zclock-updater.sh"),
         "/opt/zclockid/scripts/zclock-updater.sh"
     ]
@@ -161,6 +163,7 @@ def get_system_status():
         "chrony": check_systemd_service("chrony"),
         "zclock_sysvold": check_systemd_service("zclock-sysvold"),
         "zclock_azuresync": check_systemd_service("zclock-azuresync"),
+        "zclock_exporter": check_systemd_service("zclock-exporter"),
         "zclock_api": check_systemd_service("zclock-api"),
         "nginx": check_systemd_service("nginx"),
         "snmpd": check_systemd_service("snmpd")
@@ -182,7 +185,8 @@ def get_system_status():
         "FreeRADIUS Acct": 1813,
         "Global Catalog": 3268,
         "Management API": 8000,
-        "DoH Internal HTTP": 8053
+        "DoH Internal HTTP": 8053,
+        "Prometheus Exporter": 9101
     }
 
     import psutil
@@ -232,9 +236,18 @@ def list_managed_services():
             "name": "Sysvol NTACL Guardian",
             "category": "custom_built",
             "category_label": "SYSVOL REPLICATION",
-            "role": "Bi-directional Sysvol Replication & Windows NTACL Self-Healing",
+            "role": "Bi-directional Sysvol Replication & Windows NTACL Self-Healing (Go Native)",
             "ports": [],
             "unit": "zclock-sysvold.service"
+        },
+        {
+            "id": "zclock-exporter",
+            "name": "Telemetry & Prometheus Exporter",
+            "category": "custom_built",
+            "category_label": "PROMETHEUS ENGINE",
+            "role": "High-Frequency System & Daemon Telemetry Exporter (Go Native)",
+            "ports": [9101],
+            "unit": "zclock-exporter.service"
         },
         {
             "id": "zclock-azuresync",
@@ -1417,3 +1430,4 @@ def get_update_log():
         "lines": content.splitlines()[-100:],
         "size": len(content)
     }
+

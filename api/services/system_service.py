@@ -109,3 +109,4 @@ def is_newer_version(candidate: str, baseline: str) -> bool:
         return parse_semver(candidate) > parse_semver(baseline)
     except Exception:
         return False
+

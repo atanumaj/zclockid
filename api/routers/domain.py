@@ -364,3 +364,4 @@ def force_drs_replication():
     code, stdout, stderr = run_cmd(["samba-tool", "drs", "kcc"], timeout=20)
     log_audit("DRS_SYNC_FORCED", "admin", "drs", "SUCCESS" if code == 0 else "FAILED", {"output": stdout})
     return {"status": "success" if code == 0 else "error", "message": stdout}
+

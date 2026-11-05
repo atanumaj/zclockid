@@ -21,3 +21,4 @@ class UpnSuffixRequest(BaseModel):
 class FsmoTransferRequest(BaseModel):
     role: str = Field(..., description="FSMO role name (e.g. pdc, naming, schema, rid, infrastructure)")
     force_seize: bool = Field(False, description="Whether to seize the role forcefully if current holder is offline")
+

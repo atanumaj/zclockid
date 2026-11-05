@@ -202,3 +202,4 @@ def reset_sysvol_ntacl():
         "status": "success" if code == 0 else "error",
         "message": "samba-tool ntacl sysvolreset completed. Windows ACLs restored." if code == 0 else stderr
     }
+

@@ -15,3 +15,4 @@ class SysvolFileUploadRequest(BaseModel):
     rel_path: str = Field(..., example="inet.net/Policies/{GUID}/GPT.INI")
     content_base64: str
     mtime: Optional[float] = None
+

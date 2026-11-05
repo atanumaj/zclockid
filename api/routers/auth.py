@@ -188,3 +188,4 @@ def logout(authorization: Optional[str] = Header(None)):
     except Exception:
         pass
     return {"status": "success", "message": "Logged out successfully."}
+

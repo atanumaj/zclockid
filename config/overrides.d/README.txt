@@ -19,3 +19,4 @@ To apply changes after editing:
 - FreeRADIUS : sudo systemctl restart freeradius
 - BIND9      : sudo rndc reload
 - Nginx      : sudo nginx -t && sudo systemctl reload nginx
+

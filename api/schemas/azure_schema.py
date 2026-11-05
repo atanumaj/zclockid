@@ -22,3 +22,4 @@ class AzureTestConnectionRequest(BaseModel):
     tenant_id: Optional[str] = None
     client_id: Optional[str] = None
     client_secret: Optional[str] = None
+

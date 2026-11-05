@@ -45,3 +45,4 @@ class GroupCreateRequest(BaseModel):
 class GroupUpdateRequest(BaseModel):
     description: Optional[str] = None
     bandwidth_profile_id: Optional[int] = None
+

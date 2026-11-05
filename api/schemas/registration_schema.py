@@ -47,3 +47,4 @@ class SelfRegistrationResendOtpRequest(BaseModel):
 class SelfRegistrationApprovalAction(BaseModel):
     notes: Optional[str] = ""
     target_upn_domain: Optional[str] = None
+

@@ -279,3 +279,4 @@ def sync_freeradius_policies() -> str:
 
     run_cmd(["systemctl", "reload", "freeradius"])
     return content
+

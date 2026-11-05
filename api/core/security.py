@@ -73,3 +73,4 @@ def validate_ad_password_complexity(password: str, username: str = "", full_name
                 return False, f"Password cannot contain parts of your name ('{part}')."
 
     return True, "Password satisfies Active Directory complexity requirements."
+

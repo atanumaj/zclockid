@@ -11,3 +11,4 @@ class NtpConfigRequest(BaseModel):
     ms_sntp_enabled: bool = True
     upstream_servers: List[str] = Field(default_factory=lambda: ["time.google.com", "pool.ntp.org", "time.windows.com"])
     timezone: Optional[str] = None
+
