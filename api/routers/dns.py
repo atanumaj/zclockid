@@ -211,7 +211,7 @@ def fast_get_dns_records(zone: str):
                                 rdata = f"{r.data.nameTarget.str} ({r.data.wPort}, {r.data.wPriority}, {r.data.wWeight})"
                             elif r.wType == dnsp.DNS_TYPE_TXT:
                                 rtype = "TXT"
-                                rdata = ",".join([s.str for s in r.data.str])
+                                rdata = " ".join([s.str for s in r.data.str])
                             elif r.wType == dnsp.DNS_TYPE_PTR:
                                 rtype = "PTR"
                                 rdata = str(r.data.str)
@@ -400,17 +400,37 @@ def test_doh_resolution(req: DohTestRequest):
 
 @router.post("/records")
 def add_dns_record(req: DnsRecordRequest):
-    """Adds a standard (A, AAAA, CNAME, MX, TXT) or Kerberos SRV record."""
+    """Adds a standard (A, AAAA, CNAME, MX, TXT, NS, PTR, SRV, SOA, CAA) DNS record."""
     admin_user, admin_pass = get_ad_creds()
-    if req.record_type == "SRV":
+    rtype = req.record_type.upper()
+
+    if rtype == "CAA":
+        raise HTTPException(
+            status_code=400,
+            detail="Active Directory BIND9/Samba DLZ: Direct creation of CAA records is not supported by the Samba AD DNS engine. Please configure CAA records at your edge proxy (e.g. Cloudflare) or authoritative upstream DNS."
+        )
+    elif rtype == "SOA":
+        raise HTTPException(
+            status_code=400,
+            detail="Active Directory BIND9/Samba DLZ: Zone SOA record is automatically generated at the zone apex (@). To modify SOA timers or primary nameserver, use the record Edit action."
+        )
+    elif rtype == "SRV":
         port = req.port or 88
         priority = req.priority or 0
         weight = req.weight or 100
         target = req.record_data.strip()
         srv_data = f"{target} {port} {priority} {weight}"
         cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, "SRV", srv_data, f"-U{admin_user}", f"--password={admin_pass}"]
+    elif rtype == "MX":
+        target = req.record_data.strip()
+        priority = req.priority if req.priority is not None else 10
+        if " " in target:
+            mx_data = target
+        else:
+            mx_data = f"{target} {priority}"
+        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, "MX", mx_data, f"-U{admin_user}", f"--password={admin_pass}"]
     else:
-        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, req.record_type, req.record_data, f"-U{admin_user}", f"--password={admin_pass}"]
+        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, rtype, req.record_data.strip(), f"-U{admin_user}", f"--password={admin_pass}"]
 
     code, stdout, stderr = run_cmd(cmd, timeout=15)
     if code != 0:
@@ -426,8 +446,9 @@ def update_dns_record(req: DnsRecordUpdateRequest):
     admin_user, admin_pass = get_ad_creds()
     old_clean = req.old_data.strip()
     new_clean = req.new_data.strip()
+    rtype = req.record_type.upper()
 
-    if req.record_type.upper() == "SRV":
+    if rtype == "SRV":
         port = req.port or 88
         priority = req.priority or 0
         weight = req.weight or 100
@@ -443,8 +464,24 @@ def update_dns_record(req: DnsRecordUpdateRequest):
             if len(sub) == 3:
                 old_clean = f"{t} {sub[0].strip()} {sub[1].strip()} {sub[2].strip()}"
         cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, "SRV", old_clean, new_data_str, f"-U{admin_user}", f"--password={admin_pass}"]
+    elif rtype == "MX":
+        target = new_clean
+        if "(" in target:
+            parts = target.split("(")
+            target = f"{parts[0].strip()} {parts[1].replace(')', '').strip()}"
+        elif " " not in target:
+            priority = req.priority if req.priority is not None else 10
+            target = f"{target} {priority}"
+        new_data_str = target
+
+        if "(" in old_clean:
+            parts = old_clean.split("(")
+            t = parts[0].strip()
+            p = parts[1].replace(")", "").strip()
+            old_clean = f"{t} {p}"
+        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, "MX", old_clean, new_data_str, f"-U{admin_user}", f"--password={admin_pass}"]
     else:
-        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, req.record_type, old_clean, new_clean, f"-U{admin_user}", f"--password={admin_pass}"]
+        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, rtype, old_clean, new_clean, f"-U{admin_user}", f"--password={admin_pass}"]
 
     code, stdout, stderr = run_cmd(cmd, timeout=15)
     if code != 0:
@@ -467,14 +504,22 @@ def delete_dns_record(zone: str, record_name: str, record_type: str, record_data
 
     admin_user, admin_pass = get_ad_creds()
     clean_data = record_data.strip()
-    if record_type.upper() == "SRV" and "(" in clean_data:
+    rtype = record_type.upper()
+    if rtype == "SRV" and "(" in clean_data:
         parts = clean_data.split("(")
         t = parts[0].strip()
         sub = parts[1].replace(")", "").split(",")
         if len(sub) == 3:
             clean_data = f"{t} {sub[0].strip()} {sub[1].strip()} {sub[2].strip()}"
+    elif rtype == "MX" and "(" in clean_data:
+        parts = clean_data.split("(")
+        t = parts[0].strip()
+        p = parts[1].replace(")", "").strip()
+        clean_data = f"{t} {p}"
+    elif rtype == "TXT" and "," in clean_data and not clean_data.startswith('"'):
+        clean_data = clean_data.replace(",", " ")
 
-    cmd = ["samba-tool", "dns", "delete", "127.0.0.1", zone, record_name, record_type, clean_data, f"-U{admin_user}", f"--password={admin_pass}"]
+    cmd = ["samba-tool", "dns", "delete", "127.0.0.1", zone, record_name, rtype, clean_data, f"-U{admin_user}", f"--password={admin_pass}"]
     code, stdout, stderr = run_cmd(cmd, timeout=15)
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to delete DNS record: {stderr or stdout}")

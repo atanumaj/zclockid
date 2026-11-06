@@ -4319,7 +4319,7 @@
         </div>
     </div>
 
-    <!-- Add DNS Record Modal with Kerberos SRV Presets (Zentyal Style) -->
+    <!-- Add DNS Record Modal -->
     <div id="dns-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
@@ -4327,54 +4327,68 @@
                 <button onclick="closeDnsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
-                <!-- Preset Dropdown for Kerberos & LDAP -->
+                <!-- Record Type (Moved to Top) -->
                 <div>
-                    <label class="text-slate-400 block mb-1">Service Discovery Preset (Auto-fills SRV)</label>
-                    <select id="dns-preset-select" onchange="applyDnsPreset()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-mono">
-                        <option value="custom">-- Custom Record --</option>
-                        <option value="kerberos_tcp">_kerberos._tcp (Kerberos KDC Port 88)</option>
-                        <option value="kerberos_udp">_kerberos._udp (Kerberos KDC UDP 88)</option>
-                        <option value="kpasswd_tcp">_kpasswd._tcp (Kerberos Password Port 464)</option>
-                        <option value="ldap_tcp">_ldap._tcp (LDAP Directory Port 389)</option>
-                        <option value="gc_tcp">_gc._tcp (Global Catalog Port 3268)</option>
+                    <label class="text-slate-400 block mb-1 font-medium">Record Type</label>
+                    <select id="dns-type-select" onchange="onDnsTypeChange()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-indigo-300 font-mono font-bold focus:border-indigo-500 focus:outline-none">
+                        <option value="A">A — Maps a domain name to an IPv4 address</option>
+                        <option value="AAAA">AAAA — Maps a domain name to an IPv6 address</option>
+                        <option value="CNAME">CNAME — Creates an alias to another canonical name</option>
+                        <option value="MX">MX — Directs email traffic to mail servers (with priority)</option>
+                        <option value="TXT">TXT — Text info (domain verification, SPF, DKIM, DMARC)</option>
+                        <option value="NS">NS — Specifies authoritative name servers</option>
+                        <option value="SOA">SOA — Holds administrative and metadata info for zone</option>
+                        <option value="PTR">PTR — Reverse DNS lookups (IP to hostname)</option>
+                        <option value="SRV">SRV — Defines a specific service, port, and target host</option>
+                        <option value="CAA">CAA — Specifies CAs allowed to issue SSL/TLS certificates</option>
                     </select>
                 </div>
-                <div>
-                    <label class="text-slate-400 block mb-1">Record Name (e.g. 'web' or '_kerberos._tcp')</label>
-                    <input id="dns-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="web">
+
+                <!-- Dynamic Description Callout -->
+                <div id="dns-type-desc" class="p-2.5 bg-slate-950/90 rounded-lg border border-slate-800 text-[11px] text-slate-300 font-sans flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-info text-indigo-400 mt-0.5 text-xs"></i>
+                    <span id="dns-type-desc-text">Maps a domain name to an IPv4 address.</span>
                 </div>
+
+                <!-- Record Name -->
                 <div>
-                    <label class="text-slate-400 block mb-1">Record Type</label>
-                    <select id="dns-type-select" onchange="toggleSrvInputs()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
-                        <option value="A">A (IPv4 Host)</option>
-                        <option value="AAAA">AAAA (IPv6 Host)</option>
-                        <option value="CNAME">CNAME (Alias)</option>
-                        <option value="SRV">SRV (Active Directory Service Discovery)</option>
-                        <option value="MX">MX (Mail Exchange)</option>
-                        <option value="TXT">TXT (Text)</option>
-                    </select>
+                    <label id="dns-name-label" class="text-slate-400 block mb-1">Host / Subdomain Name</label>
+                    <input id="dns-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none" placeholder="e.g. web, api, @">
+                    <span id="dns-name-hint" class="text-[10px] text-slate-500 mt-1 block">Enter '@' for zone apex root, or subdomain name.</span>
                 </div>
+
+                <!-- Target Data / Value -->
                 <div>
-                    <label id="dns-data-label" class="text-slate-400 block mb-1">Target IP / Host FQDN</label>
-                    <input id="dns-data-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="192.168.1.50">
+                    <label id="dns-data-label" class="text-slate-400 block mb-1">Target IPv4 Address</label>
+                    <input id="dns-data-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none" placeholder="192.168.1.50">
+                    <span id="dns-data-hint" class="text-[10px] text-slate-500 mt-1 block">Standard 32-bit dotted-decimal IPv4 address.</span>
                 </div>
-                <!-- SRV Specific Fields -->
+
+                <!-- MX Specific Fields (Shown only when MX is selected) -->
+                <div id="mx-fields-container" class="hidden">
+                    <label class="text-slate-400 block mb-1">MX Preference / Priority</label>
+                    <input id="dns-mx-priority" type="number" value="10" min="0" max="65535" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none" placeholder="10">
+                    <span class="text-[10px] text-slate-500 mt-1 block">Lower integer value indicates higher priority (e.g. 10 primary, 20 backup).</span>
+                </div>
+
+                <!-- SRV Specific Fields (Shown only when SRV is selected) -->
                 <div id="srv-fields-container" class="grid grid-cols-3 gap-2 hidden">
                     <div>
                         <label class="text-slate-400 block mb-1">Port</label>
-                        <input id="dns-srv-port" type="number" value="88" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <input id="dns-srv-port" type="number" value="88" min="1" max="65535" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:border-indigo-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1">Priority</label>
-                        <input id="dns-srv-priority" type="number" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <input id="dns-srv-priority" type="number" value="0" min="0" max="65535" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:border-indigo-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1">Weight</label>
-                        <input id="dns-srv-weight" type="number" value="100" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
+                        <input id="dns-srv-weight" type="number" value="100" min="0" max="65535" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono focus:border-indigo-500 focus:outline-none">
                     </div>
                 </div>
+
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeDnsModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" onclick="closeDnsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
                     <button type="button" onclick="submitAddDnsRecord()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Record</button>
                 </div>
             </div>
@@ -6545,72 +6559,143 @@
             document.getElementById('modal-doh-guide').classList.add('hidden');
         }
 
+        const DNS_RECORD_CONFIG = {
+            A: {
+                desc: "Maps a domain name to an IPv4 address.",
+                nameLabel: "Host / Subdomain Name",
+                namePlaceholder: "web, vpn, mail, or @",
+                nameHint: "Enter subdomain prefix or '@' for zone apex.",
+                dataLabel: "IPv4 Address",
+                dataPlaceholder: "192.168.1.50",
+                dataHint: "Standard 32-bit dotted-decimal IPv4 address."
+            },
+            AAAA: {
+                desc: "Maps a domain name to an IPv6 address.",
+                nameLabel: "Host / Subdomain Name",
+                namePlaceholder: "web, vpn, mail, or @",
+                nameHint: "Enter subdomain prefix or '@' for zone apex.",
+                dataLabel: "IPv6 Address",
+                dataPlaceholder: "2001:db8:85a3::8a2e:370:7334",
+                dataHint: "Standard 128-bit colon-separated IPv6 address."
+            },
+            CNAME: {
+                desc: "Creates an alias that points one domain name to another canonical name.",
+                nameLabel: "Alias Name",
+                namePlaceholder: "www, portal, autoconfig",
+                nameHint: "The alias hostname requesting redirection.",
+                dataLabel: "Canonical Target FQDN",
+                dataPlaceholder: "host.inet.net",
+                dataHint: "Fully qualified canonical domain name destination."
+            },
+            MX: {
+                desc: "Directs email traffic to a domain's mail servers (with priority settings).",
+                nameLabel: "Mail Domain / Subdomain",
+                namePlaceholder: "@ or mail",
+                nameHint: "Use '@' for root domain mail or specific subdomain.",
+                dataLabel: "Mail Exchange Server FQDN",
+                dataPlaceholder: "mail.inet.net",
+                dataHint: "FQDN of the receiving mail transfer agent (MTA).",
+                showMx: true
+            },
+            TXT: {
+                desc: "Stores text information, commonly used for domain verification and email security (SPF, DKIM, DMARC).",
+                nameLabel: "Record Name",
+                namePlaceholder: "@, _dmarc, or 202611._domainkey",
+                nameHint: "Use '@' for SPF root or selector prefix for DKIM/DMARC.",
+                dataLabel: "Text Value / SPF / DKIM String",
+                dataPlaceholder: "v=spf1 ip4:192.168.1.0/24 -all",
+                dataHint: "Arbitrary text data, security policy, or verification token."
+            },
+            NS: {
+                desc: "Specifies the authoritative name servers for a domain.",
+                nameLabel: "Delegated Zone / Subdomain",
+                namePlaceholder: "@ or subzone",
+                nameHint: "Zone apex '@' or delegated subzone.",
+                dataLabel: "Authoritative Name Server FQDN",
+                dataPlaceholder: "ns1.inet.net",
+                dataHint: "FQDN of the authoritative nameserver."
+            },
+            SOA: {
+                desc: "Holds administrative and metadata information about a DNS zone.",
+                nameLabel: "Zone Apex",
+                namePlaceholder: "@",
+                nameHint: "SOA records reside exclusively at zone apex root.",
+                dataLabel: "Primary Nameserver & Admin Email",
+                dataPlaceholder: "ns1.inet.net hostmaster.inet.net",
+                dataHint: "Zone authority metadata (primary NS, contact email, serial, timers)."
+            },
+            PTR: {
+                desc: "Used for reverse DNS lookups (resolving an IP address back to a hostname).",
+                nameLabel: "Reverse IP Pointer / Host octet",
+                namePlaceholder: "50 or 50.1.168.192.in-addr.arpa",
+                nameHint: "Last octet in reverse zone, or full in-addr.arpa / ip6.arpa name.",
+                dataLabel: "Target Host FQDN",
+                dataPlaceholder: "srv01.inet.net",
+                dataHint: "Canonical hostname that the IP resolves to."
+            },
+            SRV: {
+                desc: "Defines a specific service, port, and target host.",
+                nameLabel: "Service & Protocol Name",
+                namePlaceholder: "_kerberos._tcp or _ldap._tcp",
+                nameHint: "Standard RFC 2782 format: _service._proto (e.g. _kerberos._tcp).",
+                dataLabel: "Target Host FQDN",
+                dataPlaceholder: "dc1.inet.net",
+                dataHint: "Host offering the service.",
+                showSrv: true
+            },
+            CAA: {
+                desc: "Specifies which Certificate Authorities are allowed to issue SSL/TLS certificates for the domain.",
+                nameLabel: "Host / Domain",
+                namePlaceholder: "@ or secure",
+                nameHint: "Zone apex '@' or specific subdomain.",
+                dataLabel: "CAA Policy Value",
+                dataPlaceholder: '0 issue "letsencrypt.org"',
+                dataHint: 'Flag, tag, and CA domain string (e.g. 0 issue "letsencrypt.org").'
+            }
+        };
+
+        function onDnsTypeChange() {
+            const typeSelect = document.getElementById('dns-type-select');
+            if (!typeSelect) return;
+            const type = typeSelect.value;
+            const cfg = DNS_RECORD_CONFIG[type] || DNS_RECORD_CONFIG['A'];
+
+            const descEl = document.getElementById('dns-type-desc-text');
+            if (descEl) descEl.innerText = cfg.desc;
+
+            const nameLabel = document.getElementById('dns-name-label');
+            const nameInput = document.getElementById('dns-name-input');
+            const nameHint = document.getElementById('dns-name-hint');
+            if (nameLabel) nameLabel.innerText = cfg.nameLabel;
+            if (nameInput) nameInput.placeholder = cfg.namePlaceholder;
+            if (nameHint) nameHint.innerText = cfg.nameHint;
+
+            const dataLabel = document.getElementById('dns-data-label');
+            const dataInput = document.getElementById('dns-data-input');
+            const dataHint = document.getElementById('dns-data-hint');
+            if (dataLabel) dataLabel.innerText = cfg.dataLabel;
+            if (dataInput) dataInput.placeholder = cfg.dataPlaceholder;
+            if (dataHint) dataHint.innerText = cfg.dataHint;
+
+            const srvBox = document.getElementById('srv-fields-container');
+            if (srvBox) {
+                if (cfg.showSrv) srvBox.classList.remove('hidden');
+                else srvBox.classList.add('hidden');
+            }
+
+            const mxBox = document.getElementById('mx-fields-container');
+            if (mxBox) {
+                if (cfg.showMx) mxBox.classList.remove('hidden');
+                else mxBox.classList.add('hidden');
+            }
+        }
+
         function openDnsModal() {
             document.getElementById('dns-modal').classList.remove('hidden');
+            onDnsTypeChange();
         }
         function closeDnsModal() {
             document.getElementById('dns-modal').classList.add('hidden');
-        }
-
-        function applyDnsPreset() {
-            const p = document.getElementById('dns-preset-select').value;
-            const nameInput = document.getElementById('dns-name-input');
-            const typeSelect = document.getElementById('dns-type-select');
-            const dataInput = document.getElementById('dns-data-input');
-            const portInput = document.getElementById('dns-srv-port');
-            const priInput = document.getElementById('dns-srv-priority');
-            const wgtInput = document.getElementById('dns-srv-weight');
-
-            if (p === 'kerberos_tcp') {
-                nameInput.value = '_kerberos._tcp';
-                typeSelect.value = 'SRV';
-                dataInput.value = 'inet-zclockid.inet.net';
-                portInput.value = '88';
-                priInput.value = '0';
-                wgtInput.value = '100';
-            } else if (p === 'kerberos_udp') {
-                nameInput.value = '_kerberos._udp';
-                typeSelect.value = 'SRV';
-                dataInput.value = 'inet-zclockid.inet.net';
-                portInput.value = '88';
-                priInput.value = '0';
-                wgtInput.value = '100';
-            } else if (p === 'kpasswd_tcp') {
-                nameInput.value = '_kpasswd._tcp';
-                typeSelect.value = 'SRV';
-                dataInput.value = 'inet-zclockid.inet.net';
-                portInput.value = '464';
-                priInput.value = '0';
-                wgtInput.value = '100';
-            } else if (p === 'ldap_tcp') {
-                nameInput.value = '_ldap._tcp';
-                typeSelect.value = 'SRV';
-                dataInput.value = 'inet-zclockid.inet.net';
-                portInput.value = '389';
-                priInput.value = '0';
-                wgtInput.value = '100';
-            } else if (p === 'gc_tcp') {
-                nameInput.value = '_gc._tcp';
-                typeSelect.value = 'SRV';
-                dataInput.value = 'inet-zclockid.inet.net';
-                portInput.value = '3268';
-                priInput.value = '0';
-                wgtInput.value = '100';
-            }
-            toggleSrvInputs();
-        }
-
-        function toggleSrvInputs() {
-            const t = document.getElementById('dns-type-select').value;
-            const srvBox = document.getElementById('srv-fields-container');
-            const dataLabel = document.getElementById('dns-data-label');
-            if (t === 'SRV') {
-                srvBox.classList.remove('hidden');
-                dataLabel.innerText = 'Target Host FQDN (e.g. dc1.inet.net)';
-            } else {
-                srvBox.classList.add('hidden');
-                dataLabel.innerText = 'Target IP / Host / Value';
-            }
         }
 
         async function submitAddDnsRecord() {
@@ -6621,22 +6706,30 @@
             const port = parseInt(document.getElementById('dns-srv-port').value) || 88;
             const pri = parseInt(document.getElementById('dns-srv-priority').value) || 0;
             const wgt = parseInt(document.getElementById('dns-srv-weight').value) || 100;
+            const mxPri = parseInt(document.getElementById('dns-mx-priority').value);
 
             if (!name || !data) return alert('Name and target data are required.');
+
+            const payload = {
+                zone: zone,
+                record_name: name,
+                record_type: type,
+                record_data: data
+            };
+
+            if (type === 'SRV') {
+                payload.port = port;
+                payload.priority = pri;
+                payload.weight = wgt;
+            } else if (type === 'MX') {
+                payload.priority = isNaN(mxPri) ? 10 : mxPri;
+            }
 
             try {
                 const res = await fetch(`${API_BASE}/dns/records`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        zone: zone,
-                        record_name: name,
-                        record_type: type,
-                        record_data: data,
-                        port: port,
-                        priority: pri,
-                        weight: wgt
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const resData = await res.json();
                 if (res.ok) {
@@ -6685,6 +6778,15 @@
                 document.getElementById('edit-dns-srv-port').value = port;
                 document.getElementById('edit-dns-srv-priority').value = pri;
                 document.getElementById('edit-dns-srv-weight').value = wgt;
+            } else if (type === 'MX') {
+                srvBox.classList.add('hidden');
+                dataLabel.innerText = 'Mail Server FQDN & Priority';
+                let target = data;
+                if (data.includes('(')) {
+                    const parts = data.split('(');
+                    target = parts[0].trim() + ' ' + parts[1].replace(')', '').trim();
+                }
+                dataInput.value = target;
             } else {
                 srvBox.classList.add('hidden');
                 dataLabel.innerText = 'Target IP / Host FQDN / Value';

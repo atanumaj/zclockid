@@ -9,7 +9,7 @@ from typing import Optional, List
 class DnsRecordRequest(BaseModel):
     zone: str = Field(..., example="inet.net")
     record_name: str = Field(..., example="web")
-    record_type: str = Field("A", pattern="^(A|AAAA|CNAME|TXT|SRV|MX|PTR)$")
+    record_type: str = Field("A", pattern="^(A|AAAA|CNAME|TXT|SRV|MX|PTR|NS|SOA|CAA)$")
     record_data: str = Field(..., example="192.168.1.55")
     port: Optional[int] = Field(None, example=88)
     priority: Optional[int] = Field(0, example=0)
@@ -19,7 +19,7 @@ class DnsRecordRequest(BaseModel):
 class DnsRecordUpdateRequest(BaseModel):
     zone: str = Field(..., example="inet.net")
     record_name: str = Field(..., example="web")
-    record_type: str = Field("A", pattern="^(A|AAAA|CNAME|TXT|SRV|MX|PTR)$")
+    record_type: str = Field("A", pattern="^(A|AAAA|CNAME|TXT|SRV|MX|PTR|NS|SOA|CAA)$")
     old_data: str = Field(..., example="192.168.1.55")
     new_data: str = Field(..., example="192.168.1.56")
     port: Optional[int] = Field(None, example=88)
