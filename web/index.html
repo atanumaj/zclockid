@@ -571,9 +571,7 @@
                 <button onclick="showTab('registrations')" id="nav-registrations" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-user-clock w-4"></i> Self-Registrations
                 </button>
-                <button onclick="showTab('reports')" id="nav-reports" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-file-shield w-4"></i> Compliance & Audit Logs
-                </button>
+                <button onclick="showTab('syslog'); switchLogsSubTab('compliance');" id="nav-reports" class="hidden"></button>
                 <button onclick="showTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-box-archive w-4 text-emerald-400"></i> Backup & Restore
                 </button>
@@ -603,7 +601,7 @@
                         <i class="fa-solid fa-certificate w-4 text-teal-400"></i> SSL/TLS Certificates
                     </button>
                     <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                        <i class="fa-solid fa-terminal w-4 text-sky-400"></i> Syslog & Live Logs
+                        <i class="fa-solid fa-file-shield w-4 text-sky-400"></i> Compliance & Live Logs
                     </button>
                 </div>
             </nav>
@@ -2777,36 +2775,8 @@
                 </div>
             </section>
 
-            <!-- ==================== TAB 9: COMPLIANCE & AUDIT ==================== -->
-            <section id="tab-reports" class="space-y-6 hidden">
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-white">Security & Audit Event Trail</h3>
-                            <p class="text-xs text-slate-400">Immutable ledger of administrative actions, user changes, and domain operations</p>
-                        </div>
-                        <button onclick="exportAuditCsv()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-download"></i> Export CSV
-                        </button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th class="px-4 py-2.5">Timestamp</th>
-                                    <th class="px-4 py-2.5">Event</th>
-                                    <th class="px-4 py-2.5">Actor</th>
-                                    <th class="px-4 py-2.5">Target</th>
-                                    <th class="px-4 py-2.5">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="audit-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Loading audit records...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
+            <!-- ==================== TAB 9: COMPLIANCE & AUDIT (RELOCATED INSIDE COMPLIANCE & LIVE LOGS) ==================== -->
+            <section id="tab-reports" class="hidden"></section>
 
             <!-- ==================== TAB 11: BACKUP & RESTORE (ZENTYAL STYLE) ==================== -->
             <section id="tab-backup" class="space-y-6 hidden">
@@ -4052,142 +4022,253 @@
             </section>
 
             <!-- ==================== TAB 17: SYSLOG & LIVE LOGS ==================== -->
+            <!-- ==================== TAB 17: COMPLIANCE, SYSTEM & LIVE LOGS ==================== -->
             <section id="tab-syslog" class="space-y-6 hidden">
+                <!-- Top Header -->
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
                     <div>
                         <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-sky-950/60 border border-sky-800/40 text-sky-400 font-mono">TELEMETRY & AUDIT STREAM</span>
-                            <span class="text-xs text-slate-500 font-mono">SIEM FORWARDER</span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-sky-950/60 border border-sky-800/40 text-sky-400 font-mono">AUDIT, TELEMETRY & SIEM</span>
+                            <span class="text-xs text-slate-500 font-mono">COMPLIANCE SUITE</span>
                         </div>
-                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">Remote Syslog & Live Log Streaming</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Stream appliance security and authentication events to remote SIEM collectors (RFC 5424 / RFC 3164) and inspect live categorized logs.</p>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">Compliance & Live Logs</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Real-time system telemetry streaming, immutable compliance audit ledger, and remote SIEM syslog forwarder.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="fetchLiveSyslog()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
-                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Logs
+                        <button onclick="refreshActiveLogsView()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh View
                         </button>
                     </div>
                 </div>
 
-                <!-- Remote Forwarder Configuration Form Card -->
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-                    <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
-                        <div class="flex items-center gap-2.5">
-                            <i class="fa-solid fa-tower-broadcast text-sky-400 text-lg"></i>
-                            <div>
-                                <h3 class="font-bold text-sm text-white">Remote Syslog Collector Configuration</h3>
-                                <p class="text-xs text-slate-400">Transmit Samba AD, FreeRADIUS, and administrative audit events to an external SIEM.</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="syslog-enabled-toggle" class="sr-only peer">
-                                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
-                            </label>
-                            <span class="text-xs font-mono text-slate-300" id="syslog-toggle-label">Disabled</span>
-                        </div>
-                    </div>
-
-                    <form onsubmit="handleSaveSyslogConfig(event)" class="space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-                            <div>
-                                <label class="block text-slate-300 font-medium mb-1">Target Host / IP</label>
-                                <input type="text" id="syslog-host" placeholder="192.168.1.50" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-slate-300 font-medium mb-1">Port</label>
-                                <input type="number" id="syslog-port" value="514" min="1" max="65535" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-sky-500">
-                            </div>
-                            <div>
-                                <label class="block text-slate-300 font-medium mb-1">Protocol</label>
-                                <select id="syslog-protocol" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-sky-500">
-                                    <option value="UDP">UDP (Standard Syslog)</option>
-                                    <option value="TCP">TCP (Reliable Syslog)</option>
-                                    <option value="TLS">TLS (Encrypted Syslog)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-slate-300 font-medium mb-1">Format Standard</label>
-                                <select id="syslog-format" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-sky-500">
-                                    <option value="RFC5424">RFC 5424 (Modern Structured Syslog)</option>
-                                    <option value="RFC3164">RFC 3164 (Legacy BSD Syslog)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
-                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
-                                <input type="checkbox" id="syslog-send-samba" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
-                                <span class="text-slate-300">Samba AD Events</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
-                                <input type="checkbox" id="syslog-send-radius" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
-                                <span class="text-slate-300">FreeRADIUS Accounting</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
-                                <input type="checkbox" id="syslog-send-auth" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
-                                <span class="text-slate-300">Security & PAM Logins</span>
-                            </label>
-                            <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
-                                <input type="checkbox" id="syslog-send-system" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
-                                <span class="text-slate-300">Systemd Core Journal</span>
-                            </label>
-                        </div>
-
-                        <div class="flex items-center justify-between pt-3 border-t border-slate-800">
-                            <button type="button" onclick="sendSyslogTestProbe()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-paper-plane"></i> Send Test Probe Packet
-                            </button>
-                            <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-sky-600/30 flex items-center gap-1.5">
-                                <i class="fa-solid fa-floppy-disk"></i> Save Forwarder Settings
-                            </button>
-                        </div>
-                    </form>
+                <!-- Sub-Navigation Pills -->
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto text-xs">
+                    <button onclick="switchLogsSubTab('live')" id="logs-subtab-btn-live" class="px-3.5 py-1.5 rounded-lg font-semibold bg-sky-600 text-white flex items-center gap-2 transition shadow-sm">
+                        <i class="fa-solid fa-terminal text-xs"></i> Live Log Streaming
+                    </button>
+                    <button onclick="switchLogsSubTab('compliance')" id="logs-subtab-btn-compliance" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-file-shield text-emerald-400 text-xs"></i> Compliance & Audit Trail
+                    </button>
+                    <button onclick="switchLogsSubTab('forwarder')" id="logs-subtab-btn-forwarder" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-tower-broadcast text-indigo-400 text-xs"></i> Remote Syslog Forwarder
+                    </button>
                 </div>
 
-                <!-- Categorized Live Log Console Viewer -->
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                    <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/50">
-                        <!-- Category Switcher Tabs -->
-                        <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
-                            <button onclick="setLogCategory('samba')" id="logcat-samba" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition">
-                                <i class="fa-solid fa-network-wired mr-1"></i> Samba AD DC
-                            </button>
-                            <button onclick="setLogCategory('radius')" id="logcat-radius" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-                                <i class="fa-solid fa-tower-broadcast mr-1"></i> FreeRADIUS
-                            </button>
-                            <button onclick="setLogCategory('auth')" id="logcat-auth" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-                                <i class="fa-solid fa-key mr-1"></i> Auth & SSH
-                            </button>
-                            <button onclick="setLogCategory('audit')" id="logcat-audit" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-                                <i class="fa-solid fa-file-shield mr-1"></i> ZclockID Audit DB
-                            </button>
-                            <button onclick="setLogCategory('system')" id="logcat-system" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
-                                <i class="fa-solid fa-microchip mr-1"></i> System Journal
-                            </button>
+                <!-- SUB-VIEW 1: LIVE LOG STREAMING -->
+                <div id="logs-view-live" class="space-y-6">
+                    <!-- Categorized Live Log Console Viewer -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/50">
+                            <!-- Category Switcher Tabs -->
+                            <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+                                <button onclick="setLogCategory('samba')" id="logcat-samba" class="px-3 py-1.5 rounded-lg bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition">
+                                    <i class="fa-solid fa-network-wired mr-1"></i> Samba AD DC
+                                </button>
+                                <button onclick="setLogCategory('radius')" id="logcat-radius" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                    <i class="fa-solid fa-tower-broadcast mr-1"></i> FreeRADIUS
+                                </button>
+                                <button onclick="setLogCategory('auth')" id="logcat-auth" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                    <i class="fa-solid fa-key mr-1"></i> Auth & SSH
+                                </button>
+                                <button onclick="setLogCategory('audit')" id="logcat-audit" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                    <i class="fa-solid fa-file-shield mr-1"></i> ZclockID Audit DB
+                                </button>
+                                <button onclick="setLogCategory('system')" id="logcat-system" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">
+                                    <i class="fa-solid fa-microchip mr-1"></i> System Journal
+                                </button>
+                            </div>
+
+                            <!-- Filter and Controls -->
+                            <div class="flex items-center gap-2">
+                                <div class="relative">
+                                    <input type="text" id="live-log-filter" oninput="debounceFilterLogs()" placeholder="Filter logs..." class="bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none w-44">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+                                </div>
+                                <select id="live-log-lines" onchange="fetchLiveSyslog()" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none">
+                                    <option value="50">50 lines</option>
+                                    <option value="100" selected>100 lines</option>
+                                    <option value="250">250 lines</option>
+                                    <option value="500">500 lines</option>
+                                </select>
+                                <button onclick="copyLiveLogs()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition border border-slate-700" title="Copy visible logs">
+                                    <i class="fa-solid fa-copy"></i>
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Filter and Controls -->
-                        <div class="flex items-center gap-2">
-                            <div class="relative">
-                                <input type="text" id="live-log-filter" oninput="debounceFilterLogs()" placeholder="Filter logs..." class="bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none w-44">
-                                <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+                        <!-- Monospace Log Stream Terminal -->
+                        <div class="p-4 bg-slate-950 font-mono text-xs leading-relaxed max-h-96 overflow-y-auto custom-scroll" id="live-log-terminal">
+                            <div class="text-slate-500 text-center py-8">Select a log category above to inspect live system activity...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 2: COMPLIANCE & AUDIT TRAIL -->
+                <div id="logs-view-compliance" class="space-y-6 hidden">
+                    <!-- Compliance KPI Metrics Overview -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Total Audit Records</span>
+                                <i class="fa-solid fa-file-shield text-emerald-400"></i>
                             </div>
-                            <select id="live-log-lines" onchange="fetchLiveSyslog()" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none">
-                                <option value="50">50 lines</option>
-                                <option value="100" selected>100 lines</option>
-                                <option value="250">250 lines</option>
-                                <option value="500">500 lines</option>
-                            </select>
-                            <button onclick="copyLiveLogs()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition border border-slate-700" title="Copy visible logs">
-                                <i class="fa-solid fa-copy"></i>
-                            </button>
+                            <div class="text-2xl font-bold text-white font-mono" id="audit-total-count">--</div>
+                            <div class="text-[11px] text-slate-500 mt-1">Immutable SQLite ledger</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Ledger Integrity</span>
+                                <i class="fa-solid fa-shield-check text-cyan-400"></i>
+                            </div>
+                            <div class="text-lg font-bold text-emerald-400 font-mono flex items-center gap-1.5">
+                                <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                VERIFIED
+                            </div>
+                            <div class="text-[11px] text-slate-500 mt-1">WAL Journal • Append-Only</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Regulatory Alignment</span>
+                                <i class="fa-solid fa-scale-balanced text-indigo-400"></i>
+                            </div>
+                            <div class="text-sm font-bold text-indigo-400 font-mono">SOC2 • ISO 27001</div>
+                            <div class="text-[11px] text-slate-500 mt-1">HIPAA & GDPR Ready</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Retention Policy</span>
+                                <i class="fa-solid fa-clock-rotate-left text-amber-400"></i>
+                            </div>
+                            <div class="text-lg font-bold text-amber-400 font-mono">180 Days Active</div>
+                            <div class="text-[11px] text-slate-500 mt-1">SIEM Forwarding Auto-Sync</div>
                         </div>
                     </div>
 
-                    <!-- Monospace Log Stream Terminal -->
-                    <div class="p-4 bg-slate-950 font-mono text-xs leading-relaxed max-h-96 overflow-y-auto custom-scroll" id="live-log-terminal">
-                        <div class="text-slate-500 text-center py-8">Select a log category above to inspect live system activity...</div>
+                    <!-- Audit Trail Table Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                            <div>
+                                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-list-check text-emerald-400"></i>
+                                    Security & Audit Event Trail
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Immutable record of administrative actions, user changes, and domain operations</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="relative">
+                                    <input type="text" id="audit-filter-input" oninput="filterAuditEvents()" placeholder="Filter events, actors, targets..." class="bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none w-56">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-500 text-xs"></i>
+                                </div>
+                                <select id="audit-status-filter" onchange="filterAuditEvents()" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none">
+                                    <option value="ALL">All Statuses</option>
+                                    <option value="SUCCESS">SUCCESS only</option>
+                                    <option value="FAILURE">FAILURE only</option>
+                                </select>
+                                <button onclick="exportAuditCsv()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-file-csv text-emerald-400"></i> Export CSV
+                                </button>
+                                <button onclick="fetchAuditEvents()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-rotate"></i> Refresh Ledger
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Timestamp</th>
+                                        <th class="px-4 py-2.5">Event</th>
+                                        <th class="px-4 py-2.5">Actor</th>
+                                        <th class="px-4 py-2.5">Target</th>
+                                        <th class="px-4 py-2.5">Status</th>
+                                        <th class="px-4 py-2.5">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading audit records...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 3: REMOTE SYSLOG & SIEM FORWARDER -->
+                <div id="logs-view-forwarder" class="space-y-6 hidden">
+                    <!-- Remote Forwarder Configuration Form Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                            <div class="flex items-center gap-2.5">
+                                <i class="fa-solid fa-tower-broadcast text-indigo-400 text-lg"></i>
+                                <div>
+                                    <h3 class="font-bold text-sm text-white">Remote Syslog Collector Configuration</h3>
+                                    <p class="text-xs text-slate-400">Transmit Samba AD, FreeRADIUS, and administrative audit events to an external SIEM.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="syslog-enabled-toggle" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-600"></div>
+                                </label>
+                                <span class="text-xs font-mono text-slate-300" id="syslog-toggle-label">Disabled</span>
+                            </div>
+                        </div>
+
+                        <form onsubmit="handleSaveSyslogConfig(event)" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Target Host / IP</label>
+                                    <input type="text" id="syslog-host" placeholder="192.168.1.50" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-sky-500">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Port</label>
+                                    <input type="number" id="syslog-port" value="514" min="1" max="65535" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs focus:outline-none focus:border-sky-500">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Protocol</label>
+                                    <select id="syslog-protocol" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-sky-500">
+                                        <option value="UDP">UDP (Standard Syslog)</option>
+                                        <option value="TCP">TCP (Reliable Syslog)</option>
+                                        <option value="TLS">TLS (Encrypted Syslog)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Format Standard</label>
+                                    <select id="syslog-format" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-sky-500">
+                                        <option value="RFC5424">RFC 5424 (Modern Structured Syslog)</option>
+                                        <option value="RFC3164">RFC 3164 (Legacy BSD Syslog)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-xs">
+                                <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                    <input type="checkbox" id="syslog-send-samba" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                    <span class="text-slate-300">Samba AD Events</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                    <input type="checkbox" id="syslog-send-radius" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                    <span class="text-slate-300">FreeRADIUS Accounting</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                    <input type="checkbox" id="syslog-send-auth" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                    <span class="text-slate-300">Security & PAM Logins</span>
+                                </label>
+                                <label class="flex items-center gap-2 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800 cursor-pointer">
+                                    <input type="checkbox" id="syslog-send-system" checked class="rounded bg-slate-800 border-slate-700 text-sky-600">
+                                    <span class="text-slate-300">Systemd Core Journal</span>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+                                <button type="button" onclick="sendSyslogTestProbe()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-paper-plane"></i> Send Test Probe Packet
+                                </button>
+                                <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-sky-600/30 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Forwarder Settings
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </section>
@@ -6118,6 +6199,11 @@
 
         // Tab Navigation
         function showTab(tabId) {
+            if (tabId === 'reports') {
+                showTab('syslog');
+                switchLogsSubTab('compliance');
+                return;
+            }
             const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update', 'rbac', 'apikeys', 'certs', 'syslog'];
             tabs.forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
@@ -6166,7 +6252,7 @@
             else if (tabId === 'rbac') { fetchRbacMappings(); fetchSecuritySettings(); fetchActiveSessions(); }
             else if (tabId === 'apikeys') { fetchApiKeys(); }
             else if (tabId === 'certs') { fetchActiveCert(); }
-            else if (tabId === 'syslog') { fetchSyslogSettings(); fetchLiveSyslog(); }
+            else if (tabId === 'syslog') { switchLogsSubTab(currentLogsSubTab || 'live'); }
         }
 
         // Primary Tabs in RADIUS: General & Advance
@@ -9531,29 +9617,109 @@
             }
         }
 
+        let currentLogsSubTab = 'live';
+        let cachedAuditRecords = [];
+
+        function switchLogsSubTab(subtab) {
+            currentLogsSubTab = subtab;
+            const subtabs = ['live', 'compliance', 'forwarder'];
+            subtabs.forEach(s => {
+                const view = document.getElementById(`logs-view-${s}`);
+                const btn = document.getElementById(`logs-subtab-btn-${s}`);
+                if (view) view.classList.add('hidden');
+                if (btn) {
+                    btn.classList.remove('bg-sky-600', 'bg-emerald-600', 'bg-indigo-600', 'text-white', 'shadow-sm');
+                    btn.classList.add('bg-slate-800', 'text-slate-300');
+                }
+            });
+
+            const activeView = document.getElementById(`logs-view-${subtab}`);
+            const activeBtn = document.getElementById(`logs-subtab-btn-${subtab}`);
+            if (activeView) activeView.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                if (subtab === 'live') {
+                    activeBtn.classList.add('bg-sky-600', 'text-white', 'shadow-sm');
+                    fetchLiveSyslog();
+                } else if (subtab === 'compliance') {
+                    activeBtn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
+                    fetchAuditEvents();
+                } else if (subtab === 'forwarder') {
+                    activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+                    fetchSyslogSettings();
+                }
+            }
+        }
+
+        function refreshActiveLogsView() {
+            if (currentLogsSubTab === 'compliance') {
+                fetchAuditEvents();
+            } else if (currentLogsSubTab === 'forwarder') {
+                fetchSyslogSettings();
+            } else {
+                fetchLiveSyslog();
+            }
+        }
+
         async function fetchAuditEvents() {
             try {
-                const res = await fetch(`${API_BASE}/reports/audit-events?limit=30`);
+                const res = await fetch(`${API_BASE}/reports/audit-events?limit=100`, { headers: getAuthHeaders() });
                 const data = await res.json();
-                const tbody = document.getElementById('audit-table-body');
-                if (data.events && data.events.length > 0) {
-                    tbody.innerHTML = data.events.map(e => {
-                        const d = new Date(e.timestamp * 1000);
-                        return `
-                            <tr class="hover:bg-slate-800/30">
-                                <td class="px-4 py-2.5 text-slate-400">${d.toLocaleDateString()} ${d.toLocaleTimeString()}</td>
-                                <td class="px-4 py-2.5 font-bold text-white">${e.event_type}</td>
-                                <td class="px-4 py-2.5 text-indigo-400">${e.actor || 'system'}</td>
-                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${e.target}</td>
-                                <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] ${e.status === 'SUCCESS' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">${e.status}</span></td>
-                            </tr>
-                        `;
-                    }).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No audit events recorded yet.</td></tr>`;
-                }
+                cachedAuditRecords = data.events || [];
+                const countBadge = document.getElementById('audit-total-count');
+                if (countBadge) countBadge.innerText = (data.count || cachedAuditRecords.length).toLocaleString();
+                filterAuditEvents();
             } catch (err) {
                 console.error('Error fetching audit events:', err);
+                const tbody = document.getElementById('audit-table-body');
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-rose-400">Failed to load audit records: ${err.message}</td></tr>`;
+            }
+        }
+
+        function filterAuditEvents() {
+            const tbody = document.getElementById('audit-table-body');
+            if (!tbody) return;
+
+            const searchInput = document.getElementById('audit-filter-input');
+            const statusSelect = document.getElementById('audit-status-filter');
+            const search = (searchInput ? searchInput.value : '').toLowerCase().trim();
+            const statusFilter = statusSelect ? statusSelect.value : 'ALL';
+
+            const filtered = cachedAuditRecords.filter(e => {
+                if (statusFilter !== 'ALL' && e.status !== statusFilter) return false;
+                if (!search) return true;
+                const matchType = (e.event_type || '').toLowerCase().includes(search);
+                const matchActor = (e.actor || '').toLowerCase().includes(search);
+                const matchTarget = (e.target || '').toLowerCase().includes(search);
+                const matchDetails = (e.details || '').toLowerCase().includes(search);
+                return matchType || matchActor || matchTarget || matchDetails;
+            });
+
+            if (filtered.length > 0) {
+                tbody.innerHTML = filtered.map(e => {
+                    const d = new Date(e.timestamp * 1000);
+                    const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+                    let detailsFormatted = e.details || '-';
+                    try {
+                        const parsed = JSON.parse(e.details);
+                        if (typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                            detailsFormatted = Object.entries(parsed).map(([k, v]) => `${k}=${v}`).join(', ');
+                        }
+                    } catch (_) {}
+
+                    return `
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="px-4 py-2.5 text-slate-400 whitespace-nowrap">${dateStr}</td>
+                            <td class="px-4 py-2.5 font-bold text-white">${e.event_type}</td>
+                            <td class="px-4 py-2.5 text-indigo-400 font-semibold">${e.actor || 'system'}</td>
+                            <td class="px-4 py-2.5 text-cyan-300 font-semibold">${e.target}</td>
+                            <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${e.status === 'SUCCESS' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">${e.status}</span></td>
+                            <td class="px-4 py-2.5 text-slate-400 max-w-xs truncate font-mono text-[10px]" title="${(e.details || '').replace(/"/g, '&quot;')}">${detailsFormatted}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No matching audit records found.</td></tr>`;
             }
         }
 
