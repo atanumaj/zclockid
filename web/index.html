@@ -25,35 +25,123 @@
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
     
-        /* ==================== SOFT WHITISH LIGHT THEME ==================== */
+                /* ==================== HIGH-CONTRAST MODERN LIGHT THEME ==================== */
         html.light-theme, html.light-theme body {
-            background-color: #f1f5f9 !important; /* Tailwind slate-100: gentle, clean off-white canvas */
-            color: #0f172a !important; /* Slate-900 deep crisp text */
+            background-color: #f4f6f9 !important; /* Premium Cloud-White canvas (soft cool off-white, anti-glare) */
+            color: #0f172a !important; /* Slate-900 crisp text */
         }
 
-        /* Top Navigation Header & Sidebar */
+        /* Top Navigation Header */
         html.light-theme header {
-            background-color: rgba(248, 250, 252, 0.95) !important;
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+        }
+        html.light-theme #header-domain {
+            color: #15803d !important;
+        }
+        html.light-theme header [class*="bg-slate-950"] {
+            background-color: #f8fafc !important;
             border-color: #cbd5e1 !important;
         }
-        html.light-theme aside {
-            background-color: #f8fafc !important; /* Slate-50 */
-            border-color: #cbd5e1 !important;
-        }
-        html.light-theme aside button.text-slate-400 {
+        html.light-theme #header-host {
             color: #475569 !important;
         }
-        html.light-theme aside button.text-slate-400:hover {
-            background-color: #e2e8f0 !important;
+        html.light-theme #header-user {
             color: #0f172a !important;
         }
-        html.light-theme aside button.text-indigo-400 {
-            background-color: #e0e7ff !important;
+
+        /* Sidebar Navigation */
+        html.light-theme aside {
+            background-color: #ffffff !important;
+            border-right: 1px solid #e2e8f0 !important;
+        }
+        html.light-theme aside nav button {
+            color: #475569 !important;
+            font-weight: 500 !important;
+        }
+        html.light-theme aside nav button:hover {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+        }
+        html.light-theme aside nav button.text-indigo-400,
+        html.light-theme aside nav button.bg-indigo-600\/10 {
+            background-color: #eef2ff !important;
             color: #4338ca !important;
-            border-color: #c7d2fe !important;
+            border: 1px solid #c7d2fe !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme aside nav button.text-indigo-400 i {
+            color: #4f46e5 !important;
+        }
+        html.light-theme aside [class*="text-amber-500"],
+        html.light-theme aside [class*="text-amber-400"] {
+            color: #b45309 !important;
+            font-weight: 700 !important;
         }
 
-        /* Primary Surface / Cards */
+        /* Hero Punchline Banner (Tab 1: Dashboard) */
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r {
+            background: linear-gradient(135deg, #eef2ff 0%, #f0fdfa 50%, #f8fafc 100%) !important;
+            border: 1px solid #c7d2fe !important;
+            box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.08) !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1,
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1 span:not(.bg-clip-text) {
+            color: #1e1b4b !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1 span.bg-clip-text {
+            background-image: linear-gradient(to right, #4338ca, #0284c7, #059669) !important;
+            color: transparent !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r p {
+            color: #334155 !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r .bg-slate-950\/80 {
+            background-color: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r .bg-slate-950\/80 div {
+            color: #475569 !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r .bg-slate-950\/80 div#hero-domain-realm {
+            color: #059669 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r .bg-slate-950\/80 div.text-cyan-400 {
+            color: #0284c7 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r .bg-slate-950\/80 div.text-indigo-400 {
+            color: #4f46e5 !important;
+            font-weight: 700 !important;
+        }
+
+        /* Updates & Release Banner */
+        html.light-theme #tab-dashboard > div.bg-gradient-to-r.from-slate-900.via-indigo-950\/20,
+        html.light-theme .bg-gradient-to-r.via-indigo-950\/20 {
+            background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%) !important;
+            border: 1px solid #ddd6fe !important;
+            box-shadow: 0 1px 3px rgba(124, 58, 237, 0.05) !important;
+        }
+        html.light-theme .bg-violet-600\/20 {
+            background-color: #ede9fe !important;
+            border: 1px solid #ddd6fe !important;
+            color: #7c3aed !important;
+        }
+        html.light-theme #dash-version-badge {
+            background-color: #f5f3ff !important;
+            border: 1px solid #ddd6fe !important;
+            color: #6d28d9 !important;
+        }
+        html.light-theme #dash-update-summary {
+            color: #475569 !important;
+        }
+
+        /* Primary Surface Cards */
         html.light-theme .bg-slate-900,
         html.light-theme .bg-slate-900\/90,
         html.light-theme .bg-slate-900\/80,
@@ -66,108 +154,180 @@
             box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
         }
 
-        /* Inner Wells / Secondary Containers / Stat Cards */
+        /* Secondary Wells / Sub-Cards */
         html.light-theme .bg-slate-950,
+        html.light-theme .bg-slate-950\/90,
         html.light-theme .bg-slate-950\/80,
         html.light-theme .bg-slate-950\/60,
         html.light-theme .bg-slate-850 {
-            background-color: #f8fafc !important; /* Slate-50 */
+            background-color: #ffffff !important;
             border-color: #e2e8f0 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
         }
 
-        /* Neutral Buttons & Inset Controls */
+        /* Subsystem Daemon Cards */
+        html.light-theme #services-grid > div {
+            background-color: #ffffff !important;
+            border: 1px solid #e2e8f0 !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        }
+        html.light-theme #services-grid button {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+        }
+        html.light-theme #services-grid button:hover {
+            background-color: #f8fafc !important;
+            border-color: #94a3b8 !important;
+            color: #0f172a !important;
+        }
+        html.light-theme #services-grid button.text-slate-200 {
+            color: #1e293b !important;
+        }
+
+        /* Buttons (Secondary / Neutral) */
         html.light-theme .bg-slate-800,
         html.light-theme .bg-slate-800\/60,
         html.light-theme .bg-slate-800\/80 {
-            background-color: #e2e8f0 !important;
-            border-color: #cbd5e1 !important;
-            color: #1e293b !important;
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #334155 !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
         }
         html.light-theme .bg-slate-800:hover,
         html.light-theme .hover\:bg-slate-800:hover,
         html.light-theme .hover\:bg-slate-700:hover {
-            background-color: #cbd5e1 !important;
+            background-color: #f8fafc !important;
+            border-color: #94a3b8 !important;
             color: #0f172a !important;
         }
-
-        /* Borders */
-        html.light-theme .border-slate-800,
-        html.light-theme .border-slate-800\/60,
-        html.light-theme .border-slate-800\/40,
         html.light-theme .border-slate-700 {
-            border-color: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
         }
 
-        /* Typography Hierarchy */
+        /* Resource Gauges Progress Bar Track */
+        html.light-theme .w-full.bg-slate-800.rounded-full {
+            background-color: #e2e8f0 !important;
+        }
+
+        /* Badges & Status Indicators (All -950 classes converted to clean crisp pastels) */
+        html.light-theme [class*="bg-cyan-950"] {
+            background-color: #ecfeff !important;
+            border-color: #a5f3fc !important;
+            color: #0e7490 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-emerald-950"] {
+            background-color: #ecfdf5 !important;
+            border-color: #a7f3d0 !important;
+            color: #047857 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-indigo-950"] {
+            background-color: #eef2ff !important;
+            border-color: #c7d2fe !important;
+            color: #4338ca !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-violet-950"] {
+            background-color: #f5f3ff !important;
+            border-color: #ddd6fe !important;
+            color: #6d28d9 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-sky-950"],
+        html.light-theme [class*="bg-blue-950"] {
+            background-color: #f0f9ff !important;
+            border-color: #bae6fd !important;
+            color: #0369a1 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-amber-950"] {
+            background-color: #fffbeb !important;
+            border-color: #fde68a !important;
+            color: #b45309 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-rose-950"] {
+            background-color: #fff1f2 !important;
+            border-color: #fecdd3 !important;
+            color: #be123c !important;
+            font-weight: 700 !important;
+        }
+
+        /* Subtab Switchers (Radius, Users, DNS, Settings) */
+        html.light-theme .inline-flex.p-1.bg-slate-950,
+        html.light-theme .inline-flex.bg-slate-950 {
+            background-color: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme [class*="bg-amber-600\/20"] {
+            background-color: #fffbeb !important;
+            color: #b45309 !important;
+            border-color: #fde68a !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-indigo-600\/20"] {
+            background-color: #eef2ff !important;
+            color: #4338ca !important;
+            border-color: #c7d2fe !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme [class*="bg-cyan-600\/20"] {
+            background-color: #ecfeff !important;
+            color: #0e7490 !important;
+            border-color: #a5f3fc !important;
+            font-weight: 700 !important;
+        }
+
+        /* Typography Hierarchy (High Contrast) */
         html.light-theme .text-white,
         html.light-theme .text-slate-100,
         html.light-theme .text-slate-200 {
-            color: #0f172a !important;
+            color: #0f172a !important; /* Deep dark slate-900 */
         }
         html.light-theme .text-slate-300 {
-            color: #1e293b !important;
+            color: #1e293b !important; /* Slate-800 */
         }
         html.light-theme .text-slate-400 {
-            color: #475569 !important;
+            color: #475569 !important; /* Slate-600 */
         }
         html.light-theme .text-slate-500 {
-            color: #64748b !important;
+            color: #64748b !important; /* Slate-500 */
         }
         html.light-theme .text-slate-600 {
-            color: #94a3b8 !important;
+            color: #94a3b8 !important; /* Slate-400 */
         }
 
-        /* Accent Text Colors - Optimized for Light Contrast */
+        /* High-Contrast Accents */
         html.light-theme .text-indigo-400,
         html.light-theme .text-indigo-300 {
-            color: #4f46e5 !important;
+            color: #4338ca !important;
         }
         html.light-theme .text-emerald-400,
         html.light-theme .text-emerald-300 {
-            color: #059669 !important;
+            color: #047857 !important;
         }
         html.light-theme .text-cyan-400,
         html.light-theme .text-cyan-300 {
-            color: #0284c7 !important;
+            color: #0e7490 !important;
         }
         html.light-theme .text-amber-400,
         html.light-theme .text-amber-300 {
-            color: #d97706 !important;
+            color: #b45309 !important;
         }
         html.light-theme .text-rose-400,
         html.light-theme .text-rose-300 {
-            color: #e11d48 !important;
+            color: #be123c !important;
         }
         html.light-theme .text-sky-400,
         html.light-theme .text-sky-300 {
-            color: #0284c7 !important;
+            color: #0369a1 !important;
         }
-
-        /* Status Badges */
-        html.light-theme .bg-emerald-950\/80,
-        html.light-theme .bg-emerald-950\/60,
-        html.light-theme .bg-emerald-900\/40 {
-            background-color: #dcfce7 !important;
-            border-color: #86efac !important;
-            color: #166534 !important;
-        }
-        html.light-theme .bg-indigo-950\/60,
-        html.light-theme .bg-indigo-900\/40 {
-            background-color: #e0e7ff !important;
-            border-color: #a5b4fc !important;
-            color: #3730a3 !important;
-        }
-        html.light-theme .bg-amber-950\/60,
-        html.light-theme .bg-amber-900\/40 {
-            background-color: #fef3c7 !important;
-            border-color: #fcd34d !important;
-            color: #92400e !important;
-        }
-        html.light-theme .bg-rose-950\/60,
-        html.light-theme .bg-rose-900\/40 {
-            background-color: #ffe4e6 !important;
-            border-color: #fda4af !important;
-            color: #9f1239 !important;
+        html.light-theme .text-violet-400,
+        html.light-theme .text-violet-300 {
+            color: #6d28d9 !important;
         }
 
         /* Form Inputs, Selects & Textareas */
@@ -185,25 +345,30 @@
         html.light-theme input:focus,
         html.light-theme select:focus,
         html.light-theme textarea:focus {
-            border-color: #6366f1 !important;
-            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+            border-color: #4f46e5 !important;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15) !important;
         }
 
         /* Tables */
         html.light-theme table thead tr,
         html.light-theme table th {
-            background-color: #f1f5f9 !important;
+            background-color: #f8fafc !important;
             color: #475569 !important;
-            border-color: #e2e8f0 !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            font-weight: 700 !important;
         }
         html.light-theme table tbody tr {
-            border-color: #e2e8f0 !important;
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #f1f5f9 !important;
         }
         html.light-theme table tbody tr:hover {
             background-color: #f8fafc !important;
         }
+        html.light-theme table td {
+            color: #1e293b !important;
+        }
 
-        /* Modal Overlays & Windows */
+        /* Modal Overlays & Dialogs */
         html.light-theme .fixed.inset-0.bg-black\/80,
         html.light-theme .fixed.inset-0.bg-black\/70,
         html.light-theme .fixed.inset-0.bg-black\/60,
@@ -215,12 +380,13 @@
         html.light-theme .fixed.inset-0 > div > div.bg-slate-900,
         html.light-theme .fixed.inset-0 > div > div.bg-slate-950 {
             background-color: #ffffff !important;
-            border-color: #cbd5e1 !important;
+            border: 1px solid #cbd5e1 !important;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18) !important;
         }
 
-        /* Terminal & Raw Logs - Retain dark developer contrast */
+        /* Terminal & CLI Code Boxes (Keep dark contrast for authentic terminal look) */
         html.light-theme pre.font-mono,
+        html.light-theme pre,
         html.light-theme code.font-mono:not(header code):not(span code),
         html.light-theme #drs-output,
         html.light-theme #audit-raw-log-content {
@@ -231,11 +397,11 @@
 
         /* Theme Segmented Switch in Light Mode */
         html.light-theme #theme-selector-container {
-            background-color: #e2e8f0 !important;
+            background-color: #f1f5f9 !important;
             border-color: #cbd5e1 !important;
         }
 
-        /* Scrollbars */
+        /* Custom Scrollbar */
         html.light-theme .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
         html.light-theme .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         html.light-theme .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
