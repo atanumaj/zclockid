@@ -1365,7 +1365,7 @@
                     </div>
                 </div>
 
-                <!-- DNS Records Table with SRV & Kerberos Presets -->
+                <!-- DNS Records Table with All Records Unified View -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex flex-wrap items-center gap-3">
@@ -1382,23 +1382,14 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="relative">
-                                <input id="dns-search-input" onkeyup="filterDnsRecordsSearch()" type="text" placeholder="Filter records..."
-                                    class="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition w-44 sm:w-60">
+                                <input id="dns-search-input" onkeyup="filterDnsRecordsSearch()" type="text" placeholder="Search any record or IP..."
+                                    class="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition w-44 sm:w-64">
                                 <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-slate-500 text-[11px]"></i>
                             </div>
                             <button onclick="openDnsModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap shadow-sm shadow-indigo-900/50">
                                 <i class="fa-solid fa-plus"></i> Add Record
                             </button>
                         </div>
-                    </div>
-
-                    <!-- Filter Pills -->
-                    <div class="flex flex-wrap items-center gap-2 pt-2 text-xs">
-                        <button onclick="filterDnsRecords('ALL')" class="dns-filter-btn px-2.5 py-1 bg-indigo-600 text-white rounded-md font-semibold text-[11px]">All Records</button>
-                        <button onclick="filterDnsRecords('SRV')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">Kerberos & AD SRV</button>
-                        <button onclick="filterDnsRecords('A')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">A / AAAA</button>
-                        <button onclick="filterDnsRecords('CNAME')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">CNAME</button>
-                        <button onclick="filterDnsRecords('MX')" class="dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]">MX</button>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -1409,11 +1400,12 @@
                                     <th class="px-4 py-2.5">Type</th>
                                     <th class="px-4 py-2.5">Target / IP / Data</th>
                                     <th class="px-4 py-2.5">SRV Info (Port/Pri/Wgt)</th>
+                                    <th class="px-4 py-2.5">Scope / Protection</th>
                                     <th class="px-4 py-2.5 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="dns-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Loading DNS records...</td></tr>
+                                <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading DNS records...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -4389,6 +4381,61 @@
         </div>
     </div>
 
+    <!-- Edit DNS Record Modal -->
+    <div id="modal-dns-edit" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-amber-400"></i> Edit Active Directory DNS Record
+                </h3>
+                <button onclick="closeEditDnsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="submitUpdateDnsRecord(event)" class="space-y-3 text-xs">
+                <input type="hidden" id="edit-dns-zone">
+                <input type="hidden" id="edit-dns-old-data">
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Record Name</label>
+                        <input id="edit-dns-name" type="text" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-400 font-mono cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Record Type</label>
+                        <input id="edit-dns-type" type="text" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-amber-400 font-mono font-bold cursor-not-allowed">
+                    </div>
+                </div>
+
+                <div>
+                    <label id="edit-dns-data-label" class="text-slate-400 block mb-1">Target IP / Host FQDN / Value</label>
+                    <input id="edit-dns-new-data" type="text" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-amber-500">
+                </div>
+
+                <!-- SRV Fields (Shown only if SRV) -->
+                <div id="edit-srv-fields" class="grid grid-cols-3 gap-2 hidden">
+                    <div>
+                        <label class="text-slate-400 block mb-1">Port</label>
+                        <input id="edit-dns-srv-port" type="number" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Priority</label>
+                        <input id="edit-dns-srv-priority" type="number" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1">Weight</label>
+                        <input id="edit-dns-srv-weight" type="number" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono">
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+                    <button type="button" onclick="closeEditDnsModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">Cancel</button>
+                    <button type="submit" id="btn-save-edit-dns" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 shadow-lg shadow-amber-600/30">
+                        <i class="fa-solid fa-floppy-disk"></i> Update Record
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- DNS-over-HTTPS (DoH) Client Setup Guide Modal -->
     <div id="modal-doh-guide" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -6296,8 +6343,21 @@
                     renderDnsTable(currentDnsRecords);
                 }
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-rose-400">Failed to query records: ${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to query records: ${err}</td></tr>`;
             }
+        }
+
+        function isDnsRecordProtected(r) {
+            if (r.is_protected !== undefined) return r.is_protected;
+            const name = (r.name || '').toLowerCase().trim();
+            const type = (r.type || '').toUpperCase().trim();
+            const zone = (r.zone || '').toLowerCase().trim();
+            if (name === '@' || name === '') return true;
+            if (type === 'SOA' || type === 'NS') return true;
+            if (zone.startsWith('_msdcs')) return true;
+            if (name.startsWith('_')) return true;
+            const keywords = ['kerberos', 'kpasswd', 'ldap', 'gc', 'msdcs', 'vlmcs', 'domaindnszones', 'forestdnszones'];
+            return keywords.some(k => name.includes(k));
         }
 
         function renderDnsTable(records) {
@@ -6307,40 +6367,95 @@
                 countBadge.innerText = `${records.length} Record${records.length === 1 ? '' : 's'}`;
             }
 
-            if (records.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No records found.</td></tr>`;
+            if (!records || records.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center font-sans text-slate-500">No records found matching search.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = records.map(r => `
-                <tr class="hover:bg-slate-800/30">
-                    <td class="px-4 py-2.5 font-bold ${r.name.includes('_tcp') || r.name.includes('_kerberos') || r.name.includes('_sites') ? 'text-indigo-400' : 'text-white'} font-mono">${r.name}</td>
-                    <td class="px-4 py-2.5">
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-mono ${r.type === 'SRV' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : r.type === 'CNAME' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-slate-800 text-slate-300'}">${r.type}</span>
-                    </td>
-                    <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs font-mono">${r.data}</td>
-                    <td class="px-4 py-2.5 text-slate-400">${r.type === 'SRV' ? '<span class="text-indigo-300">Port/Pri/Wgt Active</span>' : '-'}</td>
-                    <td class="px-4 py-2.5 text-right">
-                        ${r.name !== '@' ? `
-                            <button onclick="deleteDnsRecord('${r.zone}', '${r.name}', '${r.type}', '${r.data}')" class="text-slate-500 hover:text-rose-400 transition" title="Delete Record">
-                                <i class="fa-solid fa-trash-can"></i>
+            tbody.innerHTML = records.map(r => {
+                const isProtected = isDnsRecordProtected(r);
+
+                // Type styling
+                let typeBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
+                if (r.type === 'A') typeBadgeClass = 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60';
+                else if (r.type === 'AAAA') typeBadgeClass = 'bg-teal-950/80 text-teal-400 border-teal-800/60';
+                else if (r.type === 'SRV') typeBadgeClass = 'bg-indigo-950/80 text-indigo-400 border-indigo-800/60';
+                else if (r.type === 'CNAME') typeBadgeClass = 'bg-amber-950/80 text-amber-400 border-amber-800/60';
+                else if (r.type === 'TXT') typeBadgeClass = 'bg-sky-950/80 text-sky-400 border-sky-800/60';
+                else if (r.type === 'MX') typeBadgeClass = 'bg-violet-950/80 text-violet-400 border-violet-800/60';
+                else if (r.type === 'SOA' || r.type === 'NS') typeBadgeClass = 'bg-slate-800/80 text-slate-400 border-slate-700/60';
+
+                // SRV details
+                let srvInfo = '<span class="text-slate-600 font-mono text-[10px]">-</span>';
+                if (r.type === 'SRV') {
+                    const m = (r.data || '').match(/\(([^)]+)\)/);
+                    if (m) {
+                        const parts = m[1].split(',').map(s => s.trim());
+                        if (parts.length === 3) {
+                            srvInfo = `<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950/70 border border-indigo-800/60 text-indigo-300 font-mono">Port ${parts[0]} | Pri ${parts[1]} | Wgt ${parts[2]}</span>`;
+                        } else {
+                            srvInfo = `<span class="text-indigo-400 font-mono text-[10px]">${m[1]}</span>`;
+                        }
+                    } else {
+                        srvInfo = `<span class="text-indigo-400 font-mono text-[10px]">SRV Active</span>`;
+                    }
+                }
+
+                // Scope badge
+                const scopeBadge = isProtected
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950/70 border border-amber-800/60 text-amber-300 font-semibold inline-flex items-center gap-1.5"><i class="fa-solid fa-shield text-[9px] text-amber-400"></i> Default Service</span>`
+                    : `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-950/70 border border-sky-800/60 text-sky-400 font-semibold inline-flex items-center gap-1.5"><i class="fa-solid fa-cube text-[9px]"></i> Custom</span>`;
+
+                // Safe escaping for strings passed to JS functions
+                const safeZone = encodeURIComponent(r.zone || '');
+                const safeName = encodeURIComponent(r.name || '');
+                const safeType = encodeURIComponent(r.type || '');
+                const safeData = encodeURIComponent(r.data || '');
+
+                // Action buttons: Protected records NEVER have delete! Custom records have BOTH Edit and Delete.
+                let actionHtml = '';
+                if (isProtected) {
+                    actionHtml = `
+                        <div class="flex items-center justify-end">
+                            <span class="px-2.5 py-1 text-[10px] rounded bg-slate-950/80 border border-slate-800 text-slate-500 font-mono inline-flex items-center gap-1.5 cursor-not-allowed select-none" title="Protected Active Directory system service record - deletion disabled">
+                                <i class="fa-solid fa-lock text-amber-500/70 text-[9px]"></i> Protected
+                            </span>
+                        </div>
+                    `;
+                } else {
+                    actionHtml = `
+                        <div class="flex items-center justify-end gap-2">
+                            <button onclick="openEditDnsModal('${safeZone}', '${safeName}', '${safeType}', '${safeData}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Record">
+                                <i class="fa-solid fa-pen-to-square"></i> Edit
                             </button>
-                        ` : ''}
-                    </td>
-                </tr>
-            `).join('');
+                            <button onclick="deleteDnsRecord('${safeZone}', '${safeName}', '${safeType}', '${safeData}')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 rounded text-xs transition flex items-center gap-1 border border-slate-700 hover:border-rose-800" title="Delete Record">
+                                <i class="fa-solid fa-trash-can"></i> Delete
+                            </button>
+                        </div>
+                    `;
+                }
+
+                const nameHighlight = isProtected ? 'text-indigo-300 font-semibold' : 'text-white font-bold';
+
+                return `
+                    <tr class="hover:bg-slate-800/30 transition">
+                        <td class="px-4 py-2.5 font-mono ${nameHighlight}">${r.name}</td>
+                        <td class="px-4 py-2.5">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono border font-bold ${typeBadgeClass}">${r.type}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs font-mono" title="${r.data}">${r.data}</td>
+                        <td class="px-4 py-2.5">${srvInfo}</td>
+                        <td class="px-4 py-2.5">${scopeBadge}</td>
+                        <td class="px-4 py-2.5 text-right">${actionHtml}</td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         function filterDnsRecords(type) {
-            document.querySelectorAll('.dns-filter-btn').forEach(b => {
-                b.className = 'dns-filter-btn px-2.5 py-1 bg-slate-800 text-slate-400 hover:text-white rounded-md text-[11px]';
-            });
-            event.target.className = 'dns-filter-btn px-2.5 py-1 bg-indigo-600 text-white rounded-md font-semibold text-[11px]';
-
-            if (type === 'ALL') {
+            // Maintained for backward compatibility: renders all records or type
+            if (!type || type === 'ALL') {
                 renderDnsTable(currentDnsRecords);
-            } else if (type === 'SRV') {
-                renderDnsTable(currentDnsRecords.filter(r => r.type === 'SRV'));
             } else {
                 renderDnsTable(currentDnsRecords.filter(r => r.type === type));
             }
@@ -6535,8 +6650,109 @@
             }
         }
 
-        async function deleteDnsRecord(zone, name, type, data) {
-            if (!confirm(`Delete ${type} record '${name}'?`)) return;
+        function openEditDnsModal(encZone, encName, encType, encData) {
+            const zone = decodeURIComponent(encZone);
+            const name = decodeURIComponent(encName);
+            const type = decodeURIComponent(encType);
+            const data = decodeURIComponent(encData);
+
+            document.getElementById('edit-dns-zone').value = zone;
+            document.getElementById('edit-dns-old-data').value = data;
+            document.getElementById('edit-dns-name').value = name;
+            document.getElementById('edit-dns-type').value = type;
+
+            const srvBox = document.getElementById('edit-srv-fields');
+            const dataInput = document.getElementById('edit-dns-new-data');
+            const dataLabel = document.getElementById('edit-dns-data-label');
+
+            if (type === 'SRV') {
+                srvBox.classList.remove('hidden');
+                dataLabel.innerText = 'Target Host FQDN';
+
+                let target = data;
+                let port = 88, pri = 0, wgt = 100;
+                if (data.includes('(')) {
+                    const parts = data.split('(');
+                    target = parts[0].trim();
+                    const sub = parts[1].replace(')', '').split(',');
+                    if (sub.length === 3) {
+                        port = parseInt(sub[0].trim()) || 88;
+                        pri = parseInt(sub[1].trim()) || 0;
+                        wgt = parseInt(sub[2].trim()) || 100;
+                    }
+                }
+                dataInput.value = target;
+                document.getElementById('edit-dns-srv-port').value = port;
+                document.getElementById('edit-dns-srv-priority').value = pri;
+                document.getElementById('edit-dns-srv-weight').value = wgt;
+            } else {
+                srvBox.classList.add('hidden');
+                dataLabel.innerText = 'Target IP / Host FQDN / Value';
+                dataInput.value = data;
+            }
+
+            document.getElementById('modal-dns-edit').classList.remove('hidden');
+        }
+
+        function closeEditDnsModal() {
+            document.getElementById('modal-dns-edit').classList.add('hidden');
+        }
+
+        async function submitUpdateDnsRecord(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-edit-dns');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Updating...';
+
+            const zone = document.getElementById('edit-dns-zone').value;
+            const name = document.getElementById('edit-dns-name').value;
+            const type = document.getElementById('edit-dns-type').value;
+            const oldData = document.getElementById('edit-dns-old-data').value;
+            const newData = document.getElementById('edit-dns-new-data').value.trim();
+
+            const payload = {
+                zone: zone,
+                record_name: name,
+                record_type: type,
+                old_data: oldData,
+                new_data: newData
+            };
+
+            if (type === 'SRV') {
+                payload.port = parseInt(document.getElementById('edit-dns-srv-port').value) || 88;
+                payload.priority = parseInt(document.getElementById('edit-dns-srv-priority').value) || 0;
+                payload.weight = parseInt(document.getElementById('edit-dns-srv-weight').value) || 100;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/dns/records`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    closeEditDnsModal();
+                    fetchDnsRecords();
+                } else {
+                    alert(`Failed to update DNS record: ${resData.detail}`);
+                }
+            } catch (err) {
+                alert(`Error updating DNS record: ${err}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update Record';
+            }
+        }
+
+        async function deleteDnsRecord(encZone, encName, encType, encData) {
+            const zone = decodeURIComponent(encZone);
+            const name = decodeURIComponent(encName);
+            const type = decodeURIComponent(encType);
+            const data = decodeURIComponent(encData);
+
+            if (!confirm(`Are you sure you want to delete custom ${type} record '${name}' (${data})?`)) return;
+
             try {
                 const url = `${API_BASE}/dns/records?zone=${encodeURIComponent(zone)}&record_name=${encodeURIComponent(name)}&record_type=${encodeURIComponent(type)}&record_data=${encodeURIComponent(data)}`;
                 const res = await fetch(url, { method: 'DELETE' });

@@ -20,12 +20,47 @@ from api.core.security import get_ad_creds
 from api.services.system_service import run_cmd, log_audit
 from api.schemas.dns_schema import (
     DnsRecordRequest,
+    DnsRecordUpdateRequest,
     DnsForwardersRequest,
     DnsZoneCreateRequest,
     DohTestRequest
 )
 
 router = APIRouter(prefix="/api/v1/dns", tags=["DNS Services (BIND9 DLZ & DoH)"])
+
+def is_protected_dns_record(name: str, rtype: str, zone: str = "") -> bool:
+    """
+    Determines if a DNS record is an Active Directory, Kerberos, or domain system discovery record.
+    Protected records cannot be deleted by administrators to ensure domain integrity and avoid auth outages.
+    """
+    name_clean = (name or "").strip()
+    name_lower = name_clean.lower()
+    rtype_upper = (rtype or "").strip().upper()
+    zone_lower = (zone or "").strip().lower()
+
+    if name_clean in ("@", ""):
+        return True
+    if rtype_upper in ("SOA", "NS"):
+        return True
+    if zone_lower.startswith("_msdcs"):
+        return True
+    if name_lower.startswith("_"):
+        return True
+
+    core_keywords = ["kerberos", "kpasswd", "ldap", "gc", "msdcs", "vlmcs", "domaindnszones", "forestdnszones"]
+    if any(kw in name_lower for kw in core_keywords):
+        return True
+
+    # Hostname of the Active Directory DC itself
+    try:
+        import socket
+        dc_host = socket.gethostname().split(".")[0].lower()
+        if name_lower == dc_host:
+            return True
+    except Exception:
+        pass
+
+    return False
 
 @router.get("/forwarders")
 def get_dns_forwarders():
@@ -189,7 +224,8 @@ def fast_get_dns_records(zone: str):
                                 "type": rtype,
                                 "data": rdata,
                                 "zone": zone,
-                                "is_srv": (rtype == "SRV")
+                                "is_srv": (rtype == "SRV"),
+                                "is_protected": is_protected_dns_record(full_name, rtype, zone)
                             })
             except Exception:
                 pass
@@ -255,7 +291,8 @@ def get_dns_records(zone: str = "inet.net", refresh: bool = False):
                         "type": rtype,
                         "data": rdata,
                         "zone": zone,
-                        "is_srv": (rtype == "SRV")
+                        "is_srv": (rtype == "SRV"),
+                        "is_protected": is_protected_dns_record(current_name, rtype, zone)
                     })
 
     _DNS_RECORDS_CACHE[zone] = (now, records)
@@ -383,18 +420,68 @@ def add_dns_record(req: DnsRecordRequest):
     log_audit("DNS_RECORD_ADDED", "admin", f"{req.record_name}.{req.zone}", "SUCCESS", {"type": req.record_type, "data": req.record_data})
     return {"status": "success", "message": f"{req.record_type} record '{req.record_name}' added to zone {req.zone}."}
 
+@router.put("/records")
+def update_dns_record(req: DnsRecordUpdateRequest):
+    """Updates an existing DNS record data / target in Active Directory DNS."""
+    admin_user, admin_pass = get_ad_creds()
+    old_clean = req.old_data.strip()
+    new_clean = req.new_data.strip()
+
+    if req.record_type.upper() == "SRV":
+        port = req.port or 88
+        priority = req.priority or 0
+        weight = req.weight or 100
+        target = new_clean
+        if "(" in target:
+            target = target.split("(")[0].strip()
+        new_data_str = f"{target} {port} {priority} {weight}"
+
+        if "(" in old_clean:
+            parts = old_clean.split("(")
+            t = parts[0].strip()
+            sub = parts[1].replace(")", "").split(",")
+            if len(sub) == 3:
+                old_clean = f"{t} {sub[0].strip()} {sub[1].strip()} {sub[2].strip()}"
+        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, "SRV", old_clean, new_data_str, f"-U{admin_user}", f"--password={admin_pass}"]
+    else:
+        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, req.record_type, old_clean, new_clean, f"-U{admin_user}", f"--password={admin_pass}"]
+
+    code, stdout, stderr = run_cmd(cmd, timeout=15)
+    if code != 0:
+        raise HTTPException(status_code=400, detail=f"Failed to update DNS record: {stderr or stdout}")
+
+    _DNS_RECORDS_CACHE.pop(req.zone, None)
+    log_audit("DNS_RECORD_UPDATED", "admin", f"{req.record_name}.{req.zone}", "SUCCESS", {
+        "type": req.record_type, "old_data": req.old_data, "new_data": req.new_data
+    })
+    return {"status": "success", "message": f"{req.record_type} record '{req.record_name}' updated successfully in zone {req.zone}."}
+
 @router.delete("/records")
 def delete_dns_record(zone: str, record_name: str, record_type: str, record_data: str):
-    """Deletes a DNS record from Active Directory DNS."""
+    """Deletes a custom DNS record from Active Directory DNS. Default service & Kerberos records cannot be deleted."""
+    if is_protected_dns_record(record_name, record_type, zone):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Protected System Record: Active Directory & Kerberos service records ('{record_name}') cannot be deleted. Only custom records may be deleted."
+        )
+
     admin_user, admin_pass = get_ad_creds()
-    cmd = ["samba-tool", "dns", "delete", "127.0.0.1", zone, record_name, record_type, record_data, f"-U{admin_user}", f"--password={admin_pass}"]
+    clean_data = record_data.strip()
+    if record_type.upper() == "SRV" and "(" in clean_data:
+        parts = clean_data.split("(")
+        t = parts[0].strip()
+        sub = parts[1].replace(")", "").split(",")
+        if len(sub) == 3:
+            clean_data = f"{t} {sub[0].strip()} {sub[1].strip()} {sub[2].strip()}"
+
+    cmd = ["samba-tool", "dns", "delete", "127.0.0.1", zone, record_name, record_type, clean_data, f"-U{admin_user}", f"--password={admin_pass}"]
     code, stdout, stderr = run_cmd(cmd, timeout=15)
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to delete DNS record: {stderr or stdout}")
 
     _DNS_RECORDS_CACHE.pop(zone, None)
     log_audit("DNS_RECORD_DELETED", "admin", f"{record_name}.{zone}", "SUCCESS", {"type": record_type})
-    return {"status": "success", "message": f"Record '{record_name}' deleted from zone {zone}."}
+    return {"status": "success", "message": f"Custom record '{record_name}' deleted from zone {zone}."}
 
 @router.get("/diagnostics")
 def get_dns_diagnostics():

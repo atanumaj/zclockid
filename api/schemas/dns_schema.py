@@ -16,6 +16,17 @@ class DnsRecordRequest(BaseModel):
     weight: Optional[int] = Field(100, example=100)
     ttl: Optional[int] = Field(900, example=900)
 
+class DnsRecordUpdateRequest(BaseModel):
+    zone: str = Field(..., example="inet.net")
+    record_name: str = Field(..., example="web")
+    record_type: str = Field("A", pattern="^(A|AAAA|CNAME|TXT|SRV|MX|PTR)$")
+    old_data: str = Field(..., example="192.168.1.55")
+    new_data: str = Field(..., example="192.168.1.56")
+    port: Optional[int] = Field(None, example=88)
+    priority: Optional[int] = Field(0, example=0)
+    weight: Optional[int] = Field(100, example=100)
+    ttl: Optional[int] = Field(900, example=900)
+
 class DnsForwardersRequest(BaseModel):
     forwarders: List[str] = Field(..., example=["1.1.1.1", "8.8.8.8"])
     policy: Optional[str] = Field("first", pattern="^(first|only)$")
