@@ -84,7 +84,7 @@ If your organization prefers using Microsoft's official Windows-based sync agent
 
 ### 4.1. Joining Windows Server to ZclockID Domain
 1. Deploy a small Windows Server VM (e.g. existing `192.168.1.60`).
-2. Join it to the ZclockID Active Directory domain (`inetcsc.net`).
+2. Join it to the ZclockID Active Directory domain (`example.com`).
 3. Log in with Domain Admin credentials (`aaatechno`).
 
 ### 4.2. Granting DCSync Permissions on Samba AD

@@ -118,7 +118,7 @@ ZclockID requires specific ports open on the internal firewall to serve Windows 
 ### Operating System Prerequisites
 * **Operating System:** Ubuntu 24.04 LTS Server (Minimal Install recommended)
 * **Static IP Address:** ZclockID must have a permanent static IPv4 address. Do not use dynamic DHCP on a Domain Controller.
-* **FQDN / Hostname:** Set a fully-qualified domain name (e.g. `inet-zclockid.inetcsc.net`).
+* **FQDN / Hostname:** Set a fully-qualified domain name (e.g. `dc1.example.com`).
 
 ### Automated Installation via Package Script
 
@@ -293,7 +293,7 @@ The appliance provides an integrated self-registration workflow for guest Wi-Fi 
 
 * **Active Directory Password Policy Enforcement:** Real-time client-side checklist and strict backend verification requiring passwords to satisfy Active Directory complexity (minimum 8 characters, at least 3 categories: uppercase, lowercase, numbers, and symbols, with username and name exclusion).
 * **Dynamic Organization Departments (Max 100):** Administrators can define corporate departments under Settings (e.g. `DevOps`, `Finance`, `Operations`). The registration portal dynamically renders this exact list in the department dropdown.
-* **Default Provisioning Domain:** Dropdown selector offering the Primary AD Forest Root Realm alongside any registered alternate UPN/SPN suffixes (e.g. `inetcsc.com`, `corp.inet.net`). New users are automatically created with this UPN domain.
+* **Default Provisioning Domain:** Dropdown selector offering the Primary AD Forest Root Realm alongside any registered alternate UPN/SPN suffixes (e.g. `example.com`, `corp.inet.net`). New users are automatically created with this UPN domain.
 * **Default Security Group:** Dropdown populated directly from Active Directory groups (defaults to `Domain Users` if blank or unselected).
 * **Default Bandwidth Profile:** Dropdown populated from the Bandwidth & Rate Limit policy objects (defaults to `None` if unselected).
   * When set, this profile acts as the **Global Fallback Captive Portal Profile** in FreeRADIUS for any unregistered or unassigned client.

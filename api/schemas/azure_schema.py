@@ -11,7 +11,7 @@ class AzureSyncConfig(BaseModel):
     tenant_id: str = ""
     client_id: str = ""
     client_secret: Optional[str] = None
-    default_domain: Optional[str] = "inet.net"
+    default_domain: Optional[str] = "example.com"
     source_ou: Optional[str] = ""
     sync_interval_seconds: Optional[int] = 900
     exclude_disabled: Optional[bool] = True

@@ -16,7 +16,7 @@ class SystemIdentityUpdateRequest(BaseModel):
     netbios_name: Optional[str] = Field(None, description="Samba NetBIOS computer name")
 
 class UpnSuffixRequest(BaseModel):
-    upn_suffix: str = Field(..., description="Alternate domain UPN suffix (e.g. corpzee.com)")
+    upn_suffix: str = Field(..., description="Alternate domain UPN suffix (e.g. example.com or organization.net)")
 
 class FsmoTransferRequest(BaseModel):
     role: str = Field(..., description="FSMO role name (e.g. pdc, naming, schema, rid, infrastructure)")

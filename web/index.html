@@ -284,11 +284,11 @@
                                     </div>
                                     <div class="flex items-start gap-2">
                                         <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
-                                        <div><strong>Join Domain:</strong> In <code class="text-slate-300 font-mono">sysdm.cpl</code>, join domain <strong id="rsat-domain-name" class="text-white font-mono">INET.NET</strong>.</div>
+                                        <div><strong>Join Domain:</strong> In <code class="text-slate-300 font-mono">sysdm.cpl</code>, join domain <strong id="rsat-domain-name" class="text-white font-mono">EXAMPLE.COM</strong>.</div>
                                     </div>
                                     <div class="flex items-start gap-2">
                                         <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
-                                        <div><strong>Log In:</strong> Sign in with Domain Administrator credentials (<code class="text-indigo-300 font-mono">Administrator@inet.net</code>).</div>
+                                        <div><strong>Log In:</strong> Sign in with Domain Administrator credentials (<code id="rsat-admin-login" class="text-indigo-300 font-mono">Administrator@example.com</code>).</div>
                                     </div>
                                 </div>
                             </div>
@@ -1305,7 +1305,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
                             <div class="sm:col-span-7">
                                 <label class="text-[11px] text-slate-400 block mb-1">Domain Name to Query</label>
-                                <input type="text" id="doh-test-qname" value="inet.net" placeholder="e.g. inet.net or _kerberos._tcp.inet.net"
+                                <input type="text" id="doh-test-qname" value="example.com" placeholder="e.g. example.com or _kerberos._tcp.example.com"
                                     class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
                             </div>
                             <div class="sm:col-span-3">
@@ -2024,7 +2024,7 @@
                                 <label class="block font-medium text-slate-300">
                                     Directory (Tenant) ID <span class="text-rose-400">*</span>
                                 </label>
-                                <input type="text" id="azure-cfg-tenant-id" required placeholder="e.g. 84b12345-6789-abcd-ef01-234567890abc or yourcompany.onmicrosoft.com"
+                                <input type="text" id="azure-cfg-tenant-id" required placeholder="e.g. 84b12345-6789-abcd-ef01-234567890abc or organization.onmicrosoft.com"
                                     class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
                                 <p class="text-[10px] text-slate-500">Found in Microsoft Entra Admin Center &rarr; Identity &rarr; Overview</p>
                             </div>
@@ -2058,7 +2058,7 @@
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div class="space-y-1">
                                     <label class="block font-medium text-slate-300">Target Cloud UPN Domain</label>
-                                    <input type="text" id="azure-cfg-domain" placeholder="e.g. company.com or company.onmicrosoft.com"
+                                    <input type="text" id="azure-cfg-domain" placeholder="e.g. example.com or organization.onmicrosoft.com"
                                         class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
                                     <p class="text-[10px] text-slate-500">Domain suffix for cloud userPrincipalName</p>
                                 </div>
@@ -3992,7 +3992,7 @@
                         </div>
                         <div>
                             <label class="text-slate-300 block mb-1 font-medium">Sender From Address</label>
-                            <input type="email" id="reg-cfg-smtp-from" placeholder="no-reply@inet.net"
+                            <input type="email" id="reg-cfg-smtp-from" placeholder="no-reply@example.com"
                                 class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
                         </div>
                     </div>
@@ -4030,7 +4030,7 @@
                 </div>
                 <div>
                     <label class="text-slate-300 block mb-1 font-medium">New UserPrincipalName *</label>
-                    <input type="email" id="upn-modal-new" required placeholder="user@alternate-domain.com"
+                    <input type="email" id="upn-modal-new" required placeholder="user@organization.net"
                         class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none">
                     <p class="text-[10px] text-slate-500 mt-1">Updates `userPrincipalName` directly in Active Directory SAM LDB.</p>
                 </div>
@@ -4257,7 +4257,7 @@
             <form onsubmit="submitAddHostOverride(event)" class="space-y-3 text-xs">
                 <div>
                     <label class="text-slate-400 block mb-1 font-medium">Fully Qualified Domain Name (FQDN)</label>
-                    <input id="override-fqdn" type="text" required placeholder="e.g. vpn.corpzee.com or nas.local" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500">
+                    <input id="override-fqdn" type="text" required placeholder="e.g. vpn.example.com or nas.organization.net" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500">
                     <span class="text-[10px] text-slate-500 mt-1 block">The exact host or external domain to intercept and resolve locally.</span>
                 </div>
                 <div class="grid grid-cols-3 gap-2">
@@ -4272,7 +4272,7 @@
                     </div>
                     <div class="col-span-2">
                         <label id="override-target-label" class="text-slate-400 block mb-1 font-medium">Target IPv4 Address</label>
-                        <input id="override-target" type="text" required placeholder="e.g. 192.168.1.5" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500">
+                        <input id="override-target" type="text" required placeholder="e.g. 192.0.2.5" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500">
                     </div>
                 </div>
                 <div>
@@ -4299,12 +4299,12 @@
             <form onsubmit="submitAddDomainForwarder(event)" class="space-y-3 text-xs">
                 <div>
                     <label class="text-slate-400 block mb-1 font-medium">Domain / Zone Name</label>
-                    <input id="domain-fwd-name" type="text" required placeholder="e.g. corpzee.com or branch.net" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
+                    <input id="domain-fwd-name" type="text" required placeholder="e.g. example.com or branch.net" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
                     <span class="text-[10px] text-slate-500 mt-1 block">Queries for this domain will be forwarded to the designated nameserver(s).</span>
                 </div>
                 <div>
                     <label class="text-slate-400 block mb-1 font-medium">Forwarding Nameserver IP(s)</label>
-                    <input id="domain-fwd-ips" type="text" required placeholder="e.g. 192.168.1.30 or 192.168.1.30, 192.168.1.31" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
+                    <input id="domain-fwd-ips" type="text" required placeholder="e.g. 192.0.2.30 or 192.0.2.30, 192.0.2.31" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
                     <span class="text-[10px] text-slate-500 mt-1 block">Comma-separated IP addresses of target authoritative nameservers.</span>
                 </div>
                 <div>
@@ -4316,7 +4316,7 @@
                 </div>
                 <div>
                     <label class="text-slate-400 block mb-1">Description / Notes (Optional)</label>
-                    <input id="domain-fwd-desc" type="text" placeholder="e.g. Corpzee datacenter primary DNS" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 text-xs placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
+                    <input id="domain-fwd-desc" type="text" placeholder="e.g. Remote branch primary DNS" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 text-xs placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
                     <button type="button" onclick="closeAddDomainForwarderModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
@@ -4326,7 +4326,7 @@
         </div>
     </div>
 
-    <!-- Edit System & Domain Identity Modal (Zentyal Style) -->
+    <!-- Edit System & Domain Identity Modal -->
     <div id="modal-identity" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -4348,12 +4348,12 @@
                 </div>
                 <div>
                     <label class="text-slate-300 block mb-1 font-medium">NetBIOS Computer Name</label>
-                    <input id="ident-netbios-input" type="text" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono uppercase focus:outline-none focus:border-indigo-500 transition" placeholder="DC or INET-ZCLOCKID">
+                    <input id="ident-netbios-input" type="text" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono uppercase focus:outline-none focus:border-indigo-500 transition" placeholder="DC or PRIMARY-DC">
                     <p class="text-[10px] text-slate-500 mt-1">NetBIOS machine name in smb.conf (restarts samba-ad-dc)</p>
                 </div>
                 <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1 text-[11px] text-slate-400">
                     <strong class="text-slate-300 block">Active Directory Domain Realm Note:</strong>
-                    <p>The Forest Root realm (<code class="text-indigo-300" id="ident-realm-note">INET.NET</code>) is permanently bound to the AD security database. To add additional domain names for user logins and email accounts (e.g. <span class="text-emerald-300">@inetcsc.net</span>), use the <strong>Alternate Domain & UPN Suffixes</strong> manager.</p>
+                    <p>The Forest Root realm (<code class="text-indigo-300" id="ident-realm-note">EXAMPLE.COM</code>) is permanently bound to the AD security database. To add additional domain names for user logins and email accounts (e.g. <span class="text-emerald-300">@organization.net</span>), use the <strong>Alternate Domain & UPN Suffixes</strong> manager.</p>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
                     <button type="button" onclick="closeIdentityModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
@@ -4435,8 +4435,8 @@
             </div>
             <div class="space-y-3 text-xs">
                 <div>
-                    <label class="text-slate-400 block mb-1">Alternate Domain (e.g. corpzee.com)</label>
-                    <input id="upn-suffix-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono" placeholder="corpzee.com">
+                    <label class="text-slate-400 block mb-1">Alternate Domain (e.g. example.com)</label>
+                    <input id="upn-suffix-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono" placeholder="example.com">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeUpnModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
@@ -5032,7 +5032,7 @@
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="text-slate-400 block mb-1">Email</label>
-                        <input id="usr-email-input" type="email" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe@inetcsc.com">
+                        <input id="usr-email-input" type="email" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe@example.com">
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1">Mobile / Phone</label>
@@ -5115,7 +5115,7 @@
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-slate-400 block mb-1">Email (<code class="text-slate-400 font-mono">mail</code>)</label>
-                        <input id="edit-usr-email" type="email" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe@inetcsc.com">
+                        <input id="edit-usr-email" type="email" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe@example.com">
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1">Mobile / Phone (<code class="text-slate-400 font-mono">telephoneNumber</code>)</label>
@@ -5130,7 +5130,7 @@
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1">User Principal Name (UPN)</label>
-                        <input id="edit-usr-upn" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-mono" placeholder="john.doe@inet.net">
+                        <input id="edit-usr-upn" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-300 font-mono" placeholder="john.doe@example.com">
                     </div>
                 </div>
 
@@ -5261,8 +5261,8 @@
             </div>
             <div class="space-y-3 text-xs">
                 <div>
-                    <label class="text-slate-400 block mb-1">Zone FQDN (e.g. corpzee.com or 1.168.192.in-addr.arpa)</label>
-                    <input id="new-zone-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="corpzee.com">
+                    <label class="text-slate-400 block mb-1">Zone FQDN (e.g. example.com or 1.168.192.in-addr.arpa)</label>
+                    <input id="new-zone-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="example.com">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeNewZoneModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
@@ -5991,6 +5991,7 @@
                 const dRealm = (data.realm || 'INET.NET').toUpperCase();
                 if (document.getElementById('hero-domain-realm')) document.getElementById('hero-domain-realm').innerText = dRealm;
                 if (document.getElementById('rsat-domain-name')) document.getElementById('rsat-domain-name').innerText = dRealm;
+                if (document.getElementById('rsat-admin-login')) document.getElementById('rsat-admin-login').innerText = `Administrator@${dRealm}`;
                 if (document.getElementById('rsat-dns-ip')) document.getElementById('rsat-dns-ip').innerText = window.location.hostname || '192.168.1.41';
 
                 // Domain Controller Type Widget (Master / Primary vs Alternate / Backup vs RODC)
@@ -6554,13 +6555,13 @@
             const targetInput = document.getElementById('override-target');
             if (t === 'A') {
                 targetLabel.innerText = 'Target IPv4 Address';
-                targetInput.placeholder = 'e.g. 192.168.1.5';
+                targetInput.placeholder = 'e.g. 192.0.2.5';
             } else if (t === 'AAAA') {
                 targetLabel.innerText = 'Target IPv6 Address';
                 targetInput.placeholder = 'e.g. 2001:db8::5';
             } else if (t === 'CNAME') {
                 targetLabel.innerText = 'Canonical Target FQDN (Alias)';
-                targetInput.placeholder = 'e.g. gateway.inet.net';
+                targetInput.placeholder = 'e.g. gateway.example.com';
             } else {
                 targetLabel.innerText = 'TXT Value';
                 targetInput.placeholder = 'e.g. verification-token';
@@ -6714,254 +6715,16 @@
             }
         }
 
-        function openForwardersModal() {
-            fetch(`${API_BASE}/dns/forwarders`).then(r => r.json()).then(data => {
-                document.getElementById('fwd-ips-input').value = data.forwarders.join('\n');
-                document.getElementById('fwd-policy-select').value = data.policy || 'first';
-                document.getElementById('forwarders-modal').classList.remove('hidden');
-            });
-        }
-        function closeForwardersModal() { document.getElementById('forwarders-modal').classList.add('hidden'); }
+        // ==================== DNS OVERRIDES, DOMAIN FORWARDERS & CACHE PURGE ====================
+        let currentDnsOverrides = { host_overrides: [], domain_forwarders: [] };
 
-        async function saveForwarders() {
-            const raw = document.getElementById('fwd-ips-input').value;
-            const ips = raw.split(/[\n,\s]+/).map(s => s.trim()).filter(Boolean);
-            const policy = document.getElementById('fwd-policy-select').value;
-            if (ips.length === 0) return alert('At least one forwarder IP is required.');
-
+        async function fetchDnsOverrides() {
             try {
-                const res = await fetch(`${API_BASE}/dns/forwarders`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ forwarders: ips, policy: policy })
-                });
+                const res = await fetch(`${API_BASE}/dns/overrides`);
                 const data = await res.json();
-                if (res.ok) {
-                    closeForwardersModal();
-                    fetchDnsForwarders();
-                } else {
-                    alert(`Failed to save forwarders: ${data.detail}`);
-                }
-            } catch (err) {
-                alert(`Error saving forwarders: ${err}`);
-            }
-        }
-
-        async function runDnsDiagnostics() {
-            try {
-                const res = await fetch(`${API_BASE}/dns/diagnostics`);
-                const data = await res.json();
-                if (data.diagnostics) {
-                    data.diagnostics.forEach(d => {
-                        if (d.service.includes('Kerberos KDC')) {
-                            const el = document.getElementById('diag-kdc');
-                            if (el) el.innerHTML = d.status === 'PASS' 
-                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> RESOLVING`
-                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
-                        } else if (d.service.includes('LDAP Directory')) {
-                            const el = document.getElementById('diag-ldap');
-                            if (el) el.innerHTML = d.status === 'PASS' 
-                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> RESOLVING`
-                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
-                        } else if (d.service.includes('Kerberos Password')) {
-                            const el = document.getElementById('diag-kpasswd');
-                            if (el) el.innerHTML = d.status === 'PASS' 
-                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> RESOLVING`
-                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
-                        } else if (d.service.includes('Forwarding')) {
-                            const el = document.getElementById('diag-forward');
-                            if (el) el.innerHTML = d.status === 'PASS' 
-                                ? `<i class="fa-solid fa-circle-check text-emerald-400"></i> ACTIVE`
-                                : `<i class="fa-solid fa-circle-xmark text-rose-400"></i> FAILED`;
-                        }
-                    });
-                }
-            } catch (err) {
-                console.error('Error running diagnostics:', err);
-            }
-        }
-
-        async function fetchDnsZones() {
-            try {
-                const res = await fetch(`${API_BASE}/dns/zones`);
-                const data = await res.json();
-                const sel = document.getElementById('dns-zone-select');
-                if (sel && data.zones) {
-                    sel.innerHTML = data.zones.map(z => `<option value="${z}">${z}</option>`).join('');
-                }
-            } catch (err) {
-                console.error('Error fetching DNS zones:', err);
-            }
-        }
-
-        async function fetchDnsRecords() {
-            const zone = document.getElementById('dns-zone-select').value;
-            const tbody = document.getElementById('dns-table-body');
-            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Querying DNS database...</td></tr>`;
-
-            try {
-                const res = await fetch(`${API_BASE}/dns/records?zone=${zone}`);
-                const data = await res.json();
-                currentDnsRecords = data.records || [];
-                const searchInput = document.getElementById('dns-search-input');
-                if (searchInput && searchInput.value.trim()) {
-                    filterDnsRecordsSearch();
-                } else {
-                    renderDnsTable(currentDnsRecords);
-                }
-            } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to query records: ${err}</td></tr>`;
-            }
-        }
-
-        function isDnsRecordProtected(r) {
-            if (r.is_protected !== undefined) return r.is_protected;
-            const name = (r.name || '').toLowerCase().trim();
-            const type = (r.type || '').toUpperCase().trim();
-            const zone = (r.zone || '').toLowerCase().trim();
-            if (name === '@' || name === '') return true;
-            if (type === 'SOA' || type === 'NS') return true;
-            if (zone.startsWith('_msdcs')) return true;
-            if (name.startsWith('_')) return true;
-            const keywords = ['kerberos', 'kpasswd', 'ldap', 'gc', 'msdcs', 'vlmcs', 'domaindnszones', 'forestdnszones'];
-            return keywords.some(k => name.includes(k));
-        }
-
-        function renderDnsTable(records) {
-            const tbody = document.getElementById('dns-table-body');
-            const countBadge = document.getElementById('dns-record-count-badge');
-            if (countBadge) {
-                countBadge.innerText = `${records.length} Record${records.length === 1 ? '' : 's'}`;
-            }
-
-            if (!records || records.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center font-sans text-slate-500">No records found matching search.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = records.map(r => {
-                const isProtected = isDnsRecordProtected(r);
-
-                // Type styling
-                let typeBadgeClass = 'bg-slate-800 text-slate-300 border-slate-700';
-                if (r.type === 'A') typeBadgeClass = 'bg-emerald-950/80 text-emerald-400 border-emerald-800/60';
-                else if (r.type === 'AAAA') typeBadgeClass = 'bg-teal-950/80 text-teal-400 border-teal-800/60';
-                else if (r.type === 'SRV') typeBadgeClass = 'bg-indigo-950/80 text-indigo-400 border-indigo-800/60';
-                else if (r.type === 'CNAME') typeBadgeClass = 'bg-amber-950/80 text-amber-400 border-amber-800/60';
-                else if (r.type === 'TXT') typeBadgeClass = 'bg-sky-950/80 text-sky-400 border-sky-800/60';
-                else if (r.type === 'MX') typeBadgeClass = 'bg-violet-950/80 text-violet-400 border-violet-800/60';
-                else if (r.type === 'SOA' || r.type === 'NS') typeBadgeClass = 'bg-slate-800/80 text-slate-400 border-slate-700/60';
-
-                // TTL badge
-                let ttlVal = r.ttl || 900;
-                let ttlDisplay = `${ttlVal}s`;
-                if (ttlVal >= 86400 && ttlVal % 86400 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/86400}d)`;
-                else if (ttlVal >= 3600 && ttlVal % 3600 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/3600}h)`;
-                else if (ttlVal >= 60 && ttlVal % 60 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/60}m)`;
-                const ttlBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-950 border border-slate-800 text-slate-300 font-mono">${ttlDisplay}</span>`;
-
-                // Scope badge
-                const scopeBadge = isProtected
-                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950/70 border border-amber-800/60 text-amber-300 font-semibold inline-flex items-center gap-1.5"><i class="fa-solid fa-shield text-[9px] text-amber-400"></i> Default Service</span>`
-                    : `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-950/70 border border-sky-800/60 text-sky-400 font-semibold inline-flex items-center gap-1.5"><i class="fa-solid fa-cube text-[9px]"></i> Custom</span>`;
-
-                // Safe escaping for strings passed to JS functions
-                const safeZone = encodeURIComponent(r.zone || '');
-                const safeName = encodeURIComponent(r.name || '');
-                const safeType = encodeURIComponent(r.type || '');
-                const safeData = encodeURIComponent(r.data || '');
-
-                // Action buttons: Protected records NEVER have delete! Custom records have BOTH Edit and Delete.
-                let actionHtml = '';
-                if (isProtected) {
-                    actionHtml = `
-                        <div class="flex items-center justify-end">
-                            <span class="px-2.5 py-1 text-[10px] rounded bg-slate-950/80 border border-slate-800 text-slate-500 font-mono inline-flex items-center gap-1.5 cursor-not-allowed select-none" title="Protected Active Directory system service record - deletion disabled">
-                                <i class="fa-solid fa-lock text-amber-500/70 text-[9px]"></i> Protected
-                            </span>
-                        </div>
-                    `;
-                } else {
-                    actionHtml = `
-                        <div class="flex items-center justify-end gap-2">
-                            <button onclick="openEditDnsModal('${safeZone}', '${safeName}', '${safeType}', '${safeData}', ${r.ttl || 900})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Record">
-                                <i class="fa-solid fa-pen-to-square"></i> Edit
-                            </button>
-                            <button onclick="deleteDnsRecord('${safeZone}', '${safeName}', '${safeType}', '${safeData}')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 rounded text-xs transition flex items-center gap-1 border border-slate-700 hover:border-rose-800" title="Delete Record">
-                                <i class="fa-solid fa-trash-can"></i> Delete
-                            </button>
-                        </div>
-                    `;
-                }
-
-                const nameHighlight = isProtected ? 'text-indigo-300 font-semibold' : 'text-white font-bold';
-
-                return `
-                    <tr class="hover:bg-slate-800/30 transition">
-                        <td class="px-4 py-2.5 font-mono ${nameHighlight}">${r.name}</td>
-                        <td class="px-4 py-2.5">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono border font-bold ${typeBadgeClass}">${r.type}</span>
-                        </td>
-                        <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs font-mono" title="${r.data}">${r.data}</td>
-                        <td class="px-4 py-2.5">${ttlBadge}</td>
-                        <td class="px-4 py-2.5">${scopeBadge}</td>
-                        <td class="px-4 py-2.5 text-right">${actionHtml}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function filterDnsRecords(type) {
-            // Maintained for backward compatibility: renders all records or type
-            if (!type || type === 'ALL') {
-                renderDnsTable(currentDnsRecords);
-            } else {
-                renderDnsTable(currentDnsRecords.filter(r => r.type === type));
-            }
-        }
-
-        function filterDnsRecordsSearch() {
-            const q = document.getElementById('dns-search-input').value.toLowerCase().trim();
-            if (!q) {
-                renderDnsTable(currentDnsRecords);
-                return;
-            }
-            const filtered = currentDnsRecords.filter(r => 
-                (r.name && r.name.toLowerCase().includes(q)) ||
-                (r.type && r.type.toLowerCase().includes(q)) ||
-                (r.data && r.data.toLowerCase().includes(q))
-            );
-            renderDnsTable(filtered);
-        }
-
-        function toggleDohTester() {
-            const container = document.getElementById('doh-tester-container');
-            if (container.classList.contains('hidden')) {
-                container.classList.remove('hidden');
-            } else {
-                container.classList.add('hidden');
-            }
-        }
-
-        async function executeDohTestQuery() {
-            const qname = document.getElementById('doh-test-qname').value.trim();
-            const rtype = document.getElementById('doh-test-rtype').value;
-            const btn = document.getElementById('btn-run-doh-test');
-            const resBox = document.getElementById('doh-test-result');
-            const statusEl = document.getElementById('doh-res-status');
-            const timeEl = document.getElementById('doh-res-time');
-            const answersEl = document.getElementById('doh-res-answers');
-
-            if (!qname) return alert('Please enter a domain name to test.');
-
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Resolving...`;
-
-            try {
-                const startTime = performance.now();
-                const res = await fetch(`${API_BASE}/dns/doh/test`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                currentDnsOverrides = data || { host_overrides: [], domain_forwarders: [] };
+                renderDomainForwardersTable(currentDnsOverrides.domain_forwarders || []);
+                renderHostOverridesTable(currentDnsOverrides.host_
                     body: JSON.stringify({ qname: qname, rtype: rtype })
                 });
                 const elapsed = (performance.now() - startTime).toFixed(1);
@@ -7029,7 +6792,7 @@
                 namePlaceholder: "www, portal, autoconfig",
                 nameHint: "The alias hostname requesting redirection.",
                 dataLabel: "Canonical Target FQDN",
-                dataPlaceholder: "host.inet.net",
+                dataPlaceholder: "host.example.com",
                 dataHint: "Fully qualified canonical domain name destination."
             },
             MX: {
@@ -7038,7 +6801,7 @@
                 namePlaceholder: "@ or mail",
                 nameHint: "Use '@' for root domain mail or specific subdomain.",
                 dataLabel: "Mail Exchange Server FQDN",
-                dataPlaceholder: "mail.inet.net",
+                dataPlaceholder: "mail.example.com",
                 dataHint: "FQDN of the receiving mail transfer agent (MTA).",
                 showMx: true
             },
@@ -7048,7 +6811,7 @@
                 namePlaceholder: "@, _dmarc, or 202611._domainkey",
                 nameHint: "Use '@' for SPF root or selector prefix for DKIM/DMARC.",
                 dataLabel: "Text Value / SPF / DKIM String",
-                dataPlaceholder: "v=spf1 ip4:192.168.1.0/24 -all",
+                dataPlaceholder: "v=spf1 ip4:192.0.2.0/24 -all",
                 dataHint: "Arbitrary text data, security policy, or verification token."
             },
             NS: {
@@ -7057,7 +6820,7 @@
                 namePlaceholder: "@ or subzone",
                 nameHint: "Zone apex '@' or delegated subzone.",
                 dataLabel: "Authoritative Name Server FQDN",
-                dataPlaceholder: "ns1.inet.net",
+                dataPlaceholder: "ns1.example.com",
                 dataHint: "FQDN of the authoritative nameserver."
             },
             SOA: {
@@ -7066,7 +6829,7 @@
                 namePlaceholder: "@",
                 nameHint: "SOA records reside exclusively at zone apex root.",
                 dataLabel: "Primary Nameserver & Admin Email",
-                dataPlaceholder: "ns1.inet.net hostmaster.inet.net",
+                dataPlaceholder: "ns1.example.com hostmaster.example.com",
                 dataHint: "Zone authority metadata (primary NS, contact email, serial, timers)."
             },
             PTR: {
@@ -7075,7 +6838,7 @@
                 namePlaceholder: "50 or 50.1.168.192.in-addr.arpa",
                 nameHint: "Last octet in reverse zone, or full in-addr.arpa / ip6.arpa name.",
                 dataLabel: "Target Host FQDN",
-                dataPlaceholder: "srv01.inet.net",
+                dataPlaceholder: "srv01.example.com",
                 dataHint: "Canonical hostname that the IP resolves to."
             },
             SRV: {
@@ -7084,7 +6847,7 @@
                 namePlaceholder: "_kerberos._tcp or _ldap._tcp",
                 nameHint: "Standard RFC 2782 format: _service._proto (e.g. _kerberos._tcp).",
                 dataLabel: "Target Host FQDN",
-                dataPlaceholder: "dc1.inet.net",
+                dataPlaceholder: "dc1.example.com",
                 dataHint: "Host offering the service.",
                 showSrv: true
             },
@@ -9366,8 +9129,8 @@
                     document.getElementById('snmp-cfg-enabled').checked = c.enabled !== false;
                     document.getElementById('snmp-cfg-address').value = c.agent_address || 'udp:161,udp6:[::1]:161';
                     document.getElementById('snmp-cfg-community').value = c.community_string || 'zclock_public';
-                    document.getElementById('snmp-cfg-location').value = c.sys_location || 'Inet Secure Labs Datacenter';
-                    document.getElementById('snmp-cfg-contact').value = c.sys_contact || 'noc@inetcsc.com';
+                    document.getElementById('snmp-cfg-location').value = c.sys_location || 'Primary Datacenter';
+                    document.getElementById('snmp-cfg-contact').value = c.sys_contact || 'admin@example.com';
                     document.getElementById('snmp-cfg-subnets').value = c.allowed_subnets || '192.168.1.0/24, 127.0.0.1';
                     document.getElementById('snmp-cfg-extensions').checked = c.enable_extensions !== false;
                     document.getElementById('snmp-test-community').value = c.community_string || 'zclock_public';

@@ -277,7 +277,7 @@ ZclockID provides comprehensive SNMP v2c/v3 telemetry for monitoring systems:
 ```text
 # Standard MIB-II Information
 sysLocation    "Inet Secure Labs Datacenter"
-sysContact     "sysadmin@inetcsc.com"
+sysContact     "admin@example.com"
 rocommunity    zclock_snmp 192.168.1.0/24
 
 # Active Directory Custom Telemetry Pass-Through

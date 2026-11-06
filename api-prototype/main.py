@@ -973,7 +973,7 @@ class DnsForwardersRequest(BaseModel):
     policy: Optional[str] = Field("first", pattern="^(first|only)$")
 
 class DnsZoneCreateRequest(BaseModel):
-    zone_name: str = Field(..., example="corpzee.com")
+    zone_name: str = Field(..., example="example.com")
 
 class RadiusClientRequest(BaseModel):
     client_name: str = Field(..., example="floor-1-ap-cluster")
@@ -1106,7 +1106,7 @@ class SnmpConfigRequest(BaseModel):
     enabled: bool = True
     agent_address: str = "udp:161,udp6:[::1]:161"
     sys_location: str = "Inet Secure Labs Datacenter"
-    sys_contact: str = "noc@inetcsc.com"
+    sys_contact: str = "admin@example.com"
     community_string: str = "zclock_public"
     allowed_subnets: str = "192.168.1.0/24, 127.0.0.1"
     enable_extensions: bool = True
@@ -1867,7 +1867,7 @@ def get_upn_suffixes():
 
 @app.post("/api/v1/domain/upn")
 def add_upn_suffix(req: UpnSuffixRequest):
-    """Registers an alternate domain UPN suffix for user logins (e.g. corpzee.com)."""
+    """Registers an alternate domain UPN suffix for user logins (e.g. example.com)."""
     realm = "NOT_PROVISIONED"
     if os.path.exists("/etc/samba/smb.conf"):
         with open("/etc/samba/smb.conf") as f:
@@ -5107,7 +5107,7 @@ def get_snmp_config():
         "enabled": is_active,
         "agent_address": "udp:161,udp6:[::1]:161",
         "sys_location": "Inet Secure Labs Datacenter",
-        "sys_contact": "noc@inetcsc.com",
+        "sys_contact": "admin@example.com",
         "community_string": "zclock_public",
         "allowed_subnets": "192.168.1.0/24, 127.0.0.1",
         "enable_extensions": True,

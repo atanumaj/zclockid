@@ -12,7 +12,7 @@ class SysvolPartnerRequest(BaseModel):
     shared_secret: str = Field(..., example="PartnerSyncSecret2026!")
 
 class SysvolFileUploadRequest(BaseModel):
-    rel_path: str = Field(..., example="inet.net/Policies/{GUID}/GPT.INI")
+    rel_path: str = Field(..., example="example.com/Policies/{GUID}/GPT.INI")
     content_base64: str
     mtime: Optional[float] = None
 

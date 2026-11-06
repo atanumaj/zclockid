@@ -10,7 +10,7 @@ class SelfRegistrationSettingsRequest(BaseModel):
     enabled: bool = True
     require_mobile_otp: bool = True
     auto_approve_with_otp: bool = True
-    default_domain: Optional[str] = "inet.net"
+    default_domain: Optional[str] = "example.com"
     default_group: Optional[str] = "Domain Users"
     default_bandwidth_profile_id: Optional[int] = 0
     allowed_departments: Optional[str] = "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
@@ -24,7 +24,7 @@ class SelfRegistrationSettingsRequest(BaseModel):
     smtp_port: Optional[int] = 587
     smtp_user: Optional[str] = ""
     smtp_pass: Optional[str] = ""
-    smtp_from: Optional[str] = "no-reply@inet.net"
+    smtp_from: Optional[str] = "no-reply@example.com"
 
 class SelfRegistrationSubmitRequest(BaseModel):
     username: str

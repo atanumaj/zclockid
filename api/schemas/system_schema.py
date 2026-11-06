@@ -27,8 +27,8 @@ class BackupInspectRequest(BaseModel):
 class SnmpConfigRequest(BaseModel):
     enabled: bool = True
     agent_address: str = "udp:161,udp6:[::1]:161"
-    sys_location: str = "Inet Secure Labs Datacenter"
-    sys_contact: str = "noc@inetcsc.com"
+    sys_location: str = "Primary Datacenter"
+    sys_contact: str = "admin@example.com"
     community_string: str = "zclock_public"
     allowed_subnets: str = "192.168.1.0/24, 127.0.0.1"
     enable_extensions: bool = True

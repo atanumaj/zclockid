@@ -942,8 +942,8 @@ def get_snmp_config():
     config = {
         "enabled": is_active,
         "agent_address": "udp:161,udp6:[::1]:161",
-        "sys_location": "Inet Secure Labs Datacenter",
-        "sys_contact": "noc@inetcsc.com",
+        "sys_location": "Primary Datacenter",
+        "sys_contact": "admin@example.com",
         "community_string": "zclock_public",
         "allowed_subnets": "192.168.1.0/24, 127.0.0.1",
         "enable_extensions": True,
