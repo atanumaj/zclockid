@@ -1399,7 +1399,7 @@
                                     <th class="px-4 py-2.5">Record Name</th>
                                     <th class="px-4 py-2.5">Type</th>
                                     <th class="px-4 py-2.5">Target / IP / Data</th>
-                                    <th class="px-4 py-2.5">SRV Info (Port/Pri/Wgt)</th>
+                                    <th class="px-4 py-2.5">TTL</th>
                                     <th class="px-4 py-2.5">Scope / Protection</th>
                                     <th class="px-4 py-2.5 text-right">Actions</th>
                                 </tr>
@@ -4387,6 +4387,22 @@
                     </div>
                 </div>
 
+                <!-- TTL (Time to Live) -->
+                <div>
+                    <label class="text-slate-400 block mb-1 font-medium">Time To Live (TTL in seconds)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="dns-ttl-input" type="number" value="900" min="60" max="604800" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none" placeholder="900">
+                        <select onchange="document.getElementById('dns-ttl-input').value = this.value" class="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 font-mono focus:outline-none">
+                            <option value="300">5m (300s)</option>
+                            <option value="900" selected>15m (900s)</option>
+                            <option value="1800">30m (1800s)</option>
+                            <option value="3600">1h (3600s)</option>
+                            <option value="86400">1d (86400s)</option>
+                        </select>
+                    </div>
+                    <span class="text-[10px] text-slate-500 mt-1 block">Specifies client and resolver DNS caching duration before re-querying.</span>
+                </div>
+
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeDnsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
                     <button type="button" onclick="submitAddDnsRecord()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Record</button>
@@ -4438,6 +4454,22 @@
                         <label class="text-slate-400 block mb-1">Weight</label>
                         <input id="edit-dns-srv-weight" type="number" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono">
                     </div>
+                </div>
+
+                <!-- TTL (Time to Live) -->
+                <div>
+                    <label class="text-slate-400 block mb-1 font-medium">Time To Live (TTL in seconds)</label>
+                    <div class="flex items-center gap-2">
+                        <input id="edit-dns-ttl-input" type="number" value="900" min="60" max="604800" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-amber-500" placeholder="900">
+                        <select onchange="document.getElementById('edit-dns-ttl-input').value = this.value" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 font-mono focus:outline-none">
+                            <option value="300">5m (300s)</option>
+                            <option value="900">15m (900s)</option>
+                            <option value="1800">30m (1800s)</option>
+                            <option value="3600">1h (3600s)</option>
+                            <option value="86400">1d (86400s)</option>
+                        </select>
+                    </div>
+                    <span class="text-[10px] text-slate-500 mt-1 block">Specifies client and resolver DNS caching duration before re-querying.</span>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
@@ -6399,21 +6431,13 @@
                 else if (r.type === 'MX') typeBadgeClass = 'bg-violet-950/80 text-violet-400 border-violet-800/60';
                 else if (r.type === 'SOA' || r.type === 'NS') typeBadgeClass = 'bg-slate-800/80 text-slate-400 border-slate-700/60';
 
-                // SRV details
-                let srvInfo = '<span class="text-slate-600 font-mono text-[10px]">-</span>';
-                if (r.type === 'SRV') {
-                    const m = (r.data || '').match(/\(([^)]+)\)/);
-                    if (m) {
-                        const parts = m[1].split(',').map(s => s.trim());
-                        if (parts.length === 3) {
-                            srvInfo = `<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950/70 border border-indigo-800/60 text-indigo-300 font-mono">Port ${parts[0]} | Pri ${parts[1]} | Wgt ${parts[2]}</span>`;
-                        } else {
-                            srvInfo = `<span class="text-indigo-400 font-mono text-[10px]">${m[1]}</span>`;
-                        }
-                    } else {
-                        srvInfo = `<span class="text-indigo-400 font-mono text-[10px]">SRV Active</span>`;
-                    }
-                }
+                // TTL badge
+                let ttlVal = r.ttl || 900;
+                let ttlDisplay = `${ttlVal}s`;
+                if (ttlVal >= 86400 && ttlVal % 86400 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/86400}d)`;
+                else if (ttlVal >= 3600 && ttlVal % 3600 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/3600}h)`;
+                else if (ttlVal >= 60 && ttlVal % 60 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/60}m)`;
+                const ttlBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-950 border border-slate-800 text-slate-300 font-mono">${ttlDisplay}</span>`;
 
                 // Scope badge
                 const scopeBadge = isProtected
@@ -6439,7 +6463,7 @@
                 } else {
                     actionHtml = `
                         <div class="flex items-center justify-end gap-2">
-                            <button onclick="openEditDnsModal('${safeZone}', '${safeName}', '${safeType}', '${safeData}')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Record">
+                            <button onclick="openEditDnsModal('${safeZone}', '${safeName}', '${safeType}', '${safeData}', ${r.ttl || 900})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Record">
                                 <i class="fa-solid fa-pen-to-square"></i> Edit
                             </button>
                             <button onclick="deleteDnsRecord('${safeZone}', '${safeName}', '${safeType}', '${safeData}')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 rounded text-xs transition flex items-center gap-1 border border-slate-700 hover:border-rose-800" title="Delete Record">
@@ -6458,7 +6482,7 @@
                             <span class="px-2 py-0.5 rounded text-[10px] font-mono border font-bold ${typeBadgeClass}">${r.type}</span>
                         </td>
                         <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs font-mono" title="${r.data}">${r.data}</td>
-                        <td class="px-4 py-2.5">${srvInfo}</td>
+                        <td class="px-4 py-2.5">${ttlBadge}</td>
                         <td class="px-4 py-2.5">${scopeBadge}</td>
                         <td class="px-4 py-2.5 text-right">${actionHtml}</td>
                     </tr>
@@ -6707,6 +6731,7 @@
             const pri = parseInt(document.getElementById('dns-srv-priority').value) || 0;
             const wgt = parseInt(document.getElementById('dns-srv-weight').value) || 100;
             const mxPri = parseInt(document.getElementById('dns-mx-priority').value);
+            const ttl = parseInt(document.getElementById('dns-ttl-input').value) || 900;
 
             if (!name || !data) return alert('Name and target data are required.');
 
@@ -6714,7 +6739,8 @@
                 zone: zone,
                 record_name: name,
                 record_type: type,
-                record_data: data
+                record_data: data,
+                ttl: ttl
             };
 
             if (type === 'SRV') {
@@ -6743,7 +6769,7 @@
             }
         }
 
-        function openEditDnsModal(encZone, encName, encType, encData) {
+        function openEditDnsModal(encZone, encName, encType, encData, ttlVal) {
             const zone = decodeURIComponent(encZone);
             const name = decodeURIComponent(encName);
             const type = decodeURIComponent(encType);
@@ -6753,6 +6779,8 @@
             document.getElementById('edit-dns-old-data').value = data;
             document.getElementById('edit-dns-name').value = name;
             document.getElementById('edit-dns-type').value = type;
+            const ttlInput = document.getElementById('edit-dns-ttl-input');
+            if (ttlInput) ttlInput.value = ttlVal || 900;
 
             const srvBox = document.getElementById('edit-srv-fields');
             const dataInput = document.getElementById('edit-dns-new-data');
@@ -6811,13 +6839,16 @@
             const type = document.getElementById('edit-dns-type').value;
             const oldData = document.getElementById('edit-dns-old-data').value;
             const newData = document.getElementById('edit-dns-new-data').value.trim();
+            const ttlInput = document.getElementById('edit-dns-ttl-input');
+            const ttl = ttlInput ? (parseInt(ttlInput.value) || 900) : 900;
 
             const payload = {
                 zone: zone,
                 record_name: name,
                 record_type: type,
                 old_data: oldData,
-                new_data: newData
+                new_data: newData,
+                ttl: ttl
             };
 
             if (type === 'SRV') {

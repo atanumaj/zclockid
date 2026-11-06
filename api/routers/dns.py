@@ -224,6 +224,7 @@ def fast_get_dns_records(zone: str):
                                 "type": rtype,
                                 "data": rdata,
                                 "zone": zone,
+                                "ttl": getattr(r, "dwTtlSeconds", 900),
                                 "is_srv": (rtype == "SRV"),
                                 "is_protected": is_protected_dns_record(full_name, rtype, zone)
                             })
@@ -285,12 +286,20 @@ def get_dns_records(zone: str = "inet.net", refresh: bool = False):
                 parts = line.strip().split(":", 1)
                 if len(parts) == 2:
                     rtype = parts[0].strip()
+                    ttl_val = 900
+                    m_ttl = re.search(r'ttl=(\d+)', parts[1])
+                    if m_ttl:
+                        try:
+                            ttl_val = int(m_ttl.group(1))
+                        except Exception:
+                            ttl_val = 900
                     rdata = re.sub(r'\(flags=[^)]+\)', '', parts[1]).strip()
                     records.append({
                         "name": current_name,
                         "type": rtype,
                         "data": rdata,
                         "zone": zone,
+                        "ttl": ttl_val,
                         "is_srv": (rtype == "SRV"),
                         "is_protected": is_protected_dns_record(current_name, rtype, zone)
                     })
@@ -400,9 +409,10 @@ def test_doh_resolution(req: DohTestRequest):
 
 @router.post("/records")
 def add_dns_record(req: DnsRecordRequest):
-    """Adds a standard (A, AAAA, CNAME, MX, TXT, NS, PTR, SRV, SOA, CAA) DNS record."""
+    """Adds a standard (A, AAAA, CNAME, MX, TXT, NS, PTR, SRV, SOA, CAA) DNS record with TTL."""
     admin_user, admin_pass = get_ad_creds()
     rtype = req.record_type.upper()
+    target_ttl = int(req.ttl) if req.ttl and req.ttl > 0 else 900
 
     if rtype == "CAA":
         raise HTTPException(
@@ -414,39 +424,70 @@ def add_dns_record(req: DnsRecordRequest):
             status_code=400,
             detail="Active Directory BIND9/Samba DLZ: Zone SOA record is automatically generated at the zone apex (@). To modify SOA timers or primary nameserver, use the record Edit action."
         )
-    elif rtype == "SRV":
+
+    # Prepare formatted data string
+    if rtype == "SRV":
         port = req.port or 88
         priority = req.priority or 0
         weight = req.weight or 100
         target = req.record_data.strip()
-        srv_data = f"{target} {port} {priority} {weight}"
-        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, "SRV", srv_data, f"-U{admin_user}", f"--password={admin_pass}"]
+        data_str = f"{target} {port} {priority} {weight}"
     elif rtype == "MX":
         target = req.record_data.strip()
         priority = req.priority if req.priority is not None else 10
         if " " in target:
-            mx_data = target
+            data_str = target
         else:
-            mx_data = f"{target} {priority}"
-        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, "MX", mx_data, f"-U{admin_user}", f"--password={admin_pass}"]
+            data_str = f"{target} {priority}"
+    elif rtype == "TXT":
+        data_str = req.record_data.strip()
     else:
-        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, rtype, req.record_data.strip(), f"-U{admin_user}", f"--password={admin_pass}"]
+        data_str = req.record_data.strip()
 
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to add DNS record: {stderr or stdout}")
+    # Try fast in-process RPC to set custom TTL directly
+    added_via_rpc = False
+    try:
+        from samba.netcmd.dns import DnsConnWrapper, dns_type_flag, data_to_dns_record
+        from samba.param import LoadParm
+        from samba.credentials import Credentials
+        from samba.dcerpc import dnsserver
+
+        lp = LoadParm()
+        lp.load(str(SMB_CONF_FILE))
+        creds = Credentials()
+        creds.guess(lp)
+        creds.set_username(admin_user)
+        creds.set_password(admin_pass)
+        conn = DnsConnWrapper("127.0.0.1", lp, creds)
+
+        record_type = dns_type_flag(rtype)
+        rec = data_to_dns_record(record_type, data_str)
+        rec.dwTtlSeconds = target_ttl
+        add_rec_buf = dnsserver.DNS_RPC_RECORD_BUF()
+        add_rec_buf.rec = rec
+        conn.DnssrvUpdateRecord2(dnsserver.DNS_CLIENT_VERSION_LONGHORN, 0, "127.0.0.1", req.zone, req.record_name, add_rec_buf, None)
+        added_via_rpc = True
+    except Exception as e:
+        logger.warning(f"In-process RPC DNS add failed ({e}), falling back to CLI")
+
+    if not added_via_rpc:
+        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, rtype, data_str, f"-U{admin_user}", f"--password={admin_pass}"]
+        code, stdout, stderr = run_cmd(cmd, timeout=15)
+        if code != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to add DNS record: {stderr or stdout}")
 
     _DNS_RECORDS_CACHE.pop(req.zone, None)
-    log_audit("DNS_RECORD_ADDED", "admin", f"{req.record_name}.{req.zone}", "SUCCESS", {"type": req.record_type, "data": req.record_data})
-    return {"status": "success", "message": f"{req.record_type} record '{req.record_name}' added to zone {req.zone}."}
+    log_audit("DNS_RECORD_ADDED", "admin", f"{req.record_name}.{req.zone}", "SUCCESS", {"type": req.record_type, "data": req.record_data, "ttl": target_ttl})
+    return {"status": "success", "message": f"{req.record_type} record '{req.record_name}' added to zone {req.zone} (TTL: {target_ttl}s)."}
 
 @router.put("/records")
 def update_dns_record(req: DnsRecordUpdateRequest):
-    """Updates an existing DNS record data / target in Active Directory DNS."""
+    """Updates an existing DNS record data / target and TTL in Active Directory DNS."""
     admin_user, admin_pass = get_ad_creds()
     old_clean = req.old_data.strip()
     new_clean = req.new_data.strip()
     rtype = req.record_type.upper()
+    target_ttl = int(req.ttl) if req.ttl and req.ttl > 0 else 900
 
     if rtype == "SRV":
         port = req.port or 88
@@ -463,7 +504,6 @@ def update_dns_record(req: DnsRecordUpdateRequest):
             sub = parts[1].replace(")", "").split(",")
             if len(sub) == 3:
                 old_clean = f"{t} {sub[0].strip()} {sub[1].strip()} {sub[2].strip()}"
-        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, "SRV", old_clean, new_data_str, f"-U{admin_user}", f"--password={admin_pass}"]
     elif rtype == "MX":
         target = new_clean
         if "(" in target:
@@ -479,19 +519,50 @@ def update_dns_record(req: DnsRecordUpdateRequest):
             t = parts[0].strip()
             p = parts[1].replace(")", "").strip()
             old_clean = f"{t} {p}"
-        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, "MX", old_clean, new_data_str, f"-U{admin_user}", f"--password={admin_pass}"]
     else:
-        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, rtype, old_clean, new_clean, f"-U{admin_user}", f"--password={admin_pass}"]
+        new_data_str = new_clean
 
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to update DNS record: {stderr or stdout}")
+    updated_via_rpc = False
+    try:
+        from samba.netcmd.dns import DnsConnWrapper, dns_type_flag, data_to_dns_record
+        from samba.param import LoadParm
+        from samba.credentials import Credentials
+        from samba.dcerpc import dnsserver
+
+        lp = LoadParm()
+        lp.load(str(SMB_CONF_FILE))
+        creds = Credentials()
+        creds.guess(lp)
+        creds.set_username(admin_user)
+        creds.set_password(admin_pass)
+        conn = DnsConnWrapper("127.0.0.1", lp, creds)
+
+        record_type = dns_type_flag(rtype)
+        old_rec = data_to_dns_record(record_type, old_clean)
+        new_rec = data_to_dns_record(record_type, new_data_str)
+        new_rec.dwTtlSeconds = target_ttl
+
+        buf_new = dnsserver.DNS_RPC_RECORD_BUF()
+        buf_new.rec = new_rec
+        buf_del = dnsserver.DNS_RPC_RECORD_BUF()
+        buf_del.rec = old_rec
+
+        conn.DnssrvUpdateRecord2(dnsserver.DNS_CLIENT_VERSION_LONGHORN, 0, "127.0.0.1", req.zone, req.record_name, buf_new, buf_del)
+        updated_via_rpc = True
+    except Exception as e:
+        logger.warning(f"In-process RPC DNS update failed ({e}), falling back to CLI")
+
+    if not updated_via_rpc:
+        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, rtype, old_clean, new_data_str, f"-U{admin_user}", f"--password={admin_pass}"]
+        code, stdout, stderr = run_cmd(cmd, timeout=15)
+        if code != 0:
+            raise HTTPException(status_code=400, detail=f"Failed to update DNS record: {stderr or stdout}")
 
     _DNS_RECORDS_CACHE.pop(req.zone, None)
     log_audit("DNS_RECORD_UPDATED", "admin", f"{req.record_name}.{req.zone}", "SUCCESS", {
-        "type": req.record_type, "old_data": req.old_data, "new_data": req.new_data
+        "type": req.record_type, "old_data": req.old_data, "new_data": req.new_data, "ttl": target_ttl
     })
-    return {"status": "success", "message": f"{req.record_type} record '{req.record_name}' updated successfully in zone {req.zone}."}
+    return {"status": "success", "message": f"{req.record_type} record '{req.record_name}' updated successfully in zone {req.zone} (TTL: {target_ttl}s)."}
 
 @router.delete("/records")
 def delete_dns_record(zone: str, record_name: str, record_type: str, record_data: str):
