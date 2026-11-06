@@ -25,21 +25,21 @@
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
     
-                                /* ==================== HIGH-CONTRAST MODERN LIGHT THEME (SUBDUED SLATE) ==================== */
+                                        /* ==================== ZENTYAL-INSPIRED SEGREGATED LIGHT THEME ==================== */
         html.light-theme, html.light-theme body {
-            background-color: #dce2ec !important; /* Subdued cool slate canvas - gentle on eyes, zero glare */
+            background-color: #c4c8cf !important; /* Zentyal medium-slate gray canvas - distinct framing & depth */
             color: #0f172a !important; /* Obsidian text */
         }
 
         /* Top Navigation Header */
         html.light-theme header {
-            background-color: #e8edf5 !important;
-            border-bottom: 1px solid #bcc6d4 !important;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06) !important;
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #b5bec8 !important;
+            box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08) !important;
         }
         html.light-theme header [class*="bg-slate-950"] {
-            background-color: #dde3ed !important;
-            border-color: #bcc6d4 !important;
+            background-color: #edf0f4 !important;
+            border-color: #b5bec8 !important;
         }
         html.light-theme #header-domain {
             color: #15803d !important;
@@ -54,22 +54,22 @@
             font-weight: 700 !important;
         }
 
-        /* Sidebar Navigation */
+        /* Sidebar Navigation (Crisp Light Sidebar like Zentyal) */
         html.light-theme aside {
-            background-color: #e5ebf3 !important;
-            border-right: 1px solid #bcc6d4 !important;
+            background-color: #f7f9fb !important;
+            border-right: 1px solid #b5bec8 !important;
         }
         html.light-theme aside nav button {
             color: #334155 !important;
             font-weight: 600 !important;
         }
         html.light-theme aside nav button:hover {
-            background-color: #d7deeb !important;
+            background-color: #e4e8ee !important;
             color: #0f172a !important;
         }
         html.light-theme aside nav button.text-indigo-400,
         html.light-theme aside nav button.bg-indigo-600\/10 {
-            background-color: #dbeafe !important;
+            background-color: #e0e7ff !important;
             color: #1e40af !important;
             border: 1px solid #93c5fd !important;
             font-weight: 700 !important;
@@ -87,9 +87,9 @@
         /* Hero Punchline Banner (Tab 1: Dashboard) */
         html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r,
         html.light-theme div.relative.overflow-hidden.bg-gradient-to-r {
-            background: linear-gradient(135deg, #e0e7ff 0%, #e0f2fe 50%, #e9eef6 100%) !important;
-            border: 1px solid #b8c4df !important;
-            box-shadow: 0 4px 14px -2px rgba(99, 102, 241, 0.15) !important;
+            background: linear-gradient(135deg, #eef2ff 0%, #f0fdfa 50%, #ffffff 100%) !important;
+            border: 1px solid #a5b4fc !important;
+            box-shadow: 0 4px 14px -2px rgba(99, 102, 241, 0.18) !important;
         }
         html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1,
         html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1 span:not(.bg-clip-text) {
@@ -105,17 +105,17 @@
             color: #334155 !important;
         }
         html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r [class*="bg-slate-950"] {
-            background-color: #f5f8fc !important;
-            border: 1px solid #bcc6d4 !important;
+            background-color: #f8fafc !important;
+            border: 1px solid #b5bec8 !important;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
         }
 
         /* Updates & Release Banner */
         html.light-theme #tab-dashboard > div.bg-gradient-to-r.from-slate-900.via-indigo-950\/20,
         html.light-theme .bg-gradient-to-r.via-indigo-950\/20 {
-            background: linear-gradient(135deg, #ede9fe 0%, #f4f6fa 100%) !important;
+            background: linear-gradient(135deg, #ede9fe 0%, #ffffff 100%) !important;
             border: 1px solid #c4b5fd !important;
-            box-shadow: 0 2px 6px rgba(124, 58, 237, 0.1) !important;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12) !important;
         }
         html.light-theme .bg-violet-600\/20 {
             background-color: #e0d9fc !important;
@@ -132,35 +132,35 @@
             color: #334155 !important;
         }
 
-        /* Primary Elevated Cards (Soft cool off-white over darker slate canvas) */
+        /* Primary Elevated Cards (Zentyal Crisp White Panels with Borders & Shadows) */
         html.light-theme [class*="bg-slate-900"] {
-            background-color: #f1f4f9 !important;
-            border-color: #bcc6d4 !important;
-            box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+            background-color: #ffffff !important;
+            border: 1px solid #b5bec8 !important;
+            box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.12), 0 1px 4px -1px rgba(0, 0, 0, 0.08) !important;
         }
 
-        /* Secondary Wells / Insets / Sub-Cards */
+        /* Secondary Insets / Sub-Cards / Wells (Zentyal #f2f4f7 Light Surface) */
         html.light-theme [class*="bg-slate-950"],
         html.light-theme [class*="bg-slate-850"] {
-            background-color: #e3e8f2 !important;
-            border-color: #bcc6d4 !important;
+            background-color: #f2f4f7 !important;
+            border: 1px solid #cbd5e1 !important;
         }
 
         /* Subsystem Daemon Cards & Inset Tables */
         html.light-theme #services-grid > div {
-            background-color: #f5f8fc !important;
-            border: 1px solid #bcc6d4 !important;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06) !important;
+            background-color: #ffffff !important;
+            border: 1px solid #b5bec8 !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
         }
         html.light-theme #services-grid button {
-            background-color: #e6ebf4 !important;
-            border: 1px solid #bcc6d4 !important;
+            background: linear-gradient(to bottom, #ffffff 0%, #edf0f4 100%) !important;
+            border: 1px solid #b5bec8 !important;
             color: #1e293b !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
         }
         html.light-theme #services-grid button:hover {
-            background-color: #d7deeb !important;
-            border-color: #8896aa !important;
+            background: #e2e6eb !important;
+            border-color: #8c98a6 !important;
             color: #0f172a !important;
         }
         html.light-theme #services-grid button.text-slate-200 {
@@ -168,27 +168,27 @@
             font-weight: 600 !important;
         }
 
-        /* All Secondary Buttons & Controls */
+        /* Zentyal-Style Buttons & Controls */
         html.light-theme [class*="bg-slate-800"] {
-            background-color: #e6ebf4 !important;
-            border-color: #bcc6d4 !important;
+            background: linear-gradient(to bottom, #ffffff 0%, #edf0f4 100%) !important;
+            border: 1px solid #b5bec8 !important;
             color: #0f172a !important;
             font-weight: 600 !important;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
         }
         html.light-theme [class*="bg-slate-800"]:hover,
         html.light-theme [class*="hover:bg-slate-700"]:hover,
         html.light-theme [class*="hover:bg-slate-800"]:hover {
-            background-color: #d7deeb !important;
-            border-color: #8896aa !important;
+            background: #e2e6eb !important;
+            border-color: #8c98a6 !important;
             color: #0f172a !important;
         }
 
-        /* All Borders & Dividers */
+        /* Borders & Dividers */
         html.light-theme [class*="border-slate-800"],
         html.light-theme [class*="border-slate-700"],
         html.light-theme [class*="border-slate-900"] {
-            border-color: #bcc6d4 !important;
+            border-color: #b5bec8 !important;
         }
         html.light-theme [class*="divide-slate-800"],
         html.light-theme [class*="divide-slate-700"] {
@@ -252,8 +252,8 @@
 
         /* Subtab Switchers (Radius, Users, DNS, Settings) */
         html.light-theme .inline-flex[class*="bg-slate-950"] {
-            background-color: #dce2ec !important;
-            border-color: #bcc6d4 !important;
+            background-color: #dde1e7 !important;
+            border-color: #b5bec8 !important;
         }
         html.light-theme [class*="bg-amber-600\/20"] {
             background-color: #fef3c7 !important;
@@ -287,7 +287,7 @@
             color: #1e293b !important; /* Slate-800 */
         }
         html.light-theme [class*="text-slate-400"] {
-            color: #334155 !important; /* Slate-700: solid readable contrast */
+            color: #334155 !important; /* Slate-700 */
         }
         html.light-theme [class*="text-slate-500"] {
             color: #475569 !important; /* Slate-600 */
@@ -337,9 +337,9 @@
         html.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
         html.light-theme select,
         html.light-theme textarea {
-            background-color: #f8fafc !important;
+            background-color: #ffffff !important;
             color: #0f172a !important;
-            border-color: #bcc6d4 !important;
+            border-color: #b5bec8 !important;
         }
         html.light-theme input::placeholder,
         html.light-theme textarea::placeholder {
@@ -353,21 +353,24 @@
             box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2) !important;
         }
 
-        /* Tables & Inset Overrides */
+        /* Zentyal Tables: Distinct Header & Striped Alternating Rows */
         html.light-theme table thead tr,
         html.light-theme table th,
         html.light-theme [class*="bg-slate-900"] thead {
-            background-color: #e5ebf3 !important;
+            background-color: #e5e9f0 !important;
             color: #1e293b !important;
-            border-bottom: 2px solid #bcc6d4 !important;
+            border-bottom: 2px solid #b5bec8 !important;
             font-weight: 700 !important;
         }
         html.light-theme table tbody tr {
-            background-color: #f1f4f9 !important;
-            border-bottom: 1px solid #dce2ec !important;
+            background-color: #ffffff !important;
+            border-bottom: 1px solid #e8ecf1 !important;
+        }
+        html.light-theme table tbody tr:nth-child(even) {
+            background-color: #f4f6f9 !important;
         }
         html.light-theme table tbody tr:hover {
-            background-color: #e5ebf3 !important;
+            background-color: #e8edf4 !important;
         }
         html.light-theme table td {
             color: #0f172a !important;
@@ -378,13 +381,13 @@
         html.light-theme .fixed.inset-0.bg-black\/70,
         html.light-theme .fixed.inset-0.bg-black\/60,
         html.light-theme .fixed.inset-0.bg-black\/50 {
-            background-color: rgba(15, 23, 42, 0.55) !important;
+            background-color: rgba(15, 23, 42, 0.6) !important;
         }
         html.light-theme .fixed.inset-0 > div,
         html.light-theme .fixed.inset-0 > div > div {
-            background-color: #f1f4f9 !important;
-            border-color: #bcc6d4 !important;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+            background-color: #ffffff !important;
+            border-color: #b5bec8 !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.28) !important;
         }
 
         /* Terminal & CLI Code Boxes (Preserve dark background for authentic console readability) */
@@ -400,14 +403,14 @@
 
         /* Theme Segmented Switch in Light Mode */
         html.light-theme #theme-selector-container {
-            background-color: #dde3ed !important;
-            border-color: #bcc6d4 !important;
+            background-color: #dde1e7 !important;
+            border-color: #b5bec8 !important;
         }
 
         /* Custom Scrollbar */
-        html.light-theme .custom-scroll::-webkit-scrollbar-track { background: #dce2ec; }
-        html.light-theme .custom-scroll::-webkit-scrollbar-thumb { background: #bcc6d4; border-radius: 4px; }
-        html.light-theme .custom-scroll::-webkit-scrollbar-thumb:hover { background: #8896aa; }
+        html.light-theme .custom-scroll::-webkit-scrollbar-track { background: #c4c8cf; }
+        html.light-theme .custom-scroll::-webkit-scrollbar-thumb { background: #9da8b6; border-radius: 4px; }
+        html.light-theme .custom-scroll::-webkit-scrollbar-thumb:hover { background: #7c8897; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased">
