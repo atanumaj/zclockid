@@ -7,6 +7,15 @@
     <!-- Tailwind CSS v3 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Early Theme Loader -->
+    <script>
+        (function() {
+            if (localStorage.getItem('zclock_theme') === 'light') {
+                document.documentElement.classList.add('light-theme');
+            }
+        })();
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -15,6 +24,221 @@
         .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
+    
+        /* ==================== SOFT WHITISH LIGHT THEME ==================== */
+        html.light-theme, html.light-theme body {
+            background-color: #f1f5f9 !important; /* Tailwind slate-100: gentle, clean off-white canvas */
+            color: #0f172a !important; /* Slate-900 deep crisp text */
+        }
+
+        /* Top Navigation Header & Sidebar */
+        html.light-theme header {
+            background-color: rgba(248, 250, 252, 0.95) !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme aside {
+            background-color: #f8fafc !important; /* Slate-50 */
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme aside button.text-slate-400 {
+            color: #475569 !important;
+        }
+        html.light-theme aside button.text-slate-400:hover {
+            background-color: #e2e8f0 !important;
+            color: #0f172a !important;
+        }
+        html.light-theme aside button.text-indigo-400 {
+            background-color: #e0e7ff !important;
+            color: #4338ca !important;
+            border-color: #c7d2fe !important;
+        }
+
+        /* Primary Surface / Cards */
+        html.light-theme .bg-slate-900,
+        html.light-theme .bg-slate-900\/90,
+        html.light-theme .bg-slate-900\/80,
+        html.light-theme .bg-slate-900\/70,
+        html.light-theme .bg-slate-900\/60,
+        html.light-theme .bg-slate-900\/50,
+        html.light-theme .bg-slate-900\/40 {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.04) !important;
+        }
+
+        /* Inner Wells / Secondary Containers / Stat Cards */
+        html.light-theme .bg-slate-950,
+        html.light-theme .bg-slate-950\/80,
+        html.light-theme .bg-slate-950\/60,
+        html.light-theme .bg-slate-850 {
+            background-color: #f8fafc !important; /* Slate-50 */
+            border-color: #e2e8f0 !important;
+        }
+
+        /* Neutral Buttons & Inset Controls */
+        html.light-theme .bg-slate-800,
+        html.light-theme .bg-slate-800\/60,
+        html.light-theme .bg-slate-800\/80 {
+            background-color: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
+            color: #1e293b !important;
+        }
+        html.light-theme .bg-slate-800:hover,
+        html.light-theme .hover\:bg-slate-800:hover,
+        html.light-theme .hover\:bg-slate-700:hover {
+            background-color: #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+
+        /* Borders */
+        html.light-theme .border-slate-800,
+        html.light-theme .border-slate-800\/60,
+        html.light-theme .border-slate-800\/40,
+        html.light-theme .border-slate-700 {
+            border-color: #e2e8f0 !important;
+        }
+
+        /* Typography Hierarchy */
+        html.light-theme .text-white,
+        html.light-theme .text-slate-100,
+        html.light-theme .text-slate-200 {
+            color: #0f172a !important;
+        }
+        html.light-theme .text-slate-300 {
+            color: #1e293b !important;
+        }
+        html.light-theme .text-slate-400 {
+            color: #475569 !important;
+        }
+        html.light-theme .text-slate-500 {
+            color: #64748b !important;
+        }
+        html.light-theme .text-slate-600 {
+            color: #94a3b8 !important;
+        }
+
+        /* Accent Text Colors - Optimized for Light Contrast */
+        html.light-theme .text-indigo-400,
+        html.light-theme .text-indigo-300 {
+            color: #4f46e5 !important;
+        }
+        html.light-theme .text-emerald-400,
+        html.light-theme .text-emerald-300 {
+            color: #059669 !important;
+        }
+        html.light-theme .text-cyan-400,
+        html.light-theme .text-cyan-300 {
+            color: #0284c7 !important;
+        }
+        html.light-theme .text-amber-400,
+        html.light-theme .text-amber-300 {
+            color: #d97706 !important;
+        }
+        html.light-theme .text-rose-400,
+        html.light-theme .text-rose-300 {
+            color: #e11d48 !important;
+        }
+        html.light-theme .text-sky-400,
+        html.light-theme .text-sky-300 {
+            color: #0284c7 !important;
+        }
+
+        /* Status Badges */
+        html.light-theme .bg-emerald-950\/80,
+        html.light-theme .bg-emerald-950\/60,
+        html.light-theme .bg-emerald-900\/40 {
+            background-color: #dcfce7 !important;
+            border-color: #86efac !important;
+            color: #166534 !important;
+        }
+        html.light-theme .bg-indigo-950\/60,
+        html.light-theme .bg-indigo-900\/40 {
+            background-color: #e0e7ff !important;
+            border-color: #a5b4fc !important;
+            color: #3730a3 !important;
+        }
+        html.light-theme .bg-amber-950\/60,
+        html.light-theme .bg-amber-900\/40 {
+            background-color: #fef3c7 !important;
+            border-color: #fcd34d !important;
+            color: #92400e !important;
+        }
+        html.light-theme .bg-rose-950\/60,
+        html.light-theme .bg-rose-900\/40 {
+            background-color: #ffe4e6 !important;
+            border-color: #fda4af !important;
+            color: #9f1239 !important;
+        }
+
+        /* Form Inputs, Selects & Textareas */
+        html.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+        html.light-theme select,
+        html.light-theme textarea {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #cbd5e1 !important;
+        }
+        html.light-theme input::placeholder,
+        html.light-theme textarea::placeholder {
+            color: #94a3b8 !important;
+        }
+        html.light-theme input:focus,
+        html.light-theme select:focus,
+        html.light-theme textarea:focus {
+            border-color: #6366f1 !important;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15) !important;
+        }
+
+        /* Tables */
+        html.light-theme table thead tr,
+        html.light-theme table th {
+            background-color: #f1f5f9 !important;
+            color: #475569 !important;
+            border-color: #e2e8f0 !important;
+        }
+        html.light-theme table tbody tr {
+            border-color: #e2e8f0 !important;
+        }
+        html.light-theme table tbody tr:hover {
+            background-color: #f8fafc !important;
+        }
+
+        /* Modal Overlays & Windows */
+        html.light-theme .fixed.inset-0.bg-black\/80,
+        html.light-theme .fixed.inset-0.bg-black\/70,
+        html.light-theme .fixed.inset-0.bg-black\/60,
+        html.light-theme .fixed.inset-0.bg-black\/50 {
+            background-color: rgba(15, 23, 42, 0.45) !important;
+        }
+        html.light-theme .fixed.inset-0 > div.bg-slate-900,
+        html.light-theme .fixed.inset-0 > div.bg-slate-950,
+        html.light-theme .fixed.inset-0 > div > div.bg-slate-900,
+        html.light-theme .fixed.inset-0 > div > div.bg-slate-950 {
+            background-color: #ffffff !important;
+            border-color: #cbd5e1 !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.18) !important;
+        }
+
+        /* Terminal & Raw Logs - Retain dark developer contrast */
+        html.light-theme pre.font-mono,
+        html.light-theme code.font-mono:not(header code):not(span code),
+        html.light-theme #drs-output,
+        html.light-theme #audit-raw-log-content {
+            background-color: #0f172a !important;
+            color: #38bdf8 !important;
+            border-color: #1e293b !important;
+        }
+
+        /* Theme Segmented Switch in Light Mode */
+        html.light-theme #theme-selector-container {
+            background-color: #e2e8f0 !important;
+            border-color: #cbd5e1 !important;
+        }
+
+        /* Scrollbars */
+        html.light-theme .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        html.light-theme .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        html.light-theme .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased">
@@ -39,6 +263,17 @@
             <div class="hidden sm:flex items-center gap-2 text-slate-400">
                 <i class="fa-solid fa-server text-slate-500"></i>
                 <span id="header-host">inet-zclockid</span>
+            </div>
+                        <!-- Theme Selector (Dark / Soft Light) -->
+            <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 font-sans" id="theme-selector-container">
+                <button id="theme-btn-dark" onclick="setAppTheme('dark')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition text-indigo-400 bg-slate-800 border border-indigo-500/30 shadow-sm" title="Dark Theme">
+                    <i class="fa-solid fa-moon text-xs"></i>
+                    <span class="hidden md:inline">Dark</span>
+                </button>
+                <button id="theme-btn-light" onclick="setAppTheme('light')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-slate-200" title="Soft Light Theme">
+                    <i class="fa-solid fa-sun text-xs text-amber-400"></i>
+                    <span class="hidden md:inline">Light</span>
+                </button>
             </div>
             <button onclick="openProfileModal()" class="flex items-center gap-2 px-3 py-1 bg-slate-950 hover:bg-slate-850 rounded-lg border border-slate-800 hover:border-indigo-500/50 transition text-left group cursor-pointer" title="Manage Profile & Security">
                 <i class="fa-solid fa-user-shield text-indigo-400 group-hover:text-indigo-300"></i>
@@ -5509,6 +5744,41 @@
 
     <!-- ==================== JAVASCRIPT CONTROLLERS ==================== -->
     <script>
+        // ==================== THEME CONTROLLER (DARK / SOFT LIGHT) ====================
+        function setAppTheme(theme) {
+            const isLight = theme === 'light';
+            if (isLight) {
+                document.documentElement.classList.add('light-theme');
+                if (document.body) document.body.classList.add('light-theme');
+                localStorage.setItem('zclock_theme', 'light');
+            } else {
+                document.documentElement.classList.remove('light-theme');
+                if (document.body) document.body.classList.remove('light-theme');
+                localStorage.setItem('zclock_theme', 'dark');
+            }
+            updateThemeButtons(theme);
+        }
+
+        function updateThemeButtons(theme) {
+            const darkBtn = document.getElementById('theme-btn-dark');
+            const lightBtn = document.getElementById('theme-btn-light');
+            if (!darkBtn || !lightBtn) return;
+
+            if (theme === 'light') {
+                lightBtn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition text-amber-800 bg-white border border-amber-300 shadow-sm';
+                darkBtn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition text-slate-500 hover:text-slate-800';
+            } else {
+                darkBtn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition text-indigo-400 bg-slate-800 border border-indigo-500/30 shadow-sm';
+                lightBtn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-slate-200';
+            }
+        }
+
+        // Initialize theme buttons immediately
+        (function initTheme() {
+            const currentTheme = localStorage.getItem('zclock_theme') || 'dark';
+            setAppTheme(currentTheme);
+        })();
+
         // ==================== AUTHENTICATION GUARD & CLIENT SECURITY ====================
         const initialAuthToken = localStorage.getItem('zclockid_token');
         if (!initialAuthToken) {
