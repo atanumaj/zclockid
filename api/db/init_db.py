@@ -45,6 +45,12 @@ def init_db():
     sess_cols = [row[1] for row in cursor.fetchall()]
     if "role" not in sess_cols:
         cursor.execute("ALTER TABLE sessions ADD COLUMN role TEXT DEFAULT 'fulladmin'")
+    if "last_active" not in sess_cols:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN last_active REAL")
+    if "ip_address" not in sess_cols:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN ip_address TEXT DEFAULT ''")
+    if "user_agent" not in sess_cols:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN user_agent TEXT DEFAULT ''")
 
     # Self-Registration Queue
     cursor.execute("""
@@ -345,6 +351,44 @@ def init_db():
         INSERT OR IGNORE INTO syslog_settings (id, enabled, remote_host, remote_port, protocol, facility, log_format, updated_at)
         VALUES (1, 0, '', 514, 'UDP', 'local0', 'RFC5424', ?)
     """, (time.time(),))
+
+    # System-Wide Security Controls & Baseline Settings
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS security_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            session_idle_timeout_min INTEGER DEFAULT 15,
+            session_max_lifetime_hours INTEGER DEFAULT 8,
+            allowed_subnets_gui TEXT DEFAULT '0.0.0.0/0, ::/0',
+            allowed_subnets_ssh TEXT DEFAULT '0.0.0.0/0, ::/0',
+            allowed_subnets_snmp TEXT DEFAULT '192.168.1.0/24, 10.10.0.0/24, 127.0.0.1/32',
+            snmp_community TEXT DEFAULT 'zclock_public',
+            max_failed_logins INTEGER DEFAULT 5,
+            lockout_duration_min INTEGER DEFAULT 15,
+            ssh_permit_root INTEGER DEFAULT 0,
+            ssh_password_auth INTEGER DEFAULT 1,
+            updated_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM security_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO security_settings (
+                id, session_idle_timeout_min, session_max_lifetime_hours,
+                allowed_subnets_gui, allowed_subnets_ssh, allowed_subnets_snmp,
+                snmp_community, max_failed_logins, lockout_duration_min,
+                ssh_permit_root, ssh_password_auth, updated_at
+            ) VALUES (1, 15, 8, '0.0.0.0/0, ::/0', '0.0.0.0/0, ::/0', '192.168.1.0/24, 10.10.0.0/24, 127.0.0.1/32', 'zclock_public', 5, 15, 0, 1, ?)
+        """, (time.time(),))
+
+    # Failed login attempts for brute-force rate-limiting and lockout
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS failed_login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ip_address TEXT NOT NULL,
+            username TEXT NOT NULL,
+            timestamp REAL NOT NULL
+        )
+    """)
 
     conn.commit()
     conn.close()

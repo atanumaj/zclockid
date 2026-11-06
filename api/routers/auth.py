@@ -6,7 +6,7 @@ import os
 import time
 import secrets
 import sqlite3
-from fastapi import APIRouter, HTTPException, status, Header
+from fastapi import APIRouter, HTTPException, status, Header, Request
 from typing import Optional
 
 from api.core.config import (
@@ -17,6 +17,7 @@ from api.core.config import (
 )
 from api.core.security import hash_password, verify_password, get_ad_creds
 from api.services.system_service import run_cmd, log_audit
+from api.services.security_service import get_client_ip, get_security_settings
 from api.schemas.auth_schema import (
     SetupProvisionRequest,
     LoginRequest,
@@ -147,9 +148,34 @@ include "/var/lib/samba/bind-dns/named.conf";
     }
 
 @router.post("/auth/login")
-def login(req: LoginRequest):
+def login(req: LoginRequest, request: Request):
+    client_ip = get_client_ip(request)
+    user_agent = request.headers.get("user-agent", "")[:250]
+    settings = get_security_settings()
+
+    # Brute-force rate limiting & lockout check
+    max_failed = settings.get("max_failed_logins", 5)
+    lockout_min = settings.get("lockout_duration_min", 15)
+    cutoff = time.time() - (lockout_min * 60)
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COUNT(*) FROM failed_login_attempts
+        WHERE (ip_address = ? OR username = ?) AND timestamp > ?
+    """, (client_ip, req.username, cutoff))
+    recent_failures = cursor.fetchone()[0]
+
+    if recent_failures >= max_failed:
+        conn.close()
+        log_audit("LOGIN_LOCKED_OUT", req.username, "web_console", "BLOCKED", {
+            "ip": client_ip, "failures": recent_failures, "lockout_min": lockout_min
+        })
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Security Baseline Lockout: Too many failed login attempts ({recent_failures}). This account and IP are locked for {lockout_min} minutes."
+        )
+
     cursor.execute("SELECT password_hash, salt FROM admin_users WHERE username = ?", (req.username,))
     row = cursor.fetchone()
 
@@ -188,21 +214,30 @@ def login(req: LoginRequest):
             pass
 
     if not authenticated:
+        cursor.execute("INSERT INTO failed_login_attempts (ip_address, username, timestamp) VALUES (?, ?, ?)",
+                       (client_ip, req.username, time.time()))
+        conn.commit()
         conn.close()
-        log_audit("LOGIN_FAILED", req.username, "web_console", "FAILED", {"detail": "Invalid credentials"})
+        log_audit("LOGIN_FAILED", req.username, "web_console", "FAILED", {"detail": "Invalid credentials", "ip": client_ip})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password.")
+
+    # Successful login: clear failed attempts
+    cursor.execute("DELETE FROM failed_login_attempts WHERE ip_address = ? OR username = ?", (client_ip, req.username))
 
     token = secrets.token_hex(32)
     now = time.time()
-    expires_at = now + 86400  # 24 hours
-    cursor.execute("INSERT INTO sessions (token, username, role, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
-                   (token, req.username, role, now, expires_at))
+    max_life_hours = settings.get("session_max_lifetime_hours", 8)
+    expires_at = now + (max_life_hours * 3600)
+    cursor.execute("""
+        INSERT INTO sessions (token, username, role, ip_address, user_agent, created_at, last_active, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (token, req.username, role, client_ip, user_agent, now, now, expires_at))
     if is_local:
         cursor.execute("UPDATE admin_users SET last_login = ? WHERE username = ?", (now, req.username))
     conn.commit()
     conn.close()
 
-    log_audit("ADMIN_LOGIN", req.username, "web_console", "SUCCESS", {"role": role, "is_ad_user": not is_local})
+    log_audit("ADMIN_LOGIN", req.username, "web_console", "SUCCESS", {"role": role, "is_ad_user": not is_local, "ip": client_ip})
     return {
         "status": "success",
         "token": token,
@@ -211,7 +246,8 @@ def login(req: LoginRequest):
         "username": req.username,
         "role": role,
         "is_ad_user": not is_local,
-        "expires_in": 86400
+        "expires_in": max_life_hours * 3600,
+        "idle_timeout_min": settings.get("session_idle_timeout_min", 15)
     }
 
 @router.post("/auth/logout")
@@ -236,11 +272,40 @@ def get_session_user(authorization: Optional[str] = Header(None)) -> dict:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT username, role, expires_at FROM sessions WHERE token = ?", (token,))
+    cursor.execute("SELECT username, role, expires_at, last_active, created_at FROM sessions WHERE token = ?", (token,))
     row = cursor.fetchone()
-    conn.close()
-    if not row or row["expires_at"] < time.time():
+
+    if not row:
+        conn.close()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired or invalid.")
+
+    now = time.time()
+    if row["expires_at"] < now:
+        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session has expired. Please log in again.")
+
+    # Idle timeout validation
+    settings = get_security_settings()
+    idle_timeout_min = settings.get("session_idle_timeout_min", 15)
+    last_act = row["last_active"] or row["created_at"] or now
+
+    if idle_timeout_min > 0 and (now - last_act) > (idle_timeout_min * 60):
+        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Session expired due to {idle_timeout_min} minutes of inactivity. Please sign in again."
+        )
+
+    # Throttled update of last_active (every 30 seconds)
+    if (now - last_act) > 30:
+        cursor.execute("UPDATE sessions SET last_active = ? WHERE token = ?", (now, token))
+        conn.commit()
+
+    conn.close()
     return dict(row)
 
 @router.get("/auth/profile")

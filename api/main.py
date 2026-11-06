@@ -17,6 +17,7 @@ for _p in [str(_ROOT_DIR), str(_BASE_DIR)]:
         sys.path.insert(0, _p)
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -27,6 +28,7 @@ from api.core.config import (
 )
 from api.db.init_db import init_db
 from api.services.radius_service import sync_freeradius_policies
+from api.services.security_service import get_client_ip, is_ip_allowed, get_security_settings
 
 # Subsystem API Routers
 from api.routers import (
@@ -43,7 +45,8 @@ from api.routers import (
     rbac,
     api_keys,
     certificates,
-    syslog
+    syslog,
+    security
 )
 
 app = FastAPI(
@@ -62,6 +65,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Network Subnet CIDR Access Control Middleware
+@app.middleware("http")
+async def enforce_allowed_subnets(request: Request, call_next):
+    # Only enforce on API paths, exempt setup/status, docs, openapi
+    path = request.url.path
+    if path.startswith("/api/v1/") and not path.startswith("/api/v1/setup/status"):
+        client_ip = get_client_ip(request)
+        try:
+            settings = get_security_settings()
+            allowed = settings.get("allowed_subnets_gui", "0.0.0.0/0, ::/0")
+            if not is_ip_allowed(client_ip, allowed):
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "detail": f"Access Denied: Your IP ({client_ip}) is not permitted by the appliance network security policy."
+                    }
+                )
+        except Exception:
+            pass
+    return await call_next(request)
 
 # Strict HTTP No-Cache Middleware for API responses
 @app.middleware("http")
@@ -88,6 +112,7 @@ app.include_router(rbac.router)
 app.include_router(api_keys.router)
 app.include_router(certificates.router)
 app.include_router(syslog.router)
+app.include_router(security.router)
 
 # Mount Web GUI static files if available
 if WEB_DIR.exists() and (WEB_DIR / "index.html").exists():

@@ -2853,15 +2853,15 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
                     <div>
                         <div class="flex items-center gap-2">
-                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-950/60 border border-amber-800/40 text-amber-400 font-mono">HYBRID DIRECTORY RBAC</span>
-                            <span class="text-xs text-slate-500 font-mono">AD & LOCAL MAPPINGS</span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-950/60 border border-amber-800/40 text-amber-400 font-mono">HYBRID DIRECTORY RBAC & SECURITY</span>
+                            <span class="text-xs text-slate-500 font-mono">SYSTEM-WIDE ACCESS BASELINE</span>
                         </div>
-                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">Access Control & Role Mappings</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Map Active Directory security groups and accounts to granular appliance management roles with local break-glass admin fallback.</p>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">Access Control & Security Controls</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Enforce Active Directory role mappings, session timeouts, allowed IP subnets, brute-force lockout, and OS hardening (SSH & SNMP).</p>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2" id="rbac-header-actions">
                         <button onclick="fetchRbacMappings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
-                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Mappings
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh
                         </button>
                         <button onclick="openRbacMappingModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
                             <i class="fa-solid fa-plus"></i> Add Role Mapping
@@ -2869,101 +2869,395 @@
                     </div>
                 </div>
 
-                <!-- RBAC Metrics Overview -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
-                            <span>Configured Mappings</span>
-                            <i class="fa-solid fa-users-gear text-amber-400"></i>
+                <!-- Sub-Navigation Pills -->
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto text-xs">
+                    <button onclick="switchRbacSubTab('mappings')" id="rbac-subtab-btn-mappings" class="px-3.5 py-1.5 rounded-lg font-semibold bg-amber-600 text-white flex items-center gap-2 transition shadow-sm">
+                        <i class="fa-solid fa-users-gear"></i> Role Mappings
+                    </button>
+                    <button onclick="switchRbacSubTab('timeout')" id="rbac-subtab-btn-timeout" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-clock"></i> Session & Timeout Policy
+                    </button>
+                    <button onclick="switchRbacSubTab('subnets')" id="rbac-subtab-btn-subnets" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-network-wired"></i> Allowed IP Subnets (ACL)
+                    </button>
+                    <button onclick="switchRbacSubTab('sessions')" id="rbac-subtab-btn-sessions" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-user-shield"></i> Active Admin Sessions
+                    </button>
+                    <button onclick="switchRbacSubTab('hardening')" id="rbac-subtab-btn-hardening" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-shield-virus"></i> System Hardening Baseline
+                    </button>
+                </div>
+
+                <!-- SUB-VIEW 1: ROLE MAPPINGS -->
+                <div id="rbac-view-mappings" class="space-y-6">
+                    <!-- RBAC Metrics Overview -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Configured Mappings</span>
+                                <i class="fa-solid fa-users-gear text-amber-400"></i>
+                            </div>
+                            <div class="text-2xl font-bold text-white font-mono" id="rbac-total-mappings">--</div>
+                            <div class="text-[11px] text-slate-500 mt-1">Active Directory & User rules</div>
                         </div>
-                        <div class="text-2xl font-bold text-white font-mono" id="rbac-total-mappings">--</div>
-                        <div class="text-[11px] text-slate-500 mt-1">Active Directory & User rules</div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Your Session Role</span>
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                            </div>
+                            <div class="text-lg font-bold text-emerald-400 font-mono" id="rbac-current-role">fulladmin</div>
+                            <div class="text-[11px] text-slate-500 mt-1" id="rbac-current-role-desc">Full Appliance Administrator</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Break-Glass Admin</span>
+                                <i class="fa-solid fa-key text-indigo-400"></i>
+                            </div>
+                            <div class="text-sm font-bold text-slate-200 font-mono">LOCAL FALLBACK ACTIVE</div>
+                            <div class="text-[11px] text-emerald-400 mt-1"><i class="fa-solid fa-check"></i> Built-in admin always fulladmin</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Directory Sync</span>
+                                <i class="fa-solid fa-sync text-cyan-400"></i>
+                            </div>
+                            <div class="text-sm font-bold text-cyan-400 font-mono">LIVE SAM.LDB RESOLUTION</div>
+                            <div class="text-[11px] text-slate-500 mt-1">Direct token group inspection</div>
+                        </div>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
-                            <span>Your Session Role</span>
-                            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+
+                    <!-- Mappings Table Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-amber-400"></i>
+                                <h3 class="font-bold text-sm text-white">Configured Role Mappings</h3>
+                            </div>
+                            <span id="rbac-mapping-count-pill" class="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-mono">0 mappings</span>
                         </div>
-                        <div class="text-lg font-bold text-emerald-400 font-mono" id="rbac-current-role">fulladmin</div>
-                        <div class="text-[11px] text-slate-500 mt-1" id="rbac-current-role-desc">Full Appliance Administrator</div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="py-3 px-4">Principal Type</th>
+                                        <th class="py-3 px-4">Active Directory Principal Name</th>
+                                        <th class="py-3 px-4">Assigned Role</th>
+                                        <th class="py-3 px-4">Description</th>
+                                        <th class="py-3 px-4">Created</th>
+                                        <th class="py-3 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rbac-mappings-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
+                                    <tr>
+                                        <td colspan="6" class="py-6 text-center text-slate-500">Loading RBAC mappings...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
-                            <span>Break-Glass Admin</span>
-                            <i class="fa-solid fa-key text-indigo-400"></i>
+
+                    <!-- Appliance Role Hierarchy Reference -->
+                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-indigo-400"></i> Appliance Role Hierarchy & Capability Matrix
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-emerald-900/40 space-y-1.5">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span> fulladmin
+                                </div>
+                                <p class="text-[11px] text-slate-400">Complete, unrestricted read and write control over all domains, RADIUS, DNS, certificates, and system updates.</p>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-indigo-900/40 space-y-1.5">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-indigo-500"></span> operator
+                                </div>
+                                <p class="text-[11px] text-slate-400">Can manage users, groups, RADIUS clients, MAB MAC addresses, and registrations. Cannot modify certs or system settings.</p>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-cyan-900/40 space-y-1.5">
+                                <div class="flex items-center gap-2 text-cyan-400 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-cyan-500"></span> report
+                                </div>
+                                <p class="text-[11px] text-slate-400">Read-only auditing access to compliance logs, RADIUS telemetry, Sysvol sync health, and active live log viewers.</p>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-slate-800 space-y-1.5">
+                                <div class="flex items-center gap-2 text-slate-300 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-slate-500"></span> readonly
+                                </div>
+                                <p class="text-[11px] text-slate-400">Safe inspection mode. All configuration modification buttons, provisioning actions, and toggles are locked.</p>
+                            </div>
                         </div>
-                        <div class="text-sm font-bold text-slate-200 font-mono">LOCAL FALLBACK ACTIVE</div>
-                        <div class="text-[11px] text-emerald-400 mt-1"><i class="fa-solid fa-check"></i> Built-in admin always fulladmin</div>
-                    </div>
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                        <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
-                            <span>Directory Sync</span>
-                            <i class="fa-solid fa-sync text-cyan-400"></i>
-                        </div>
-                        <div class="text-sm font-bold text-cyan-400 font-mono">LIVE SAM.LDB RESOLUTION</div>
-                        <div class="text-[11px] text-slate-500 mt-1">Direct token group inspection</div>
                     </div>
                 </div>
 
-                <!-- Mappings Table Card -->
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
-                        <div class="flex items-center gap-2">
-                            <i class="fa-solid fa-list-check text-amber-400"></i>
-                            <h3 class="font-bold text-sm text-white">Configured Role Mappings</h3>
+                <!-- SUB-VIEW 2: SESSION & TIMEOUT POLICY -->
+                <div id="rbac-view-timeout" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-4xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                            <div>
+                                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-clock text-amber-400"></i> Administrative Session & Timeout Policy
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">Configure idle auto-logout, maximum session longevity, and brute-force lockout safeguards.</p>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs rounded-full bg-amber-950/80 border border-amber-800/60 text-amber-400 font-mono">SYSTEM ENFORCED</span>
                         </div>
-                        <span id="rbac-mapping-count-pill" class="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-mono">0 mappings</span>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th class="py-3 px-4">Principal Type</th>
-                                    <th class="py-3 px-4">Active Directory Principal Name</th>
-                                    <th class="py-3 px-4">Assigned Role</th>
-                                    <th class="py-3 px-4">Description</th>
-                                    <th class="py-3 px-4">Created</th>
-                                    <th class="py-3 px-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rbac-mappings-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
-                                <tr>
-                                    <td colspan="6" class="py-6 text-center text-slate-500">Loading RBAC mappings...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Idle Timeout -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-stopwatch text-indigo-400 mr-1.5"></i> Session Idle Timeout
+                                </label>
+                                <p class="text-[11px] text-slate-400">Auto-terminates active browser session when no user interaction occurs.</p>
+                                <select id="sec-idle-timeout" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="5">5 Minutes (High Security)</option>
+                                    <option value="10">10 Minutes</option>
+                                    <option value="15" selected>15 Minutes (Recommended)</option>
+                                    <option value="30">30 Minutes</option>
+                                    <option value="60">60 Minutes (1 Hour)</option>
+                                    <option value="120">120 Minutes (2 Hours)</option>
+                                    <option value="0">Disabled (Not Recommended)</option>
+                                </select>
+                            </div>
+
+                            <!-- Max Session Lifetime -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-hourglass-end text-cyan-400 mr-1.5"></i> Max Session Duration (Absolute)
+                                </label>
+                                <p class="text-[11px] text-slate-400">Forces complete re-authentication once exceeded, even if user is active.</p>
+                                <select id="sec-max-lifetime" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="4">4 Hours</option>
+                                    <option value="8" selected>8 Hours (Standard Workshift)</option>
+                                    <option value="12">12 Hours</option>
+                                    <option value="24">24 Hours (1 Day)</option>
+                                    <option value="48">48 Hours</option>
+                                </select>
+                            </div>
+
+                            <!-- Max Failed Logins -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-shield-virus text-rose-400 mr-1.5"></i> Brute-Force Lockout Threshold
+                                </label>
+                                <p class="text-[11px] text-slate-400">Maximum consecutive failed login attempts permitted before temporary lockout.</p>
+                                <select id="sec-max-failed" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="3">3 Attempts (Strict)</option>
+                                    <option value="5" selected>5 Attempts (Recommended)</option>
+                                    <option value="10">10 Attempts</option>
+                                </select>
+                            </div>
+
+                            <!-- Lockout Duration -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-lock text-amber-400 mr-1.5"></i> Temporary Lockout Duration
+                                </label>
+                                <p class="text-[11px] text-slate-400">Duration during which locked accounts/IPs are rejected with HTTP 429.</p>
+                                <select id="sec-lockout-duration" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="5">5 Minutes</option>
+                                    <option value="15" selected>15 Minutes (Recommended)</option>
+                                    <option value="30">30 Minutes</option>
+                                    <option value="60">60 Minutes (1 Hour)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-4 border-t border-slate-800">
+                            <button onclick="saveSecuritySettings('timeout')" id="btn-save-timeout" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> Save Session & Timeout Policy
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Appliance Role Hierarchy Reference -->
-                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
-                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-indigo-400"></i> Appliance Role Hierarchy & Capability Matrix
-                    </h4>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
-                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-emerald-900/40 space-y-1.5">
-                            <div class="flex items-center gap-2 text-emerald-400 font-bold">
-                                <span class="h-2 w-2 rounded-full bg-emerald-500"></span> fulladmin
+                <!-- SUB-VIEW 3: ALLOWED IP SUBNETS & NETWORK ACLS -->
+                <div id="rbac-view-subnets" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-4xl">
+                        <!-- Anti-Lockout Pill & Client IP Detection -->
+                        <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg">
+                                    <i class="fa-solid fa-location-crosshairs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-200">
+                                        Detected Client IP: <span id="sec-current-client-ip" class="font-mono text-amber-400 ml-1">Detecting...</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400">Zero-Lockout Guard is active. Proposed policies cannot lock out your current connection.</div>
+                                </div>
                             </div>
-                            <p class="text-[11px] text-slate-400">Complete, unrestricted read and write control over all domains, RADIUS, DNS, certificates, and system updates.</p>
+                            <span class="px-2.5 py-1 text-[11px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono font-bold flex items-center gap-1.5 self-start md:self-auto">
+                                <i class="fa-solid fa-shield-check"></i> ANTI-LOCKOUT ARMED
+                            </span>
                         </div>
-                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-indigo-900/40 space-y-1.5">
-                            <div class="flex items-center gap-2 text-indigo-400 font-bold">
-                                <span class="h-2 w-2 rounded-full bg-indigo-500"></span> operator
+
+                        <div class="space-y-4">
+                            <!-- Web GUI & REST API CIDR -->
+                            <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-semibold text-slate-200">
+                                        <i class="fa-solid fa-globe text-indigo-400 mr-1.5"></i> Web GUI & REST API Allowed Subnets
+                                    </label>
+                                    <button onclick="insertCurrentClientIp('sec-subnets-gui')" class="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-mono">
+                                        <i class="fa-solid fa-plus"></i> Add Current IP (/32)
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-slate-400">Comma-separated IPv4 or IPv6 CIDRs permitted to access the Web Console & REST endpoints. Use <code class="text-amber-400">0.0.0.0/0, ::/0</code> to allow all networks.</p>
+                                <input type="text" id="sec-subnets-gui" value="0.0.0.0/0, ::/0" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500">
                             </div>
-                            <p class="text-[11px] text-slate-400">Can manage users, groups, RADIUS clients, MAB MAC addresses, and registrations. Cannot modify certs or system settings.</p>
+
+                            <!-- OpenSSH Allowed Subnets -->
+                            <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-semibold text-slate-200">
+                                        <i class="fa-solid fa-terminal text-cyan-400 mr-1.5"></i> OpenSSH Daemon Allowed Subnets (Port 22)
+                                    </label>
+                                    <button onclick="insertCurrentClientIp('sec-subnets-ssh')" class="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-mono">
+                                        <i class="fa-solid fa-plus"></i> Add Current IP (/32)
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-slate-400">Restricts SSH ingress natively via OpenSSH daemon directives in <code class="text-slate-300">/etc/ssh/sshd_config.d/</code>. All other subnets are denied access.</p>
+                                <input type="text" id="sec-subnets-ssh" value="0.0.0.0/0, ::/0" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500">
+                            </div>
+
+                            <!-- Net-SNMP Allowed Subnets -->
+                            <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-semibold text-slate-200">
+                                        <i class="fa-solid fa-chart-line text-emerald-400 mr-1.5"></i> Net-SNMP Telemetry Allowed Subnets (Port 161/UDP)
+                                    </label>
+                                    <button onclick="insertCurrentClientIp('sec-subnets-snmp')" class="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-mono">
+                                        <i class="fa-solid fa-plus"></i> Add Current IP (/32)
+                                    </button>
+                                </div>
+                                <p class="text-[11px] text-slate-400">Permitted network CIDRs authorized to query SNMP v2c/v3 telemetry metrics.</p>
+                                <input type="text" id="sec-subnets-snmp" value="192.168.1.0/24, 10.10.0.0/24, 127.0.0.1/32" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500">
+                            </div>
                         </div>
-                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-cyan-900/40 space-y-1.5">
-                            <div class="flex items-center gap-2 text-cyan-400 font-bold">
-                                <span class="h-2 w-2 rounded-full bg-cyan-500"></span> report
-                            </div>
-                            <p class="text-[11px] text-slate-400">Read-only auditing access to compliance logs, RADIUS telemetry, Sysvol sync health, and active live log viewers.</p>
+
+                        <div class="flex justify-end pt-4 border-t border-slate-800">
+                            <button onclick="saveSecuritySettings('subnets')" id="btn-save-subnets" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired"></i> Apply Network Access ACLs
+                            </button>
                         </div>
-                        <div class="p-3.5 bg-slate-950/80 rounded-lg border border-slate-800 space-y-1.5">
-                            <div class="flex items-center gap-2 text-slate-300 font-bold">
-                                <span class="h-2 w-2 rounded-full bg-slate-500"></span> readonly
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 4: ACTIVE ADMIN SESSIONS -->
+                <div id="rbac-view-sessions" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/40">
+                            <div>
+                                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-user-shield text-amber-400"></i> Active Appliance Administrative Sessions
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Live authenticated sessions stored in appliance SQLite security store.</p>
                             </div>
-                            <p class="text-[11px] text-slate-400">Safe inspection mode. All configuration modification buttons, provisioning actions, and toggles are locked.</p>
+                            <div class="flex items-center gap-2">
+                                <button onclick="fetchActiveSessions()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                                </button>
+                                <button onclick="terminateAllOtherSessions()" class="px-3 py-1.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-ban"></i> Terminate All Other Sessions
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="py-3 px-4">User</th>
+                                        <th class="py-3 px-4">Role</th>
+                                        <th class="py-3 px-4">Client IP</th>
+                                        <th class="py-3 px-4">User Agent / Platform</th>
+                                        <th class="py-3 px-4">Logged In</th>
+                                        <th class="py-3 px-4">Last Activity</th>
+                                        <th class="py-3 px-4">Status</th>
+                                        <th class="py-3 px-4 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sec-sessions-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
+                                    <tr>
+                                        <td colspan="8" class="py-6 text-center text-slate-500">Loading active sessions...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 5: SYSTEM HARDENING BASELINE -->
+                <div id="rbac-view-hardening" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-4xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                            <div>
+                                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-shield-virus text-amber-400"></i> Operating System Hardening Baselines
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">Configure low-level daemon hardening for OpenSSH and Net-SNMP.</p>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">OS LEVEL HARDENING</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- SSH PermitRootLogin -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-user-lock text-rose-400 mr-1.5"></i> SSH Direct Root Login
+                                </label>
+                                <p class="text-[11px] text-slate-400">Enforces unprivileged operator login with sudo elevation.</p>
+                                <select id="sec-ssh-permit-root" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="0" selected>Disabled (Recommended - sudo elevation required)</option>
+                                    <option value="1">Enabled (PermitRootLogin yes)</option>
+                                </select>
+                            </div>
+
+                            <!-- SSH PasswordAuthentication -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-key text-indigo-400 mr-1.5"></i> SSH Password Authentication
+                                </label>
+                                <p class="text-[11px] text-slate-400">Permit SSH login via password or require SSH authorized keys.</p>
+                                <select id="sec-ssh-password-auth" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="1" selected>Enabled (Password Allowed)</option>
+                                    <option value="0">Disabled (Public Key Authentication Only)</option>
+                                </select>
+                            </div>
+
+                            <!-- SNMP Community String -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-lock text-amber-400 mr-1.5"></i> SNMP Read-Only Community String
+                                </label>
+                                <p class="text-[11px] text-slate-400">Read-only community name used by telemetry pollers.</p>
+                                <input type="text" id="sec-snmp-community" value="zclock_public" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500">
+                            </div>
+
+                            <!-- Daemon Service Indicators -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-server text-emerald-400 mr-1.5"></i> Core Daemons Telemetry
+                                </label>
+                                <div class="space-y-1.5 pt-1 text-xs">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400">OpenSSH Service (port 22):</span>
+                                        <span id="sec-stat-ssh" class="font-mono text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> ACTIVE</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400">Net-SNMP Service (port 161):</span>
+                                        <span id="sec-stat-snmp" class="font-mono text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> ACTIVE</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-4 border-t border-slate-800">
+                            <button onclick="saveSecuritySettings('hardening')" id="btn-save-hardening" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-2">
+                                <i class="fa-solid fa-shield-virus"></i> Apply System Hardening Baseline
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -4964,6 +5258,54 @@
 
     <!-- ==================== JAVASCRIPT CONTROLLERS ==================== -->
     <script>
+        // ==================== AUTHENTICATION GUARD & CLIENT SECURITY ====================
+        const initialAuthToken = localStorage.getItem('zclockid_token');
+        if (!initialAuthToken) {
+            window.location.replace('/login.html');
+        }
+
+        // Global fetch interceptor to automatically catch 401 Unauthorized / expired sessions
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            const response = await originalFetch.apply(this, args);
+            if (response.status === 401) {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+                if (!url.includes('/auth/login')) {
+                    console.warn("Session token expired or invalid (HTTP 401). Redirecting to login.");
+                    localStorage.removeItem('zclockid_token');
+                    localStorage.removeItem('zclockid_user');
+                    localStorage.removeItem('zclockid_role');
+                    window.location.replace('/login.html?reason=expired');
+                }
+            }
+            return response;
+        };
+
+        // Client-side Idle Inactivity Monitor
+        let lastUserActivity = Date.now();
+        ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click'].forEach(evt => {
+            window.addEventListener(evt, () => {
+                lastUserActivity = Date.now();
+                localStorage.setItem('zclockid_last_activity', lastUserActivity.toString());
+            }, { passive: true });
+        });
+
+        // Evaluate idle duration every 10 seconds
+        setInterval(() => {
+            const idleMin = parseInt(localStorage.getItem('zclockid_idle_timeout_min') || '15', 10);
+            if (idleMin > 0) {
+                const storedLast = parseInt(localStorage.getItem('zclockid_last_activity') || lastUserActivity.toString(), 10);
+                const elapsedMs = Date.now() - storedLast;
+                if (elapsedMs >= idleMin * 60 * 1000) {
+                    console.warn(`Idle timeout reached (${idleMin} min). Terminating browser session.`);
+                    localStorage.removeItem('zclockid_token');
+                    localStorage.removeItem('zclockid_user');
+                    localStorage.removeItem('zclockid_role');
+                    window.location.replace('/login.html?reason=timeout');
+                }
+            }
+        }, 10000);
+
         const API_BASE = '/api/v1';
         let currentActiveLogService = '';
         let currentDnsRecords = [];
@@ -5048,7 +5390,7 @@
             else if (tabId === 'backup') { fetchBackups(); }
             else if (tabId === 'snmp') { fetchSnmpStatus(); fetchSnmpConfig(); }
             else if (tabId === 'update') { loadUpdateInfo(); }
-            else if (tabId === 'rbac') { fetchRbacMappings(); }
+            else if (tabId === 'rbac') { fetchRbacMappings(); fetchSecuritySettings(); fetchActiveSessions(); }
             else if (tabId === 'apikeys') { fetchApiKeys(); }
             else if (tabId === 'certs') { fetchActiveCert(); }
             else if (tabId === 'syslog') { fetchSyslogSettings(); fetchLiveSyslog(); }
@@ -9427,34 +9769,55 @@
         }
 
         async function initSessionInfo() {
-            const username = localStorage.getItem('zclockid_user') || 'admin';
-            const role = localStorage.getItem('zclockid_role') || 'fulladmin';
-            const uEl = document.getElementById('header-user');
-            const rEl = document.getElementById('header-role-badge');
-            if (uEl) uEl.innerText = username;
-            if (rEl) {
-                rEl.innerText = role;
-                if (role === 'fulladmin') {
-                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono';
-                } else if (role === 'operator') {
-                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-indigo-950/80 border border-indigo-800/60 text-indigo-400 font-mono';
-                } else if (role === 'report') {
-                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-cyan-950/80 border border-cyan-800/60 text-cyan-400 font-mono';
-                } else {
-                    rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono';
-                }
+            const token = localStorage.getItem('zclockid_token');
+            if (!token) {
+                window.location.replace('/login.html');
+                return;
             }
-            const curRoleEl = document.getElementById('rbac-current-role');
-            const curRoleDescEl = document.getElementById('rbac-current-role-desc');
-            if (curRoleEl) curRoleEl.innerText = role;
-            if (curRoleDescEl) {
-                const descMap = {
-                    'fulladmin': 'Full Appliance Administrator',
-                    'operator': 'User & Identity Operator',
-                    'report': 'Auditor & Compliance Inspector',
-                    'readonly': 'Read-Only Inspector'
-                };
-                curRoleDescEl.innerText = descMap[role] || role;
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/profile`, { headers: getAuthHeaders() });
+                if (!res.ok) {
+                    console.warn("Session verification failed. Redirecting to login.");
+                    localStorage.removeItem('zclockid_token');
+                    localStorage.removeItem('zclockid_user');
+                    localStorage.removeItem('zclockid_role');
+                    window.location.replace('/login.html?reason=expired');
+                    return;
+                }
+                const prof = await res.json();
+                localStorage.setItem('zclockid_user', prof.username);
+                localStorage.setItem('zclockid_role', prof.role);
+
+                const uEl = document.getElementById('header-user');
+                const rEl = document.getElementById('header-role-badge');
+                if (uEl) uEl.innerText = prof.username;
+                if (rEl) {
+                    rEl.innerText = prof.role;
+                    if (prof.role === 'fulladmin') {
+                        rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono';
+                    } else if (prof.role === 'operator') {
+                        rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-indigo-950/80 border border-indigo-800/60 text-indigo-400 font-mono';
+                    } else if (prof.role === 'report') {
+                        rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-cyan-950/80 border border-cyan-800/60 text-cyan-400 font-mono';
+                    } else {
+                        rEl.className = 'px-1.5 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono';
+                    }
+                }
+                const curRoleEl = document.getElementById('rbac-current-role');
+                const curRoleDescEl = document.getElementById('rbac-current-role-desc');
+                if (curRoleEl) curRoleEl.innerText = prof.role;
+                if (curRoleDescEl) {
+                    const descMap = {
+                        'fulladmin': 'Full Appliance Administrator',
+                        'operator': 'User & Identity Operator',
+                        'report': 'Auditor & Compliance Inspector',
+                        'readonly': 'Read-Only Inspector'
+                    };
+                    curRoleDescEl.innerText = descMap[prof.role] || prof.role;
+                }
+            } catch (err) {
+                console.error("Auth profile fetch error:", err);
             }
         }
 
@@ -9660,6 +10023,257 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Failed to delete mapping');
                 fetchRbacMappings();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        // ==================== SYSTEM ACCESS CONTROL & SECURITY CONTROLS ====================
+        let currentRbacSubTab = 'mappings';
+
+        function switchRbacSubTab(tabName) {
+            currentRbacSubTab = tabName;
+            const subtabs = ['mappings', 'timeout', 'subnets', 'sessions', 'hardening'];
+            subtabs.forEach(t => {
+                const view = document.getElementById(`rbac-view-${t}`);
+                const btn = document.getElementById(`rbac-subtab-btn-${t}`);
+                if (view) view.classList.add('hidden');
+                if (btn) {
+                    btn.classList.remove('bg-amber-600', 'text-white', 'shadow-sm');
+                    btn.classList.add('bg-slate-800', 'text-slate-300');
+                }
+            });
+
+            const activeView = document.getElementById(`rbac-view-${tabName}`);
+            const activeBtn = document.getElementById(`rbac-subtab-btn-${tabName}`);
+            if (activeView) activeView.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
+                activeBtn.classList.add('bg-amber-600', 'text-white', 'shadow-sm');
+            }
+
+            const actionsDiv = document.getElementById('rbac-header-actions');
+            if (actionsDiv) {
+                if (tabName === 'mappings') {
+                    actionsDiv.innerHTML = `
+                        <button onclick="fetchRbacMappings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                        </button>
+                        <button onclick="openRbacMappingModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Add Role Mapping
+                        </button>
+                    `;
+                } else if (tabName === 'sessions') {
+                    actionsDiv.innerHTML = `
+                        <button onclick="fetchActiveSessions()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Sessions
+                        </button>
+                    `;
+                } else {
+                    actionsDiv.innerHTML = `
+                        <button onclick="fetchSecuritySettings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Reload Baseline
+                        </button>
+                    `;
+                }
+            }
+
+            if (tabName === 'mappings') fetchRbacMappings();
+            else if (tabName === 'sessions') fetchActiveSessions();
+            else fetchSecuritySettings();
+        }
+
+        let cachedSecuritySettings = {};
+
+        async function fetchSecuritySettings() {
+            try {
+                const res = await fetch(`${API_BASE}/security/settings`, { headers: getAuthHeaders() });
+                if (!res.ok) return;
+                const data = await res.json();
+                cachedSecuritySettings = data;
+
+                // Client IP & Status
+                const ipEl = document.getElementById('sec-current-client-ip');
+                if (ipEl) ipEl.innerText = data.current_client_ip || '127.0.0.1';
+
+                const sshStat = document.getElementById('sec-stat-ssh');
+                if (sshStat) {
+                    sshStat.innerHTML = data.ssh_service_active
+                        ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> <span class="text-emerald-400">ACTIVE</span>'
+                        : '<i class="fa-solid fa-circle-xmark text-rose-400"></i> <span class="text-rose-400">INACTIVE</span>';
+                }
+                const snmpStat = document.getElementById('sec-stat-snmp');
+                if (snmpStat) {
+                    snmpStat.innerHTML = data.snmp_service_active
+                        ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> <span class="text-emerald-400">ACTIVE</span>'
+                        : '<i class="fa-solid fa-circle-xmark text-rose-400"></i> <span class="text-rose-400">INACTIVE</span>';
+                }
+
+                // Timeout form
+                const idleEl = document.getElementById('sec-idle-timeout');
+                if (idleEl) idleEl.value = data.session_idle_timeout_min.toString();
+                const lifeEl = document.getElementById('sec-max-lifetime');
+                if (lifeEl) lifeEl.value = data.session_max_lifetime_hours.toString();
+                const failEl = document.getElementById('sec-max-failed');
+                if (failEl) failEl.value = data.max_failed_logins.toString();
+                const lockEl = document.getElementById('sec-lockout-duration');
+                if (lockEl) lockEl.value = data.lockout_duration_min.toString();
+
+                // Save idle timeout to localStorage for instant client monitor update
+                localStorage.setItem('zclockid_idle_timeout_min', data.session_idle_timeout_min.toString());
+
+                // Subnets form
+                const guiSub = document.getElementById('sec-subnets-gui');
+                if (guiSub) guiSub.value = data.allowed_subnets_gui;
+                const sshSub = document.getElementById('sec-subnets-ssh');
+                if (sshSub) sshSub.value = data.allowed_subnets_ssh;
+                const snmpSub = document.getElementById('sec-subnets-snmp');
+                if (snmpSub) snmpSub.value = data.allowed_subnets_snmp;
+
+                // Hardening form
+                const rootEl = document.getElementById('sec-ssh-permit-root');
+                if (rootEl) rootEl.value = data.ssh_permit_root.toString();
+                const passEl = document.getElementById('sec-ssh-password-auth');
+                if (passEl) passEl.value = data.ssh_password_auth.toString();
+                const commEl = document.getElementById('sec-snmp-community');
+                if (commEl) commEl.value = data.snmp_community || 'zclock_public';
+
+            } catch (err) {
+                console.error("fetchSecuritySettings error:", err);
+            }
+        }
+
+        function insertCurrentClientIp(targetId) {
+            const ipEl = document.getElementById('sec-current-client-ip');
+            const target = document.getElementById(targetId);
+            if (!ipEl || !target) return;
+            const ip = ipEl.innerText.trim();
+            if (!ip || ip.includes('...')) return;
+
+            const cidr = ip.includes(':') ? `${ip}/128` : `${ip}/32`;
+            let cur = target.value.trim();
+            if (cur === '0.0.0.0/0, ::/0' || cur === '0.0.0.0/0') {
+                target.value = cidr;
+            } else if (!cur.includes(ip)) {
+                target.value = cur ? `${cur}, ${cidr}` : cidr;
+            }
+        }
+
+        async function saveSecuritySettings(section) {
+            const btn = document.getElementById(`btn-save-${section}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Applying Security Baseline...';
+            }
+
+            const payload = {
+                session_idle_timeout_min: parseInt(document.getElementById('sec-idle-timeout')?.value || cachedSecuritySettings.session_idle_timeout_min || 15, 10),
+                session_max_lifetime_hours: parseInt(document.getElementById('sec-max-lifetime')?.value || cachedSecuritySettings.session_max_lifetime_hours || 8, 10),
+                allowed_subnets_gui: document.getElementById('sec-subnets-gui')?.value.trim() || cachedSecuritySettings.allowed_subnets_gui || '0.0.0.0/0, ::/0',
+                allowed_subnets_ssh: document.getElementById('sec-subnets-ssh')?.value.trim() || cachedSecuritySettings.allowed_subnets_ssh || '0.0.0.0/0, ::/0',
+                allowed_subnets_snmp: document.getElementById('sec-subnets-snmp')?.value.trim() || cachedSecuritySettings.allowed_subnets_snmp || '192.168.1.0/24, 10.10.0.0/24, 127.0.0.1/32',
+                snmp_community: document.getElementById('sec-snmp-community')?.value.trim() || cachedSecuritySettings.snmp_community || 'zclock_public',
+                max_failed_logins: parseInt(document.getElementById('sec-max-failed')?.value || cachedSecuritySettings.max_failed_logins || 5, 10),
+                lockout_duration_min: parseInt(document.getElementById('sec-lockout-duration')?.value || cachedSecuritySettings.lockout_duration_min || 15, 10),
+                ssh_permit_root: parseInt(document.getElementById('sec-ssh-permit-root')?.value || cachedSecuritySettings.ssh_permit_root || 0, 10),
+                ssh_password_auth: parseInt(document.getElementById('sec-ssh-password-auth')?.value || cachedSecuritySettings.ssh_password_auth || 1, 10)
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/security/settings`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to update security settings');
+
+                alert(`Security Baseline Updated!\n\n${data.message}\nOpenSSH: ${data.ssh_result}\nNet-SNMP: ${data.snmp_result}`);
+                fetchSecuritySettings();
+            } catch (err) {
+                alert(`Security Update Rejected:\n${err.message}`);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    if (section === 'timeout') btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Session & Timeout Policy';
+                    else if (section === 'subnets') btn.innerHTML = '<i class="fa-solid fa-network-wired"></i> Apply Network Access ACLs';
+                    else if (section === 'hardening') btn.innerHTML = '<i class="fa-solid fa-shield-virus"></i> Apply System Hardening Baseline';
+                }
+            }
+        }
+
+        async function fetchActiveSessions() {
+            const tbody = document.getElementById('sec-sessions-tbody');
+            if (!tbody) return;
+            try {
+                const res = await fetch(`${API_BASE}/security/sessions`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load active sessions');
+                const sessions = await res.json();
+
+                if (sessions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-slate-500">No active administrative sessions found.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = sessions.map(s => {
+                    const loggedInStr = new Date(s.created_at * 1000).toLocaleString();
+                    const lastActiveStr = new Date(s.last_active * 1000).toLocaleTimeString();
+                    const statusBadge = s.is_current
+                        ? '<span class="px-2 py-0.5 text-[10px] rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-mono font-bold"><i class="fa-solid fa-circle mr-1 text-[8px] animate-pulse"></i> CURRENT SESSION</span>'
+                        : '<span class="px-2 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">ACTIVE</span>';
+
+                    const actionBtn = s.is_current
+                        ? '<span class="text-[11px] text-slate-600 font-mono italic">Current User</span>'
+                        : `<button onclick="terminateSession('${s.token_prefix}')" class="px-2 py-1 bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-[11px] transition flex items-center gap-1 ml-auto"><i class="fa-solid fa-power-off"></i> Revoke</button>`;
+
+                    let userBadge = s.username === 'admin'
+                        ? `<span class="font-bold text-white">${s.username}</span> <span class="px-1.5 py-0.2 text-[9px] rounded bg-amber-950/80 text-amber-400 border border-amber-800/40 ml-1 font-mono">BREAK-GLASS</span>`
+                        : `<span class="font-bold text-white">${s.username}</span>`;
+
+                    return `
+                        <tr class="hover:bg-slate-800/30 transition">
+                            <td class="py-3 px-4">${userBadge}</td>
+                            <td class="py-3 px-4 font-mono text-indigo-400 font-semibold">${s.role}</td>
+                            <td class="py-3 px-4 font-mono text-slate-300">${s.ip_address}</td>
+                            <td class="py-3 px-4 text-slate-400 max-w-xs truncate" title="${s.user_agent}">${s.user_agent || 'Unknown'}</td>
+                            <td class="py-3 px-4 text-slate-400 whitespace-nowrap">${loggedInStr}</td>
+                            <td class="py-3 px-4 text-slate-400 whitespace-nowrap">${lastActiveStr}</td>
+                            <td class="py-3 px-4">${statusBadge}</td>
+                            <td class="py-3 px-4 text-right">${actionBtn}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-rose-400">Error loading sessions: ${err.message}</td></tr>`;
+            }
+        }
+
+        async function terminateSession(tokenPrefix) {
+            if (!confirm(`Are you sure you want to terminate administrative session (${tokenPrefix})? The administrator will be immediately disconnected.`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/security/sessions/${encodeURIComponent(tokenPrefix)}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to terminate session');
+                fetchActiveSessions();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        async function terminateAllOtherSessions() {
+            if (!confirm("Are you sure you want to terminate ALL other active administrator sessions across all devices? All other admins will be logged out.")) return;
+            try {
+                const res = await fetch(`${API_BASE}/security/sessions/terminate-others`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to terminate sessions');
+                alert(data.message);
+                fetchActiveSessions();
             } catch (err) {
                 alert(`Error: ${err.message}`);
             }

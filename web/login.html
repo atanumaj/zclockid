@@ -29,6 +29,11 @@
             <i class="fa-solid fa-circle-check mr-1.5"></i> Initial setup completed! Please log in with your administrator credentials.
         </div>
 
+        <!-- Session Timeout / Expired Alert -->
+        <div id="session-alert" class="hidden rounded-lg p-3 text-xs font-medium border bg-amber-950/40 border-amber-800 text-amber-300">
+            <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> <span id="session-alert-text">Your session has expired. Please sign in again.</span>
+        </div>
+
         <!-- Error Message Box -->
         <div id="error-box" class="hidden rounded-lg p-3 text-xs font-medium border bg-rose-950/40 border-rose-800 text-rose-300"></div>
 
@@ -70,9 +75,23 @@
     </div>
 
     <script>
-        // Check if redirected from initial setup
+        // Check if redirected from initial setup or session timeout
         if (window.location.search.includes('provisioned=1')) {
             document.getElementById('setup-success-alert').classList.remove('hidden');
+        } else if (window.location.search.includes('reason=timeout')) {
+            const al = document.getElementById('session-alert');
+            const txt = document.getElementById('session-alert-text');
+            if (al && txt) {
+                txt.innerText = 'Session expired due to inactivity. Please sign in to resume.';
+                al.classList.remove('hidden');
+            }
+        } else if (window.location.search.includes('reason=expired')) {
+            const al = document.getElementById('session-alert');
+            const txt = document.getElementById('session-alert-text');
+            if (al && txt) {
+                txt.innerText = 'Session expired or invalid. Please authenticate.';
+                al.classList.remove('hidden');
+            }
         }
 
         async function handleLogin(e) {
@@ -101,6 +120,10 @@
                     localStorage.setItem('zclockid_token', data.access_token || data.token);
                     localStorage.setItem('zclockid_user', data.username);
                     localStorage.setItem('zclockid_role', data.role || 'fulladmin');
+                    if (data.idle_timeout_min) {
+                        localStorage.setItem('zclockid_idle_timeout_min', data.idle_timeout_min);
+                    }
+                    localStorage.setItem('zclockid_last_activity', Date.now().toString());
                     window.location.href = '/index.html';
                 } else {
                     errBox.innerText = data.detail || 'Authentication failed. Please verify credentials.';
