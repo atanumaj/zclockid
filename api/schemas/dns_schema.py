@@ -40,3 +40,18 @@ class DohTestRequest(BaseModel):
     qname: Optional[str] = None
     rtype: Optional[str] = None
 
+class HostOverrideRequest(BaseModel):
+    fqdn: str = Field(..., example="vpn.corpzee.com")
+    record_type: str = Field("A", pattern="^(A|AAAA|CNAME|TXT)$")
+    target: str = Field(..., example="192.168.1.5")
+    description: Optional[str] = Field("", example="Internal VPN Gateway")
+
+class DomainForwarderRequest(BaseModel):
+    domain: str = Field(..., example="corpzee.com")
+    forwarders: List[str] = Field(..., example=["192.168.1.30"])
+    policy: Optional[str] = Field("only", pattern="^(only|first)$")
+    description: Optional[str] = Field("", example="Branch Office DNS")
+
+class DnsCacheFlushRequest(BaseModel):
+    hostname: Optional[str] = Field(None, example="corpzee.com")
+
