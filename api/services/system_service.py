@@ -89,7 +89,7 @@ def get_appliance_version() -> str:
     code, stdout, _ = run_cmd(["dpkg-query", "-W", "-f=${Version}", "zclockid"])
     if code == 0 and stdout.strip():
         return stdout.strip()
-    return "2.0.0"
+    return "1.0.0"
 
 def parse_semver(v_str: str) -> tuple:
     v_clean = re.sub(r'^[vV]', '', str(v_str).strip())

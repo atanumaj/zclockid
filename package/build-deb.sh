@@ -29,14 +29,16 @@ mkdir -p "${BUILD_ROOT}/var/lib/zclockid"
 mkdir -p "${BUILD_ROOT}/var/backups/zclockid"
 
 # 1. Copy package metadata
-sed "s/^Version:.*/Version: ${VERSION}/" "${DIST_DIR}/package/debian/control" > "${BUILD_ROOT}/DEBIAN/control"
+cp "${DIST_DIR}/package/debian/control" "${BUILD_ROOT}/DEBIAN/control"
+sed -i '' "s/^Version:.*/Version: ${VERSION}/" "${BUILD_ROOT}/DEBIAN/control" 2>/dev/null || sed -i "s/^Version:.*/Version: ${VERSION}/" "${BUILD_ROOT}/DEBIAN/control"
 cp "${DIST_DIR}/package/debian/postinst" "${BUILD_ROOT}/DEBIAN/"
 chmod 755 "${BUILD_ROOT}/DEBIAN/postinst"
 
-# 2. Copy API backend
-cp "${DIST_DIR}/api-prototype/main.py" "${BUILD_ROOT}/opt/zclockid/api/"
-if [[ -f "${DIST_DIR}/api-prototype/requirements.txt" ]]; then
-    cp "${DIST_DIR}/api-prototype/requirements.txt" "${BUILD_ROOT}/opt/zclockid/api/"
+# 2. Copy API backend (Full modular FastAPI application)
+cp -r "${DIST_DIR}/api/"* "${BUILD_ROOT}/opt/zclockid/api/"
+if [[ -d "${DIST_DIR}/config" ]]; then
+    mkdir -p "${BUILD_ROOT}/opt/zclockid/config"
+    cp -r "${DIST_DIR}/config/"* "${BUILD_ROOT}/opt/zclockid/config/"
 fi
 
 # 3. Copy Daemons and Telemetry Scripts

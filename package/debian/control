@@ -2,9 +2,9 @@ Package: zclockid
 Version: 1.0.0
 Section: admin
 Priority: optional
-Architecture: amd64
+Architecture: all
 Maintainer: Inet Secure Labs <noc@inetcsc.com>
-Depends: samba (>= 2:4.19.0), samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, python3, python3-pip, python3-multipart
+Depends: samba (>= 2:4.19.0), samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml
 Description: Purpose-built Active Directory Domain Controller and IAM appliance
  ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
  engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),

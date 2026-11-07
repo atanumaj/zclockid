@@ -504,6 +504,7 @@
             <div>
                 <span class="font-bold text-sm tracking-tight text-white">ZclockID</span>
                 <span class="text-[10px] text-indigo-400 font-mono ml-1 px-1.5 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/40">ENTERPRISE DC</span>
+                <span class="text-[10px] text-emerald-400 font-mono ml-1.5 px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800/60 font-bold tracking-wide" id="header-version-badge">v1.0.0</span>
             </div>
         </div>
 
@@ -6748,10 +6749,12 @@
                 document.getElementById('appliance-uptime').innerText = `${upH}h ${upM}m`;
 
                 if (data.version) {
+                    const vHeader = document.getElementById('header-version-badge');
                     const vPill = document.getElementById('dash-version-badge');
                     const vApp = document.getElementById('appliance-version-label');
                     const vCur = document.getElementById('update-current-ver-badge');
                     const vInf = document.getElementById('info-current-version');
+                    if (vHeader) vHeader.innerText = `v${data.version}`;
                     if (vPill) vPill.innerText = `v${data.version}`;
                     if (vApp) vApp.innerText = `ZclockID v${data.version}`;
                     if (vCur) vCur.innerText = `v${data.version}`;
@@ -11008,10 +11011,12 @@
                 const data = await res.json();
 
                 // Current system version & arch
-                document.getElementById('info-current-version').innerText = data.current_version || '1.0.0';
-                document.getElementById('update-current-ver-badge').innerText = `v${data.current_version || '1.0.0'}`;
-                document.getElementById('dash-version-badge').innerText = `v${data.current_version || '1.0.0'}`;
-                document.getElementById('appliance-version-label').innerText = `ZclockID v${data.current_version || '1.0.0'}`;
+                const currV = data.current_version || '1.0.0';
+                if (document.getElementById('header-version-badge')) document.getElementById('header-version-badge').innerText = `v${currV}`;
+                document.getElementById('info-current-version').innerText = currV;
+                document.getElementById('update-current-ver-badge').innerText = `v${currV}`;
+                document.getElementById('dash-version-badge').innerText = `v${currV}`;
+                document.getElementById('appliance-version-label').innerText = `ZclockID v${currV}`;
                 document.getElementById('info-system-arch').innerText = `${data.system_arch || 'amd64'} (${data.platform_system || 'Linux'})`;
                 document.getElementById('info-python-ver').innerText = `Python ${data.python_version || '3.12'}`;
 
@@ -11521,6 +11526,7 @@
 
                         // Refresh all version badges on page
                         if (sys.version) {
+                            if (document.getElementById('header-version-badge')) document.getElementById('header-version-badge').innerText = `v${sys.version}`;
                             const inf = document.getElementById('info-current-version');
                             const upd = document.getElementById('update-current-ver-badge');
                             const dsh = document.getElementById('dash-version-badge');
