@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # /usr/local/bin/zclock-telemetry.sh
-# Telemetry helper for Net-SNMP and Prometheus on ZclockID Appliance
+# Telemetry helper for SNMP and Prometheus on ZclockID Appliance
 
 set -eo pipefail
 

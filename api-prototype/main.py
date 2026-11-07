@@ -1481,7 +1481,7 @@ def list_managed_services():
         },
         {
             "id": "snmpd",
-            "name": "Net-SNMP Telemetry",
+            "name": "SNMP Telemetry",
             "category": "infrastructure",
             "category_label": "ENTERPRISE TELEMETRY",
             "role": "RFC 1157 SNMP Telemetry & Active Directory Enterprise MIB",
@@ -5172,7 +5172,7 @@ def update_snmp_config(req: SnmpConfigRequest):
 
     lines = [
         "# /etc/snmp/snmpd.conf",
-        "# ZclockID Appliance Net-SNMP Telemetry Configuration",
+        "# ZclockID Appliance SNMP Telemetry Configuration",
         f"agentaddress {req.agent_address}",
         "",
         "# System Information",

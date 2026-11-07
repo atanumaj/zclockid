@@ -14,7 +14,7 @@ Engineered on Ubuntu Linux LTS, ZclockID replaces legacy monolithic suites (such
 * 🔄 **Bi-Directional Sysvol Sync with NTACL Self-Healing:** Dedicated `zclock-sysvold` engine that synchronizes Group Policy Objects while continuously repairing and preserving Windows Security Descriptors (`security.NTACL`).
 * ⚡ **Headless REST API First:** 100% headless control via FastAPI with interactive OpenAPI (Swagger) documentation for automated provisioning, user lifecycle, and replication monitoring.
 * 🌐 **Modern Identity & Web SSO (Keycloak):** Out-of-the-box SAML 2.0 and OpenID Connect (OIDC) federation with Kerberos SPNEGO for zero-touch desktop SSO on domain-joined PCs.
-* 📊 **SNMP Telemetry & Metrics:** Net-SNMP daemon with custom Active Directory OID extensions and Prometheus scraping metrics.
+* 📊 **SNMP Telemetry & Metrics:** SNMP daemon with custom Active Directory OID extensions and Prometheus scraping metrics.
 
 ---
 

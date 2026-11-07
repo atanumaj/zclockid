@@ -35,7 +35,7 @@ Organizations seeking an on-premises or private-cloud Active Directory Domain Co
 | **BIND9 DLZ + DoH** | **HIGH (9/10)** | BIND 9.18+ (`bind9-dlz`) | Dynamic Zone loading (`dlz_bind9_*.so`) with native `http` & `tls` DoH endpoints (`/dns-query`). | *Risk:* Port 443 conflict between DoH and Web GUI.  <br>*Mitigation:* Multiplex via reverse proxy (Nginx/HAProxy) or dedicate DoH URI paths. |
 | **FreeRADIUS transparent AD** | **EXCELLENT (10/10)** | FreeRADIUS 3.2+ (`freeradius`) | PEAP-MSCHAPv2 via Samba's `ntlm_auth` helper binary; LDAPS for user search & RFC 3580 dynamic VLAN assignment. | *Risk:* NTLM deprecation or Winbind pipe permissions.  <br>*Mitigation:* Add `freerad` user to `winbindd_priv` group; enforce `mschapv2-and-ntlmv2-only`. |
 | **Sysvol Bi-Directional Sync** | **FEASIBLE (8.5/10)** | Syncthing / `rsync -XA` + `inotify` daemon | Event-driven file payload sync combined with automated `samba-tool ntacl sysvolreset` reconciliation. | *Risk:* Dropped Windows extended attributes (`security.NTACL`).  <br>*Mitigation:* Automated background reconciliation timer & inotify trigger. |
-| **SNMP & Telemetry** | **EXCELLENT (10/10)** | Net-SNMP 5.9+ & Prometheus Exporter | Custom Net-SNMP `extend` OIDs querying DRS replication status, active sessions, and RADIUS stats. | *Risk:* SNMP query latency on large directories.  <br>*Mitigation:* Daemonized telemetry caching script (`/dev/shm/ad_telemetry.json`). |
+| **SNMP & Telemetry** | **EXCELLENT (10/10)** | SNMP 5.9+ & Prometheus Exporter | Custom SNMP `extend` OIDs querying DRS replication status, active sessions, and RADIUS stats. | *Risk:* SNMP query latency on large directories.  <br>*Mitigation:* Daemonized telemetry caching script (`/dev/shm/ad_telemetry.json`). |
 | **Headless REST API** | **EXCELLENT (10/10)** | Python 3.12+ FastAPI & Pydantic | RESTful API exposing `/domain`, `/users`, `/groups`, `/sysvol`, `/radius`, and `/system` endpoints. | *Risk:* Direct LDAP modifications bypassing Samba validation.  <br>*Mitigation:* Leverage `samba-tool` Python library / CLI bindings internally. |
 | **Keycloak SAML / OIDC** | **HIGH (9/10)** | Keycloak 24+ (Quarkus runtime) | Native LDAP User Federation + Kerberos SPNEGO Desktop Single Sign-On. | *Risk:* Java memory consumption.  <br>*Mitigation:* Keycloak Quarkus container tuned for 512MB RAM; or lightweight alternative (Authentik/Authelia). |
 | **Lightweight HTML5 GUI** | **EXCELLENT (10/10)** | Vue 3 / HTML5 + Tailwind CSS | Single Page App focusing on appliance setup, telemetry, replication map, and reporting. | *Risk:* Feature creep trying to duplicate RSAT.  <br>*Mitigation:* Strictly limit GUI to appliance health/telemetry; let RSAT handle deep GPO/OUs. |
@@ -147,7 +147,7 @@ ZclockID can be packaged and distributed across several tiers:
 • Samba 4 AD DC baseline                                    • BIND 9.18 DLZ + Native DoH
 • Automated domain provisioning                             • FreeRADIUS 802.1X integration
 • DRS multi-DC replication                                  • `ntlm_auth` & Dynamic VLANs
-• Sysvol Syncthing + NTACL healer                           • Net-SNMP AD telemetry extensions
+• Sysvol Syncthing + NTACL healer                           • SNMP AD telemetry extensions
     │                                                               │
     └───────────────────────────────┬───────────────────────────────┘
                                     │

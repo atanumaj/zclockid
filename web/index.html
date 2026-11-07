@@ -1153,7 +1153,7 @@
                                         <span class="text-[9px] text-rose-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-rose-950/60 border border-rose-800/40">INFRA ENGINE</span>
                                         <span id="enabled-snmpd" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-rose-400 transition" onclick="openServiceControlModal('snmpd')">Net-SNMP Daemon</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-rose-400 transition" onclick="openServiceControlModal('snmpd')">SNMP Daemon</h4>
                                 </div>
                                 <span id="badge-snmpd" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -1172,7 +1172,7 @@
                                 <button onclick="openServiceControlModal('snmpd')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('snmpd', 'Net-SNMP Telemetry')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button onclick="openLogViewer('snmpd', 'SNMP Telemetry')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -2348,7 +2348,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-folder-tree text-emerald-400"></i> Integrated Sysvol Replication & Windows NTACL Guardian
+                                <i class="fa-solid fa-folder-tree text-emerald-400"></i> Integrated Sysvol Replication
                             </h3>
                             <p class="text-xs text-slate-400">Native peer-to-peer SHA-256 tree sync across Domain Controllers with automated debounced NTACL healing</p>
                         </div>
@@ -2862,7 +2862,7 @@
                 <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-sm">
                     <div>
                         <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-satellite-dish text-cyan-400"></i> Net-SNMP & Telemetry Management
+                            <i class="fa-solid fa-satellite-dish text-cyan-400"></i> SNMP & Telemetry Management
                         </h2>
                         <p class="text-xs text-slate-400 mt-1">Configure SNMP daemon parameters, access control lists, and monitor Active Directory enterprise MIB telemetry OIDs.</p>
                     </div>
@@ -2926,12 +2926,12 @@
 
                 <!-- Main Grid: Config Form & RFC 1157 Query Tester -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Net-SNMP Daemon Configuration Form -->
+                    <!-- SNMP Daemon Configuration Form -->
                     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                                    <i class="fa-solid fa-sliders text-cyan-400"></i> Net-SNMP Server Parameters
+                                    <i class="fa-solid fa-sliders text-cyan-400"></i> SNMP Server Parameters
                                 </h3>
                                 <span class="text-[11px] font-mono text-slate-500">/etc/snmp/snmpd.conf</span>
                             </div>
@@ -2939,7 +2939,7 @@
                             <form id="form-snmp-config" onsubmit="saveSnmpConfig(event)" class="space-y-4 text-xs">
                                 <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800">
                                     <div>
-                                        <div class="font-semibold text-slate-200">Enable Net-SNMP Daemon</div>
+                                        <div class="font-semibold text-slate-200">Enable SNMP Daemon</div>
                                         <div class="text-[11px] text-slate-400">Listen for inbound SNMP GET/WALK requests on UDP port 161</div>
                                     </div>
                                     <label class="relative inline-flex items-center cursor-pointer">
@@ -3013,7 +3013,7 @@
                                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-terminal text-emerald-400"></i> Interactive SNMP Query & Walk Tester
                                 </h3>
-                                <span class="text-[11px] font-mono text-slate-500">Net-SNMP v2c</span>
+                                <span class="text-[11px] font-mono text-slate-500">SNMP v2c</span>
                             </div>
 
                             <form onsubmit="executeSnmpTestQuery(event)" class="space-y-4 text-xs">
@@ -3651,11 +3651,11 @@
                                 <input type="text" id="sec-subnets-ssh" value="0.0.0.0/0, ::/0" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500">
                             </div>
 
-                            <!-- Net-SNMP Allowed Subnets -->
+                            <!-- SNMP Allowed Subnets -->
                             <div class="bg-slate-950/40 p-4 rounded-xl border border-slate-800 space-y-2">
                                 <div class="flex items-center justify-between">
                                     <label class="block text-xs font-semibold text-slate-200">
-                                        <i class="fa-solid fa-chart-line text-emerald-400 mr-1.5"></i> Net-SNMP Telemetry Allowed Subnets (Port 161/UDP)
+                                        <i class="fa-solid fa-chart-line text-emerald-400 mr-1.5"></i> SNMP Telemetry Allowed Subnets (Port 161/UDP)
                                     </label>
                                     <button onclick="insertCurrentClientIp('sec-subnets-snmp')" class="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-mono">
                                         <i class="fa-solid fa-plus"></i> Add Current IP (/32)
@@ -3726,7 +3726,7 @@
                                 <h3 class="font-bold text-white text-base flex items-center gap-2">
                                     <i class="fa-solid fa-shield-virus text-amber-400"></i> Operating System Hardening Baselines
                                 </h3>
-                                <p class="text-xs text-slate-400 mt-1">Configure low-level daemon hardening for OpenSSH and Net-SNMP.</p>
+                                <p class="text-xs text-slate-400 mt-1">Configure low-level daemon hardening for OpenSSH and SNMP.</p>
                             </div>
                             <span class="px-2.5 py-1 text-xs rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">OS LEVEL HARDENING</span>
                         </div>
@@ -3776,7 +3776,7 @@
                                         <span id="sec-stat-ssh" class="font-mono text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> ACTIVE</span>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <span class="text-slate-400">Net-SNMP Service (port 161):</span>
+                                        <span class="text-slate-400">SNMP Service (port 161):</span>
                                         <span id="sec-stat-snmp" class="font-mono text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> ACTIVE</span>
                                     </div>
                                 </div>
@@ -4286,7 +4286,7 @@
                             <span class="text-xs text-slate-500 font-mono">IDENTITY FEDERATION</span>
                         </div>
                         <h2 class="text-xl font-bold tracking-tight text-white mt-1">IAM & Keycloak SSO Federation</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Federate ZclockID Active Directory & Kerberos credentials into Keycloak or external SSO brokers without JVM bloat.</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Federate ZclockID Active Directory & Kerberos credentials into Keycloak (Guide)</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <button onclick="fetchKeycloakSettings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
@@ -6828,7 +6828,7 @@
             'zclock-azuresync': { title: 'Azure Cloud Sync', unit: 'zclock-azuresync.service', role: 'Hybrid Cloud Identity, User & Password Hash Synchronization (Custom Built)', ports: 'Microsoft Entra ID' },
             'zclock-api': { title: 'ZclockID REST API', unit: 'zclock-api.service', role: 'Appliance Headless REST Management API & Web Backend (Custom Built)', ports: '8000 (FastAPI Engine)' },
             'nginx': { title: 'Nginx Multiplexer', unit: 'nginx.service', role: 'HTTP/2 TLS Termination, Web UI Host, DoH Path Routing', ports: '80, 443 (HTTPS/TLS)' },
-            'snmpd': { title: 'Net-SNMP Daemon', unit: 'snmpd.service', role: 'Enterprise Telemetry Provider & Active Directory Custom MIB', ports: '161 (UDP)' }
+            'snmpd': { title: 'SNMP Daemon', unit: 'snmpd.service', role: 'Enterprise Telemetry Provider & Active Directory Custom MIB', ports: '161 (UDP)' }
         };
 
         let currentModalServiceKey = 'samba-ad-dc';
@@ -12012,7 +12012,7 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Failed to update security settings');
 
-                alert(`Security Baseline Updated!\n\n${data.message}\nOpenSSH: ${data.ssh_result}\nNet-SNMP: ${data.snmp_result}`);
+                alert(`Security Baseline Updated!\n\n${data.message}\nOpenSSH: ${data.ssh_result}\nSNMP: ${data.snmp_result}`);
                 fetchSecuritySettings();
             } catch (err) {
                 alert(`Security Update Rejected:\n${err.message}`);

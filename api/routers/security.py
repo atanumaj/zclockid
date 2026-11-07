@@ -70,7 +70,7 @@ def update_security_baseline_settings(
 ):
     """
     Updates system-wide security baselines with automated anti-lockout safety verification.
-    Applies OpenSSH and Net-SNMP controls natively across the OS.
+    Applies OpenSSH and SNMP controls natively across the OS.
     """
     client_ip = get_client_ip(request)
 
@@ -135,7 +135,7 @@ def update_security_baseline_settings(
     # 5. Apply OS level OpenSSH hardening
     ssh_ok, ssh_msg = apply_ssh_hardening(req.allowed_subnets_ssh, req.ssh_permit_root, req.ssh_password_auth)
 
-    # 6. Apply Net-SNMP access controls
+    # 6. Apply SNMP access controls
     snmp_ok, snmp_msg = apply_snmp_hardening(req.allowed_subnets_snmp, req.snmp_community)
 
     log_audit("SECURITY_BASELINE_UPDATED", user["username"], "system_security", "SUCCESS", {

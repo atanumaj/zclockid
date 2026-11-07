@@ -1,6 +1,6 @@
 """
 ZclockID Appliance System Security & Network Baseline Service
-Enforces idle timeouts, CIDR IP filtering across Web GUI/API, OpenSSH hardening, and Net-SNMP access controls.
+Enforces idle timeouts, CIDR IP filtering across Web GUI/API, OpenSSH hardening, and SNMP access controls.
 """
 
 import os
@@ -169,7 +169,7 @@ def apply_ssh_hardening(allowed_subnets: str, permit_root: int, password_auth: i
 
 def apply_snmp_hardening(allowed_subnets: str, community: str) -> Tuple[bool, str]:
     """
-    Applies Net-SNMP access restrictions to /etc/snmp/snmpd.conf.
+    Applies SNMP access restrictions to /etc/snmp/snmpd.conf.
     Configures rocommunity per authorized CIDR block.
     """
     snmp_conf = Path("/etc/snmp/snmpd.conf")
@@ -202,6 +202,6 @@ def apply_snmp_hardening(allowed_subnets: str, community: str) -> Tuple[bool, st
             f.write("\n".join(new_lines) + "\n")
 
         run_cmd(["systemctl", "reload-or-restart", "snmpd"], timeout=10)
-        return True, "Net-SNMP access control and community updated successfully."
+        return True, "SNMP access control and community updated successfully."
     except Exception as e:
         return False, str(e)

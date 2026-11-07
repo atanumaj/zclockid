@@ -9,5 +9,5 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
  engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
  FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
- automatic Windows NTACL preservation, Net-SNMP telemetry, and a headless REST API.
+ automatic Windows NTACL preservation, SNMP telemetry, and a headless REST API.
 

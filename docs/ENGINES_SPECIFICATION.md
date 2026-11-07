@@ -270,9 +270,9 @@ zclock-sysvold (DC1) ───[ Rsync -XA / Syncthing ]───► zclock-sysvo
 
 ---
 
-## 5. Engine 5: Net-SNMP & Telemetry Subsystem
+## 5. Engine 5: SNMP & Telemetry Subsystem
 
-### 5.1. Net-SNMP Integration (`/etc/snmp/snmpd.conf`)
+### 5.1. SNMP Integration (`/etc/snmp/snmpd.conf`)
 ZclockID provides comprehensive SNMP v2c/v3 telemetry for monitoring systems:
 ```text
 # Standard MIB-II Information

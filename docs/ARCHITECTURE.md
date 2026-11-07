@@ -42,7 +42,7 @@ flowchart TD
     subgraph Management_API["Headless Management & Telemetry"]
         API["ZclockID FastAPI Service\n• RESTful API (Port 8000)\n• OpenAPI / Swagger Docs\n• Python samba-tool bindings"]
         GUI["HTML5 / Vue 3 Web Console\n• Appliance Health & Metrics\n• First-time Setup Wizard\n• DRS Replication Topology"]
-        SNMP["Net-SNMP & Telemetry Agent\n• OID Extensions for AD/DRS\n• Prometheus Metrics Exporter"]
+        SNMP["SNMP & Telemetry Agent\n• OID Extensions for AD/DRS\n• Prometheus Metrics Exporter"]
     end
 
     %% Client Connections
@@ -111,7 +111,7 @@ All non-HTTP directory protocols bind directly to standard dedicated network por
 | **FreeRADIUS Accounting**| `1813` | UDP | LAN | Inbound | RADIUS session start/stop/interim accounting |
 | **Sysvol Sync (Syncthing)** | `22000` | TCP | DC-to-DC | Mutual | Encrypted P2P Sysvol replication |
 | **Sysvol Sync Discovery** | `21027` | UDP | DC-to-DC | Mutual | Local broadcast discovery between DCs |
-| **SNMP Daemon** | `161` | UDP | Mgmt LAN | Inbound | Net-SNMP appliance telemetry |
+| **SNMP Daemon** | `161` | UDP | Mgmt LAN | Inbound | SNMP appliance telemetry |
 | **Prometheus Exporter** | `9100` | TCP | Mgmt LAN | Inbound | Node and Samba metrics scraping |
 | **RPC Dynamic Range** | `49152-65535` | TCP | LAN / Inter-DC | Mutual | High-port dynamic RPC for DRS replication & RSAT |
 
