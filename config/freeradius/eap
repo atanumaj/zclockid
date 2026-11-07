@@ -10,12 +10,13 @@ eap {
 
     # TLS Configuration for EAP-PEAP and EAP-TLS
     tls-config tls-common {
-        certdir = ${confdir}/certs
-        cadir = ${confdir}/certs
-        private_key_file = ${certdir}/server.key
-        certificate_file = ${certdir}/server.pem
-        ca_file = ${cadir}/ca.pem
-        dh_file = ${certdir}/dh
+        certdir = /etc/freeradius/3.0/certs
+        cadir = /etc/freeradius/3.0/certs
+        private_key_password = whatever
+        private_key_file = /etc/freeradius/3.0/certs/server.key
+        certificate_file = /etc/freeradius/3.0/certs/server.pem
+        ca_file = /etc/freeradius/3.0/certs/ca.pem
+        dh_file = /etc/freeradius/3.0/certs/dh
         cipher_list = "DEFAULT"
         cipher_server_preference = no
         tls_min_version = "1.2"
