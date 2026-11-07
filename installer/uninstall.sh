@@ -85,6 +85,7 @@ rm -f /var/run/zclock-*.status
 
 log_info "9. Removing APT repository entry..."
 rm -f /etc/apt/sources.list.d/zclockid.list
+rm -f /etc/apt/sources.list.d/zclockid.sources
 rm -f /etc/apt/apt.conf.d/90zclockid-noninteractive
 
 log_info "10. Purging Active Directory Samba, BIND9, and Kerberos state..."
