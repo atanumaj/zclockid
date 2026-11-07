@@ -57,34 +57,46 @@ if command -v debconf-set-selections >/dev/null 2>&1; then
     echo "krb5-config krb5-config/admin_server string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
 fi
 
-# 4. Configure ZclockID Ubuntu APT Repository
-# Supports both Local Appliance Mirror and GitHub Raw sources
-REPO_SOURCE="${1:-http://192.168.1.41/repo}"
+# 4. Download and Install ZclockID from GitHub
+GITHUB_REPO_RAW="https://raw.githubusercontent.com/atanumaj/zclockid/master"
+PACKAGE_URL="${GITHUB_REPO_RAW}/apt-repo/pool/main/zclockid_1.0.0_all.deb"
+TMP_DEB="/tmp/zclockid_1.0.0_all.deb"
 
-log_info "Adding ZclockID APT repository source: ${REPO_SOURCE}..."
+log_info "Downloading ZclockID Debian package from GitHub..."
+if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$PACKAGE_URL" -o "$TMP_DEB"
+elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$TMP_DEB" "$PACKAGE_URL"
+fi
 
-# Write modern DEB822 format (Ubuntu 24.04 & 22.04 compatible)
+if [[ ! -f "$TMP_DEB" || ! -s "$TMP_DEB" ]]; then
+    log_error "Failed to download ZclockID package from GitHub."
+    exit 1
+fi
+
+# 5. Configure ZclockID Ubuntu APT Repository on GitHub for future upgrades
+log_info "Configuring official GitHub APT repository for continuous updates..."
 cat << EOF > /etc/apt/sources.list.d/zclockid.sources
 Types: deb
-URIs: ${REPO_SOURCE}
+URIs: ${GITHUB_REPO_RAW}/apt-repo
 Suites: stable
 Components: main
 Trusted: yes
 EOF
 
-# Also maintain traditional sources.list format for legacy tooling
 cat << EOF > /etc/apt/sources.list.d/zclockid.list
-deb [trusted=yes] ${REPO_SOURCE} stable main
+deb [trusted=yes] ${GITHUB_REPO_RAW}/apt-repo stable main
 EOF
 
-log_info "Updating APT package cache..."
-apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true -y
+log_info "Updating system APT cache..."
+apt-get update -y || true
 
-# 5. Install ZclockID and all upstream engine dependencies
+# 6. Install ZclockID and all upstream engine dependencies
 log_info "Installing ZclockID appliance and upstream subsystem dependencies..."
 log_info "(Samba AD DC, BIND9 DLZ, FreeRADIUS, Chrony, Nginx, SNMP, Python)..."
 
-apt-get install -y --allow-unauthenticated zclockid
+apt-get install -y --allow-unauthenticated "$TMP_DEB"
+rm -f "$TMP_DEB"
 
 # 6. Verify Installation
 PRIMARY_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")

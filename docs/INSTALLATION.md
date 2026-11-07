@@ -9,7 +9,7 @@ ZclockID is an open-source, purpose-built Active Directory Domain Controller and
 On your target machine (`192.168.1.43`), run as root:
 
 ```bash
-curl -sSL http://192.168.1.41/repo/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/install.sh | sudo bash
 ```
 
 ### What this script does automatically:
@@ -53,7 +53,7 @@ If you prefer to manually configure the APT repository or install the `.deb` pac
 # 1. Add repository source (DEB822 format for Ubuntu 24.04/22.04)
 sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/zclockid.sources
 Types: deb
-URIs: http://192.168.1.41/repo
+URIs: https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo
 Suites: stable
 Components: main
 Trusted: yes
@@ -66,8 +66,8 @@ sudo apt-get install -y zclockid
 
 ### Option B: Direct DEB Package Installation
 ```bash
-# Download package from repository
-wget http://192.168.1.41/repo/pool/main/zclockid_1.0.0_all.deb
+# Download package from GitHub repository
+wget https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.0_all.deb
 
 # Install package and resolve dependencies
 sudo apt-get update
@@ -95,7 +95,7 @@ To completely wipe ZclockID, remove all services, configuration files, and datab
 
 ### 1-Line Automated Uninstaller:
 ```bash
-curl -sSL http://192.168.1.41/repo/uninstall.sh | sudo bash -s -- -y
+curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/uninstall.sh | sudo bash -s -- -y
 ```
 
 ### Manual Purge:
