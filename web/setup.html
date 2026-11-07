@@ -221,6 +221,10 @@
                         <span class="text-slate-500">Deployment Mode:</span>
                         <span id="rev-mode" class="text-emerald-400">New Forest</span>
                     </div>
+                    <div id="rev-partner-row" class="hidden flex justify-between text-slate-300">
+                        <span class="text-slate-500">Partner Primary DC:</span>
+                        <span id="rev-partner-ip" class="text-cyan-400">192.168.1.23</span>
+                    </div>
                     <div class="flex justify-between text-slate-300">
                         <span class="text-slate-500">Domain Realm:</span>
                         <span id="rev-realm" class="text-white">CORP.EXAMPLE.COM</span>
@@ -318,6 +322,18 @@
                 }
 
                 const mode = document.querySelector('input[name="domain_mode"]:checked').value;
+                if (mode === 'join_domain') {
+                    const partnerIp = document.getElementById('partner_dc_ip').value.trim();
+                    if (!partnerIp) {
+                        alert('Please enter the Existing Primary DC IP Address.');
+                        return;
+                    }
+                    document.getElementById('rev-partner-row').classList.remove('hidden');
+                    document.getElementById('rev-partner-ip').innerText = partnerIp;
+                } else {
+                    document.getElementById('rev-partner-row').classList.add('hidden');
+                }
+
                 document.getElementById('rev-hostname').innerText = hn;
                 document.getElementById('rev-admin-user').innerText = document.getElementById('admin_username').value;
                 document.getElementById('rev-mode').innerText = mode === 'new_domain' ? 'New Forest (Primary DC)' : 'Join Forest (Secondary DC)';

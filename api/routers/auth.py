@@ -122,20 +122,21 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
         run_cmd(["cp", "/etc/samba/smb.conf", f"/etc/samba/smb.conf.bak-{int(time.time())}"])
         run_cmd(["rm", "-f", "/etc/samba/smb.conf"])
 
-    if req.mode == "new_domain":
-        run_cmd(["rm", "-rf", "/var/lib/samba/private"])
-        run_cmd(["mkdir", "-p", "/var/lib/samba/private"])
-        run_cmd(["chmod", "700", "/var/lib/samba/private"])
-        run_cmd(["rm", "-rf", "/var/lib/samba/bind-dns"])
-        run_cmd(["mkdir", "-p", "/var/lib/samba/bind-dns"])
-        run_cmd(["rm", "-rf", "/var/lib/samba/sysvol"])
-        run_cmd(["mkdir", "-p", "/var/lib/samba/sysvol"])
+    run_cmd(["rm", "-rf", "/var/lib/samba/private"])
+    run_cmd(["mkdir", "-p", "/var/lib/samba/private"])
+    run_cmd(["chmod", "700", "/var/lib/samba/private"])
+    run_cmd(["rm", "-rf", "/var/lib/samba/bind-dns"])
+    run_cmd(["mkdir", "-p", "/var/lib/samba/bind-dns"])
+    run_cmd(["rm", "-rf", "/var/lib/samba/sysvol"])
+    run_cmd(["mkdir", "-p", "/var/lib/samba/sysvol"])
 
     provision_output = ""
     # Ensure samba-ad-provision schema files are installed if absent (auto-heal for Ubuntu 24.04/26.04)
     if not os.path.exists("/usr/share/samba/setup/ad-schema") or not os.path.exists("/usr/share/samba/setup/provision.smb.conf.dc"):
         run_cmd(["apt-get", "update", "-y"])
         run_cmd(["apt-get", "install", "-y", "samba-ad-provision", "ldb-tools", "python3-setproctitle"])
+
+    partner_ip = (req.partner_dc_ip or "").strip()
 
     # 4. Provisioning or Joining Domain
     if req.mode == "new_domain":
@@ -154,14 +155,53 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
         if code != 0 and "not installed" not in stderr:
             raise HTTPException(status_code=500, detail=f"Samba AD provisioning failed: {stderr or stdout}")
     else:
+        # Join Existing Forest (ADC / BDC Mode)
+        if not partner_ip:
+            raise HTTPException(
+                status_code=400,
+                detail="Primary DC IP Address (partner_dc_ip) is required to join an existing domain."
+            )
+
+        # A. Point local DNS to Primary DC so Kerberos and LDAP SRV records resolve immediately
+        run_cmd(["rm", "-f", "/etc/resolv.conf"])
+        try:
+            with open("/etc/resolv.conf", "w") as f:
+                f.write(f"nameserver {partner_ip}\nsearch {realm.lower()}\nnameserver 1.1.1.1\n")
+        except Exception as e:
+            logging.getLogger("uvicorn.error").warning(f"Failed to write temporary resolv.conf: {e}")
+
+        # B. Write initial /etc/krb5.conf pointing directly to the Primary DC KDC
+        krb5_init = f"""[libdefaults]
+    default_realm = {realm}
+    dns_lookup_realm = false
+    dns_lookup_kdc = true
+
+[realms]
+    {realm} = {{
+        kdc = {partner_ip}
+        admin_server = {partner_ip}
+    }}
+
+[domain_realm]
+    .{realm.lower()} = {realm}
+    {realm.lower()} = {realm}
+"""
+        try:
+            with open("/etc/krb5.conf", "w") as f:
+                f.write(krb5_init)
+        except Exception as e:
+            logging.getLogger("uvicorn.error").warning(f"Failed to write initial krb5.conf: {e}")
+
+        # C. Execute samba-tool domain join with --server pointing to Primary DC
         cmd = [
             "samba-tool", "domain", "join",
             realm, "DC",
-            f"-U{req.ad_admin_user}",
+            f"-U{req.ad_admin_user or 'Administrator'}",
             f"--password={req.ad_admin_password}",
+            f"--server={partner_ip}",
             "--dns-backend=BIND9_DLZ"
         ]
-        code, stdout, stderr = run_cmd(cmd, timeout=180)
+        code, stdout, stderr = run_cmd(cmd, timeout=300)
         provision_output = stdout + stderr
         if code != 0 and "not installed" not in stderr:
             raise HTTPException(status_code=500, detail=f"Joining domain failed: {stderr or stdout}")
@@ -192,6 +232,18 @@ include "/var/lib/samba/bind-dns/named.conf";
     run_cmd(["systemctl", "restart", "bind9"])
     run_cmd(["systemctl", "enable", "zclock-sysvold"])
     run_cmd(["systemctl", "restart", "zclock-sysvold"])
+
+    # Configure system DNS to point to localhost (and partner DC for redundancy if in join mode)
+    try:
+        run_cmd(["rm", "-f", "/etc/resolv.conf"])
+        resolv_lines = "nameserver 127.0.0.1\n"
+        if partner_ip:
+            resolv_lines += f"nameserver {partner_ip}\n"
+        resolv_lines += f"search {realm.lower()}\n"
+        with open("/etc/resolv.conf", "w") as f:
+            f.write(resolv_lines)
+    except Exception as e:
+        logging.getLogger("uvicorn.error").warning(f"Failed to set post-provision resolv.conf: {e}")
 
     # 6. Create setup lock file
     SETUP_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
