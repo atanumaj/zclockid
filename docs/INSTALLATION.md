@@ -37,6 +37,7 @@ curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/
    *(Accept the self-signed SSL certificate. The appliance automatically detects that no admin account exists and redirects directly to `/setup.html`).*
 2. Configure your AD parameters:
    * **Admin Account:** Define your web administrator username, password, and email.
+   * **Appliance Hostname:** Set a clean Linux hostname and DC NetBIOS computer name (e.g., `dc01`, `zclock-dc`).
    * **Domain Role:** Choose New Forest (Primary DC) or Join Existing Forest (Secondary DC).
    * **Domain Realm (FQDN):** e.g., `corp.example.com`
    * **NetBIOS Name:** e.g., `CORP`

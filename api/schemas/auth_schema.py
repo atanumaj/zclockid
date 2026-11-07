@@ -9,6 +9,7 @@ class SetupProvisionRequest(BaseModel):
     admin_username: str = Field("admin", example="admin")
     admin_password: str = Field(..., min_length=8, example="AdminP@ssw0rd2026!")
     admin_email: Optional[str] = Field("admin@corp.example.com", example="admin@corp.example.com")
+    system_hostname: Optional[str] = Field(None, example="dc01", description="System hostname to configure before AD provisioning")
     mode: str = Field("new_domain", pattern="^(new_domain|join_domain)$")
     realm: str = Field(..., example="CORP.EXAMPLE.COM")
     domain_netbios: str = Field(..., example="CORP")

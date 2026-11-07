@@ -3,9 +3,11 @@ ZclockID Authentication & Setup Wizard Router
 """
 
 import os
+import re
 import time
 import secrets
 import sqlite3
+import logging
 from fastapi import APIRouter, HTTPException, status, Header, Request
 from typing import Optional
 
@@ -63,7 +65,47 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
         f.write(f"AD_ADMIN={req.ad_admin_user}\nAD_PASS={req.ad_admin_password}\n")
     os.chmod(AD_CREDS_FILE, 0o600)
 
-    # 1. Create Web Administrator User
+    # 1. Update System Hostname if specified
+    current_hostname = os.uname().nodename
+    if req.system_hostname and req.system_hostname.strip():
+        new_hn = req.system_hostname.strip().lower()
+        if not re.match(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", new_hn):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid hostname. Must contain only lowercase alphanumeric characters and hyphens (up to 63 characters), and cannot start or end with a hyphen."
+            )
+        run_cmd(["hostnamectl", "set-hostname", new_hn])
+        current_hostname = new_hn
+
+        # Update /etc/hosts for correct local FQDN resolution
+        if os.path.exists("/etc/hosts"):
+            try:
+                with open("/etc/hosts", "r") as f:
+                    hosts_content = f.read()
+                fqdn_str = f"{new_hn}.{realm.lower()}\t{new_hn}"
+                if "127.0.1.1" in hosts_content:
+                    hosts_content = re.sub(r'127\.0\.1\.1\s+.*', f'127.0.1.1\t{fqdn_str}', hosts_content)
+                else:
+                    hosts_content += f"\n127.0.1.1\t{fqdn_str}\n"
+                with open("/tmp/hosts.tmp", "w") as f:
+                    f.write(hosts_content)
+                run_cmd(["cp", "/tmp/hosts.tmp", "/etc/hosts"])
+            except Exception as e:
+                logging.getLogger("uvicorn.error").warning(f"Could not update /etc/hosts: {e}")
+
+        # Update appliance self-signed TLS cert with new hostname CN
+        if os.path.exists("/etc/zclockid/certs"):
+            fqdn = f"{new_hn}.{realm.lower()}"
+            run_cmd([
+                "openssl", "req", "-x509", "-nodes", "-days", "1825", "-newkey", "rsa:2048",
+                "-keyout", "/etc/zclockid/certs/appliance.key",
+                "-out", "/etc/zclockid/certs/appliance.crt",
+                "-subj", f"/CN={fqdn}/O=ZclockID Enterprise/OU=Appliance"
+            ])
+            run_cmd(["chmod", "600", "/etc/zclockid/certs/appliance.key"])
+            run_cmd(["systemctl", "reload", "nginx"])
+
+    # 2. Create Web Administrator User
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     hashed_pw, salt = hash_password(req.admin_password)
@@ -75,7 +117,7 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
     conn.commit()
     conn.close()
 
-    # 2. Backup old smb.conf and purge stale database directories
+    # 3. Backup old smb.conf and purge stale database directories
     if os.path.exists("/etc/samba/smb.conf"):
         run_cmd(["cp", "/etc/samba/smb.conf", f"/etc/samba/smb.conf.bak-{int(time.time())}"])
         run_cmd(["rm", "-f", "/etc/samba/smb.conf"])
@@ -95,7 +137,7 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
         run_cmd(["apt-get", "update", "-y"])
         run_cmd(["apt-get", "install", "-y", "samba-ad-provision", "ldb-tools", "python3-setproctitle"])
 
-    # 3. Provisioning or Joining Domain
+    # 4. Provisioning or Joining Domain
     if req.mode == "new_domain":
         cmd = [
             "samba-tool", "domain", "provision",
@@ -103,6 +145,7 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
             f"--domain={domain}",
             "--server-role=dc",
             "--dns-backend=BIND9_DLZ",
+            f"--host-name={current_hostname}",
             f"--adminpass={req.ad_admin_password}",
             "--use-rfc2307"
         ]
@@ -153,7 +196,7 @@ include "/var/lib/samba/bind-dns/named.conf";
     # 6. Create setup lock file
     SETUP_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(SETUP_LOCK_FILE, "w") as f:
-        f.write(f"PROVISIONED_AT={time.time()}\nREALM={realm}\nDOMAIN={domain}\nMODE={req.mode}\n")
+        f.write(f"PROVISIONED_AT={time.time()}\nREALM={realm}\nDOMAIN={domain}\nMODE={req.mode}\nHOSTNAME={current_hostname}\n")
 
     # Update default domain in self registration settings to match newly provisioned realm
     try:
@@ -169,13 +212,18 @@ include "/var/lib/samba/bind-dns/named.conf";
     except Exception:
         pass
 
-    log_audit("APPLIANCE_PROVISIONED", req.admin_username, realm, "SUCCESS", {"mode": req.mode, "domain": domain})
+    log_audit("APPLIANCE_PROVISIONED", req.admin_username, realm, "SUCCESS", {
+        "mode": req.mode,
+        "domain": domain,
+        "hostname": current_hostname
+    })
 
     return {
         "status": "success",
         "realm": realm,
         "domain": domain,
-        "message": f"ZclockID provisioned successfully in {req.mode} mode.",
+        "hostname": current_hostname,
+        "message": f"ZclockID provisioned successfully in {req.mode} mode on host '{current_hostname}'.",
         "log": provision_output[:1000]
     }
 

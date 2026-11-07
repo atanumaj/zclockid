@@ -144,6 +144,13 @@
                 </div>
 
                 <div class="space-y-3 pt-2">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Appliance Hostname (System Hostname) *</label>
+                        <input type="text" id="system_hostname" required placeholder="dc01"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-indigo-500">
+                        <p class="text-[10px] text-slate-500 mt-1">Configures the Linux OS hostname and NetBIOS DC computer name (e.g. <span class="text-indigo-400">dc01</span>, <span class="text-indigo-400">zclock-dc</span>).</p>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-slate-300 mb-1">Domain FQDN / Realm *</label>
@@ -203,6 +210,10 @@
 
                 <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2 text-xs font-mono">
                     <div class="flex justify-between text-slate-300">
+                        <span class="text-slate-500">Appliance Hostname:</span>
+                        <span id="rev-hostname" class="text-indigo-400 font-bold">dc01</span>
+                    </div>
+                    <div class="flex justify-between text-slate-300">
                         <span class="text-slate-500">Web Administrator:</span>
                         <span id="rev-admin-user" class="text-indigo-400">admin</span>
                     </div>
@@ -252,12 +263,17 @@
     </div>
 
     <script>
-        // Auto-redirect to login if appliance is already provisioned and admin exists
+        // Auto-redirect to login if appliance is already provisioned and admin exists, or populate hostname
         fetch('/api/v1/setup/status')
             .then(r => r.json())
             .then(data => {
                 if (data.is_configured && data.has_admin) {
                     window.location.replace('/login.html');
+                } else if (data.hostname) {
+                    const hnInput = document.getElementById('system_hostname');
+                    if (hnInput && !hnInput.value) {
+                        hnInput.value = data.hostname.toLowerCase();
+                    }
                 }
             })
             .catch(() => {});
@@ -288,9 +304,21 @@
                 }
             }
 
-            // Step 4 Review Populate
+            // Step 4 Review Populate & Validation
             if (step === 4) {
+                const hn = document.getElementById('system_hostname').value.trim().toLowerCase();
+                if (!hn || !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(hn)) {
+                    alert('Please enter a valid hostname (lowercase letters, numbers, and hyphens only, up to 63 characters).');
+                    return;
+                }
+                const pAD = document.getElementById('ad_admin_password').value;
+                if (!pAD || pAD.length < 8) {
+                    alert('Domain Administrator Password must be at least 8 characters.');
+                    return;
+                }
+
                 const mode = document.querySelector('input[name="domain_mode"]:checked').value;
+                document.getElementById('rev-hostname').innerText = hn;
                 document.getElementById('rev-admin-user').innerText = document.getElementById('admin_username').value;
                 document.getElementById('rev-mode').innerText = mode === 'new_domain' ? 'New Forest (Primary DC)' : 'Join Forest (Secondary DC)';
                 document.getElementById('rev-realm').innerText = document.getElementById('ad_realm').value.toUpperCase();
@@ -312,6 +340,7 @@
                 admin_username: document.getElementById('admin_username').value,
                 admin_email: document.getElementById('admin_email').value,
                 admin_password: document.getElementById('admin_password').value,
+                system_hostname: document.getElementById('system_hostname').value.trim().toLowerCase(),
                 mode: mode,
                 realm: document.getElementById('ad_realm').value.toUpperCase(),
                 domain_netbios: document.getElementById('ad_domain_netbios').value.toUpperCase(),
