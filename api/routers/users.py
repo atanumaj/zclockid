@@ -735,9 +735,11 @@ def list_domain_computers():
                         except:
                             pass
 
+                    realm_suffix = get_primary_realm().lower()
+                    dns_hn = current_comp.get("dNSHostName") or (f"{current_comp['name'].lower()}.{realm_suffix}" if realm_suffix else current_comp['name'])
                     computers.append({
                         "name": current_comp["name"],
-                        "dns_hostname": current_comp.get("dNSHostName") or f"{current_comp['name'].lower()}.inet.net",
+                        "dns_hostname": dns_hn,
                         "operating_system": current_comp.get("operatingSystem") or "Windows / Linux Client",
                         "os_version": current_comp.get("operatingSystemVersion") or "-",
                         "is_dc": is_dc,

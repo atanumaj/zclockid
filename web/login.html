@@ -67,14 +67,23 @@
             </button>
         </form>
 
-        <div class="text-center border-t border-slate-800 pt-4 flex justify-between items-center text-xs text-slate-500">
-            <span>ZclockID v1.0.0</span>
-            <a href="/register.html" class="text-indigo-400 hover:underline">Self-Registration Portal &rarr;</a>
+        <div class="text-center border-t border-slate-800 pt-4 flex justify-center items-center text-xs text-slate-500">
+            <span>ZclockID v1.0.0 &bull; Enterprise Active Directory &amp; IAM Appliance</span>
         </div>
 
     </div>
 
     <script>
+        // Auto-redirect to setup wizard on first run when unconfigured / no admin exists
+        fetch('/api/v1/setup/status')
+            .then(r => r.json())
+            .then(data => {
+                if (!data.is_configured || !data.has_admin) {
+                    window.location.replace('/setup.html');
+                }
+            })
+            .catch(() => {});
+
         // Check if redirected from initial setup or session timeout
         if (window.location.search.includes('provisioned=1')) {
             document.getElementById('setup-success-alert').classList.remove('hidden');

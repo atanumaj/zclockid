@@ -31,7 +31,7 @@ def get_client_ip(request: Request) -> str:
         else:
             ip = "127.0.0.1"
 
-    # Normalize IPv6-mapped IPv4 (e.g. ::ffff:192.168.1.41)
+    # Normalize IPv6-mapped IPv4 (e.g. ::ffff:192.168.1.100)
     if ip.startswith("::ffff:"):
         ip = ip.replace("::ffff:", "")
     return ip

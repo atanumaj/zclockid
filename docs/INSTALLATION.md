@@ -4,9 +4,9 @@ ZclockID is an open-source, purpose-built Active Directory Domain Controller and
 
 ---
 
-## 1. Quick Start: 1-Line Installation via Local Lab Mirror
+## 1. Quick Start: 1-Line Installation via GitHub
 
-On your target machine (`192.168.1.43`), run as root:
+On your target Ubuntu machine, run as root:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/install.sh | sudo bash
@@ -32,15 +32,17 @@ curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/
 
 1. Open your browser and navigate to:
    ```text
-   https://192.168.1.43/setup.html
+   https://<your-server-ip>/
    ```
-   *(Accept the self-signed SSL certificate).*
+   *(Accept the self-signed SSL certificate. The appliance automatically detects that no admin account exists and redirects directly to `/setup.html`).*
 2. Configure your AD parameters:
-   * **Domain Realm (FQDN):** e.g., `corp.example.com` or `inet.net`
-   * **NetBIOS Name:** e.g., `CORP` or `INET`
-   * **Administrator Password:** Set your master domain password.
+   * **Admin Account:** Define your web administrator username, password, and email.
+   * **Domain Role:** Choose New Forest (Primary DC) or Join Existing Forest (Secondary DC).
+   * **Domain Realm (FQDN):** e.g., `corp.example.com`
+   * **NetBIOS Name:** e.g., `CORP`
+   * **Master AD Administrator Password:** Set your master Active Directory administrator password.
 3. Click **Provision Domain Controller**. The wizard provisions the SAM LDB directory, configures BIND9 DNS forwarders, and starts all AD services.
-4. Access the main management console at `https://192.168.1.43/` and sign in with `administrator` and your password.
+4. Access the main management console at `https://<your-server-ip>/` and sign in.
 
 ---
 

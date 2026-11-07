@@ -52,7 +52,7 @@ echo 'APT::Get::allow-unauthenticated "true";' >> /etc/apt/apt.conf.d/90zclockid
 echo 'Acquire::AllowInsecureRepositories "true";' >> /etc/apt/apt.conf.d/90zclockid-noninteractive
 
 if command -v debconf-set-selections >/dev/null 2>&1; then
-    echo "krb5-config krb5-config/default_realm string INET.NET" | debconf-set-selections 2>/dev/null || true
+    echo "krb5-config krb5-config/default_realm string EXAMPLE.COM" | debconf-set-selections 2>/dev/null || true
     echo "krb5-config krb5-config/kerberos_servers string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
     echo "krb5-config krb5-config/admin_server string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
 fi

@@ -66,6 +66,6 @@ except Exception:
 
 # Product Metadata
 APP_NAME = "ZclockID Enterprise Management Appliance"
-APP_VERSION = "2.0.0-dev"
+APP_VERSION = "1.0.0"
 APP_REPO = "atanumaj/zclockid"
-DEFAULT_REALM = "INET.NET"
+DEFAULT_REALM = ""

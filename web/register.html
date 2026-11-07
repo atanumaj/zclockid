@@ -253,7 +253,8 @@
                 const data = await res.json();
                 if (res.ok) {
                     publicConfig = data;
-                    document.getElementById('reg-primary-domain').innerText = data.default_domain || data.primary_realm || 'inet.net';
+                    const domainVal = data.default_domain || data.primary_realm || window.location.hostname;
+                    document.getElementById('reg-primary-domain').innerText = domainVal;
                     
                     // Dynamically populate department dropdown configured by administrator
                     const deptSelect = document.getElementById('department');
@@ -267,7 +268,7 @@
                     }
                 }
             } catch (err) {
-                document.getElementById('reg-primary-domain').innerText = 'inet.net';
+                document.getElementById('reg-primary-domain').innerText = window.location.hostname;
             }
         });
 
@@ -461,7 +462,7 @@
                     document.getElementById('step-otp').classList.add('hidden');
                     document.getElementById('step-success').classList.remove('hidden');
                     document.getElementById('succ-username').innerText = data.username;
-                    document.getElementById('succ-upn').innerText = `${data.username}@${data.domain || 'inet.net'}`;
+                    document.getElementById('succ-upn').innerText = data.domain ? `${data.username}@${data.domain}` : data.username;
                     showStatus('success', `<i class="fa-solid fa-circle-check mr-1.5"></i> ${data.message}`);
                 } else {
                     showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.detail || 'Verification failed. Please check OTP code.'}`);

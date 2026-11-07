@@ -87,5 +87,12 @@ log_info "9. Removing APT repository entry..."
 rm -f /etc/apt/sources.list.d/zclockid.list
 rm -f /etc/apt/apt.conf.d/90zclockid-noninteractive
 
+log_info "10. Purging Active Directory Samba, BIND9, and Kerberos state..."
+systemctl stop samba-ad-dc bind9 freeradius 2>/dev/null || true
+rm -f /etc/samba/smb.conf*
+rm -f /etc/krb5.conf*
+rm -rf /var/lib/samba/private/*
+rm -rf /var/lib/samba/bind-dns/*
+
 log_success "ZclockID has been completely uninstalled and purged from this system!"
 echo -e "${GREEN}System cleanup is 100% complete.${NC}\n"

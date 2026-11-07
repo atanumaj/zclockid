@@ -12,9 +12,9 @@ class KeycloakFederationConfigResponse(BaseModel):
     groups_dn: str = Field(..., example="CN=Users,DC=example,DC=com")
     dc_host: str = Field(..., example="dc1")
     dc_fqdn: str = Field(..., example="dc1.example.com")
-    dc_ip: str = Field(..., example="192.168.1.41")
-    ldap_url: str = Field(..., example="ldap://192.168.1.41:389")
-    ldaps_url: str = Field(..., example="ldaps://192.168.1.41:636")
+    dc_ip: str = Field(..., example="192.168.1.10")
+    ldap_url: str = Field(..., example="ldap://192.168.1.10:389")
+    ldaps_url: str = Field(..., example="ldaps://192.168.1.10:636")
     vendor: str = "Active Directory"
     username_ldap_attribute: str = "sAMAccountName"
     rdn_ldap_attribute: str = "cn"

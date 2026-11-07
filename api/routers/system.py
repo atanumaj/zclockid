@@ -394,13 +394,14 @@ def update_system_identity(req: SystemIdentityUpdateRequest):
             if os.path.exists("/etc/hosts"):
                 with open("/etc/hosts", "r") as f:
                     hosts_content = f.read()
-                realm = "inet.net"
+                realm = ""
                 if os.path.exists("/etc/samba/smb.conf"):
                     with open("/etc/samba/smb.conf") as f:
                         for l in f:
                             if "realm =" in l:
                                 realm = l.split("=")[1].strip().lower()
-                hosts_content = re.sub(r'127\.0\.1\.1\s+.*', f'127.0.1.1\t{new_hn}.{realm}\t{new_hn}', hosts_content)
+                fqdn_str = f"{new_hn}.{realm}\t{new_hn}" if realm else new_hn
+                hosts_content = re.sub(r'127\.0\.1\.1\s+.*', f'127.0.1.1\t{fqdn_str}', hosts_content)
                 with open("/tmp/hosts.tmp", "w") as f:
                     f.write(hosts_content)
                 run_cmd(["cp", "/tmp/hosts.tmp", "/etc/hosts"])
@@ -507,8 +508,8 @@ def list_backups():
             "mtime": stat.st_mtime,
             "backup_type": b_type,
             "description": manifest.get("description", "Appliance backup") if manifest else "Appliance backup archive",
-            "hostname": manifest.get("hostname", "inet-zclockid") if manifest else "unknown",
-            "realm": manifest.get("realm", "INET.NET") if manifest else "unknown",
+            "hostname": manifest.get("hostname", os.uname().nodename) if manifest else "unknown",
+            "realm": manifest.get("realm", "UNKNOWN") if manifest else "unknown",
             "modules": manifest.get("modules_included", []) if manifest else [],
             "manifest": manifest
         })
@@ -540,8 +541,8 @@ def create_backup(req: BackupCreateRequest):
     try:
         from api.routers.domain import get_domain_info
         domain_info = get_domain_info()
-        realm = domain_info.get("realm", "INET.NET")
-        hostname = domain_info.get("hostname", "inet-zclockid")
+        realm = domain_info.get("realm", "UNKNOWN")
+        hostname = domain_info.get("hostname", os.uname().nodename)
         domain_sid = domain_info.get("domain_sid", "Unknown")
 
         manifest = {
@@ -552,7 +553,7 @@ def create_backup(req: BackupCreateRequest):
             "created_at": datetime.datetime.now().isoformat(),
             "hostname": hostname,
             "realm": realm,
-            "netbios_name": domain_info.get("netbios_name", "INET"),
+            "netbios_name": domain_info.get("netbios_name", "UNKNOWN"),
             "domain_sid": domain_sid,
             "functional_levels": {
                 "domain_level": domain_info.get("domain_functional_level", "Windows Server 2016"),

@@ -12,7 +12,7 @@ import urllib.parse
 from typing import Dict, Any, Optional
 from pathlib import Path
 from api.core.config import AZURE_CONFIG_FILE, AZURE_STATUS_FILE
-from api.services.system_service import run_cmd, log_audit
+from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.schemas.azure_schema import AzureSyncConfig, AzureTestConnectionRequest
 
 router = APIRouter(prefix="/api/v1/azure", tags=["Azure / Entra ID Cloud Sync"])
@@ -65,7 +65,7 @@ def get_azure_sync_config():
         "tenant_id": "",
         "client_id": "",
         "client_secret": "",
-        "default_domain": "inet.net",
+        "default_domain": get_primary_realm().lower() or "",
         "source_ou": "",
         "sync_interval_seconds": 900,
         "exclude_disabled": True,

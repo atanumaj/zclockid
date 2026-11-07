@@ -31,10 +31,23 @@ router = APIRouter(prefix="/api/v1", tags=["Authentication & Setup"])
 def get_setup_status():
     is_locked = SETUP_LOCK_FILE.exists()
     has_smb = os.path.exists("/etc/samba/smb.conf")
-    is_configured = is_locked and has_smb
+    has_admin = False
+    try:
+        if DB_PATH.exists():
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM admin_users")
+            count = cursor.fetchone()[0]
+            has_admin = (count > 0)
+            conn.close()
+    except Exception:
+        has_admin = False
+
+    is_configured = is_locked and has_smb and has_admin
     return {
         "is_configured": is_configured,
         "setup_lock": is_locked,
+        "has_admin": has_admin,
         "hostname": os.uname().nodename,
         "version": APP_VERSION
     }
@@ -136,6 +149,20 @@ include "/var/lib/samba/bind-dns/named.conf";
     SETUP_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(SETUP_LOCK_FILE, "w") as f:
         f.write(f"PROVISIONED_AT={time.time()}\nREALM={realm}\nDOMAIN={domain}\nMODE={req.mode}\n")
+
+    # Update default domain in self registration settings to match newly provisioned realm
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE self_registration_settings 
+            SET default_domain = ?, smtp_from = ? 
+            WHERE id = 1
+        """, (realm.lower(), f"no-reply@{realm.lower()}"))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
     log_audit("APPLIANCE_PROVISIONED", req.admin_username, realm, "SUCCESS", {"mode": req.mode, "domain": domain})
 

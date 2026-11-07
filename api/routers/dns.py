@@ -21,7 +21,7 @@ import dns.rdatatype
 import dns.rcode
 from api.core.config import BIND_OPTIONS_FILE, SMB_CONF_FILE
 from api.core.security import get_ad_creds
-from api.services.system_service import run_cmd, log_audit
+from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.schemas.dns_schema import (
     DnsRecordRequest,
     DnsRecordUpdateRequest,
@@ -341,7 +341,8 @@ def list_dns_zones():
                 z = line.split(":")[-1].strip()
                 zones.append(z)
     if not zones:
-        zones = ["inet.net", "_msdcs.inet.net"]
+        p_realm = get_primary_realm().lower()
+        zones = [p_realm, f"_msdcs.{p_realm}"] if p_realm else []
     return {"zones": zones}
 
 @router.post("/zones")
@@ -450,8 +451,12 @@ def fast_get_dns_records(zone: str):
         return None
 
 @router.get("/records")
-def get_dns_records(zone: str = "inet.net", refresh: bool = False):
+def get_dns_records(zone: Optional[str] = None, refresh: bool = False):
     """Queries all DNS records in a zone hierarchically with high-speed in-process RPC and caching."""
+    if not zone:
+        zone = get_primary_realm().lower() or ""
+    if not zone:
+        return {"zone": "", "count": 0, "records": [], "cached": False}
     now = time.time()
     if not refresh and zone in _DNS_RECORDS_CACHE:
         cached_time, cached_records = _DNS_RECORDS_CACHE[zone]
@@ -523,22 +528,16 @@ def get_dns_records(zone: str = "inet.net", refresh: bool = False):
 @router.get("/doh/status")
 def get_doh_status(request: Request):
     """Returns DNS-over-HTTPS (DoH) listener status, URLs, and RFC 8484 compliance details."""
-    host_hdr = request.headers.get("host", "192.168.1.41").split(":")[0]
-    appliance_ip = "192.168.1.41"
+    host_hdr = request.headers.get("host", "").split(":")[0] or "127.0.0.1"
+    appliance_ip = host_hdr
     
     code_ss, out_ss, _ = run_cmd(["ss", "-tlpn"])
     is_bind_doh = (code_ss == 0 and ":8053" in out_ss and "named" in out_ss)
 
-    realm = "inet.net"
-    if SMB_CONF_FILE.exists():
-        with open(SMB_CONF_FILE) as f:
-            for l in f:
-                if "realm =" in l:
-                    realm = l.split("=")[1].strip().lower()
-
+    realm = get_primary_realm().lower()
     code_hn, out_hn, _ = run_cmd(["hostname", "-s"])
-    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "inet-zclockid"
-    fqdn = f"{hostname}.{realm}"
+    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else os.uname().nodename
+    fqdn = f"{hostname}.{realm}" if realm else hostname
 
     return {
         "status": "ACTIVE" if is_bind_doh else "INACTIVE",
@@ -548,7 +547,7 @@ def get_doh_status(request: Request):
         "backend_port": 8053,
         "doh_url_ip": f"https://{appliance_ip}/dns-query",
         "doh_url_fqdn": f"https://{fqdn}/dns-query",
-        "doh_url_custom": f"https://{host_hdr}/dns-query" if host_hdr != appliance_ip else f"https://{appliance_ip}/dns-query",
+        "doh_url_custom": f"https://{host_hdr}/dns-query",
         "supported_methods": [
             "GET /dns-query?dns={base64url}",
             "POST /dns-query (Content-Type: application/dns-message)"
@@ -560,7 +559,7 @@ def get_doh_status(request: Request):
 @router.post("/doh/test")
 def test_doh_resolution(req: DohTestRequest):
     """Executes a live DNS-over-HTTPS (DoH) query via RFC 8484 and decodes response."""
-    target_qname = (req.qname or req.query_name or "inet.net").strip()
+    target_qname = (req.qname or req.query_name or get_primary_realm().lower() or "localhost").strip()
     target_rtype = (req.rtype or req.query_type or "A").strip().upper()
 
     try:
@@ -815,12 +814,9 @@ def delete_dns_record(zone: str, record_name: str, record_type: str, record_data
 @router.get("/diagnostics")
 def get_dns_diagnostics():
     """Runs verification tests for Kerberos, LDAP, and Kpasswd service discovery records."""
-    realm = "inet.net"
-    if SMB_CONF_FILE.exists():
-        with open(SMB_CONF_FILE) as f:
-            for line in f:
-                if "realm =" in line:
-                    realm = line.split("=")[1].strip().lower()
+    realm = get_primary_realm().lower()
+    if not realm:
+        return {"status": "unconfigured", "checks": []}
 
     checks = []
     code_k, out_k, _ = run_cmd(["dig", "+short", f"_kerberos._tcp.{realm}", "SRV", "@127.0.0.1"], timeout=5)

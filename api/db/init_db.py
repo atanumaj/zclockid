@@ -96,7 +96,7 @@ def init_db():
             enabled INTEGER DEFAULT 1,
             require_mobile_otp INTEGER DEFAULT 1,
             auto_approve_with_otp INTEGER DEFAULT 1,
-            default_domain TEXT DEFAULT 'inet.net',
+            default_domain TEXT DEFAULT '',
             default_group TEXT DEFAULT 'Domain Users',
             default_bandwidth_profile_id INTEGER DEFAULT 0,
             allowed_departments TEXT DEFAULT 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations',
@@ -110,7 +110,7 @@ def init_db():
             smtp_port INTEGER DEFAULT 587,
             smtp_user TEXT DEFAULT '',
             smtp_pass TEXT DEFAULT '',
-            smtp_from TEXT DEFAULT 'no-reply@inet.net',
+            smtp_from TEXT DEFAULT '',
             updated_at REAL
         )
     """)
@@ -129,7 +129,7 @@ def init_db():
                 id, enabled, require_mobile_otp, auto_approve_with_otp, default_domain, default_group,
                 default_bandwidth_profile_id, allowed_departments, sms_gateway_type, sms_sender_id, sms_template, updated_at
             ) VALUES (
-                1, 1, 1, 1, 'inet.net', 'Domain Users',
+                1, 1, 1, 1, '', 'Domain Users',
                 0, 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations',
                 'simulated', 'ZCLOCK', 'Your ZclockID verification code is {otp}. Valid for 10 minutes.', ?
             )

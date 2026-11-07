@@ -24,7 +24,7 @@ from api.core.config import (
     RADIUS_CA_CERT,
     SAMBA_LDB_PATH
 )
-from api.services.system_service import run_cmd, log_audit
+from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.services.radius_service import sync_freeradius_policies
 from api.schemas.radius_schema import (
     RadiusClientRequest,
@@ -39,12 +39,14 @@ logger = logging.getLogger("zclockid.radius_router")
 router = APIRouter(prefix="/api/v1/radius", tags=["FreeRADIUS 802.1X & Access Control"])
 
 def get_freeradius_certificate_info() -> Dict[str, Any]:
+    p_realm = get_primary_realm().lower()
+    subject_cn = f"radius.{p_realm}" if p_realm else "radius.local"
     cert_info = {
         "status": "CONFIGURED",
         "server_cert_path": str(RADIUS_SERVER_CERT),
         "ca_cert_path": str(RADIUS_CA_CERT),
-        "subject": "CN=radius.inet.net, O=Inet Secure Labs, C=IN",
-        "issuer": "CN=Inet Secure Root CA, O=Inet Secure Labs",
+        "subject": f"CN={subject_cn}, O=ZclockID Enterprise Security, C=IN",
+        "issuer": "CN=ZclockID Appliance Root CA, O=ZclockID Enterprise",
         "valid_from": "2026-01-01 00:00:00",
         "valid_to": "2036-01-01 00:00:00",
         "days_remaining": 3480,
@@ -373,17 +375,19 @@ def renew_radius_tls_certificate():
     key_file = cert_dir / "server.key"
     cert_file = cert_dir / "server.pem"
 
+    p_realm = get_primary_realm().lower()
+    subject_cn = f"radius.{p_realm}" if p_realm else "radius.local"
     cmd = [
         "openssl", "req", "-x509", "-newkey", "rsa:4096", "-sha256", "-days", "3650", "-nodes",
         "-keyout", str(key_file), "-out", str(cert_file),
-        "-subj", "/CN=radius.inet.net/O=Inet Secure Labs/OU=802.1X Enterprise Security"
+        "-subj", f"/CN={subject_cn}/O=ZclockID Enterprise/OU=802.1X Enterprise Security"
     ]
     code, _, _ = run_cmd(cmd, timeout=20)
     if code != 0 and not cert_file.exists():
         cert_file.write_text("-----BEGIN CERTIFICATE-----\nMIIDSampleCertForZclockIDRADIUS8021X==\n-----END CERTIFICATE-----\n")
 
     run_cmd(["systemctl", "restart", "freeradius"])
-    log_audit("RADIUS_CERT_RENEWED", "admin", "radius.inet.net", "SUCCESS", {})
+    log_audit("RADIUS_CERT_RENEWED", "admin", subject_cn, "SUCCESS", {})
     return {"status": "success", "message": "FreeRADIUS 802.1X Server TLS certificate renewed successfully.", "info": get_freeradius_certificate_info()}
 
 @router.get("/config/view")

@@ -252,6 +252,16 @@
     </div>
 
     <script>
+        // Auto-redirect to login if appliance is already provisioned and admin exists
+        fetch('/api/v1/setup/status')
+            .then(r => r.json())
+            .then(data => {
+                if (data.is_configured && data.has_admin) {
+                    window.location.replace('/login.html');
+                }
+            })
+            .catch(() => {});
+
         function goToStep(step) {
             // Validation
             if (step === 2) {

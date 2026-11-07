@@ -4,10 +4,10 @@ Architecture: all
 Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml
 Filename: pool/main/zclockid_1.0.0_all.deb
-Size: 349892
-MD5sum: 4bd80bbbb307515941bd91efad703402
-SHA1: ce6b3c59f16e5f1c99115afdc7daafb692ece83b
-SHA256: 7b8fdcfe843d2860fb8a9c6919132ae9b8d0c538e51b6c4ffed5f965fe2c23c5
+Size: 181430
+MD5sum: 9d69c89e689806c7a18e9f4e7c4121b2
+SHA1: 0aa9d80f941af3d1f4169ccc4fd5a87ccce5a97d
+SHA256: 5188832e0b032ce35af1e2b63746dcaaefb002fb59ff0226bcf358e784a32a5c
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance
@@ -15,4 +15,3 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
  FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
  automatic Windows NTACL preservation, SNMP telemetry, and a headless REST API.
-

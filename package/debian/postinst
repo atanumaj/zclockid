@@ -69,7 +69,7 @@ case "$1" in
             openssl req -x509 -nodes -days 1825 -newkey rsa:2048 \
                 -keyout /etc/zclockid/certs/appliance.key \
                 -out /etc/zclockid/certs/appliance.crt \
-                -subj "/CN=$(hostname -f 2>/dev/null || echo 'zclockid.local')/O=Inet Secure Labs/OU=ZclockID" >/dev/null 2>&1 || true
+                -subj "/CN=$(hostname -f 2>/dev/null || echo 'zclockid.local')/O=ZclockID Enterprise/OU=Appliance" >/dev/null 2>&1 || true
             chmod 600 /etc/zclockid/certs/appliance.key
         fi
 

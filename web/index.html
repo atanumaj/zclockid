@@ -511,11 +511,11 @@
         <div class="flex items-center gap-4 text-xs font-mono">
             <div class="flex items-center gap-2 px-3 py-1 bg-slate-950 rounded-lg border border-slate-800">
                 <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span id="header-domain" class="text-slate-300 font-semibold">INET.NET</span>
+                <span id="header-domain" class="text-slate-300 font-semibold">DOMAIN</span>
             </div>
             <div class="hidden sm:flex items-center gap-2 text-slate-400">
                 <i class="fa-solid fa-server text-slate-500"></i>
-                <span id="header-host">inet-zclockid</span>
+                <span id="header-host">zclockid</span>
             </div>
                         <!-- Theme Selector (Dark / Soft Light) -->
             <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 font-sans" id="theme-selector-container">
@@ -658,7 +658,7 @@
                         <div class="flex flex-wrap lg:flex-nowrap gap-2.5 shrink-0">
                             <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
                                 <div class="text-[10px] text-slate-400 uppercase font-sans font-medium">Domain Controller</div>
-                                <div id="hero-domain-realm" class="text-xs font-bold font-mono text-emerald-400 mt-0.5">INET.NET</div>
+                                <div id="hero-domain-realm" class="text-xs font-bold font-mono text-emerald-400 mt-0.5">--</div>
                                 <div class="text-[9px] text-slate-500 font-mono mt-0.5">Samba 4.23 AD DC</div>
                             </div>
                             <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
@@ -769,11 +769,11 @@
                                 <div class="space-y-2 text-[11px] text-slate-300">
                                     <div class="flex items-start gap-2">
                                         <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
-                                        <div><strong>Set Preferred DNS:</strong> Point client IPv4 DNS to ZclockID (<code id="rsat-dns-ip" class="text-cyan-300 font-mono">192.168.1.41</code>).</div>
+                                        <div><strong>Set Preferred DNS:</strong> Point client IPv4 DNS to ZclockID (<code id="rsat-dns-ip" class="text-cyan-300 font-mono">appliance-ip</code>).</div>
                                     </div>
                                     <div class="flex items-start gap-2">
                                         <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
-                                        <div><strong>Join Domain:</strong> In <code class="text-slate-300 font-mono">sysdm.cpl</code>, join domain <strong id="rsat-domain-name" class="text-white font-mono">INET.NET</strong>.</div>
+                                        <div><strong>Join Domain:</strong> In <code class="text-slate-300 font-mono">sysdm.cpl</code>, join domain <strong id="rsat-domain-name" class="text-white font-mono">DOMAIN</strong>.</div>
                                     </div>
                                     <div class="flex items-start gap-2">
                                         <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
@@ -1205,19 +1205,19 @@
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <span class="text-slate-500 text-[10px] uppercase font-sans">Primary Realm (FQDN)</span>
-                            <div id="domain-realm-val" class="text-white font-bold text-xs">INET.NET</div>
+                            <div id="domain-realm-val" class="text-white font-bold text-xs">--</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <span class="text-slate-500 text-[10px] uppercase font-sans">NetBIOS Domain Name</span>
-                            <div id="domain-netbios-val" class="text-indigo-400 font-bold text-xs">INET</div>
+                            <div id="domain-netbios-val" class="text-indigo-400 font-bold text-xs">--</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <span class="text-slate-500 text-[10px] uppercase font-sans">NetBIOS Computer Name</span>
-                            <div id="domain-netbios-name-val" class="text-white font-bold text-xs">INET-ZCLOCKID</div>
+                            <div id="domain-netbios-name-val" class="text-white font-bold text-xs">--</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <span class="text-slate-500 text-[10px] uppercase font-sans">System Hostname & FQDN</span>
-                            <div id="domain-fqdn-val" class="text-cyan-400 font-bold text-xs truncate">inet-zclockid.inet.net</div>
+                            <div id="domain-fqdn-val" class="text-cyan-400 font-bold text-xs truncate">--</div>
                         </div>
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <span class="text-slate-500 text-[10px] uppercase font-sans">Server Description</span>
@@ -1551,7 +1551,7 @@
                                 Windows clients joined to the domain should point their Windows Time service to this appliance:
                             </p>
                             <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-[11px] font-mono text-cyan-300">
-                                w32tm /config /manualpeerlist:"192.168.1.41" /syncfromflags:manual /reliable:YES /update
+                                w32tm /config /manualpeerlist:"&lt;appliance-ip&gt;" /syncfromflags:manual /reliable:YES /update
                             </div>
                         </div>
                     </div>
@@ -1720,17 +1720,17 @@
                         <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                             <div class="text-[10px] text-slate-500 uppercase">Kerberos KDC (TCP:88)</div>
                             <div id="diag-kdc" class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> RESOLVING</div>
-                            <div id="diag-kdc-rec" class="text-[10px] text-slate-400 truncate">_kerberos._tcp.inet.net</div>
+                            <div id="diag-kdc-rec" class="text-[10px] text-slate-400 truncate">_kerberos._tcp.domain</div>
                         </div>
                         <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                             <div class="text-[10px] text-slate-500 uppercase">LDAP Directory (TCP:389)</div>
                             <div id="diag-ldap" class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> RESOLVING</div>
-                            <div id="diag-ldap-rec" class="text-[10px] text-slate-400 truncate">_ldap._tcp.inet.net</div>
+                            <div id="diag-ldap-rec" class="text-[10px] text-slate-400 truncate">_ldap._tcp.domain</div>
                         </div>
                         <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                             <div class="text-[10px] text-slate-500 uppercase">Kerberos Password (TCP:464)</div>
                             <div id="diag-kpasswd" class="text-emerald-400 font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> RESOLVING</div>
-                            <div id="diag-kpasswd-rec" class="text-[10px] text-slate-400 truncate">_kpasswd._tcp.inet.net</div>
+                            <div id="diag-kpasswd-rec" class="text-[10px] text-slate-400 truncate">_kpasswd._tcp.domain</div>
                         </div>
                         <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                             <div class="text-[10px] text-slate-500 uppercase">Upstream Forwarding</div>
@@ -1773,22 +1773,22 @@
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <div class="flex justify-between items-center">
                                 <span class="text-slate-500 text-[10px] uppercase font-sans">Appliance IP DoH URL</span>
-                                <button onclick="copyToClipboard('https://192.168.1.41/dns-query', 'IP DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
+                                <button onclick="copyToClipboard(`https://${window.location.hostname}/dns-query`, 'IP DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
                                     <i class="fa-regular fa-copy"></i>
                                 </button>
                             </div>
-                            <div class="text-cyan-300 font-bold text-xs truncate">https://192.168.1.41/dns-query</div>
+                            <div id="doh-display-ip" class="text-cyan-300 font-bold text-xs truncate">https://&lt;appliance-ip&gt;/dns-query</div>
                             <span class="text-[10px] text-slate-500 font-sans block pt-0.5">For LAN & Direct IP configuration</span>
                         </div>
 
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <div class="flex justify-between items-center">
                                 <span class="text-slate-500 text-[10px] uppercase font-sans">Domain FQDN DoH URL</span>
-                                <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
+                                <button onclick="copyToClipboard(document.getElementById('doh-display-fqdn')?.innerText || `https://${window.location.hostname}/dns-query`, 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
                                     <i class="fa-regular fa-copy"></i>
                                 </button>
                             </div>
-                            <div class="text-emerald-300 font-bold text-xs truncate">https://inet-zclockid.inet.net/dns-query</div>
+                            <div id="doh-display-fqdn" class="text-emerald-300 font-bold text-xs truncate">https://&lt;hostname.domain&gt;/dns-query</div>
                             <span class="text-[10px] text-slate-500 font-sans block pt-0.5">For Browser Secure DNS & Windows 11</span>
                         </div>
                     </div>
@@ -1804,7 +1804,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
                             <div class="sm:col-span-7">
                                 <label class="text-[11px] text-slate-400 block mb-1">Domain Name to Query</label>
-                                <input type="text" id="doh-test-qname" value="inet.net" placeholder="e.g. example.com or _kerberos._tcp.example.com"
+                                <input type="text" id="doh-test-qname" value="" placeholder="e.g. example.com or _kerberos._tcp.example.com"
                                     class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-indigo-500 transition text-xs">
                             </div>
                             <div class="sm:col-span-3">
@@ -1946,8 +1946,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex flex-wrap items-center gap-3">
                             <select id="dns-zone-select" onchange="fetchDnsRecords()" class="bg-slate-950 border border-slate-800 text-xs text-white rounded-lg px-3 py-1.5 font-mono focus:outline-none focus:border-indigo-500">
-                                <option value="inet.net">inet.net</option>
-                                <option value="_msdcs.inet.net">_msdcs.inet.net</option>
+                                <option value="">Select Zone...</option>
                             </select>
                             <button onclick="openNewZoneModal()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition" title="Create New Zone">
                                 <i class="fa-solid fa-plus"></i> New Zone
@@ -2151,8 +2150,8 @@
                                 </button>
                             </div>
                             <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg space-y-2 text-xs font-mono">
-                                <div class="flex justify-between"><span class="text-slate-400">Subject:</span> <span id="rad-cert-subject" class="text-white">CN=radius.inet.net</span></div>
-                                <div class="flex justify-between"><span class="text-slate-400">Issuer:</span> <span id="rad-cert-issuer" class="text-cyan-400">Inet Secure Root CA</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Subject:</span> <span id="rad-cert-subject" class="text-white">CN=radius</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Issuer:</span> <span id="rad-cert-issuer" class="text-cyan-400">ZclockID Root CA</span></div>
                                 <div class="flex justify-between"><span class="text-slate-400">Algorithm:</span> <span id="rad-cert-algo" class="text-slate-300">RSA 4096-bit / SHA-256</span></div>
                                 <div class="flex justify-between"><span class="text-slate-400">Validity:</span> <span id="rad-cert-validity" class="text-emerald-400">Valid (3,480 days remaining)</span></div>
                                 <div class="flex justify-between"><span class="text-slate-400">Cert Path:</span> <span class="text-slate-400">/etc/freeradius/3.0/certs/server.pem</span></div>
@@ -3861,7 +3860,7 @@
                         <i class="fa-solid fa-terminal text-yellow-400"></i> Using API Tokens with cURL or Python
                     </h4>
                     <p class="text-xs text-slate-400 mb-3">Include the generated live key in the <code class="text-yellow-400">Authorization</code> bearer header or <code class="text-yellow-400">X-API-Key</code> request header:</p>
-                    <pre class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto">curl -k -H "Authorization: Bearer zck_live_xxxxxxxxxxxxxxxxxxxxxxxx" https://192.168.1.41/api/v1/system/status</pre>
+                    <pre class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto">curl -k -H "Authorization: Bearer zck_live_xxxxxxxxxxxxxxxxxxxxxxxx" https://&lt;appliance-ip&gt;/api/v1/system/status</pre>
                 </div>
             </section>
 
@@ -3938,11 +3937,11 @@
                             <form onsubmit="handleGenerateSelfSignedCert(event)" class="space-y-3">
                                 <div>
                                     <label class="block text-[11px] font-medium text-slate-300 mb-1">Common Name (CN)</label>
-                                    <input type="text" id="cert-gen-cn" value="inet-zclockid.inet.net" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                    <input type="text" id="cert-gen-cn" value="" placeholder="e.g. zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-medium text-slate-300 mb-1">Subject Alternative Names (comma-separated)</label>
-                                    <input type="text" id="cert-gen-sans" value="192.168.1.41, inet-zclockid.inet.net, inet-zclockid" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                    <input type="text" id="cert-gen-sans" value="" placeholder="e.g. 192.168.1.100, zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
@@ -3951,7 +3950,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-[11px] font-medium text-slate-300 mb-1">Organization</label>
-                                        <input type="text" id="cert-gen-org" value="Inet Secure Labs" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                        <input type="text" id="cert-gen-org" value="ZclockID Organization" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
                                     </div>
                                 </div>
                                 <button type="submit" id="cert-gen-btn" class="w-full mt-2 py-2 bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-teal-600/30 flex items-center justify-center gap-1.5">
@@ -4001,30 +4000,30 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="block text-[11px] font-medium text-slate-300 mb-1">Common Name</label>
-                                        <input type="text" id="csr-cn" value="inet-zclockid.inet.net" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                        <input type="text" id="csr-cn" value="" placeholder="e.g. zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
                                     </div>
                                     <div>
                                         <label class="block text-[11px] font-medium text-slate-300 mb-1">Organization</label>
-                                        <input type="text" id="csr-org" value="Inet Secure Labs" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                        <input type="text" id="csr-org" value="ZclockID Organization" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
                                     </div>
                                 </div>
                                 <div class="grid grid-cols-3 gap-2">
                                     <div>
                                         <label class="block text-[11px] font-medium text-slate-300 mb-1">City</label>
-                                        <input type="text" id="csr-city" value="Chennai" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                        <input type="text" id="csr-city" value="City" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
                                     </div>
                                     <div>
                                         <label class="block text-[11px] font-medium text-slate-300 mb-1">State</label>
-                                        <input type="text" id="csr-state" value="Tamil Nadu" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                        <input type="text" id="csr-state" value="State" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
                                     </div>
                                     <div>
                                         <label class="block text-[11px] font-medium text-slate-300 mb-1">Country</label>
-                                        <input type="text" id="csr-country" value="IN" maxlength="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                        <input type="text" id="csr-country" value="US" maxlength="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
                                     </div>
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-medium text-slate-300 mb-1">SANs (comma-separated)</label>
-                                    <input type="text" id="csr-sans" value="192.168.1.41, inet-zclockid.inet.net" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    <input type="text" id="csr-sans" value="" placeholder="e.g. 192.168.1.100, zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
                                 </div>
                                 <button type="submit" id="csr-gen-btn" class="w-full mt-2 py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-amber-600/30 flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-file-pen"></i> Generate Request (CSR)
@@ -5297,7 +5296,7 @@
                 </div>
                 <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1 text-[11px] text-slate-400">
                     <strong class="text-slate-300 block">Active Directory Domain Realm Note:</strong>
-                    <p>The Forest Root realm (<code class="text-indigo-300" id="ident-realm-note">INET.NET</code>) is permanently bound to the AD security database. To add additional domain names for user logins and email accounts (e.g. <span class="text-emerald-300">@organization.net</span>), use the <strong>Alternate Domain & UPN Suffixes</strong> manager.</p>
+                    <p>The Forest Root realm (<code class="text-indigo-300" id="ident-realm-note">DOMAIN</code>) is permanently bound to the AD security database. To add additional domain names for user logins and email accounts (e.g. <span class="text-emerald-300">@organization.net</span>), use the <strong>Alternate Domain & UPN Suffixes</strong> manager.</p>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
                     <button type="button" onclick="closeIdentityModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
@@ -5610,18 +5609,18 @@
                         <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800/80 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-500 block">LAN / IP URL</span>
-                                <span class="text-cyan-300 font-bold">https://192.168.1.41/dns-query</span>
+                                <span class="text-cyan-300 font-bold" id="doh-guide-ip-url">https://&lt;appliance-ip&gt;/dns-query</span>
                             </div>
-                            <button onclick="copyToClipboard('https://192.168.1.41/dns-query', 'IP DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
+                            <button onclick="copyToClipboard(document.getElementById('doh-guide-ip-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'IP DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                         </div>
                         <div class="p-2.5 bg-slate-900 rounded-lg border border-slate-800/80 flex justify-between items-center">
                             <div>
                                 <span class="text-[10px] text-slate-500 block">FQDN / TLS URL</span>
-                                <span class="text-emerald-300 font-bold">https://inet-zclockid.inet.net/dns-query</span>
+                                <span class="text-emerald-300 font-bold" id="doh-guide-fqdn-url">https://&lt;hostname.domain&gt;/dns-query</span>
                             </div>
-                            <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
+                            <button onclick="copyToClipboard(document.getElementById('doh-guide-fqdn-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                         </div>
@@ -5637,12 +5636,12 @@
                     <ol class="list-decimal list-inside space-y-1.5 text-slate-300 text-xs">
                         <li>Open <strong class="text-white">Settings</strong> &rarr; <strong class="text-white">Network & internet</strong> &rarr; <strong class="text-white">Ethernet</strong> or <strong class="text-white">Wi-Fi</strong>.</li>
                         <li>Click <strong class="text-white">Edit</strong> next to <em>DNS server assignment</em> and switch to <strong class="text-indigo-400">Manual</strong>.</li>
-                        <li>Toggle <strong class="text-white">IPv4</strong> ON. Set <em>Preferred DNS</em> to <code class="text-cyan-300 bg-slate-900 px-1 py-0.5 rounded">192.168.1.41</code>.</li>
+                        <li>Toggle <strong class="text-white">IPv4</strong> ON. Set <em>Preferred DNS</em> to <code class="text-cyan-300 bg-slate-900 px-1 py-0.5 rounded" id="doh-guide-dns-ip">appliance-ip</code>.</li>
                         <li>Under <em>DNS encryption</em>, select <strong class="text-emerald-400">Encrypted only (DNS over HTTPS)</strong> or <strong class="text-emerald-400">Encrypted preferred</strong>.</li>
                         <li>In the <em>DNS-over-HTTPS template</em> box, enter:
                             <div class="mt-1 flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-300">
-                                <span class="flex-1 truncate">https://inet-zclockid.inet.net/dns-query</span>
-                                <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'Template copied!')" class="text-slate-400 hover:text-white"><i class="fa-regular fa-copy"></i></button>
+                                <span class="flex-1 truncate" id="doh-guide-template-url">https://&lt;hostname.domain&gt;/dns-query</span>
+                                <button onclick="copyToClipboard(document.getElementById('doh-guide-template-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'Template copied!')" class="text-slate-400 hover:text-white"><i class="fa-regular fa-copy"></i></button>
                             </div>
                         </li>
                     </ol>
@@ -5662,8 +5661,8 @@
                             <li>Choose <strong class="text-indigo-400">With: Custom</strong> and paste:</li>
                         </ol>
                         <div class="flex items-center justify-between bg-slate-900 px-2.5 py-1.5 rounded border border-slate-800 font-mono text-[10px] text-cyan-300">
-                            <span class="truncate">https://inet-zclockid.inet.net/dns-query</span>
-                            <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'Chrome DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
+                            <span class="truncate" id="doh-guide-chrome-url">https://&lt;hostname.domain&gt;/dns-query</span>
+                            <button onclick="copyToClipboard(document.getElementById('doh-guide-chrome-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'Chrome DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
                         </div>
                     </div>
 
@@ -5679,8 +5678,8 @@
                             <li>Select Provider <strong class="text-indigo-400">Custom</strong> and enter:</li>
                         </ol>
                         <div class="flex items-center justify-between bg-slate-900 px-2.5 py-1.5 rounded border border-slate-800 font-mono text-[10px] text-cyan-300">
-                            <span class="truncate">https://inet-zclockid.inet.net/dns-query</span>
-                            <button onclick="copyToClipboard('https://inet-zclockid.inet.net/dns-query', 'Firefox DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
+                            <span class="truncate" id="doh-guide-firefox-url">https://&lt;hostname.domain&gt;/dns-query</span>
+                            <button onclick="copyToClipboard(document.getElementById('doh-guide-firefox-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'Firefox DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
                         </div>
                     </div>
                 </div>
@@ -5692,11 +5691,11 @@
                             <i class="fa-solid fa-terminal text-sky-400"></i>
                             <span>Linux & macOS curl RFC 8484 Test</span>
                         </div>
-                        <button onclick="copyToClipboard('curl -k -H &quot;accept: application/dns-message&quot; &quot;https://192.168.1.41/dns-query?dns=EjQBAAABAAAAAAAABGluZXQDbmV0AAABAAE&quot; --output /dev/null -w &quot;HTTP %{http_code} | Time: %{time_total}s\n&quot;', 'curl command copied!')" class="text-slate-400 hover:text-white text-xs">
+                        <button onclick="copyToClipboard(`curl -k -H &quot;accept: application/dns-message&quot; &quot;https://${window.location.hostname}/dns-query?dns=EjQBAAABAAAAAAAABGluZXQDbmV0AAABAAE&quot; --output /dev/null -w &quot;HTTP %{http_code} | Time: %{time_total}s\\n&quot;`, 'curl command copied!')" class="text-slate-400 hover:text-white text-xs">
                             <i class="fa-regular fa-copy"></i> Copy Command
                         </button>
                     </div>
-                    <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto whitespace-pre">curl -k -H "accept: application/dns-message" "https://192.168.1.41/dns-query?dns=EjQBAAABAAAAAAAABGluZXQDbmV0AAABAAE" --output /dev/null -w "HTTP %{http_code} | Time: %{time_total}s\n"</div>
+                    <div id="doh-guide-curl-cmd" class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto whitespace-pre">curl -k -H "accept: application/dns-message" "https://&lt;appliance-ip&gt;/dns-query?dns=..." --output /dev/null -w "HTTP %{http_code} | Time: %{time_total}s\n"</div>
                 </div>
             </div>
 
@@ -6491,7 +6490,18 @@
         // ==================== AUTHENTICATION GUARD & CLIENT SECURITY ====================
         const initialAuthToken = localStorage.getItem('zclockid_token');
         if (!initialAuthToken) {
-            window.location.replace('/login.html');
+            fetch('/api/v1/setup/status')
+                .then(r => r.json())
+                .then(d => {
+                    if (!d.is_configured || !d.has_admin) {
+                        window.location.replace('/setup.html');
+                    } else {
+                        window.location.replace('/login.html');
+                    }
+                })
+                .catch(() => {
+                    window.location.replace('/login.html');
+                });
         }
 
         // Global fetch interceptor to automatically catch 401 Unauthorized / expired sessions
@@ -6966,19 +6976,19 @@
                 const data = await res.json();
                 currentSystemIdentity = data;
 
-                if (document.getElementById('header-domain')) document.getElementById('header-domain').innerText = data.realm || 'INET.NET';
-                if (document.getElementById('domain-realm-val')) document.getElementById('domain-realm-val').innerText = data.realm || 'INET.NET';
-                if (document.getElementById('domain-netbios-val')) document.getElementById('domain-netbios-val').innerText = data.domain_netbios || 'INET';
+                if (document.getElementById('header-domain')) document.getElementById('header-domain').innerText = data.realm || 'DOMAIN';
+                if (document.getElementById('domain-realm-val')) document.getElementById('domain-realm-val').innerText = data.realm || '--';
+                if (document.getElementById('domain-netbios-val')) document.getElementById('domain-netbios-val').innerText = data.domain_netbios || '--';
                 if (document.getElementById('domain-sid-val')) document.getElementById('domain-sid-val').innerText = data.domain_sid || 'S-1-5-21-...';
                 if (document.getElementById('domain-role-val')) document.getElementById('domain-role-val').innerText = data.server_role || 'Primary Domain Controller';
-                if (document.getElementById('domain-netbios-name-val')) document.getElementById('domain-netbios-name-val').innerText = data.netbios_name || 'INET-ZCLOCKID';
+                if (document.getElementById('domain-netbios-name-val')) document.getElementById('domain-netbios-name-val').innerText = data.netbios_name || '--';
                 if (document.getElementById('domain-desc-val')) document.getElementById('domain-desc-val').innerText = data.server_description || 'ZclockID Active Directory Domain Controller';
-                if (document.getElementById('domain-fqdn-val')) document.getElementById('domain-fqdn-val').innerText = data.fqdn || `${data.hostname || 'inet-zclockid'}.${(data.realm || 'inet.net').toLowerCase()}`;
+                if (document.getElementById('domain-fqdn-val')) document.getElementById('domain-fqdn-val').innerText = data.fqdn || (data.hostname && data.realm ? `${data.hostname}.${data.realm.toLowerCase()}` : '--');
 
-                const dRealm = (data.realm || 'INET.NET').toUpperCase();
+                const dRealm = (data.realm || 'DOMAIN').toUpperCase();
                 if (document.getElementById('hero-domain-realm')) document.getElementById('hero-domain-realm').innerText = dRealm;
                 if (document.getElementById('rsat-domain-name')) document.getElementById('rsat-domain-name').innerText = dRealm;
-                if (document.getElementById('rsat-dns-ip')) document.getElementById('rsat-dns-ip').innerText = window.location.hostname || '192.168.1.41';
+                if (document.getElementById('rsat-dns-ip')) document.getElementById('rsat-dns-ip').innerText = window.location.hostname || '127.0.0.1';
 
                 // Domain Controller Type Widget (Master / Primary vs Alternate / Backup vs RODC)
                 const dcTypeBadge = document.getElementById('domain-dc-type-badge');
@@ -7049,7 +7059,7 @@
             document.getElementById('ident-desc-input').value = currentSystemIdentity.server_description || '';
             document.getElementById('ident-hostname-input').value = currentSystemIdentity.hostname || '';
             document.getElementById('ident-netbios-input').value = currentSystemIdentity.netbios_name || '';
-            document.getElementById('ident-realm-note').innerText = currentSystemIdentity.realm || 'INET.NET';
+            document.getElementById('ident-realm-note').innerText = currentSystemIdentity.realm || 'DOMAIN';
             document.getElementById('modal-identity').classList.remove('hidden');
         }
 
@@ -8775,8 +8785,8 @@
                 const data = await res.json();
                 if (data.certificates) {
                     const c = data.certificates;
-                    document.getElementById('rad-cert-subject').innerText = c.subject || 'radius.inet.net';
-                    document.getElementById('rad-cert-issuer').innerText = c.issuer || 'Inet Secure Root CA';
+                    document.getElementById('rad-cert-subject').innerText = c.subject || 'radius.local';
+                    document.getElementById('rad-cert-issuer').innerText = c.issuer || 'ZclockID Root CA';
                     document.getElementById('rad-cert-algo').innerText = c.key_algorithm || 'RSA 4096-bit';
                     document.getElementById('rad-cert-validity').innerText = `Valid (${c.days_remaining || '3650'} days remaining)`;
                 }
@@ -9908,7 +9918,7 @@
                     secretHint.innerText = 'Client secret generated under Certificates & secrets in Azure Portal';
                 }
 
-                document.getElementById('azure-cfg-domain').value = cfg.default_domain || 'inet.net';
+                document.getElementById('azure-cfg-domain').value = cfg.default_domain || (currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : '');
                 document.getElementById('azure-cfg-ou').value = cfg.source_ou || '';
                 if (cfg.sync_interval_seconds) {
                     document.getElementById('azure-cfg-interval').value = String(cfg.sync_interval_seconds);
@@ -9945,7 +9955,7 @@
                 tenant_id: document.getElementById('azure-cfg-tenant-id').value.trim(),
                 client_id: document.getElementById('azure-cfg-client-id').value.trim(),
                 client_secret: document.getElementById('azure-cfg-client-secret').value.trim() || '********',
-                default_domain: document.getElementById('azure-cfg-domain').value.trim() || 'inet.net',
+                default_domain: document.getElementById('azure-cfg-domain').value.trim() || (currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : ''),
                 source_ou: document.getElementById('azure-cfg-ou').value.trim(),
                 sync_interval_seconds: parseInt(document.getElementById('azure-cfg-interval').value, 10) || 900,
                 exclude_disabled: document.getElementById('azure-cfg-exclude-disabled').checked,
@@ -10583,7 +10593,7 @@
                 // Concurrently fetch settings, UPN suffixes, AD groups, and Bandwidth Profiles
                 const [resSettings, resUpn, resGroups, resBw] = await Promise.all([
                     fetch(`${API_BASE}/registrations/settings`).then(r => r.json()),
-                    fetch(`${API_BASE}/domain/upn`).then(r => r.json()).catch(() => ({ primary_realm: 'inet.net', alternate_suffixes: [] })),
+                    fetch(`${API_BASE}/domain/upn`).then(r => r.json()).catch(() => ({ primary_realm: '', alternate_suffixes: [] })),
                     fetch(`${API_BASE}/groups`).then(r => r.json()).catch(() => ({ groups: [] })),
                     fetch(`${API_BASE}/radius/bandwidth-profiles`).then(r => r.json()).catch(() => ({ profiles: [] }))
                 ]);
@@ -10594,8 +10604,8 @@
                     // 1. Populate Default Provisioning Domain Dropdown (Primary Realm + Alternate UPN suffixes)
                     const domSelect = document.getElementById('reg-cfg-domain');
                     if (domSelect) {
-                        const primRealm = (resUpn.primary_realm || 'inet.net').toLowerCase();
-                        let domOptions = `<option value="${primRealm}">${primRealm} (Primary Forest Root)</option>`;
+                        const primRealm = (resUpn.primary_realm || (currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : '')).toLowerCase();
+                        let domOptions = primRealm ? `<option value="${primRealm}">${primRealm} (Primary Forest Root)</option>` : '<option value="">(No Realm Configured)</option>';
                         if (resUpn.alternate_suffixes && Array.isArray(resUpn.alternate_suffixes)) {
                             resUpn.alternate_suffixes.forEach(suf => {
                                 const sufClean = suf.toLowerCase();
@@ -10665,7 +10675,7 @@
                     }
 
                     document.getElementById('reg-stat-sms').innerText = (s.sms_gateway_type || 'simulated').toUpperCase();
-                    document.getElementById('reg-queue-domain').innerText = s.default_domain || 'inet.net';
+                    document.getElementById('reg-queue-domain').innerText = s.default_domain || (currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : '--');
 
                     // Populate organization departments tag manager
                     const rawDepts = s.allowed_departments || 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations';
@@ -10762,7 +10772,7 @@
                 enabled: document.getElementById('reg-cfg-enabled').checked,
                 require_mobile_otp: document.getElementById('reg-cfg-otp').checked,
                 auto_approve_with_otp: document.getElementById('reg-cfg-otp').checked,
-                default_domain: (document.getElementById('reg-cfg-domain').value || 'inet.net').trim(),
+                default_domain: (document.getElementById('reg-cfg-domain').value || (currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : '')).trim(),
                 default_group: (document.getElementById('reg-cfg-group').value || 'Domain Users').trim(),
                 default_bandwidth_profile_id: parseInt(document.getElementById('reg-cfg-bw-profile').value, 10) || 0,
                 allowed_departments: currentRegDepartments.join(','),
@@ -10957,9 +10967,11 @@
 
         // ==================== User Principal Name (UPN) Logic ====================
         function openChangeUpnModal(username, currentUpn = '') {
+            const domainFallback = currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : '';
+            const fallbackUpn = domainFallback ? `${username}@${domainFallback}` : username;
             document.getElementById('upn-modal-username').value = username;
-            document.getElementById('upn-modal-current').value = currentUpn || `${username}@inet.net`;
-            document.getElementById('upn-modal-new').value = currentUpn || `${username}@inet.net`;
+            document.getElementById('upn-modal-current').value = currentUpn || fallbackUpn;
+            document.getElementById('upn-modal-new').value = currentUpn || fallbackUpn;
             document.getElementById('modal-change-upn').classList.remove('hidden');
         }
 
