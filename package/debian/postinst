@@ -44,7 +44,18 @@ case "$1" in
                 cp -f /etc/zclockid/templates/freeradius/eap /etc/freeradius/3.0/mods-available/eap || true
                 ln -sf /etc/freeradius/3.0/mods-available/eap /etc/freeradius/3.0/mods-enabled/eap || true
             fi
+
+            # Bootstrap default FreeRADIUS certificates if missing
+            if [ -d /etc/freeradius/3.0/certs ] && [ ! -f /etc/freeradius/3.0/certs/server.pem ]; then
+                if [ -x /etc/freeradius/3.0/certs/bootstrap ]; then
+                    /etc/freeradius/3.0/certs/bootstrap >/dev/null 2>&1 || true
+                elif [ -f /etc/freeradius/3.0/certs/Makefile ]; then
+                    make -C /etc/freeradius/3.0/certs >/dev/null 2>&1 || true
+                fi
+            fi
+
             chown -R freerad:freerad /etc/freeradius/3.0 >/dev/null 2>&1 || true
+            systemctl restart freeradius >/dev/null 2>&1 || true
         fi
 
         # Chrony NTP signing socket
