@@ -90,6 +90,11 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
         run_cmd(["mkdir", "-p", "/var/lib/samba/sysvol"])
 
     provision_output = ""
+    # Ensure samba-ad-provision schema files are installed if absent (auto-heal for Ubuntu 24.04/26.04)
+    if not os.path.exists("/usr/share/samba/setup/ad-schema") or not os.path.exists("/usr/share/samba/setup/provision.smb.conf.dc"):
+        run_cmd(["apt-get", "update", "-y"])
+        run_cmd(["apt-get", "install", "-y", "samba-ad-provision", "ldb-tools", "python3-setproctitle"])
+
     # 3. Provisioning or Joining Domain
     if req.mode == "new_domain":
         cmd = [

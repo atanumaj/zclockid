@@ -5,13 +5,13 @@ Codename: stable
 Architectures: amd64 all
 Components: main
 Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
-Date: Sat, 07 Nov 2026 18:20:04 GMT
+Date: Sat, 07 Nov 2026 18:40:00 GMT
 MD5Sum:
- 9448d8a1304cf1fb71c1a80c7b9ab584 1149 main/binary-amd64/Packages
- 966e555c8784c28f17aa7f00bb69441f 727 main/binary-amd64/Packages.gz
+ 74cc7f5897252aa2f7fb91a257ea5a46 1215 main/binary-amd64/Packages
+ ed387f31f4f14d28f804f0788761fd22 755 main/binary-amd64/Packages.gz
 SHA1:
- f72ddbfb01e6101dedd97c4c74c82c2268bab8a3 1149 main/binary-amd64/Packages
- d631b0bc770fd1d67525174a1fde16ca6d2064a5 727 main/binary-amd64/Packages.gz
+ d5a975e06e0ae588ed76b292feb43054b468c705 1215 main/binary-amd64/Packages
+ 6b6e0f01f55e03057aefc8dedd92372393a8df79 755 main/binary-amd64/Packages.gz
 SHA256:
- d4359936f832de51bbfa58a2762659b74eb1358d81ef43c61250599c30941102 1149 main/binary-amd64/Packages
- 69639f0bb259ec7b61c633ee1c72398568374812f8ba578ad5456b6aeb33e3d6 727 main/binary-amd64/Packages.gz
+ 49567ebce5fc77bd8dd03901954d4892c5d1099d539d421d58403ad0dde0623f 1215 main/binary-amd64/Packages
+ a716ee53dca3fe42e4cb4ca149b566cabe88c9babcdc1ecd9dac45e58c2b7078 755 main/binary-amd64/Packages.gz

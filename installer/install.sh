@@ -88,8 +88,19 @@ cat << EOF > /etc/apt/sources.list.d/zclockid.list
 deb [trusted=yes] ${GITHUB_REPO_RAW}/apt-repo stable main
 EOF
 
+# Ensure universe repository is available for samba-ad-provision on Ubuntu
+if ! command -v add-apt-repository >/dev/null 2>&1; then
+    apt-get update -y >/dev/null 2>&1 || true
+    apt-get install -y --no-install-recommends software-properties-common >/dev/null 2>&1 || true
+fi
+add-apt-repository -y universe >/dev/null 2>&1 || true
+
 log_info "Updating system APT cache..."
 apt-get update -y || true
+
+# Pre-install Samba AD DC schema and provisioning dependencies
+log_info "Installing Active Directory schema dependencies (samba-ad-provision, ldb-tools)..."
+apt-get install -y samba samba-ad-dc samba-ad-provision ldb-tools python3-setproctitle || true
 
 # 6. Install ZclockID and all upstream engine dependencies
 log_info "Installing ZclockID appliance and upstream subsystem dependencies..."
