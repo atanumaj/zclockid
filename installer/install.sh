@@ -63,10 +63,11 @@ PACKAGE_URL="${GITHUB_REPO_RAW}/apt-repo/pool/main/zclockid_1.0.0_all.deb"
 TMP_DEB="/tmp/zclockid_1.0.0_all.deb"
 
 log_info "Downloading ZclockID Debian package from GitHub..."
+CACHE_BUST=$(date +%s)
 if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$PACKAGE_URL" -o "$TMP_DEB"
+    curl -fsSL "${PACKAGE_URL}?v=${CACHE_BUST}" -o "$TMP_DEB"
 elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$TMP_DEB" "$PACKAGE_URL"
+    wget -qO "$TMP_DEB" "${PACKAGE_URL}?v=${CACHE_BUST}"
 fi
 
 if [[ ! -f "$TMP_DEB" || ! -s "$TMP_DEB" ]]; then
@@ -106,7 +107,7 @@ apt-get install -y samba samba-ad-dc samba-ad-provision ldb-tools python3-setpro
 log_info "Installing ZclockID appliance and upstream subsystem dependencies..."
 log_info "(Samba AD DC, BIND9 DLZ, FreeRADIUS, Chrony, Nginx, SNMP, Python)..."
 
-apt-get install -y --allow-unauthenticated "$TMP_DEB"
+dpkg -i "$TMP_DEB" || apt-get install -y --fix-broken --allow-unauthenticated
 rm -f "$TMP_DEB"
 
 # 7. Ensure FreeRADIUS certificates are bootstrapped if needed
