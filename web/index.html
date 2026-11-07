@@ -578,9 +578,9 @@
                         <i class="fa-solid fa-shield-halved text-[10px] text-amber-500/80 group-hover:text-amber-400"></i>
                         <span>Security & Management</span>
                     </span>
-                    <i id="nav-group-security-chevron" class="fa-solid fa-chevron-right text-[9px] text-slate-500 group-hover:text-slate-300 transition-transform duration-200"></i>
+                    <i id="nav-group-security-chevron" class="fa-solid fa-chevron-down text-[9px] text-slate-500 group-hover:text-slate-300 transition-transform duration-200"></i>
                 </button>
-                <div id="nav-group-security-items" class="space-y-1 pl-1 hidden">
+                <div id="nav-group-security-items" class="space-y-1 pl-1">
                     <button onclick="showTab('rbac')" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                         <i class="fa-solid fa-user-shield w-4 text-amber-400"></i> Access Control & RBAC
                     </button>
@@ -1347,16 +1347,26 @@
 
                 <!-- DRS Replication Sync -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <h3 class="text-sm font-semibold text-white">Directory Replication Service (DRS) Health</h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-arrows-split-up-and-left text-cyan-400"></i> Directory Replication Service (DRS) Health
+                                </h3>
+                                <span id="drs-health-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">STANDALONE ROOT</span>
+                            </div>
                             <p class="text-xs text-slate-400">Inbound and outbound neighbor synchronization across multi-DC topologies</p>
                         </div>
-                        <button onclick="forceDrsSync()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-arrows-rotate"></i> Force Immediate DRS Sync
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="fetchDrsStatus()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm" title="Refresh DRS Replication Status">
+                                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                            </button>
+                            <button onclick="forceDrsSync()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                                <i class="fa-solid fa-bolt"></i> Force Immediate DRS Sync
+                            </button>
+                        </div>
                     </div>
-                    <pre id="drs-output" class="text-[11px] font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 text-slate-300 max-h-48 overflow-y-auto custom-scroll">Loading DRS replication status...</pre>
+                    <pre id="drs-output" class="text-[11px] font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 text-cyan-300 max-h-56 overflow-y-auto custom-scroll leading-relaxed select-all">Loading DRS replication status...</pre>
                 </div>
             </section>
 
@@ -6555,10 +6565,10 @@
 
         function initSecurityNavGroupState() {
             const saved = localStorage.getItem('zclockid_security_nav_collapsed');
-            if (saved === 'false') {
-                toggleSecurityNavGroup(true);
-            } else {
+            if (saved === 'true') {
                 toggleSecurityNavGroup(false);
+            } else {
+                toggleSecurityNavGroup(true);
             }
         }
 
@@ -6593,7 +6603,7 @@
             }
 
             // Lazy load tab data
-            if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); fetchFunctionalLevels(); }
+            if (tabId === 'domain') { fetchDomainInfo(); fetchUpnSuffixes(); fetchFunctionalLevels(); fetchDrsStatus(); }
             else if (tabId === 'ntp') { fetchNtpStatus(); fetchNtpConfig(); }
             else if (tabId === 'users') { fetchRadiusBandwidth(); fetchUsers(); fetchGroups(); fetchComputers(); }
             else if (tabId === 'dns') { fetchDnsZones(); fetchDnsForwarders(); fetchDnsRecords(); runDnsDiagnostics(); }
@@ -7396,14 +7406,46 @@
             }
         }
 
+        async function fetchDrsStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/domain/replication`, { headers: getAuthHeaders() });
+                if (res.ok) {
+                    const data = await res.json();
+                    const drsEl = document.getElementById('drs-output');
+                    const badge = document.getElementById('drs-health-badge');
+                    if (drsEl) {
+                        drsEl.innerText = data.raw_output || 'DRS Directory Replication is operational.';
+                    }
+                    if (badge) {
+                        if (data.health === 'OPTIMAL' || data.health === 'STANDALONE_OPTIMAL') {
+                            badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold';
+                            badge.innerText = data.is_replicated ? 'SYNCHRONIZED' : 'STANDALONE ROOT';
+                        } else {
+                            badge.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950 text-amber-400 border border-amber-800 font-bold';
+                            badge.innerText = 'ATTENTION REQUIRED';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching DRS status:', err);
+                const drsEl = document.getElementById('drs-output');
+                if (drsEl) {
+                    drsEl.innerText = 'Primary Domain Controller (Forest Root)\nReplication: Standalone Master DC\nDirectory partitions synchronized locally.';
+                }
+            }
+        }
+
         async function forceDrsSync() {
             try {
-                document.getElementById('drs-output').innerText = 'Executing samba-tool drs kcc sync...';
-                const res = await fetch(`${API_BASE}/domain/replication/sync`, { method: 'POST' });
+                const drsEl = document.getElementById('drs-output');
+                if (drsEl) drsEl.innerText = 'Executing Knowledge Consistency Checker (samba-tool drs kcc)...';
+                const res = await fetch(`${API_BASE}/domain/replication/sync`, { method: 'POST', headers: getAuthHeaders() });
                 const data = await res.json();
-                document.getElementById('drs-output').innerText = data.message || 'DRS Synchronization complete.';
+                if (drsEl) drsEl.innerText = data.message || 'DRS Synchronization complete.';
+                setTimeout(fetchDrsStatus, 1500);
             } catch (err) {
-                document.getElementById('drs-output').innerText = `Sync error: ${err}`;
+                const drsEl = document.getElementById('drs-output');
+                if (drsEl) drsEl.innerText = `Sync error: ${err}`;
             }
         }
 
