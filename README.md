@@ -1,8 +1,36 @@
-# Inet-ZclockID
+# ZclockID Enterprise DC
 
 **ZclockID** is an enterprise-grade, purpose-built, open-source Active Directory Domain Controller (AD DC) and Identity & Access Management (IAM) appliance. 
 
-Engineered on Ubuntu Linux LTS, ZclockID replaces legacy monolithic suites (such as Zentyal Server) by eliminating firewall, proxy, and mail bloat, focusing strictly on high-performance directory services, 802.1X network access, encrypted DNS-over-HTTPS (DoH), seamless Sysvol replication, and modern Web Single Sign-On.
+Engineered on Ubuntu Linux LTS, ZclockID replaces legacy monolithic suites by eliminating firewall, proxy, and mail bloat, focusing strictly on high-performance directory services, 802.1X network access, encrypted DNS-over-HTTPS (DoH), seamless Sysvol replication, and modern Web Single Sign-On.
+
+---
+
+## Quick Start: 1-Line Installation (Ubuntu 22.04 / 24.04 LTS)
+
+On any fresh Ubuntu LTS machine, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/install.sh | sudo bash
+```
+
+After installation completes, navigate to:
+* **Initial Setup Wizard:** `https://<server-ip>/setup.html`
+* **Web Management Console:** `https://<server-ip>/`
+* **User Self-Registration:** `https://<server-ip>/register.html`
+* **REST API Documentation:** `http://<server-ip>:8000/docs`
+
+For complete details and uninstallation instructions, see the [Installation Guide](docs/INSTALLATION.md).
+
+---
+
+## Complete Uninstallation & Purge
+
+To completely wipe ZclockID, remove all packages, daemons, configuration files, and directory databases:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/uninstall.sh | sudo bash -s -- -y
+```
 
 ---
 

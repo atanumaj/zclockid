@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ZclockID Appliance Automated Bootstrap Installer
-# Converts a raw Ubuntu LTS VM (22.04+) into a purpose-built ZclockID Domain Controller.
+# ZclockID Appliance Automated One-Line Installer & APT Repository Setup
+# Works on fresh Ubuntu 22.04 LTS / 24.04 LTS
 # ==============================================================================
 
 set -eo pipefail
@@ -10,90 +10,84 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
 
 log_info()    { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# 1. Pre-flight Checks
+echo -e "${CYAN}=================================================================${NC}"
+echo -e "${CYAN}      ZclockID Enterprise Active Directory & IAM Appliance       ${NC}"
+echo -e "${CYAN}                Automated Production Installer                  ${NC}"
+echo -e "${CYAN}=================================================================${NC}\n"
+
+# 1. Root Check
 if [[ $EUID -ne 0 ]]; then
-    log_error "This installer must be run as root (use sudo)."
+    log_error "This installer must be run as root. Please run with: sudo bash $0"
     exit 1
 fi
 
-# Check Ubuntu version (>= 22.04)
+# 2. Ubuntu OS Check
 if [[ -f /etc/os-release ]]; then
     . /etc/os-release
-    if [[ "$ID" != "ubuntu" ]]; then
-        log_warn "This installer is targeted for Ubuntu LTS. Detected: ${NAME}."
+    if [[ "$ID" != "ubuntu" && "$ID_LIKE" != *"ubuntu"* ]]; then
+        log_warn "This installer is targeted for Ubuntu LTS (22.04+). Detected: ${PRETTY_NAME}"
     fi
     OS_VER_MAJOR=$(echo "$VERSION_ID" | cut -d. -f1)
     if [[ "$OS_VER_MAJOR" -lt 22 ]]; then
-        log_error "Ubuntu 22.04 LTS or newer is required. Detected: ${VERSION_ID}."
+        log_error "Ubuntu 22.04 LTS or newer is required. Detected version: ${VERSION_ID}"
         exit 1
     fi
-    log_info "Detected OS: ${PRETTY_NAME}"
+    log_info "Target System: ${PRETTY_NAME} (${ID} ${VERSION_ID})"
 fi
 
-log_info "Starting ZclockID Modular Appliance Installation..."
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo "/tmp")"
-PACKAGE_FILE=""
-
-# Check if a built deb package exists locally
-LOCAL_DEB=$(ls -1 "${SCRIPT_DIR}"/zclockid_*_all.deb 2>/dev/null | head -n1 || true)
-if [[ -n "$LOCAL_DEB" && -f "$LOCAL_DEB" ]]; then
-    log_info "Found local ZclockID Debian package: ${LOCAL_DEB}"
-    PACKAGE_FILE="$LOCAL_DEB"
-elif [[ -f "${SCRIPT_DIR}/package/build-deb.sh" ]]; then
-    log_info "Building local thin .deb package from repository source..."
-    "${SCRIPT_DIR}/package/build-deb.sh" "1.0.0"
-    PACKAGE_FILE=$(ls -1 "${SCRIPT_DIR}"/zclockid_*_all.deb 2>/dev/null | head -n1 || true)
-fi
-
-# If package not found locally, download from GitHub Releases
-if [[ -z "$PACKAGE_FILE" || ! -f "$PACKAGE_FILE" ]]; then
-    log_info "Downloading latest ZclockID thin package from GitHub Releases..."
-    TMP_DEB="/tmp/zclockid_latest_all.deb"
-    DEB_URL="https://github.com/atanude/Inet-ZclockID/releases/latest/download/zclockid_1.0.0_all.deb"
-    
-    if command -v curl >/dev/null 2>&1; then
-        curl -fsSL "$DEB_URL" -o "$TMP_DEB" || true
-    elif command -v wget >/dev/null 2>&1; then
-        wget -q "$DEB_URL" -O "$TMP_DEB" || true
-    fi
-
-    if [[ -f "$TMP_DEB" && -s "$TMP_DEB" ]]; then
-        PACKAGE_FILE="$TMP_DEB"
-    else
-        log_error "Could not find local or remote zclockid .deb package."
-        log_error "Please build it with './package/build-deb.sh' or specify package path."
-        exit 1
-    fi
-fi
-
-# 2. Update APT cache and install thin package with all upstream dependencies
-log_info "Installing ZclockID via APT (upstream Samba, BIND9, FreeRADIUS, Chrony, Nginx)..."
+# 3. Pre-seed Kerberos / debconf non-interactive defaults
 export DEBIAN_FRONTEND=noninteractive
+log_info "Configuring non-interactive package pre-seeds..."
+mkdir -p /etc/apt/apt.conf.d
+echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/90zclockid-noninteractive
+echo 'APT::Get::allow-unauthenticated "true";' >> /etc/apt/apt.conf.d/90zclockid-noninteractive
+echo 'Acquire::AllowInsecureRepositories "true";' >> /etc/apt/apt.conf.d/90zclockid-noninteractive
 
-# Pre-seed kerberos prompts so apt never hangs interactively
-echo "krb5-config krb5-config/default_realm string INET.NET" | debconf-set-selections 2>/dev/null || true
-echo "krb5-config krb5-config/kerberos_servers string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
-echo "krb5-config krb5-config/admin_server string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
+if command -v debconf-set-selections >/dev/null 2>&1; then
+    echo "krb5-config krb5-config/default_realm string INET.NET" | debconf-set-selections 2>/dev/null || true
+    echo "krb5-config krb5-config/kerberos_servers string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
+    echo "krb5-config krb5-config/admin_server string 127.0.0.1" | debconf-set-selections 2>/dev/null || true
+fi
 
-apt-get update -y
-apt-get install -y --no-install-recommends "$PACKAGE_FILE"
+# 4. Configure ZclockID Ubuntu APT Repository
+log_info "Configuring official ZclockID APT repository..."
+RAW_REPO_URL="https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo"
 
+# Add repository source entry
+cat << EOF > /etc/apt/sources.list.d/zclockid.list
+# ZclockID Official Repository (Hosted on GitHub)
+deb [trusted=yes] ${RAW_REPO_URL} stable main
+EOF
+
+log_info "Updating APT package cache..."
+apt-get update -o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true -y
+
+# 5. Install ZclockID and all upstream engine dependencies
+log_info "Installing ZclockID appliance and upstream subsystem dependencies..."
+log_info "(Samba AD DC, BIND9 DLZ, FreeRADIUS, Chrony, Nginx, SNMP, Python)..."
+
+apt-get install -y --allow-unauthenticated zclockid
+
+# 6. Verify Installation
 PRIMARY_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
 
 echo -e "\n${GREEN}=================================================================${NC}"
-echo -e "${GREEN}       ZclockID Modular Appliance Installation Completed!        ${NC}"
+echo -e "${GREEN}      ZclockID Enterprise DC Installation Completed! (v1.0.0)    ${NC}"
 echo -e "${GREEN}=================================================================${NC}"
-echo -e "Web Management Console: ${GREEN}https://${PRIMARY_IP}/${NC}"
-echo -e "Initial Setup Wizard:   ${GREEN}https://${PRIMARY_IP}/setup.html${NC}"
-echo -e "User Self-Registration: ${GREEN}https://${PRIMARY_IP}/register.html${NC}"
-echo -e "Headless REST API:      ${BLUE}http://${PRIMARY_IP}:8000/docs${NC}"
-echo -e "\nAll upstream services (Samba, FreeRADIUS, BIND9, Chrony, Nginx) are linked to standard Ubuntu security updates."
-echo -e "${GREEN}=================================================================${NC}\n"
+echo -e "Web Management Console: ${CYAN}https://${PRIMARY_IP}/${NC}"
+echo -e "First-Time Setup:       ${CYAN}https://${PRIMARY_IP}/setup.html${NC}"
+echo -e "User Self-Registration: ${CYAN}https://${PRIMARY_IP}/register.html${NC}"
+echo -e "REST API Docs (Swagger):${BLUE}http://${PRIMARY_IP}:8000/docs${NC}"
+echo -e "================================================================="
+echo -e "Next Steps:"
+echo -e "1. Open ${CYAN}https://${PRIMARY_IP}/setup.html${NC} to provision your Active Directory Realm"
+echo -e "2. Default Admin: administrator / admin (set during setup)"
+echo -e "=================================================================\n"

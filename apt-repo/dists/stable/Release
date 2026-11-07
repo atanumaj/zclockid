@@ -1,0 +1,17 @@
+Origin: Inet Secure Labs
+Label: ZclockID APT Repository
+Suite: stable
+Codename: stable
+Architectures: amd64 all
+Components: main
+Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
+Date: Sat, 07 Nov 2026 17:26:42 GMT
+MD5Sum:
+ 8b5756c079a51f2843faca0cf1591ebc 1150 main/binary-amd64/Packages
+ 8a588d26512031665b4af1396fbd03f1 729 main/binary-amd64/Packages.gz
+SHA1:
+ 40ef2fdcbd938bb3ba8fb690901020e57016796c 1150 main/binary-amd64/Packages
+ 5ba89f035f7cd8671fa1e0c0a0ac3930da401221 729 main/binary-amd64/Packages.gz
+SHA256:
+ 670ac977be4d543c154fafecd3e9e083f45498f42ce4ac72550df05f91570912 1150 main/binary-amd64/Packages
+ b5971bb90210c189ffc3aeb59df082ffeee5ef2b9ca8163ca3e236d63c4d96bd 729 main/binary-amd64/Packages.gz
