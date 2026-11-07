@@ -707,8 +707,8 @@ async def upload_backup(file: UploadFile = File(...)):
     safe_name = Path(file.filename).name
     lower_name = safe_name.lower()
 
-    if not (lower_name.endswith(".tar.gz") or lower_name.endswith(".tgz") or lower_name.endswith(".zip") or lower_name.endswith(".tar")):
-        raise HTTPException(status_code=400, detail="Invalid file format. Must be a .tar.gz, .tgz, .zip, or .tar backup archive.")
+    if not (lower_name.endswith(".tar.gz") or lower_name.endswith(".tgz") or lower_name.endswith(".zip") or lower_name.endswith(".tar") or lower_name.endswith(".gz")):
+        raise HTTPException(status_code=400, detail="Invalid file format. Must be a .tar.gz, .tgz, .zip, .tar, or .gz backup archive.")
 
     try:
         if lower_name.endswith(".zip"):

@@ -5045,10 +5045,10 @@
             </div>
             <form onsubmit="submitUploadBackup(event)" class="space-y-4 text-xs">
                 <div>
-                    <label class="text-slate-300 block mb-1 font-medium">Select Backup File (.tar.gz, .zip, .tgz, .tar)</label>
-                    <input type="file" id="backup-file-upload" accept=".tar.gz,.tgz,.zip,.tar" required
+                    <label class="text-slate-300 block mb-1 font-medium">Select Backup File (.tar.gz, .zip, .tgz, .tar, .gz)</label>
+                    <input type="file" id="backup-file-upload" accept=".gz,.tar.gz,.tgz,.zip,.tar,application/gzip,application/x-gzip,application/x-tar,application/zip,application/octet-stream,*/*" required
                         class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700 cursor-pointer">
-                    <p class="text-[10px] text-slate-500 mt-1">Accepts standard ZclockID (.tar.gz) or compressed (.zip, .tar) backup archives</p>
+                    <p class="text-[10px] text-slate-500 mt-1">Accepts standard ZclockID (.tar.gz, .gz) or compressed (.zip, .tar) backup archives</p>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
