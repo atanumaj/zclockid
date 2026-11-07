@@ -9,6 +9,7 @@ import time
 import json
 import shutil
 import tarfile
+import zipfile
 import platform
 import datetime
 import sqlite3
@@ -701,22 +702,78 @@ def download_backup(filename: str):
 
 @router.post("/api/v1/backups/upload")
 async def upload_backup(file: UploadFile = File(...)):
-    """Uploads an external backup archive into the appliance backup repository."""
+    """Uploads an external backup archive (.tar.gz, .tgz, .zip, .tar) into the appliance backup repository."""
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     safe_name = Path(file.filename).name
-    if not (safe_name.endswith(".tar.gz") or safe_name.endswith(".tgz")):
-        raise HTTPException(status_code=400, detail="Invalid file format. Must be a .tar.gz archive.")
+    lower_name = safe_name.lower()
 
-    target_path = BACKUP_DIR / safe_name
+    if not (lower_name.endswith(".tar.gz") or lower_name.endswith(".tgz") or lower_name.endswith(".zip") or lower_name.endswith(".tar")):
+        raise HTTPException(status_code=400, detail="Invalid file format. Must be a .tar.gz, .tgz, .zip, or .tar backup archive.")
+
     try:
-        with open(target_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        if lower_name.endswith(".zip"):
+            temp_zip = Path("/tmp") / f"upload_{int(time.time())}_{safe_name}"
+            with open(temp_zip, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            with zipfile.ZipFile(temp_zip, "r") as zf:
+                zip_members = zf.namelist()
+                tar_inside = [m for m in zip_members if m.endswith(".tar.gz") or m.endswith(".tgz")]
+                if tar_inside:
+                    inner_name = Path(tar_inside[0]).name
+                    final_name = inner_name if not (BACKUP_DIR / inner_name).exists() else f"uploaded_{inner_name}"
+                    target_path = BACKUP_DIR / final_name
+                    with zf.open(tar_inside[0]) as src, open(target_path, "wb") as dst:
+                        shutil.copyfileobj(src, dst)
+                else:
+                    extract_staging = Path("/tmp") / f"zip_stage_{int(time.time())}"
+                    zf.extractall(extract_staging)
+
+                    extract_root = extract_staging
+                    entries = [e for e in extract_staging.iterdir() if not e.name.startswith("__MACOSX") and not e.name.startswith(".")]
+                    if len(entries) == 1 and entries[0].is_dir():
+                        extract_root = entries[0]
+
+                    base_stem = safe_name[:-4]
+                    if not base_stem.startswith("zclockid-"):
+                        base_stem = f"zclockid-{base_stem}"
+                    final_name = f"{base_stem}.tar.gz"
+                    target_path = BACKUP_DIR / final_name
+
+                    with tarfile.open(target_path, "w:gz") as tar:
+                        for item in extract_root.iterdir():
+                            if not item.name.startswith("__MACOSX") and not item.name.startswith("."):
+                                tar.add(item, arcname=item.name)
+
+                    shutil.rmtree(extract_staging, ignore_errors=True)
+
+            temp_zip.unlink(missing_ok=True)
+            safe_name = target_path.name
+
+        elif lower_name.endswith(".tar"):
+            temp_tar = Path("/tmp") / f"upload_{int(time.time())}_{safe_name}"
+            with open(temp_tar, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            final_name = f"{safe_name[:-4]}.tar.gz"
+            target_path = BACKUP_DIR / final_name
+            with tarfile.open(temp_tar, "r:") as src_tar, tarfile.open(target_path, "w:gz") as dst_tar:
+                for member in src_tar.getmembers():
+                    f = src_tar.extractfile(member) if member.isreg() else None
+                    dst_tar.addfile(member, f)
+
+            temp_tar.unlink(missing_ok=True)
+            safe_name = target_path.name
+
+        else: # .tar.gz or .tgz
+            target_path = BACKUP_DIR / safe_name
+            with open(target_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
 
         manifest = read_manifest_from_tar(target_path)
-        if not manifest:
-            if not tarfile.is_tarfile(target_path):
-                target_path.unlink(missing_ok=True)
-                raise HTTPException(status_code=400, detail="Uploaded file is not a valid tar archive.")
+        if not manifest and not tarfile.is_tarfile(target_path):
+            target_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZclockID backup archive.")
 
         log_audit("BACKUP_UPLOADED", "admin", "appliance", "SUCCESS", {
             "filename": safe_name,
@@ -732,7 +789,8 @@ async def upload_backup(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        target_path.unlink(missing_ok=True)
+        if 'target_path' in locals() and target_path.exists():
+            target_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Failed to process uploaded backup: {str(e)}")
 
 @router.post("/api/v1/backups/inspect")
