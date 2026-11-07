@@ -10280,10 +10280,14 @@
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Archive...`;
 
+            const token = localStorage.getItem('zclockid_token');
+            const authHeaders = {};
+            if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+
             try {
                 const res = await fetch(`${API_BASE}/backups/upload`, {
                     method: 'POST',
-                    headers: getAuthHeaders(),
+                    headers: authHeaders,
                     body: formData
                 });
                 const data = await res.json();
@@ -10293,7 +10297,8 @@
                     fileInput.value = '';
                     fetchBackups();
                 } else {
-                    alert(`Upload failed: ${data.detail}`);
+                    const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+                    alert(`Upload failed: ${detail}`);
                 }
             } catch (err) {
                 alert(`Error uploading file: ${err}`);
@@ -10307,7 +10312,7 @@
             try {
                 const res = await fetch(`${API_BASE}/backups/inspect`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ filename: filename })
                 });
                 const data = await res.json();
@@ -10376,7 +10381,7 @@
             try {
                 const res = await fetch(`${API_BASE}/backups/restore`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ filename: backupToRestore, skip_ad_restore: skipAd })
                 });
                 const data = await res.json();
@@ -10400,7 +10405,8 @@
             if (!confirm(`Delete backup archive '${filename}'?\n\nThis cannot be undone.`)) return;
             try {
                 const res = await fetch(`${API_BASE}/backups/${encodeURIComponent(filename)}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
                 });
                 const data = await res.json();
                 if (res.ok) {
