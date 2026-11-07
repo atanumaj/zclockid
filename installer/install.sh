@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# ZclockID Appliance Automated One-Line Installer & APT Repository Setup
-# Works on fresh Ubuntu 22.04 LTS / 24.04 LTS
+# ZclockID Appliance Automated One-Line Bootstrap Installer
+# Compatible with Ubuntu 22.04 LTS & Ubuntu 24.04 LTS (DEB822 format)
 # ==============================================================================
 
 set -eo pipefail
@@ -58,13 +58,23 @@ if command -v debconf-set-selections >/dev/null 2>&1; then
 fi
 
 # 4. Configure ZclockID Ubuntu APT Repository
-log_info "Configuring official ZclockID APT repository..."
-RAW_REPO_URL="https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo"
+# Supports both Local Appliance Mirror and GitHub Raw sources
+REPO_SOURCE="${1:-http://192.168.1.41/repo}"
 
-# Add repository source entry
+log_info "Adding ZclockID APT repository source: ${REPO_SOURCE}..."
+
+# Write modern DEB822 format (Ubuntu 24.04 & 22.04 compatible)
+cat << EOF > /etc/apt/sources.list.d/zclockid.sources
+Types: deb
+URIs: ${REPO_SOURCE}
+Suites: stable
+Components: main
+Trusted: yes
+EOF
+
+# Also maintain traditional sources.list format for legacy tooling
 cat << EOF > /etc/apt/sources.list.d/zclockid.list
-# ZclockID Official Repository (Hosted on GitHub)
-deb [trusted=yes] ${RAW_REPO_URL} stable main
+deb [trusted=yes] ${REPO_SOURCE} stable main
 EOF
 
 log_info "Updating APT package cache..."
