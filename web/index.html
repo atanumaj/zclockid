@@ -572,16 +572,6 @@
                     <i class="fa-solid fa-user-clock w-4"></i> Self-Registrations
                 </button>
                 <button onclick="showTab('syslog'); switchLogsSubTab('compliance');" id="nav-reports" class="hidden"></button>
-                <button onclick="showTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-box-archive w-4 text-emerald-400"></i> Backup & Restore
-                </button>
-                <button onclick="showTab('snmp')" id="nav-snmp" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-satellite-dish w-4 text-cyan-400"></i> SNMP & Telemetry
-                </button>
-                <button onclick="showTab('update')" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
-                    <i class="fa-solid fa-arrows-rotate w-4 text-violet-400"></i> Software Updates
-                    <span id="nav-update-badge" class="hidden ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-violet-600 text-white animate-pulse">UPDATE</span>
-                </button>
                 <!-- Collapsible Security & Management Section -->
                 <button type="button" onclick="toggleSecurityNavGroup()" id="nav-group-security-btn" class="w-full flex items-center justify-between pt-3 pb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition text-left cursor-pointer group select-none">
                     <span class="flex items-center gap-1.5">
@@ -602,6 +592,16 @@
                     </button>
                     <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                         <i class="fa-solid fa-file-shield w-4 text-sky-400"></i> Compliance & Live Logs
+                    </button>
+                    <button onclick="showTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                        <i class="fa-solid fa-box-archive w-4 text-emerald-400"></i> Backup & Restore
+                    </button>
+                    <button onclick="showTab('snmp')" id="nav-snmp" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                        <i class="fa-solid fa-satellite-dish w-4 text-cyan-400"></i> SNMP & Telemetry
+                    </button>
+                    <button onclick="showTab('update')" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                        <i class="fa-solid fa-arrows-rotate w-4 text-violet-400"></i> Software Updates
+                        <span id="nav-update-badge" class="hidden ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-violet-600 text-white animate-pulse">UPDATE</span>
                     </button>
                 </div>
             </nav>
@@ -6223,7 +6223,7 @@
                 activeNav.classList.add('text-indigo-400', 'bg-indigo-600/10', 'border-indigo-500/20', 'font-semibold');
             }
 
-            if (['rbac', 'apikeys', 'certs', 'syslog'].includes(tabId)) {
+            if (['rbac', 'apikeys', 'certs', 'syslog', 'backup', 'snmp', 'update'].includes(tabId)) {
                 toggleSecurityNavGroup(true);
             }
 
