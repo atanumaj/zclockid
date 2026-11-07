@@ -4,10 +4,10 @@ Architecture: all
 Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle
 Filename: pool/main/zclockid_1.0.0_all.deb
-Size: 181672
-MD5sum: 036219717a8c65616079b987e8963df6
-SHA1: a7d487eabaae4deee73d2be45359051589e3dd30
-SHA256: 85096af3dcd4d9e42ba53f23d732ab0e8b19402bd245bcf688b1fc10165a81c8
+Size: 181734
+MD5sum: 6fcac69fb75f1e49d38e9c46281d2a15
+SHA1: a599a6c872d52859826af9603a67e6cae65de03e
+SHA256: c850856295b92ce7ff0d04aedda8bd34fd05f8745a7c3d36cd5afb4a4ea2a7ee
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance

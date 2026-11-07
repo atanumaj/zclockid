@@ -112,8 +112,9 @@ rm -f "$TMP_DEB"
 # 7. Ensure FreeRADIUS certificates are bootstrapped if needed
 if [ -d /etc/freeradius/3.0/certs ] && [ ! -f /etc/freeradius/3.0/certs/server.pem ]; then
     log_info "Bootstrapping FreeRADIUS initial certificates..."
-    if [ -x /etc/freeradius/3.0/certs/bootstrap ]; then
-        /etc/freeradius/3.0/certs/bootstrap >/dev/null 2>&1 || true
+    if [ -f /etc/freeradius/3.0/certs/bootstrap ]; then
+        chmod +x /etc/freeradius/3.0/certs/bootstrap >/dev/null 2>&1 || true
+        bash /etc/freeradius/3.0/certs/bootstrap >/dev/null 2>&1 || true
     elif [ -f /etc/freeradius/3.0/certs/Makefile ]; then
         make -C /etc/freeradius/3.0/certs >/dev/null 2>&1 || true
     fi
