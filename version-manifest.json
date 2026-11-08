@@ -1,12 +1,12 @@
 {
-  "version": "1.0.9",
-  "name": "ZclockID Enterprise v1.0.9",
+  "version": "1.1.0",
+  "name": "ZclockID Enterprise v1.1.0",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T09:40:00Z",
-  "summary": "Streamline Firewall toggle label to 'Firewall:' with visual red (OFF) and green (ON) styling",
-  "notes": "### What's Changed in v1.0.9:\n* **Firewall Toggle Switch Styling:** Simplified label strictly to 'Firewall:', updated toggle track background to bold red (`bg-rose-600`) when OFF and green (`bg-emerald-600`) when ON, with matching red/green state text badges.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.9_all.deb",
-  "package_name": "zclockid_1.0.9_all.deb",
+  "published_at": "2026-11-08T09:45:00Z",
+  "summary": "Ensure dynamic reactive color switching for Firewall toggle (bold red when OFF, vibrant green when ON)",
+  "notes": "### What's Changed in v1.1.0:\n* **Reactive Dynamic Toggle Colors:** Added programmatic DOM class management (`updateFirewallToggleVisual`) so the firewall toggle track instantaneously changes to bold red (`bg-rose-600`) when OFF and vibrant green (`bg-emerald-600`) when ON with matching reactive status badges upon user click and live state poll.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.0_all.deb",
+  "package_name": "zclockid_1.1.0_all.deb",
   "min_version_required": "1.0.0"
 }

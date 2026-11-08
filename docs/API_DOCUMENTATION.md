@@ -1,6 +1,6 @@
 # ZclockID Appliance REST API Documentation
 
-**API Version:** `v1.0.9`  
+**API Version:** `v1.1.0`  
 **Protocol:** HTTPS  
 **Base URL:** `https://<appliance-ip>/api/v1`  
 **Interactive OpenAPI UI:** `https://<appliance-ip>/docs` (Swagger 3.1)  
