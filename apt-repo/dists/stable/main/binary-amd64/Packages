@@ -15,3 +15,22 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
  FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
  automatic Windows NTACL preservation, SNMP telemetry, and a headless REST API.
+
+Package: zclockid
+Version: 1.0.1
+Architecture: all
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
+Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle
+Filename: pool/main/zclockid_1.0.1_all.deb
+Size: 183348
+MD5sum: ce32972879e71c59dba7f2d06fcdcb32
+SHA1: df739033e96680b8e94969d6dc1cb79799fe35a2
+SHA256: aab10c3c5dbac225d10dbe6a15a7f1ca9ad97c0b5220c08961fdd735bb0d4d1f
+Section: admin
+Priority: optional
+Description: Purpose-built Active Directory Domain Controller and IAM appliance
+ ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
+ engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
+ FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
+ automatic Windows NTACL preservation, SNMP telemetry, and a headless REST API.
+

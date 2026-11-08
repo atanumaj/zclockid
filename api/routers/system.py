@@ -25,6 +25,8 @@ from api.core.config import (
     BACKUP_DIR,
     APP_VERSION,
     APP_REPO,
+    OFFICIAL_MANIFEST_URL,
+    OFFICIAL_CHANNEL,
     PHYSICAL_SYSVOL_DIR,
     ZCLOCKID_ROOT,
     SNMPD_CONF_FILE
@@ -1187,9 +1189,16 @@ def get_update_info():
         "is_running": is_running,
         "last_update_status": last_status,
         "update_available": is_newer,
+        "is_channel_locked": True,
+        "official_channel": OFFICIAL_CHANNEL,
+        "official_repo": APP_REPO,
+        "official_manifest_url": OFFICIAL_MANIFEST_URL,
         "settings": {
-            "github_repo": row["github_repo"] if row else APP_REPO,
-            "custom_manifest_url": row["custom_manifest_url"] if row else "",
+            "github_repo": APP_REPO,
+            "channel": OFFICIAL_CHANNEL,
+            "manifest_url": OFFICIAL_MANIFEST_URL,
+            "is_locked": True,
+            "custom_manifest_url": "",
             "auto_check": bool(row["auto_check"]) if row else True,
             "last_checked": row["last_checked"] if row else 0,
             "latest_version": latest_ver,
@@ -1202,44 +1211,48 @@ def get_update_info():
 
 @router.post("/api/v1/system/update/settings")
 def update_update_settings(settings: UpdateSettingsModel):
-    """Configures the remote GitHub repository or custom manifest URL for updates."""
+    """Saves update preferences. Upstream channel is locked to official repository."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE update_settings
-        SET github_repo = ?, custom_manifest_url = ?, auto_check = ?, updated_at = ?
+        SET github_repo = ?, auto_check = ?, updated_at = ?
         WHERE id = 1
-    """, (settings.github_repo.strip(), settings.custom_manifest_url.strip(), 1 if settings.auto_check else 0, time.time()))
+    """, (APP_REPO, 1 if settings.auto_check else 0, time.time()))
     conn.commit()
     conn.close()
-    log_audit("UPDATE_SETTINGS_SAVED", "admin", "appliance", "SUCCESS", settings.dict())
-    return {"status": "success", "message": "Update settings saved."}
+    log_audit("UPDATE_SETTINGS_SAVED", "admin", "appliance", "SUCCESS", {"auto_check": settings.auto_check})
+    return {"status": "success", "message": "Update preferences saved. Channel is permanently locked to official upstream."}
 
 @router.post("/api/v1/system/update/check")
 def check_for_updates(req: Optional[UpdateCheckModel] = None):
-    """Queries GitHub Releases API or custom manifest for newer versions of ZclockID."""
+    """Queries official upstream manifest or GitHub for newer versions of ZclockID."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM update_settings WHERE id = 1")
     row = cursor.fetchone()
 
-    repo = (req.github_repo if req and req.github_repo else (row["github_repo"] if row else APP_REPO)).strip()
-    manifest_url = (req.custom_manifest_url if req and req.custom_manifest_url else (row["custom_manifest_url"] if row else "")).strip()
-
     curr_ver = get_appliance_version()
     now = time.time()
 
-    # 1. Custom Manifest URL check
-    if manifest_url:
+    # 1. Official GitHub Raw Manifest (Primary: Fast, Continuous Delivery, Zero Rate-Limits)
+    manifest_urls = [
+        f"{OFFICIAL_MANIFEST_URL}?t={int(now)}"
+    ]
+    if row and row["custom_manifest_url"] and row["custom_manifest_url"].strip():
+        manifest_urls.insert(0, f"{row['custom_manifest_url'].strip()}?t={int(now)}")
+
+    for m_url in manifest_urls:
         try:
-            resp = requests.get(manifest_url, timeout=6, headers={"User-Agent": "ZclockID-Appliance-Updater"})
+            resp = requests.get(m_url, timeout=8, headers={"User-Agent": "ZclockID-Appliance-Updater"})
             if resp.status_code == 200:
                 data = resp.json()
                 raw_ver = data.get("version", "")
                 clean_ver = re.sub(r'^[vV]', '', str(raw_ver).strip())
                 release_name = data.get("name", f"ZclockID v{clean_ver}")
-                release_notes = data.get("notes", "No changelog provided.")
+                release_notes = data.get("notes", data.get("summary", "No changelog provided."))
+                release_type = data.get("release_type", "patch")
                 download_url = data.get("download_url", "")
                 is_newer = is_newer_version(clean_ver, curr_ver)
 
@@ -1252,29 +1265,23 @@ def check_for_updates(req: Optional[UpdateCheckModel] = None):
                 conn.commit()
                 conn.close()
 
-                log_audit("UPDATE_CHECKED", "admin", "custom_manifest", "SUCCESS", {"remote_ver": clean_ver, "newer": is_newer})
+                log_audit("UPDATE_CHECKED", "admin", "official_manifest", "SUCCESS", {"remote_ver": clean_ver, "newer": is_newer, "type": release_type})
                 return {
                     "status": "success",
                     "current_version": curr_ver,
                     "latest_version": clean_ver,
                     "update_available": is_newer,
+                    "release_type": release_type,
                     "release_name": release_name,
                     "release_notes": release_notes,
                     "download_url": download_url,
-                    "source": "custom_manifest"
+                    "source": "official_manifest"
                 }
         except Exception as e:
-            cursor.execute("UPDATE update_settings SET last_checked = ?, last_check_status = ? WHERE id = 1", (now, f"ERROR: {str(e)[:50]}"))
-            conn.commit()
-            conn.close()
-            return {
-                "status": "error",
-                "current_version": curr_ver,
-                "update_available": False,
-                "message": f"Failed to check custom manifest: {str(e)}"
-            }
+            logging.getLogger("uvicorn.error").warning(f"Manifest check error for {m_url}: {e}")
 
-    # 2. GitHub Releases API Check
+    # 2. Secondary Fallback: GitHub Releases API
+    repo = APP_REPO
     github_url = f"https://api.github.com/repos/{repo}/releases/latest"
     try:
         resp = requests.get(github_url, timeout=6, headers={
@@ -1314,6 +1321,7 @@ def check_for_updates(req: Optional[UpdateCheckModel] = None):
                 "current_version": curr_ver,
                 "latest_version": clean_ver,
                 "update_available": is_newer,
+                "release_type": "standard",
                 "release_name": release_name,
                 "release_notes": release_notes,
                 "download_url": download_url,
@@ -1329,7 +1337,7 @@ def check_for_updates(req: Optional[UpdateCheckModel] = None):
                 "status": "no_releases",
                 "current_version": curr_ver,
                 "update_available": False,
-                "message": f"No releases found on GitHub for repository '{repo}'. You can still upload a .deb package manually."
+                "message": f"Appliance is running current version v{curr_ver}. Upstream repository is up to date."
             }
         else:
             err_msg = f"GitHub API returned HTTP {resp.status_code}"

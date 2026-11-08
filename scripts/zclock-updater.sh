@@ -40,6 +40,15 @@ fi
 
 log "Package validated successfully. Applying upgrade via dpkg..."
 
+# Automated pre-update safety backup
+log "Creating automated pre-update snapshot backup..."
+BACKUP_DIR="/var/backups/zclockid"
+mkdir -p "${BACKUP_DIR}"
+CURR_V=$(cat /opt/zclockid/VERSION 2>/dev/null || echo "pre-update")
+BACKUP_TAR="${BACKUP_DIR}/zclockid-backup-v${CURR_V}-$(date +%Y%m%d%H%M%S).tar.gz"
+tar -czf "${BACKUP_TAR}" -C / var/lib/zclockid etc/zclockid 2>/dev/null || true
+log "Safety snapshot created at ${BACKUP_TAR}"
+
 export DEBIAN_FRONTEND=noninteractive
 if dpkg -i "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
     log "dpkg installation succeeded."
