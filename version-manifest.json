@@ -1,12 +1,12 @@
 {
-  "version": "1.1.0",
-  "name": "ZclockID Enterprise v1.1.0",
+  "version": "1.1.1",
+  "name": "ZclockID Enterprise v1.1.1",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-08T09:45:00Z",
-  "summary": "Ensure dynamic reactive color switching for Firewall toggle (bold red when OFF, vibrant green when ON)",
-  "notes": "### What's Changed in v1.1.0:\n* **Reactive Dynamic Toggle Colors:** Added programmatic DOM class management (`updateFirewallToggleVisual`) so the firewall toggle track instantaneously changes to bold red (`bg-rose-600`) when OFF and vibrant green (`bg-emerald-600`) when ON with matching reactive status badges upon user click and live state poll.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.0_all.deb",
-  "package_name": "zclockid_1.1.0_all.deb",
+  "release_type": "feature",
+  "published_at": "2026-11-08T09:55:00Z",
+  "summary": "Streamline navigation to 'Dashboard' and replace FSMO table with in-place Domain Controller Type change modal",
+  "notes": "### What's Changed in v1.1.1:\n* **Streamlined Navigation:** Renamed navigation menu strictly from 'Dashboard & Telemetry' to 'Dashboard'.\n* **In-Place Domain Controller Type Switching:** Removed separate FSMO Roles table and added interactive 'Change' option directly inside the Domain Controller Type widget.\n* **Verification Modal:** Provides confirmation dialog to verify and confirm switching between Primary DC (Master) and Alternate DC (Backup/Replica) before saving.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.1_all.deb",
+  "package_name": "zclockid_1.1.1_all.deb",
   "min_version_required": "1.0.0"
 }

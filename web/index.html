@@ -546,7 +546,7 @@
         <aside class="w-64 border-r border-slate-800 bg-slate-900/50 flex flex-col justify-between p-4 shrink-0 overflow-y-auto custom-scroll">
             <nav class="space-y-1 text-xs font-medium">
                 <button onclick="showTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-indigo-400 bg-indigo-600/10 border border-indigo-500/20 font-semibold transition text-left">
-                    <i class="fa-solid fa-gauge-high w-4"></i> Dashboard & Telemetry
+                    <i class="fa-solid fa-gauge-high w-4"></i> Dashboard
                 </button>
                 <button onclick="showTab('domain')" id="nav-domain" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
                     <i class="fa-solid fa-network-wired w-4"></i> Domain & Forest Config
@@ -1226,7 +1226,12 @@
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <div class="flex justify-between items-center">
                                 <span class="text-slate-500 text-[10px] uppercase font-sans">Domain Controller Type</span>
-                                <span id="domain-dc-type-badge" class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">PRIMARY</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span id="domain-dc-type-badge" class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">PRIMARY</span>
+                                    <button onclick="openChangeDcTypeModal()" class="text-[10px] text-amber-400 hover:text-amber-300 font-bold hover:underline flex items-center gap-1 transition" title="Change Domain Controller Type">
+                                        <i class="fa-solid fa-pen-to-square"></i> Change
+                                    </button>
+                                </div>
                             </div>
                             <div id="domain-dc-type-val" class="text-emerald-300 font-bold text-xs truncate flex items-center gap-1.5">
                                 <i class="fa-solid fa-crown text-amber-400 text-[11px]"></i> Master (Primary DC)
@@ -1310,37 +1315,6 @@
                             </thead>
                             <tbody id="upn-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
                                 <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading domain UPN suffixes...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- FSMO Roles Ownership & Role Transfer (Zentyal Style) -->
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-crown text-amber-400"></i> Flexible Single Master Operation (FSMO) Roles
-                            </h3>
-                            <p class="text-xs text-slate-400">View and transfer directory role ownership or promote an alternate DC to primary</p>
-                        </div>
-                        <button onclick="openFsmoModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-arrow-right-arrow-left"></i> Transfer / Seize Roles
-                        </button>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th class="px-4 py-2.5">FSMO Role Name</th>
-                                    <th class="px-4 py-2.5">Scope</th>
-                                    <th class="px-4 py-2.5">Master DC Owner</th>
-                                    <th class="px-4 py-2.5">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="fsmo-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading FSMO roles...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -5627,32 +5601,70 @@
         </div>
     </div>
 
-    <!-- FSMO Role Transfer Modal -->
-    <div id="fsmo-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
-        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center">
-                <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-crown text-amber-400"></i> Transfer FSMO Role</h3>
-                <button onclick="closeFsmoModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+    <!-- Change Domain Controller Type Modal -->
+    <div id="change-dc-type-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-arrows-rotate text-amber-400"></i> Change Domain Controller Type
+                </h3>
+                <button onclick="closeChangeDcTypeModal()" class="text-slate-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
-            <div class="space-y-3 text-xs">
-                <div>
-                    <label class="text-slate-400 block mb-1">Target FSMO Role</label>
-                    <select id="fsmo-role-select" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono">
-                        <option value="pdc">PDC Emulator Role</option>
-                        <option value="rid">RID Master Role</option>
-                        <option value="naming">Domain Naming Master Role</option>
-                        <option value="schema">Schema Master Role</option>
-                        <option value="infrastructure">Infrastructure Master Role</option>
-                        <option value="all">ALL 5 FSMO Roles</option>
-                    </select>
+
+            <!-- Current Status Overview -->
+            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2 text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Current Role:</span>
+                    <span id="cdc-current-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">PRIMARY DC (MASTER)</span>
                 </div>
-                <div class="flex items-center gap-2 pt-1">
-                    <input id="fsmo-seize-check" type="checkbox" class="rounded bg-slate-950 border-slate-800 text-amber-600 focus:ring-0">
-                    <label for="fsmo-seize-check" class="text-rose-400 text-xs">Force Seize (Only if current role owner is permanently dead)</label>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Target Role:</span>
+                    <span id="cdc-target-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-800">ALTERNATE DC (BACKUP)</span>
                 </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeFsmoModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitFsmoTransfer()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Execute Transfer</button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <!-- Description / Impact Explanation -->
+                <div id="cdc-impact-box" class="p-3 bg-amber-950/40 border border-amber-800/60 rounded-xl text-amber-300 space-y-1">
+                    <div class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Operational Verification Notice:</div>
+                    <p id="cdc-impact-desc" class="text-[11px] text-amber-200/90 leading-relaxed">
+                        Changing this host from <b>Primary DC</b> to <b>Alternate DC</b> will transfer all Active Directory FSMO Master roles to the designated partner DC. This host will continue replicating directory data as an Alternate DC replica.
+                    </p>
+                </div>
+
+                <!-- Partner DC Input (Shown when demoting Primary -> Alternate) -->
+                <div id="cdc-partner-group" class="space-y-1.5">
+                    <label class="block text-slate-300 font-semibold">Designated Partner Primary DC IP / Hostname</label>
+                    <input id="cdc-partner-input" type="text" placeholder="e.g. 180.92.168.43 or dc2.domain.com" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-amber-500">
+                    <p class="text-[11px] text-slate-400">Specify the existing online Domain Controller that will assume Master/FSMO leadership.</p>
+                </div>
+
+                <!-- Force Seize Checkbox (Shown when promoting Alternate -> Primary) -->
+                <div id="cdc-seize-group" class="hidden items-center gap-2 pt-1">
+                    <input id="cdc-seize-check" type="checkbox" class="rounded bg-slate-950 border-slate-700 text-rose-600 focus:ring-0">
+                    <label for="cdc-seize-check" class="text-rose-400 text-xs font-medium cursor-pointer">
+                        Force Seize Roles (Only check if current PDC is permanently offline or unreachable)
+                    </label>
+                </div>
+
+                <!-- Verification Confirmation Checkbox (Mandatory before save) -->
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                    <label class="flex items-start gap-2.5 cursor-pointer select-none">
+                        <input id="cdc-verify-check" type="checkbox" class="mt-0.5 rounded bg-slate-800 border-slate-700 text-amber-600 focus:ring-0" onchange="document.getElementById('btn-save-dc-type').disabled = !this.checked">
+                        <span class="text-slate-300 text-xs leading-relaxed">
+                            <b class="text-white">Verify Before Save:</b> I verify and confirm switching this Domain Controller type. I understand Active Directory replication topology and directory master leadership will change immediately.
+                        </span>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                    <button type="button" onclick="closeChangeDcTypeModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">Cancel</button>
+                    <button type="button" id="btn-save-dc-type" disabled onclick="submitChangeDcType()" class="px-5 py-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg text-xs shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Change
+                    </button>
                 </div>
             </div>
         </div>
@@ -7264,30 +7276,6 @@
                         if (dcTypeSub) dcTypeSub.innerText = data.dc_type_desc || `DRS Replica (PDC: ${data.pdc_holder || 'Remote PDC'})`;
                     }
                 }
-
-                // FSMO Roles Table
-                const tbody = document.getElementById('fsmo-table-body');
-                if (tbody && data.fsmo_roles) {
-                    tbody.innerHTML = '';
-                    const roleDefs = [
-                        { name: 'PDC Emulator (PdcEmulationMaster)', scope: 'Domain', val: data.fsmo_roles.PdcEmulationMaster || data.fsmo_roles.PdcEmulator },
-                        { name: 'RID Master (RidAllocationMaster)', scope: 'Domain', val: data.fsmo_roles.RidAllocationMaster || data.fsmo_roles.RidMaster },
-                        { name: 'Infrastructure Master (InfrastructureMaster)', scope: 'Domain', val: data.fsmo_roles.InfrastructureMaster },
-                        { name: 'Schema Master (SchemaMaster)', scope: 'Forest', val: data.fsmo_roles.SchemaMaster },
-                        { name: 'Domain Naming Master (DomainNamingMaster)', scope: 'Forest', val: data.fsmo_roles.DomainNamingMaster }
-                    ];
-
-                    roleDefs.forEach(r => {
-                        tbody.innerHTML += `
-                            <tr class="hover:bg-slate-800/30">
-                                <td class="px-4 py-2.5 font-bold text-white">${r.name}</td>
-                                <td class="px-4 py-2.5 text-slate-400">${r.scope}</td>
-                                <td class="px-4 py-2.5 text-indigo-300 font-semibold">${r.val || 'Local DC'}</td>
-                                <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800">ONLINE</span></td>
-                            </tr>
-                        `;
-                    });
-                }
             } catch (err) {
                 console.error('Error fetching domain info:', err);
             }
@@ -7631,29 +7619,114 @@
             }
         }
 
-        function openFsmoModal() { document.getElementById('fsmo-modal').classList.remove('hidden'); }
-        function closeFsmoModal() { document.getElementById('fsmo-modal').classList.add('hidden'); }
+        function openChangeDcTypeModal() {
+            const modal = document.getElementById('change-dc-type-modal');
+            if (!modal) return;
 
-        async function submitFsmoTransfer() {
-            const role = document.getElementById('fsmo-role-select').value;
-            const forceSeize = document.getElementById('fsmo-seize-check').checked;
-            if (!confirm(`Execute ${forceSeize ? 'SEIZE' : 'TRANSFER'} for role '${role}'?`)) return;
+            const isMaster = currentSystemIdentity.is_master !== undefined ? currentSystemIdentity.is_master : true;
+            const currentBadge = document.getElementById('cdc-current-badge');
+            const targetBadge = document.getElementById('cdc-target-badge');
+            const impactDesc = document.getElementById('cdc-impact-desc');
+            const partnerGroup = document.getElementById('cdc-partner-group');
+            const seizeGroup = document.getElementById('cdc-seize-group');
+            const verifyCheck = document.getElementById('cdc-verify-check');
+            const saveBtn = document.getElementById('btn-save-dc-type');
+            const partnerInput = document.getElementById('cdc-partner-input');
+            const seizeCheck = document.getElementById('cdc-seize-check');
+
+            if (verifyCheck) verifyCheck.checked = false;
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Change';
+            }
+            if (partnerInput) partnerInput.value = '';
+            if (seizeCheck) seizeCheck.checked = false;
+
+            if (isMaster) {
+                if (currentBadge) {
+                    currentBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
+                    currentBadge.innerText = 'PRIMARY DC (MASTER)';
+                }
+                if (targetBadge) {
+                    targetBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-800';
+                    targetBadge.innerText = 'ALTERNATE DC (BACKUP)';
+                }
+                if (impactDesc) {
+                    impactDesc.innerHTML = 'Changing this host from <b>Primary DC</b> to <b>Alternate DC</b> will transfer all Active Directory FSMO Master roles to the designated partner DC. This host will then continue replicating directory data as an Alternate DC replica.';
+                }
+                if (partnerGroup) partnerGroup.classList.remove('hidden');
+                if (seizeGroup) seizeGroup.classList.add('hidden');
+            } else {
+                if (currentBadge) {
+                    currentBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-800';
+                    currentBadge.innerText = 'ALTERNATE DC (BACKUP)';
+                }
+                if (targetBadge) {
+                    targetBadge.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800';
+                    targetBadge.innerText = 'PRIMARY DC (MASTER)';
+                }
+                if (impactDesc) {
+                    impactDesc.innerHTML = 'Promoting this host to <b>Primary DC</b> will transfer all 5 Active Directory FSMO Master roles (PDC Emulator, Schema, Domain Naming, RID, Infrastructure) onto this local Domain Controller.';
+                }
+                if (partnerGroup) partnerGroup.classList.add('hidden');
+                if (seizeGroup) seizeGroup.classList.remove('hidden');
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeChangeDcTypeModal() {
+            const modal = document.getElementById('change-dc-type-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function submitChangeDcType() {
+            const verifyCheck = document.getElementById('cdc-verify-check');
+            if (!verifyCheck || !verifyCheck.checked) {
+                alert('Please check the verification confirmation box before saving.');
+                return;
+            }
+
+            const isMaster = currentSystemIdentity.is_master !== undefined ? currentSystemIdentity.is_master : true;
+            const partnerInput = document.getElementById('cdc-partner-input')?.value.trim();
+            const forceSeize = document.getElementById('cdc-seize-check')?.checked || false;
+
+            if (isMaster && !partnerInput) {
+                alert('Please specify the IP address or hostname of the designated partner Domain Controller that will assume Master/FSMO leadership.');
+                return;
+            }
+
+            const saveBtn = document.getElementById('btn-save-dc-type');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i class="fa-solid fa-circle-notch animate-spin"></i> Applying Change...';
+            }
+
             try {
+                const payload = {
+                    role: 'all',
+                    force_seize: isMaster ? false : forceSeize,
+                    target_server: isMaster ? partnerInput : null
+                };
+
                 const res = await fetch(`${API_BASE}/domain/fsmo/transfer`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ role: role, force_seize: forceSeize })
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                if (res.ok) {
-                    alert(`FSMO Operation Succeeded: ${data.message}`);
-                    closeFsmoModal();
-                    fetchDomainInfo();
-                } else {
-                    alert(`FSMO Operation Failed: ${data.detail}`);
-                }
+                if (!res.ok) throw new Error(data.detail || 'Failed to update Domain Controller type');
+
+                alert(`Domain Controller Type Updated Successfully!\n\n${data.message}`);
+                closeChangeDcTypeModal();
+                fetchDomainInfo();
             } catch (err) {
-                alert(`Error transferring role: ${err}`);
+                alert(`Error changing Domain Controller type:\n${err.message}`);
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Change';
+                }
             }
         }
 

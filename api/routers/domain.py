@@ -339,11 +339,17 @@ def transfer_fsmo_role(req: FsmoTransferRequest):
     admin_user, admin_pass = get_ad_creds()
     action = "seize" if req.force_seize else "transfer"
     cmd = ["samba-tool", "fsmo", action, f"--role={req.role}", f"-U{admin_user}", f"--password={admin_pass}"]
-    code, stdout, stderr = run_cmd(cmd, timeout=30)
+    if req.target_server and req.target_server.strip():
+        srv = req.target_server.strip()
+        if not srv.startswith("ldap://"):
+            srv = f"ldap://{srv}"
+        cmd.extend(["-H", srv])
+
+    code, stdout, stderr = run_cmd(cmd, timeout=45)
     if code != 0:
         raise HTTPException(status_code=500, detail=f"FSMO {action} failed: {stderr or stdout}")
 
-    log_audit("FSMO_ROLE_TRANSFERRED", "admin", req.role, "SUCCESS", {"action": action})
+    log_audit("FSMO_ROLE_TRANSFERRED", "admin", req.role, "SUCCESS", {"action": action, "target": req.target_server or "local"})
     return {"status": "success", "message": f"FSMO role '{req.role}' {action} successful.", "log": stdout}
 
 @router.get("/replication")

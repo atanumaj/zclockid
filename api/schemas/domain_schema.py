@@ -19,6 +19,7 @@ class UpnSuffixRequest(BaseModel):
     upn_suffix: str = Field(..., description="Alternate domain UPN suffix (e.g. example.com or organization.net)")
 
 class FsmoTransferRequest(BaseModel):
-    role: str = Field(..., description="FSMO role name (e.g. pdc, naming, schema, rid, infrastructure)")
+    role: str = Field("all", description="FSMO role name (e.g. all, pdc, naming, schema, rid, infrastructure)")
     force_seize: bool = Field(False, description="Whether to seize the role forcefully if current holder is offline")
+    target_server: Optional[str] = Field(None, description="Optional target server IP or hostname (e.g. partner DC for transferring roles)")
 
