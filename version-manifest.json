@@ -1,12 +1,12 @@
 {
-  "version": "1.1.1",
-  "name": "ZclockID Enterprise v1.1.1",
+  "version": "1.1.2",
+  "name": "ZclockID Enterprise v1.1.2",
   "channel": "stable",
   "release_type": "feature",
-  "published_at": "2026-11-08T09:55:00Z",
-  "summary": "Streamline navigation to 'Dashboard' and replace FSMO table with in-place Domain Controller Type change modal",
-  "notes": "### What's Changed in v1.1.1:\n* **Streamlined Navigation:** Renamed navigation menu strictly from 'Dashboard & Telemetry' to 'Dashboard'.\n* **In-Place Domain Controller Type Switching:** Removed separate FSMO Roles table and added interactive 'Change' option directly inside the Domain Controller Type widget.\n* **Verification Modal:** Provides confirmation dialog to verify and confirm switching between Primary DC (Master) and Alternate DC (Backup/Replica) before saving.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.1_all.deb",
-  "package_name": "zclockid_1.1.1_all.deb",
+  "published_at": "2026-11-08T15:35:00Z",
+  "summary": "Unified Domain Controller Type switching inside Edit Server Identity & Hostname modal",
+  "notes": "### What's Changed in v1.1.2:\n* **Unified Identity & Role Management:** Moved Domain Controller Type (Primary DC Master vs Alternate DC Backup) switching controls directly into the 'Edit Server Identity & Hostname' modal.\n* **Cleaner Domain Dashboard:** Streamlined the Domain Controller Type card widget into a clean status indicator matching adjacent identity cards.\n* **Safe Role Transfer:** Enhanced modal verification with clear impact notices, partner DC specification for primary-to-alternate transfer, and force-seize disaster recovery protection.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.2_all.deb",
+  "package_name": "zclockid_1.1.2_all.deb",
   "min_version_required": "1.0.0"
 }
