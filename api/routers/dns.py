@@ -123,12 +123,16 @@ def sync_bind_overrides(data: dict):
     except Exception:
         pass
 
-    code, _, stderr = run_cmd(["named-checkconf", "/etc/bind/named.conf"])
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"BIND9 syntax error in overrides: {stderr}")
-
-    run_cmd(["rndc", "reload"])
-    run_cmd(["rndc", "flush"])
+    # Ensure /etc/bind/named.conf includes /etc/bind/named.conf.overrides
+    named_conf_path = Path("/etc/bind/named.conf")
+    if named_conf_path.exists():
+        try:
+            content = named_conf_path.read_text()
+            if 'named.conf.overrides' not in content:
+                with open(named_conf_path, "a") as f:
+                    f.write('\ninclude "/etc/bind/named.conf.overrides";\n')
+        except Exception as e:
+            logger.warning(f"Failed to ensure include in {named_conf_path}: {e}")
 
     code, _, stderr = run_cmd(["named-checkconf", "/etc/bind/named.conf"])
     if code != 0:

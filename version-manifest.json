@@ -1,12 +1,12 @@
 {
-  "version": "1.1.3",
-  "name": "ZclockID Enterprise v1.1.3",
+  "version": "1.1.4",
+  "name": "ZclockID Enterprise v1.1.4",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T15:45:00Z",
-  "summary": "Fix sidebar navigation tab active highlighting and border synchronization across all tabs",
-  "notes": "### What's Changed in v1.1.3:\n* **Navigation Tab Highlighting Fix:** Fixed issue where moving away from Dashboard left the new active tab unhighlighted. Standardized `border` on all sidebar navigation buttons and implemented symmetrical active/inactive class swapping (`text-indigo-300`, `bg-indigo-600/20`, `border-indigo-500/40`, `font-semibold`, `shadow-sm`).\n* **Consistent Visual States:** Cleanly resets previously selected buttons to transparent borders and neutral slate colors upon switching tabs without layout shifts.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.3_all.deb",
-  "package_name": "zclockid_1.1.3_all.deb",
+  "published_at": "2026-11-08T16:15:00Z",
+  "summary": "Standardized toggle switch colors (red OFF / green ON) and hardened BIND9 RPZ overrides",
+  "notes": "### What's Changed in v1.1.4:\n* **Unified Toggle Switch Appearance:** Standardized all dashboard and settings switches (NTP, MS-SNTP signing, Azure Sync, SNMP Daemon, SNMP Telemetry, Syslog Forwarding, Self-Registration, Mobile OTP, SMTP Notifications, Firewall) to intuitive red (`bg-rose-600`) when OFF and green (`peer-checked:bg-emerald-600`) when ON.\n* **BIND9 RPZ Overrides Hardening:** Ensured `/etc/bind/named.conf.overrides` and local response policy zone are automatically provisioned and included in `named.conf`, preventing named daemon failures on fresh installs or override updates.\n* **AD Functional Level Architecture Clarifications:** Documented Samba 4 Active Directory Domain Controller baseline (Windows Server 2008 R2 DFL/FFL with Windows Server 2016/2019 schema extensions) in Domain Management and elevation modal.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.4_all.deb",
+  "package_name": "zclockid_1.1.4_all.deb",
   "min_version_required": "1.0.0"
 }
