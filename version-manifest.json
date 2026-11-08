@@ -1,12 +1,12 @@
 {
-  "version": "1.1.5",
-  "name": "ZclockID Enterprise v1.1.5",
+  "version": "1.1.6",
+  "name": "ZclockID Enterprise v1.1.6",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T18:30:00Z",
-  "summary": "Fix toggle switch dynamic state styling, NTP server port detection, and Azure cloud sync lifecycle",
-  "notes": "### What's Changed in v1.1.5:\n* **Dedicated Toggle Switch Styling:** Implemented `.toggle-switch-track` CSS rules preventing `!important` color conflicts in dark and light themes, ensuring switches cleanly display Red (`#e11d48`) when OFF and Green (`#059669`) when ON.\n* **Restored Full Web Console Scripts:** Verified complete 13,971 lines of `index.html` preventing truncation and ensuring all JavaScript event handlers and API bindings operate reliably.\n* **NTP Server Status Detection:** Fixed `ss -ulpn` port 123 listener detection in non-root contexts and checked Chrony allow rules to correctly show SERVING (PORT 123) status.\n* **Azure Cloud Sync Service Automation:** Added automatic daemon enable/start upon saving enabled configuration and clean service stop on disable.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.5_all.deb",
-  "package_name": "zclockid_1.1.5_all.deb",
+  "published_at": "2026-11-08T19:00:00Z",
+  "summary": "24-Hour Authentication Telemetry Graph on Dashboard and updated AD DC Functional Level statements",
+  "notes": "### What's Changed in v1.1.6:\n* **24-Hour Authentication Activity Graph:** Added a rich interactive Chart.js telemetry curve under CPU/RAM/Storage gauges on the main dashboard, graphing hourly successful and rejected authentications across Kerberos (UDP/88), LDAP (389/636), FreeRADIUS (1812), and Web Admin.\n* **Functional Level Guidance Alignment:** Updated Samba AD DC functional level explanations in Domain Management and Raise Functional Level modal to clearly explain Windows Server 2008 R2 DFL/FFL replication baseline and Server 2016 schema master requirements.\n* **FreeRADIUS Configuration Overrides:** Added automatic permission fixes for custom overrides directories.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.6_all.deb",
+  "package_name": "zclockid_1.1.6_all.deb",
   "min_version_required": "1.0.0"
 }

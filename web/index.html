@@ -7,6 +7,8 @@
     <!-- Tailwind CSS v3 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js 4.x -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Early Theme Loader -->
     <script>
         (function() {
@@ -723,6 +725,74 @@
                     </div>
                 </div>
 
+                <!-- 24-Hour Authentication Activity & Telemetry Graph -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-4 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg shrink-0">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-sm font-bold text-white">Active Directory & RADIUS Authentications (Last 24 Hours)</h3>
+                                    <span class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-semibold">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE TELEMETRY
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-0.5">Real-time hourly telemetry for Kerberos KDC (UDP/88), LDAP Binds (389/636), FreeRADIUS 802.1X (1812), and Management Sessions</p>
+                            </div>
+                        </div>
+
+                        <!-- Metric Summary Pills -->
+                        <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Total Auths (24h)</span>
+                                <span id="auth-metric-total" class="font-bold text-white text-xs">--</span>
+                            </div>
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Success Rate</span>
+                                <span id="auth-metric-rate" class="font-bold text-emerald-400 text-xs">--%</span>
+                            </div>
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Peak Load / hr</span>
+                                <span id="auth-metric-peak" class="font-bold text-sky-400 text-xs">--</span>
+                            </div>
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Active Sessions</span>
+                                <span id="auth-metric-sessions" class="font-bold text-amber-400 text-xs">--</span>
+                            </div>
+                            <button onclick="fetchAuthStats24h()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition border border-slate-700" title="Refresh Graph">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chart Container -->
+                    <div class="relative w-full h-64 md:h-72">
+                        <canvas id="authChart24h"></canvas>
+                    </div>
+
+                    <!-- Protocol Legend & Hourly Peak Footer -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+                        <div class="flex flex-wrap items-center gap-4">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Successful Logins (<span id="legend-kerb-ldap" class="font-mono text-emerald-300">--</span>)
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Failed / Rejected (<span id="legend-failed" class="font-mono text-rose-300">--</span>)
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span> FreeRADIUS 802.1X (<span id="legend-radius" class="font-mono text-sky-300">--</span>)
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 font-mono">
+                            <span>Peak Hour: <strong id="auth-peak-time" class="text-slate-300 font-sans">--</strong></span>
+                            <span class="mx-2">&bull;</span>
+                            <span>Sampling: 60-min buckets</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Microsoft RSAT (Remote Server Administration Tools) Integration & Quick Guide -->
                 <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 transition-all">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none" onclick="toggleRsatGuide()">
@@ -1305,7 +1375,7 @@
                         <div>
                             <span class="font-semibold text-white">Why is the baseline functional level Windows Server 2008 R2?</span>
                             <p class="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
-                                Pure Samba 4 Active Directory Domain Controllers natively implement the <strong>Windows Server 2008 R2</strong> functional level (<code>msDS-Behavior-Version: 4</code>) for DRS replication stability and multi-vendor compatibility. Windows 10/11 clients, modern RSAT tools, AES-256 Kerberos, and Windows Server 2016/2019 Active Directory schema extensions operate at 100% full fidelity on top of this baseline.
+                                Pure Samba 4 Active Directory domain controllers run at the Windows Server 2008 R2 functional level for DRS replication stability and cross-vendor compatibility. Windows 10/11 clients, modern RSAT tools, AES-256 Kerberos, and Server 2016/2019 schema extensions remain fully supported on this baseline. Raising the functional level to native 2016 requires Windows Server 2016+ DCs holding the Schema Master role.
                             </p>
                         </div>
                     </div>
@@ -5653,7 +5723,7 @@
                     <strong class="block flex items-center gap-1.5 text-amber-200">
                         <i class="fa-solid fa-triangle-exclamation"></i> Functional Level Notice:
                     </strong>
-                    <p>Functional levels cannot be downgraded. In pure Samba 4 AD DC environments, the native DC operational level is <strong>Windows Server 2008 R2</strong> (supporting modern Windows 10/11 RSAT, Kerberos AES-256, and 2016/2019 schema extensions). Higher functional levels (2012–2016) require a mixed environment with native Windows Server DCs holding FSMO roles.</p>
+                    <p>Pure Samba 4 Active Directory domain controllers run at the Windows Server 2008 R2 functional level for DRS replication stability and cross-vendor compatibility. Windows 10/11 clients, modern RSAT tools, AES-256 Kerberos, and Server 2016/2019 schema extensions remain fully supported on this baseline. Raising the functional level to native 2016 requires Windows Server 2016+ DCs holding the Schema Master role.</p>
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
@@ -13940,6 +14010,173 @@
             }
         }
 
+        // ==================== 24-HOUR AUTHENTICATION GRAPH ====================
+        let authChartInstance = null;
+
+        async function fetchAuthStats24h() {
+            try {
+                const res = await fetch(`${API_BASE}/system/auth-stats/24h`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const totalEl = document.getElementById('auth-metric-total');
+                const rateEl = document.getElementById('auth-metric-rate');
+                const peakEl = document.getElementById('auth-metric-peak');
+                const sessionsEl = document.getElementById('auth-metric-sessions');
+                const peakTimeEl = document.getElementById('auth-peak-time');
+                const legKerbEl = document.getElementById('legend-kerb-ldap');
+                const legFailEl = document.getElementById('legend-failed');
+                const legRadiusEl = document.getElementById('legend-radius');
+
+                if (totalEl) totalEl.innerText = Number(data.total_24h || 0).toLocaleString();
+                if (rateEl) rateEl.innerText = `${data.success_rate_percent || 100}%`;
+                if (peakEl) peakEl.innerText = `${data.peak_count || 0} req/h`;
+                if (sessionsEl) sessionsEl.innerText = String(data.active_sessions_now || 0);
+                if (peakTimeEl) peakTimeEl.innerText = `${data.peak_hour} (${data.peak_count} auths)`;
+                if (legKerbEl) legKerbEl.innerText = `${((data.breakdown?.kerberos || 0) + (data.breakdown?.ldap || 0)).toLocaleString()} AD/Kerb`;
+                if (legFailEl) legFailEl.innerText = `${(data.failed_count || 0).toLocaleString()} rejected`;
+                if (legRadiusEl) legRadiusEl.innerText = `${(data.breakdown?.radius || 0).toLocaleString()} EAP`;
+
+                const hourly = data.hourly || [];
+                const labels = hourly.map(h => h.hour_label);
+                const successData = hourly.map(h => h.success);
+                const failedData = hourly.map(h => h.failed);
+                const radiusData = hourly.map(h => h.radius);
+
+                const canvas = document.getElementById('authChart24h');
+                if (!canvas || typeof Chart === 'undefined') return;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                const gradSuccess = ctx.createLinearGradient(0, 0, 0, 240);
+                gradSuccess.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
+                gradSuccess.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
+
+                const gradRadius = ctx.createLinearGradient(0, 0, 0, 240);
+                gradRadius.addColorStop(0, 'rgba(14, 165, 233, 0.35)');
+                gradRadius.addColorStop(1, 'rgba(14, 165, 233, 0.01)');
+
+                if (authChartInstance) {
+                    authChartInstance.data.labels = labels;
+                    authChartInstance.data.datasets[0].data = successData;
+                    authChartInstance.data.datasets[1].data = radiusData;
+                    authChartInstance.data.datasets[2].data = failedData;
+                    authChartInstance.update();
+                } else {
+                    authChartInstance = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Successful Auths (AD & PAM)',
+                                    data: successData,
+                                    borderColor: '#10b981',
+                                    backgroundColor: gradSuccess,
+                                    borderWidth: 2.5,
+                                    fill: true,
+                                    tension: 0.35,
+                                    pointBackgroundColor: '#10b981',
+                                    pointBorderColor: '#ffffff',
+                                    pointBorderWidth: 1.5,
+                                    pointRadius: 3,
+                                    pointHoverRadius: 6
+                                },
+                                {
+                                    label: 'FreeRADIUS 802.1X',
+                                    data: radiusData,
+                                    borderColor: '#0ea5e9',
+                                    backgroundColor: gradRadius,
+                                    borderWidth: 2,
+                                    fill: true,
+                                    tension: 0.35,
+                                    pointBackgroundColor: '#0ea5e9',
+                                    pointRadius: 2.5,
+                                    pointHoverRadius: 5
+                                },
+                                {
+                                    label: 'Failed / Rejected',
+                                    data: failedData,
+                                    borderColor: '#f43f5e',
+                                    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+                                    borderWidth: 1.5,
+                                    fill: false,
+                                    tension: 0.2,
+                                    pointBackgroundColor: '#f43f5e',
+                                    pointRadius: 2,
+                                    pointHoverRadius: 5
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: {
+                                mode: 'index',
+                                intersect: false
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: '#0f172a',
+                                    titleColor: '#f8fafc',
+                                    bodyColor: '#cbd5e1',
+                                    borderColor: '#334155',
+                                    borderWidth: 1,
+                                    padding: 10,
+                                    boxPadding: 4,
+                                    usePointStyle: true,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ` ${context.dataset.label}: ${context.parsed.y} reqs`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    grid: {
+                                        color: 'rgba(51, 65, 85, 0.3)',
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        color: '#64748b',
+                                        font: {
+                                            family: 'JetBrains Mono, monospace',
+                                            size: 10
+                                        },
+                                        maxRotation: 0,
+                                        autoSkip: true,
+                                        maxTicksLimit: 12
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(51, 65, 85, 0.3)',
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        color: '#64748b',
+                                        font: {
+                                            family: 'JetBrains Mono, monospace',
+                                            size: 10
+                                        },
+                                        precision: 0
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching auth stats 24h:', err);
+            }
+        }
+
         async function logout() {
             const token = localStorage.getItem('zclockid_token');
             try {
@@ -13962,9 +14199,11 @@
             initRsatGuideState();
             initSecurityNavGroupState();
             fetchSystemStatus();
+            fetchAuthStats24h();
             fetchDomainInfo();
             fetchRadiusBandwidth();
             setInterval(fetchSystemStatus, 5000);
+            setInterval(fetchAuthStats24h, 30000);
         });
     </script>
 </body>

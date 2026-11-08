@@ -66,7 +66,7 @@ except Exception:
 
 # Product Metadata
 APP_NAME = "ZclockID Enterprise Management Appliance"
-APP_VERSION = "1.1.5"
+APP_VERSION = "1.1.6"
 APP_REPO = "atanumaj/zclockid"
 OFFICIAL_MANIFEST_URL = "https://raw.githubusercontent.com/atanumaj/zclockid/master/version-manifest.json"
 OFFICIAL_CHANNEL = "stable"

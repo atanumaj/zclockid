@@ -93,6 +93,12 @@ EOFBIND
             fi
         fi
 
+        # Ensure FreeRADIUS and custom overrides directory permissions
+        if [ -d /zclockid/config/overrides.d ]; then
+            chmod 755 /zclockid /zclockid/config /zclockid/config/overrides.d 2>/dev/null || true
+            chmod 644 /zclockid/config/overrides.d/* 2>/dev/null || true
+        fi
+
         # SNMP Telemetry helper executable
         if [ -f /opt/zclockid/scripts/zclock-telemetry.sh ]; then
             cp -f /opt/zclockid/scripts/zclock-telemetry.sh /usr/local/bin/zclock-telemetry.sh
