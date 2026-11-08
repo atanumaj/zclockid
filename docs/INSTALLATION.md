@@ -70,11 +70,11 @@ sudo apt-get install -y zclockid
 ### Option B: Direct DEB Package Installation
 ```bash
 # Download package from GitHub repository
-wget https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.8_all.deb
+wget https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.0_all.deb
 
 # Install package and resolve dependencies
 sudo apt-get update
-sudo apt-get install -y ./zclockid_1.1.8_all.deb
+sudo apt-get install -y ./zclockid_1.2.0_all.deb
 ```
 
 ---

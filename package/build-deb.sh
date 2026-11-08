@@ -53,10 +53,7 @@ chmod 755 "${BUILD_ROOT}/opt/zclockid/scripts/"*
 echo "${VERSION}" > "${BUILD_ROOT}/opt/zclockid/VERSION"
 
 # 4. Copy Web Console Assets
-cp "${DIST_DIR}/web/index.html" "${BUILD_ROOT}/opt/zclockid/web/"
-cp "${DIST_DIR}/web/login.html" "${BUILD_ROOT}/opt/zclockid/web/"
-cp "${DIST_DIR}/web/register.html" "${BUILD_ROOT}/opt/zclockid/web/"
-cp "${DIST_DIR}/web/setup.html" "${BUILD_ROOT}/opt/zclockid/web/"
+cp -r "${DIST_DIR}/web/"* "${BUILD_ROOT}/opt/zclockid/web/"
 
 # 5. Copy Configuration Templates
 if [[ -f "${DIST_DIR}/config-templates/azure/azure-sync.json" ]]; then

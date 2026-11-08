@@ -1,0 +1,491 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* ==================== APPLIANCE TOGGLE SWITCHES (RED OFF / GREEN ON) ==================== */
+        .toggle-switch-track {
+            background-color: #e11d48 !important; /* Rose-600 OFF */
+            transition: background-color 0.2s ease, border-color 0.2s ease !important;
+        }
+        input:checked + .toggle-switch-track,
+        input:checked ~ .toggle-switch-track,
+        .peer:checked ~ .toggle-switch-track {
+            background-color: #059669 !important; /* Emerald-600 ON */
+        }
+        html.light-theme input:checked + .toggle-switch-track,
+        html.light-theme input:checked ~ .toggle-switch-track,
+        html.light-theme .peer:checked ~ .toggle-switch-track {
+            background-color: #059669 !important;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.4) !important;
+        }
+    
+                                                        /* ==================== LIFTED SLATE / SOFT DARK THEME ("LIGHT MODE") ====================
+           Same vibrant concept as dark theme, with a lifted, eye-friendly slate background,
+           elevated cards, darker recessed well boxes, sleek obsidian buttons, and glowing neon accents.
+        */
+        html.light-theme, html.light-theme body {
+            background-color: #1a2233 !important; /* Soft, velvety lifted midnight-slate canvas */
+            color: #f8fafc !important;
+        }
+
+        /* Top Navigation Header */
+        html.light-theme header {
+            background-color: #212c40 !important;
+            border-bottom: 1px solid #36445d !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+        }
+        html.light-theme header [class*="bg-slate-950"] {
+            background-color: #161e2e !important;
+            border-color: #2e3c54 !important;
+        }
+        html.light-theme #header-domain {
+            color: #34d399 !important; /* Vivid Emerald */
+            font-weight: 800 !important;
+        }
+        html.light-theme #header-host {
+            color: #cbd5e1 !important;
+            font-weight: 700 !important;
+        }
+        html.light-theme #header-user {
+            color: #ffffff !important;
+            font-weight: 800 !important;
+        }
+
+        /* Sidebar Navigation */
+        html.light-theme aside {
+            background-color: #1f283a !important;
+            border-right: 1px solid #36445d !important;
+        }
+        html.light-theme aside nav button {
+            color: #cbd5e1 !important;
+            font-weight: 600 !important;
+        }
+        html.light-theme aside nav button:hover {
+            background-color: #2a374e !important;
+            color: #ffffff !important;
+        }
+        html.light-theme aside nav button.text-indigo-400,
+        html.light-theme aside nav button.bg-indigo-600\/10 {
+            background-color: rgba(99, 102, 241, 0.18) !important;
+            color: #a5b4fc !important; /* Electric Indigo */
+            border: 1.5px solid #818cf8 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.25) !important;
+        }
+        html.light-theme aside nav button.text-indigo-400 i {
+            color: #a5b4fc !important;
+        }
+        html.light-theme aside [class*="text-amber-500"],
+        html.light-theme aside [class*="text-amber-400"] {
+            color: #fbbf24 !important;
+            font-weight: 800 !important;
+        }
+
+        /* Hero Punchline Banner (Tab 1: Dashboard) */
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r,
+        html.light-theme div.relative.overflow-hidden.bg-gradient-to-r {
+            background: linear-gradient(135deg, #1e293b 0%, #1e1b4b 50%, #0f172a 100%) !important;
+            border: 1px solid #4338ca !important;
+            box-shadow: 0 4px 20px -2px rgba(67, 56, 202, 0.3) !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1,
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1 span:not(.bg-clip-text) {
+            color: #ffffff !important;
+            font-weight: 800 !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r h1 span.bg-clip-text {
+            background-image: linear-gradient(to right, #818cf8, #38bdf8, #34d399) !important;
+            color: transparent !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            font-weight: 800 !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r p {
+            color: #cbd5e1 !important;
+            font-weight: 500 !important;
+        }
+        html.light-theme #tab-dashboard > div.relative.overflow-hidden.bg-gradient-to-r [class*="bg-slate-950"] {
+            background-color: #141b29 !important; /* Recessed dark container */
+            border: 1px solid #334155 !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        }
+
+        /* Updates & Release Banner */
+        html.light-theme #tab-dashboard > div.bg-gradient-to-r.from-slate-900.via-indigo-950\/20,
+        html.light-theme .bg-gradient-to-r.via-indigo-950\/20 {
+            background: linear-gradient(135deg, #243044 0%, #1e1b4b 100%) !important;
+            border: 1px solid #4f46e5 !important;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25) !important;
+        }
+        html.light-theme .bg-violet-600\/20 {
+            background-color: rgba(124, 58, 237, 0.25) !important;
+            border: 1px solid #8b5cf6 !important;
+            color: #c4b5fd !important;
+        }
+        html.light-theme #dash-version-badge {
+            background-color: rgba(99, 102, 241, 0.25) !important;
+            border: 1px solid #818cf8 !important;
+            color: #a5b4fc !important;
+            font-weight: 800 !important;
+        }
+        html.light-theme #dash-update-summary {
+            color: #cbd5e1 !important;
+            font-weight: 600 !important;
+        }
+
+        /* Primary Elevated Card Containers */
+        html.light-theme [class*="bg-slate-900"] {
+            background-color: #243044 !important; /* Elevated blue-slate card panel */
+            border: 1px solid #384863 !important;
+            box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.35) !important;
+        }
+
+        /* ==================== INNER BOXES & SUB-PANELS (RECESSED DARK WELLS) ==================== */
+        html.light-theme [class*="bg-slate-950"],
+        html.light-theme [class*="bg-slate-850"],
+        html.light-theme #services-grid > div {
+            background-color: #182030 !important; /* Darker recessed box */
+            border: 1px solid #2f3c53 !important; /* Crisp defined structural border */
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        /* Box Labels (SERVER ROLE, PRIMARY REALM, NETBIOS, PID, RAM, PORTS) */
+        html.light-theme [class*="bg-slate-950"] span.uppercase,
+        html.light-theme [class*="bg-slate-950"] [class*="text-slate-500"],
+        html.light-theme #services-grid span.text-slate-400,
+        html.light-theme #services-grid .font-mono > div > span:first-child {
+            color: #94a3b8 !important; /* Crisp readable metadata label */
+            font-weight: 700 !important;
+        }
+
+        /* ==================== RESTART & ACTION BUTTONS (SLEEK OBSIDIAN) ==================== */
+        html.light-theme #services-grid button,
+        html.light-theme [id^="actions-"] button,
+        html.light-theme button[onclick*="controlService"] {
+            background-color: #0c121e !important; /* Sleek obsidian dark color */
+            color: #f8fafc !important; /* Crisp white text */
+            border: 1px solid #2a374e !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+        }
+        html.light-theme #services-grid button:hover,
+        html.light-theme [id^="actions-"] button:hover,
+        html.light-theme button[onclick*="controlService"]:hover {
+            background-color: #1e293b !important;
+            color: #38bdf8 !important; /* Electric cyan on hover */
+            border-color: #38bdf8 !important;
+        }
+        html.light-theme #services-grid button i,
+        html.light-theme [id^="actions-"] button i,
+        html.light-theme button[onclick*="controlService"] i {
+            color: #38bdf8 !important; /* Electric sky-blue spinning arrow */
+        }
+        html.light-theme #services-grid button:hover i,
+        html.light-theme [id^="actions-"] button:hover i {
+            color: #ffffff !important;
+        }
+
+        /* Secondary Buttons Outside Services Grid */
+        html.light-theme [class*="bg-slate-800"]:not([id^="actions-"] button) {
+            background-color: #1e283a !important;
+            border: 1px solid #36445d !important;
+            color: #f1f5f9 !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+        }
+        html.light-theme [class*="bg-slate-800"]:not([id^="actions-"] button):hover,
+        html.light-theme [class*="hover:bg-slate-700"]:not([id^="actions-"] button):hover,
+        html.light-theme [class*="hover:bg-slate-800"]:not([id^="actions-"] button):hover {
+            background-color: #2a374e !important;
+            border-color: #6366f1 !important;
+            color: #ffffff !important;
+        }
+
+        /* Solid Colored Action Buttons (Vibrant & Rich) */
+        html.light-theme .bg-emerald-600,
+        html.light-theme [class*="bg-emerald-600"] {
+            background-color: #059669 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(5, 150, 105, 0.4) !important;
+        }
+        html.light-theme .bg-amber-600,
+        html.light-theme [class*="bg-amber-600"] {
+            background-color: #d97706 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(217, 119, 6, 0.4) !important;
+        }
+        html.light-theme .bg-indigo-600,
+        html.light-theme [class*="bg-indigo-600"] {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4) !important;
+        }
+        html.light-theme .bg-rose-600,
+        html.light-theme [class*="bg-rose-600"] {
+            background-color: #e11d48 !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 8px rgba(225, 29, 72, 0.4) !important;
+        }
+
+        /* All Borders & Dividers */
+        html.light-theme [class*="border-slate-800"],
+        html.light-theme [class*="border-slate-700"],
+        html.light-theme [class*="border-slate-900"] {
+            border-color: #36445d !important;
+        }
+        html.light-theme [class*="divide-slate-800"],
+        html.light-theme [class*="divide-slate-700"] {
+            border-color: #36445d !important;
+        }
+
+        /* Resource Gauges Progress Bar Track */
+        html.light-theme .w-full.bg-slate-800.rounded-full,
+        html.light-theme [class*="bg-slate-800"].rounded-full {
+            background-color: #182030 !important;
+            border: 1px solid #2f3c53 !important;
+        }
+
+        /* ==================== VIBRANT GLOWING BADGES ==================== */
+        html.light-theme [class*="bg-emerald-950"],
+        html.light-theme [class*="bg-emerald-900"] {
+            background-color: rgba(6, 78, 59, 0.45) !important;
+            border: 1.5px solid #10b981 !important;
+            color: #34d399 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.25) !important;
+        }
+        html.light-theme [class*="bg-cyan-950"],
+        html.light-theme [class*="bg-cyan-900"] {
+            background-color: rgba(8, 51, 68, 0.5) !important;
+            border: 1.5px solid #06b6d4 !important;
+            color: #38bdf8 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.25) !important;
+        }
+        html.light-theme [class*="bg-indigo-950"],
+        html.light-theme [class*="bg-indigo-900"] {
+            background-color: rgba(49, 46, 129, 0.45) !important;
+            border: 1.5px solid #6366f1 !important;
+            color: #a5b4fc !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.25) !important;
+        }
+        html.light-theme [class*="bg-violet-950"] {
+            background-color: rgba(76, 29, 149, 0.45) !important;
+            border: 1.5px solid #8b5cf6 !important;
+            color: #c4b5fd !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(139, 92, 246, 0.25) !important;
+        }
+        html.light-theme [class*="bg-sky-950"],
+        html.light-theme [class*="bg-blue-950"] {
+            background-color: rgba(12, 74, 110, 0.5) !important;
+            border: 1.5px solid #0284c7 !important;
+            color: #38bdf8 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(2, 132, 199, 0.25) !important;
+        }
+        html.light-theme [class*="bg-amber-950"] {
+            background-color: rgba(120, 53, 15, 0.45) !important;
+            border: 1.5px solid #f59e0b !important;
+            color: #fbbf24 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.25) !important;
+        }
+        html.light-theme [class*="bg-rose-950"],
+        html.light-theme [class*="bg-rose-900"] {
+            background-color: rgba(136, 19, 55, 0.45) !important;
+            border: 1.5px solid #f43f5e !important;
+            color: #fb7185 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(244, 63, 94, 0.25) !important;
+        }
+
+        /* Delete Buttons in Tables */
+        html.light-theme [class*="bg-rose-950\/60"],
+        html.light-theme [class*="bg-rose-900"] button {
+            background-color: rgba(136, 19, 55, 0.4) !important;
+            border: 1.5px solid #f87171 !important;
+            color: #fb7185 !important;
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="bg-rose-950\/60"]:hover {
+            background-color: #e11d48 !important;
+            color: #ffffff !important;
+        }
+
+        /* Subtab Switchers (Radius, Users, DNS, Settings) */
+        html.light-theme .inline-flex[class*="bg-slate-950"] {
+            background-color: #182030 !important;
+            border-color: #2f3c53 !important;
+        }
+        html.light-theme [class*="bg-amber-600\/20"] {
+            background-color: rgba(217, 119, 6, 0.25) !important;
+            color: #fbbf24 !important;
+            border: 1.5px solid #f59e0b !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.2) !important;
+        }
+        html.light-theme [class*="bg-indigo-600\/20"] {
+            background-color: rgba(79, 70, 229, 0.25) !important;
+            color: #a5b4fc !important;
+            border: 1.5px solid #6366f1 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.2) !important;
+        }
+        html.light-theme [class*="bg-cyan-600\/20"] {
+            background-color: rgba(8, 145, 178, 0.25) !important;
+            color: #38bdf8 !important;
+            border: 1.5px solid #06b6d4 !important;
+            font-weight: 800 !important;
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.2) !important;
+        }
+
+        /* ==================== VIBRANT BOLD TEXTS ==================== */
+        html.light-theme .text-white,
+        html.light-theme [class*="text-slate-100"],
+        html.light-theme [class*="text-slate-200"],
+        html.light-theme h3,
+        html.light-theme h4 {
+            color: #ffffff !important; /* Pure white, bold */
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="text-slate-300"] {
+            color: #e2e8f0 !important; /* Bright soft slate */
+            font-weight: 600 !important;
+        }
+        html.light-theme [class*="text-slate-400"] {
+            color: #94a3b8 !important; /* Crisp Slate-400 */
+            font-weight: 600 !important;
+        }
+        html.light-theme [class*="text-slate-500"] {
+            color: #64748b !important; /* Slate-500 */
+            font-weight: 600 !important;
+        }
+
+        /* Rich, Glowing Bold Accent Colors */
+        html.light-theme [class*="text-indigo-400"],
+        html.light-theme [class*="text-indigo-300"] {
+            color: #a5b4fc !important; /* Electric Indigo (Primary Forest Root, DC Owners) */
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="text-emerald-400"],
+        html.light-theme [class*="text-emerald-300"] {
+            color: #34d399 !important; /* Vivid Emerald (UPN domains, PDC Role) */
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="text-cyan-400"],
+        html.light-theme [class*="text-cyan-300"] {
+            color: #38bdf8 !important; /* Electric Sky-Cyan (FQDN, Ports) */
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="text-amber-400"],
+        html.light-theme [class*="text-amber-300"] {
+            color: #fbbf24 !important; /* Vivid Amber-Gold (Domain SID, Crowns) */
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="text-rose-400"],
+        html.light-theme [class*="text-rose-300"] {
+            color: #fb7185 !important; /* Electric Rose */
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="text-sky-400"],
+        html.light-theme [class*="text-sky-300"] {
+            color: #38bdf8 !important;
+            font-weight: 800 !important;
+        }
+        html.light-theme [class*="text-violet-400"],
+        html.light-theme [class*="text-violet-300"] {
+            color: #c4b5fd !important;
+            font-weight: 800 !important;
+        }
+
+        /* Form Inputs, Selects & Textareas */
+        html.light-theme input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+        html.light-theme select,
+        html.light-theme textarea {
+            background-color: #182030 !important;
+            color: #ffffff !important;
+            border: 1px solid #36445d !important;
+            font-weight: 600 !important;
+        }
+        html.light-theme input::placeholder,
+        html.light-theme textarea::placeholder {
+            color: #64748b !important;
+        }
+        html.light-theme input:focus,
+        html.light-theme select:focus,
+        html.light-theme textarea:focus {
+            background-color: #182030 !important;
+            border-color: #818cf8 !important;
+            box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.3) !important;
+        }
+
+        /* Tables & Row Highlighting */
+        html.light-theme table thead tr,
+        html.light-theme table th,
+        html.light-theme [class*="bg-slate-900"] thead {
+            background-color: #182030 !important;
+            color: #cbd5e1 !important;
+            border-bottom: 2px solid #2f3c53 !important;
+            font-weight: 800 !important;
+        }
+        html.light-theme table tbody tr {
+            background-color: #202a3c !important;
+            border-bottom: 1px solid #2a374e !important;
+        }
+        html.light-theme table tbody tr:nth-child(even) {
+            background-color: #1b2434 !important;
+        }
+        html.light-theme table tbody tr:hover {
+            background-color: #293750 !important; /* Subtle indigo-slate tint on hover */
+        }
+        html.light-theme table td {
+            color: #f1f5f9 !important;
+            font-weight: 600 !important;
+        }
+
+        /* Modal Overlays & Dialogs */
+        html.light-theme .fixed.inset-0.bg-black\/80,
+        html.light-theme .fixed.inset-0.bg-black\/70,
+        html.light-theme .fixed.inset-0.bg-black\/60,
+        html.light-theme .fixed.inset-0.bg-black\/50 {
+            background-color: rgba(10, 15, 25, 0.8) !important;
+        }
+        html.light-theme .fixed.inset-0 > div,
+        html.light-theme .fixed.inset-0 > div > div {
+            background-color: #212c40 !important;
+            border: 1px solid #384863 !important;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6) !important;
+        }
+
+        /* Terminal & CLI Code Boxes */
+        html.light-theme pre.font-mono,
+        html.light-theme pre,
+        html.light-theme code.font-mono:not(header code):not(span code),
+        html.light-theme #drs-output,
+        html.light-theme #audit-raw-log-content {
+            background-color: #0c121e !important;
+            color: #38bdf8 !important;
+            border-color: #222d3f !important;
+            font-weight: 600 !important;
+        }
+
+        /* Theme Segmented Switch in Lifted Mode */
+        html.light-theme #theme-selector-container {
+            background-color: #161e2e !important;
+            border-color: #2e3c54 !important;
+        }
+
+        /* Custom Scrollbar */
+        html.light-theme .custom-scroll::-webkit-scrollbar-track { background: #1a2233; }
+        html.light-theme .custom-scroll::-webkit-scrollbar-thumb { background: #36445d; border-radius: 4px; }
+        html.light-theme .custom-scroll::-webkit-scrollbar-thumb:hover { background: #4f5f7a; }
