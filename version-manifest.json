@@ -1,12 +1,12 @@
 {
-  "version": "1.1.7",
-  "name": "ZclockID Enterprise v1.1.7",
+  "version": "1.1.8",
+  "name": "ZclockID Enterprise v1.1.8",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T19:25:00Z",
-  "summary": "Update SNMP Daemon card styling to Cyan to avoid alert state confusion",
-  "notes": "### What's Changed in v1.1.7:\n* **SNMP Daemon Dashboard Card Theme:** Changed the accent badge, hover effect, and UDP port color from red (`rose-400`) to cyan (`cyan-400`), cleanly distinguishing active daemon metadata from failure/error alerts.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.7_all.deb",
-  "package_name": "zclockid_1.1.7_all.deb",
+  "published_at": "2026-11-08T19:30:00Z",
+  "summary": "Update hero banner narrative under All Identity in One Place",
+  "notes": "### What's Changed in v1.1.8:\n* **Hero Banner Narrative:** Updated dashboard narrative text under 'All Identity in One Place' to highlight enterprise directory services, RADIUS-based 802.1X dynamic bandwidth controls, DNS-over-HTTPS, and multi-master file replication.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.1.8_all.deb",
+  "package_name": "zclockid_1.1.8_all.deb",
   "min_version_required": "1.0.0"
 }
