@@ -30,15 +30,20 @@ def normalize_port(port_str: str) -> str:
         return str(p)
 
 def normalize_source(source_str: str) -> str:
-    """Validates and normalizes source IP or CIDR subnet."""
-    s = source_str.strip()
-    if s.lower() in ("any", "all", "0.0.0.0/0", "::/0", "*", ""):
+    """Validates and normalizes source IP, CIDR subnet, or comma-separated list of IPs/CIDRs."""
+    if not source_str or not source_str.strip():
         return "Any"
-    try:
-        ipaddress.ip_network(s, strict=False)
-        return s
-    except ValueError as e:
-        raise ValueError(f"Invalid source IP or CIDR network '{s}': {str(e)}")
+    parts = [p.strip() for p in source_str.split(",") if p.strip()]
+    if not parts or any(p.lower() in ("any", "all", "0.0.0.0/0", "::/0", "*") for p in parts):
+        return "Any"
+    valid_cidrs = []
+    for item in parts:
+        try:
+            net = ipaddress.ip_network(item, strict=False)
+            valid_cidrs.append(str(net))
+        except ValueError as e:
+            raise ValueError(f"Invalid source IP or CIDR network '{item}': {str(e)}")
+    return ", ".join(valid_cidrs)
 
 DEFAULT_FIREWALL_RULES = [
     ("ALLOW", "TCP", "22", "Any", "Administrative SSH Access"),
@@ -166,14 +171,20 @@ def apply_firewall() -> Tuple[bool, str]:
         act = r["action"].lower()
         proto = r["protocol"].upper()
         clean_port = r["port"].replace("-", ":")
-        src = r["source"].strip()
+        src_str = r["source"].strip()
 
         protocols = ["tcp", "udp"] if proto == "BOTH" else [proto.lower()]
+        if src_str.lower() in ("any", "0.0.0.0/0", "all", "*", ""):
+            sources = ["Any"]
+        else:
+            sources = [s.strip() for s in src_str.split(",") if s.strip()]
+
         for p in protocols:
-            if src.lower() in ("any", "0.0.0.0/0", "all", "*"):
-                run_cmd(["ufw", act, f"{clean_port}/{p}"])
-            else:
-                run_cmd(["ufw", act, "from", src, "to", "any", "port", clean_port, "proto", p])
+            for s in sources:
+                if s.lower() in ("any", "0.0.0.0/0", "all", "*"):
+                    run_cmd(["ufw", act, f"{clean_port}/{p}"])
+                else:
+                    run_cmd(["ufw", act, "from", s, "to", "any", "port", clean_port, "proto", p])
 
     code, stdout, stderr = run_cmd(["ufw", "--force", "enable"])
     if code != 0:

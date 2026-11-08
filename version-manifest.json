@@ -1,12 +1,12 @@
 {
-  "version": "1.0.7",
-  "name": "ZclockID Enterprise v1.0.7",
+  "version": "1.0.8",
+  "name": "ZclockID Enterprise v1.0.8",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-08T09:25:00Z",
-  "summary": "Streamline OS Hardening card by removing duplicate SNMP settings and daemon telemetry",
-  "notes": "### What's Changed in v1.0.7:\n* **Deduplicate SNMP Configuration:** Removed redundant SNMP Read-Only Community String input and daemons telemetry indicators from the OS Hardening view, consolidating all SNMP configuration under the dedicated SNMP Telemetry tab.\n* **Focused OpenSSH Hardening:** Dedicated the OS hardening card strictly to OpenSSH root login and password authentication baselines.\n* **Firewall ON/OFF Toggle:** Interactive toggle switch with real-time state indicator and unified rules management.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.7_all.deb",
-  "package_name": "zclockid_1.0.7_all.deb",
+  "release_type": "feature",
+  "published_at": "2026-11-08T09:35:00Z",
+  "summary": "Consolidate network ACLs into Firewall rules with multi-subnet comma support and relocated anti-lockout guard",
+  "notes": "### What's Changed in v1.0.8:\n* **Centralized Firewall Protection:** Consolidated all network access ACLs under Appliance Host Firewall Rules. Removed redundant Allowed IP Subnets subtab.\n* **Multi-Subnet Support:** Firewall rules now support comma-separated IP subnets or CIDR ranges (e.g., `192.168.1.0/24, 10.10.0.0/24, 180.92.168.34/32`).\n* **Relocated Anti-Lockout Guard:** Moved detected client IP banner and zero-lockout indicator directly into the Firewall section.\n* **Client IP Helper:** Added 1-click '+ Add Current IP (/32)' button inside the Firewall Rule modal.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.8_all.deb",
+  "package_name": "zclockid_1.0.8_all.deb",
   "min_version_required": "1.0.0"
 }
