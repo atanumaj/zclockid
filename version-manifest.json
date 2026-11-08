@@ -1,12 +1,12 @@
 {
-  "version": "1.0.4",
-  "name": "ZclockID Enterprise v1.0.4",
+  "version": "1.0.5",
+  "name": "ZclockID Enterprise v1.0.5",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T08:55:00Z",
-  "summary": "Unified Firewall Rules table with full Edit/Delete permissions, search filtering, and 1-click Revert to Recommended Template",
-  "notes": "### What's Changed in v1.0.4:\n* **Unified Firewall Rules Table:** Consolidated all system port rules and custom rules into a single unified table for complete visibility.\n* **Full Rule Editing & Deletion:** Administrator has full authority to edit (protocol, action, port range, source CIDR, comment) or permanently delete any firewall rule, accommodating organization-specific blocking requirements even for native services.\n* **Revert to Recommended Baseline:** 1-click \"Revert to Default Template\" button allows restoring the 20 standard Active Directory domain controller baseline ports at any time.\n* **Live Rules Search & Filter:** Quick search box to filter firewall rules by port, protocol, source network, or service description in real time.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.4_all.deb",
-  "package_name": "zclockid_1.0.4_all.deb",
+  "published_at": "2026-11-08T09:10:00Z",
+  "summary": "Fix web management console navigation reactivity and finalize unified Firewall Rules management",
+  "notes": "### What's Changed in v1.0.5:\n* **Web UI Stability Fix:** Resolved a JavaScript syntax parsing issue in the web management console that caused navigation tabs to become unresponsive.\n* **Unified Firewall Rules Table:** Consolidated all system port rules and custom rules into a single unified table for complete visibility.\n* **Full Rule Editing & Deletion:** Administrator has full authority to edit (protocol, action, port range, source CIDR, comment) or permanently delete any firewall rule, accommodating organization-specific blocking requirements even for native services.\n* **Revert to Recommended Baseline:** 1-click \"Revert to Default Template\" button allows restoring the 20 standard Active Directory domain controller baseline ports at any time.\n* **Live Rules Search & Filter:** Quick search box to filter firewall rules by port, protocol, source network, or service description in real time.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.5_all.deb",
+  "package_name": "zclockid_1.0.5_all.deb",
   "min_version_required": "1.0.0"
 }
