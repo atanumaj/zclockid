@@ -1599,7 +1599,7 @@ def get_os_update_info():
     status_file = Path("/var/run/zclock-os-update.status")
     last_status = status_file.read_text().strip() if status_file.exists() else "IDLE"
 
-    code, stdout, _ = run_cmd(["pgrep", "-f", "zclock-os-updater.sh|apt-get|dpkg"])
+    code, stdout, _ = run_cmd(["pgrep", "-f", "zclock-os-updater.sh"])
     is_running = (code == 0 and len(stdout.strip()) > 0)
 
     reboot_file = Path("/var/run/reboot-required")
@@ -1612,12 +1612,32 @@ def get_os_update_info():
         except Exception:
             pass
 
+    status_mtime = status_file.stat().st_mtime if status_file.exists() else 0
+    cache_mtime = OS_PACKAGES_CACHE.stat().st_mtime if OS_PACKAGES_CACHE.exists() else 0
+
     cached_data = {}
-    if OS_PACKAGES_CACHE.exists():
+    if OS_PACKAGES_CACHE.exists() and (is_running or status_mtime <= cache_mtime):
         try:
             cached_data = json.loads(OS_PACKAGES_CACHE.read_text())
         except Exception:
             cached_data = {}
+
+    # Auto-refresh if cache is missing, empty, or invalidated by a completed upgrade
+    if not is_running and (not cached_data or status_mtime > cache_mtime):
+        try:
+            code, stdout, _ = run_cmd(["apt", "list", "--upgradable"])
+            if code == 0:
+                pkgs, sec_cnt = parse_upgradable_packages(stdout)
+                cached_data = {
+                    "packages": pkgs,
+                    "total_upgrades": len(pkgs),
+                    "security_upgrades": sec_cnt,
+                    "last_checked": time.time()
+                }
+                OS_PACKAGES_CACHE.parent.mkdir(parents=True, exist_ok=True)
+                OS_PACKAGES_CACHE.write_text(json.dumps(cached_data, indent=2))
+        except Exception:
+            pass
 
     packages = cached_data.get("packages", [])
     total_upgrades = cached_data.get("total_upgrades", len(packages))

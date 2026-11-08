@@ -31,6 +31,9 @@ log "Applying non-interactive Debian/Ubuntu package upgrades..."
 if apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade >> "${LOG_FILE}" 2>&1; then
     log "SUCCESS: System packages upgraded successfully."
     
+    # Invalidate stale package cache
+    rm -f /var/lib/zclockid/upgradable_packages.json 2>/dev/null || true
+
     # Check if a reboot is needed
     if [ -f "/var/run/reboot-required" ]; then
         log "NOTICE: System reboot is required to apply kernel or core system updates."

@@ -11307,8 +11307,27 @@
             const btnTop = document.getElementById('btn-upgrade-all-os');
             const btnTable = document.getElementById('btn-upgrade-os-table');
             const canUpgrade = total > 0 && !data.is_running;
-            if (btnTop) btnTop.disabled = !canUpgrade;
-            if (btnTable) btnTable.disabled = !canUpgrade;
+
+            if (btnTop) {
+                btnTop.disabled = !canUpgrade;
+                if (data.is_running) {
+                    btnTop.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Upgrading System...`;
+                } else if (total === 0) {
+                    btnTop.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Up to Date`;
+                } else {
+                    btnTop.innerHTML = `<i class="fa-solid fa-download"></i> Upgrade All System Packages`;
+                }
+            }
+            if (btnTable) {
+                btnTable.disabled = !canUpgrade;
+                if (data.is_running) {
+                    btnTable.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Upgrading System...`;
+                } else if (total === 0) {
+                    btnTable.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Up to Date`;
+                } else {
+                    btnTable.innerHTML = `<i class="fa-solid fa-download"></i> Upgrade All System Packages`;
+                }
+            }
 
             const rebootBanner = document.getElementById('os-reboot-banner');
             const rebootList = document.getElementById('os-reboot-pkgs-list');
@@ -11478,7 +11497,7 @@
                             osUpgradePollInterval = null;
                             setUpdateTerminalStatus('COMPLETE');
                             appendTerminalLog(`\n🎉 Debian/Ubuntu package upgrade completed! Final status: ${data.last_status}`);
-                            loadOsUpdateInfo();
+                            await checkOsPackages();
                         }
                     }
                 } catch (e) {
