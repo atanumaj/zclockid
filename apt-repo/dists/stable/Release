@@ -5,19 +5,19 @@ Codename: stable
 Architectures: amd64 all
 Components: main
 Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
-Date: Sun, 08 Nov 2026 10:07:12 UTC
+Date: Sun, 08 Nov 2026 10:15:09 UTC
 MD5Sum:
- 0931faaef72ae5ac315dd4b794acc0fb 15873 main/binary-amd64/Packages
- bdfea029e9733f64eb50b35818e225d5 2120 main/binary-amd64/Packages.gz
- 0931faaef72ae5ac315dd4b794acc0fb 15873 main/binary-all/Packages
- bdfea029e9733f64eb50b35818e225d5 2120 main/binary-all/Packages.gz
+ d8e141f7aee18360e57c4af7a4f2e26b 17094 main/binary-amd64/Packages
+ d98dd5e83912dbe8b17bca8f8020869f 2233 main/binary-amd64/Packages.gz
+ d8e141f7aee18360e57c4af7a4f2e26b 17094 main/binary-all/Packages
+ d98dd5e83912dbe8b17bca8f8020869f 2233 main/binary-all/Packages.gz
 SHA1:
- 6b7c29fbd337616b3e7ad155f7c3093d55c0f624 15873 main/binary-amd64/Packages
- 0a48ff6b46d0c64940be1e492dd08a640c482300 2120 main/binary-amd64/Packages.gz
- 6b7c29fbd337616b3e7ad155f7c3093d55c0f624 15873 main/binary-all/Packages
- 0a48ff6b46d0c64940be1e492dd08a640c482300 2120 main/binary-all/Packages.gz
+ cf237d0f3019f79373c85090b1696b72d805a222 17094 main/binary-amd64/Packages
+ 9bc1b8cb76695b92a2d1f9a8c26c8be967c9f939 2233 main/binary-amd64/Packages.gz
+ cf237d0f3019f79373c85090b1696b72d805a222 17094 main/binary-all/Packages
+ 9bc1b8cb76695b92a2d1f9a8c26c8be967c9f939 2233 main/binary-all/Packages.gz
 SHA256:
- e851ea62410eeb5fcbd430c971caf2778df57bf0f2132743942483919cde6c23 15873 main/binary-amd64/Packages
- e95b726134cc716ec4b32abe3c3c251b88861f8c6ae0b890314f65fb685c9489 2120 main/binary-amd64/Packages.gz
- e851ea62410eeb5fcbd430c971caf2778df57bf0f2132743942483919cde6c23 15873 main/binary-all/Packages
- e95b726134cc716ec4b32abe3c3c251b88861f8c6ae0b890314f65fb685c9489 2120 main/binary-all/Packages.gz
+ 21edf68e8a15d10b4011345d618969dee3909a930c3e91f0cd8bf6136d8141f1 17094 main/binary-amd64/Packages
+ cea75e98503daca1b6c15ec6f25745e63c64d0f38bec215dead9736a7d084ac6 2233 main/binary-amd64/Packages.gz
+ 21edf68e8a15d10b4011345d618969dee3909a930c3e91f0cd8bf6136d8141f1 17094 main/binary-all/Packages
+ cea75e98503daca1b6c15ec6f25745e63c64d0f38bec215dead9736a7d084ac6 2233 main/binary-all/Packages.gz

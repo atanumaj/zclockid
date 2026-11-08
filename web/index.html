@@ -545,31 +545,31 @@
         <!-- Sidebar Navigation -->
         <aside class="w-64 border-r border-slate-800 bg-slate-900/50 flex flex-col justify-between p-4 shrink-0 overflow-y-auto custom-scroll">
             <nav class="space-y-1 text-xs font-medium">
-                <button onclick="showTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-indigo-400 bg-indigo-600/10 border border-indigo-500/20 font-semibold transition text-left">
+                <button onclick="showTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-indigo-500/40 text-indigo-300 bg-indigo-600/20 font-semibold shadow-sm transition text-left">
                     <i class="fa-solid fa-gauge-high w-4"></i> Dashboard
                 </button>
-                <button onclick="showTab('domain')" id="nav-domain" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('domain')" id="nav-domain" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-network-wired w-4"></i> Domain & Forest Config
                 </button>
-                <button onclick="showTab('ntp')" id="nav-ntp" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('ntp')" id="nav-ntp" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-clock w-4"></i> NTP Time Server
                 </button>
-                <button onclick="showTab('users')" id="nav-users" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('users')" id="nav-users" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-users-gear w-4"></i> Users, Groups & Computers
                 </button>
-                <button onclick="showTab('dns')" id="nav-dns" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('dns')" id="nav-dns" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-server w-4"></i> DNS & Kerberos SRV
                 </button>
-                <button onclick="showTab('radius')" id="nav-radius" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('radius')" id="nav-radius" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-tower-broadcast w-4"></i> Radius
                 </button>
-                <button onclick="showTab('sysvol')" id="nav-sysvol" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('sysvol')" id="nav-sysvol" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-folder-tree w-4"></i> Sysvol Guardian
                 </button>
-                <button onclick="showTab('azure')" id="nav-azure" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('azure')" id="nav-azure" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-cloud w-4"></i> Azure Cloud Sync
                 </button>
-                <button onclick="showTab('registrations')" id="nav-registrations" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                <button onclick="showTab('registrations')" id="nav-registrations" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                     <i class="fa-solid fa-user-clock w-4"></i> Self-Registrations
                 </button>
                 <button onclick="showTab('syslog'); switchLogsSubTab('compliance');" id="nav-reports" class="hidden"></button>
@@ -582,28 +582,28 @@
                     <i id="nav-group-security-chevron" class="fa-solid fa-chevron-down text-[9px] text-slate-500 group-hover:text-slate-300 transition-transform duration-200"></i>
                 </button>
                 <div id="nav-group-security-items" class="space-y-1 pl-1">
-                    <button onclick="showTab('rbac')" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('rbac')" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-user-shield w-4 text-amber-400"></i> Access Control & RBAC
                     </button>
-                    <button onclick="showTab('apikeys')" id="nav-apikeys" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('apikeys')" id="nav-apikeys" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-key w-4 text-yellow-400"></i> API Keys & Tokens
                     </button>
-                    <button onclick="showTab('certs')" id="nav-certs" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('certs')" id="nav-certs" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-certificate w-4 text-teal-400"></i> SSL/TLS Certificates
                     </button>
-                    <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-file-shield w-4 text-sky-400"></i> Compliance & Live Logs
                     </button>
-                    <button onclick="showTab('federation')" id="nav-federation" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('federation')" id="nav-federation" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-id-badge w-4 text-purple-400"></i> IAM & Keycloak SSO
                     </button>
-                    <button onclick="showTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-box-archive w-4 text-emerald-400"></i> Backup & Restore
                     </button>
-                    <button onclick="showTab('snmp')" id="nav-snmp" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('snmp')" id="nav-snmp" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-satellite-dish w-4 text-cyan-400"></i> SNMP & Telemetry
                     </button>
-                    <button onclick="showTab('update')" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition text-left">
+                    <button onclick="showTab('update')" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left">
                         <i class="fa-solid fa-arrows-rotate w-4 text-violet-400"></i> Software Updates
                         <span id="nav-update-badge" class="hidden ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-violet-600 text-white animate-pulse">UPDATE</span>
                     </button>
@@ -6824,6 +6824,15 @@
         }
 
         // Tab Navigation
+        const NAV_ACTIVE_CLASSES = ['text-indigo-300', 'bg-indigo-600/20', 'border-indigo-500/40', 'font-semibold', 'shadow-sm'];
+        const NAV_INACTIVE_CLASSES = ['text-slate-400', 'border-transparent', 'hover:text-slate-200', 'hover:bg-slate-800/50', 'font-medium'];
+        const NAV_ALL_MUTABLE_CLASSES = [
+            'text-indigo-400', 'text-indigo-300', 'bg-indigo-600/10', 'bg-indigo-600/15', 'bg-indigo-600/20',
+            'border-indigo-500/20', 'border-indigo-500/30', 'border-indigo-500/40', 'border-transparent',
+            'text-slate-400', 'hover:text-slate-200', 'hover:bg-slate-800/50', 'font-semibold', 'font-medium',
+            'shadow-sm'
+        ];
+
         function showTab(tabId) {
             if (tabId === 'reports') {
                 showTab('syslog');
@@ -6836,8 +6845,8 @@
                 const nav = document.getElementById(`nav-${t}`);
                 if (el) el.classList.add('hidden');
                 if (nav) {
-                    nav.classList.remove('text-indigo-400', 'bg-indigo-600/10', 'border-indigo-500/20', 'font-semibold');
-                    nav.classList.add('text-slate-400');
+                    NAV_ALL_MUTABLE_CLASSES.forEach(c => nav.classList.remove(c));
+                    NAV_INACTIVE_CLASSES.forEach(c => nav.classList.add(c));
                 }
             });
 
@@ -6845,8 +6854,8 @@
             const activeNav = document.getElementById(`nav-${tabId}`);
             if (activeEl) activeEl.classList.remove('hidden');
             if (activeNav) {
-                activeNav.classList.remove('text-slate-400');
-                activeNav.classList.add('text-indigo-400', 'bg-indigo-600/10', 'border-indigo-500/20', 'font-semibold');
+                NAV_ALL_MUTABLE_CLASSES.forEach(c => activeNav.classList.remove(c));
+                NAV_ACTIVE_CLASSES.forEach(c => activeNav.classList.add(c));
             }
 
             if (['rbac', 'apikeys', 'certs', 'syslog', 'backup', 'snmp', 'update', 'federation'].includes(tabId)) {
