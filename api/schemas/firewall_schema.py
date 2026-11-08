@@ -6,7 +6,15 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 
 class FirewallToggleRequest(BaseModel):
-    is_enabled: bool
+    is_enabled: Optional[bool] = None
+    enabled: Optional[bool] = None
+
+    def target_state(self) -> bool:
+        if self.is_enabled is not None:
+            return bool(self.is_enabled)
+        if self.enabled is not None:
+            return bool(self.enabled)
+        return False
 
 class FirewallRuleRequest(BaseModel):
     action: str = Field(default="ALLOW", description="ALLOW or DENY")

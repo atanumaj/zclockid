@@ -269,10 +269,12 @@ def get_firewall_overview(user: dict = Depends(require_admin)):
 @router.post("/firewall/toggle")
 def toggle_firewall(req: FirewallToggleRequest, user: dict = Depends(require_admin)):
     """Switches the host firewall master state ON or OFF."""
-    success, msg = toggle_firewall_state(req.is_enabled)
+    state = req.target_state()
+    success, msg = toggle_firewall_state(state)
     if not success:
         raise HTTPException(status_code=500, detail=msg)
-    return {"status": "success", "is_enabled": req.is_enabled, "message": msg}
+    log_audit("FIREWALL_TOGGLE", user["username"], "ufw", "SUCCESS", {"state": state})
+    return {"status": "success", "is_enabled": state, "message": msg}
 
 @router.post("/firewall/rules")
 def create_firewall_rule(req: FirewallRuleRequest, user: dict = Depends(require_admin)):

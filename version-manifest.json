@@ -1,12 +1,12 @@
 {
-  "version": "1.0.5",
-  "name": "ZclockID Enterprise v1.0.5",
+  "version": "1.0.6",
+  "name": "ZclockID Enterprise v1.0.6",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T09:10:00Z",
-  "summary": "Fix web management console navigation reactivity and finalize unified Firewall Rules management",
-  "notes": "### What's Changed in v1.0.5:\n* **Web UI Stability Fix:** Resolved a JavaScript syntax parsing issue in the web management console that caused navigation tabs to become unresponsive.\n* **Unified Firewall Rules Table:** Consolidated all system port rules and custom rules into a single unified table for complete visibility.\n* **Full Rule Editing & Deletion:** Administrator has full authority to edit (protocol, action, port range, source CIDR, comment) or permanently delete any firewall rule, accommodating organization-specific blocking requirements even for native services.\n* **Revert to Recommended Baseline:** 1-click \"Revert to Default Template\" button allows restoring the 20 standard Active Directory domain controller baseline ports at any time.\n* **Live Rules Search & Filter:** Quick search box to filter firewall rules by port, protocol, source network, or service description in real time.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.5_all.deb",
-  "package_name": "zclockid_1.0.5_all.deb",
+  "published_at": "2026-11-08T09:20:00Z",
+  "summary": "Fix Firewall ON/OFF toggle switch request payload and update label to Firewall (ON/OFF) Toggle Switch",
+  "notes": "### What's Changed in v1.0.6:\n* **Firewall (ON/OFF) Toggle Fix:** Fixed payload parameter serialization (`is_enabled` and `enabled`) so toggling the master firewall switch between ON and OFF updates smoothly in real time without validation errors.\n* **Interactive Toggle State Label:** Renamed control to \"Firewall (ON/OFF) - Toggle Switch\" and added dynamic live ON/OFF indicator badge.\n* **Unified Firewall Rules Table:** Single unified table for all system and custom port access rules with full CRUD and 1-click restore to recommended baseline.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.6_all.deb",
+  "package_name": "zclockid_1.0.6_all.deb",
   "min_version_required": "1.0.0"
 }

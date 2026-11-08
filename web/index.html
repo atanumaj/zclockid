@@ -3916,13 +3916,14 @@
                                 <button onclick="openFirewallRuleModal()" id="btn-add-fw-rule" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-rose-600/30 transition flex items-center gap-1.5">
                                     <i class="fa-solid fa-plus"></i> Add Rule
                                 </button>
-                                <!-- Master Firewall Switch -->
+                                <!-- Firewall (ON/OFF) Toggle Switch -->
                                 <div class="flex items-center gap-2.5 bg-slate-950/60 px-3.5 py-1.5 rounded-xl border border-slate-800">
-                                    <span class="text-xs font-semibold text-slate-300">Master Switch:</span>
+                                    <span class="text-xs font-semibold text-slate-300">Firewall (ON/OFF) - Toggle Switch:</span>
                                     <label class="relative inline-flex items-center cursor-pointer">
                                         <input type="checkbox" id="fw-master-toggle" class="sr-only peer" onchange="toggleFirewallMaster(this.checked)">
                                         <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                                     </label>
+                                    <span id="fw-toggle-state-text" class="text-xs font-mono font-bold text-slate-400">OFF</span>
                                 </div>
                             </div>
                         </div>
@@ -12893,6 +12894,13 @@
                 // Master switch
                 const toggle = document.getElementById('fw-master-toggle');
                 if (toggle) toggle.checked = !!data.is_enabled;
+                const stateText = document.getElementById('fw-toggle-state-text');
+                if (stateText) {
+                    stateText.innerText = data.is_enabled ? 'ON' : 'OFF';
+                    stateText.className = data.is_enabled
+                        ? 'text-xs font-mono font-bold text-emerald-400'
+                        : 'text-xs font-mono font-bold text-slate-400';
+                }
 
                 // Status badge
                 const badge = document.getElementById('fw-status-badge');
@@ -13011,11 +13019,13 @@
         }
 
         async function toggleFirewallMaster(enable) {
+            const stateText = document.getElementById('fw-toggle-state-text');
+            if (stateText) stateText.innerText = enable ? 'ENABLING...' : 'DISABLING...';
             try {
                 const res = await fetch(`${API_BASE}/security/firewall/toggle`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
-                    body: JSON.stringify({ enabled: enable })
+                    body: JSON.stringify({ is_enabled: enable, enabled: enable })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Failed to toggle firewall state');
