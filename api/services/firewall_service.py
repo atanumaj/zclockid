@@ -40,6 +40,29 @@ def normalize_source(source_str: str) -> str:
     except ValueError as e:
         raise ValueError(f"Invalid source IP or CIDR network '{s}': {str(e)}")
 
+DEFAULT_FIREWALL_RULES = [
+    ("ALLOW", "TCP", "22", "Any", "Administrative SSH Access"),
+    ("ALLOW", "TCP", "443", "Any", "Web Console HTTPS Access"),
+    ("ALLOW", "TCP", "80", "Any", "Web Console HTTP Redirect"),
+    ("ALLOW", "BOTH", "53", "Any", "DNS Server (BIND9 DLZ / DoH)"),
+    ("ALLOW", "BOTH", "88", "Any", "Active Directory Kerberos KDC"),
+    ("ALLOW", "BOTH", "464", "Any", "Kerberos Password Change (kpasswd)"),
+    ("ALLOW", "BOTH", "389", "Any", "Active Directory LDAP Directory Service"),
+    ("ALLOW", "TCP", "636", "Any", "Active Directory Secure LDAP (LDAPS)"),
+    ("ALLOW", "TCP", "3268", "Any", "Active Directory Global Catalog (GC)"),
+    ("ALLOW", "TCP", "3269", "Any", "Active Directory Secure Global Catalog"),
+    ("ALLOW", "TCP", "445", "Any", "Active Directory SMB & Sysvol Replication"),
+    ("ALLOW", "TCP", "139", "Any", "NetBIOS Session Service"),
+    ("ALLOW", "UDP", "137", "Any", "NetBIOS Name Service (NBNS)"),
+    ("ALLOW", "UDP", "138", "Any", "NetBIOS Datagram Service"),
+    ("ALLOW", "TCP", "135", "Any", "MS-RPC Endpoint Mapper"),
+    ("ALLOW", "TCP", "49152:65535", "Any", "Active Directory RPC Dynamic Ports"),
+    ("ALLOW", "UDP", "1812", "Any", "FreeRADIUS 802.1X Authentication"),
+    ("ALLOW", "UDP", "1813", "Any", "FreeRADIUS Session Accounting"),
+    ("ALLOW", "UDP", "123", "Any", "Chrony Enterprise NTP Server"),
+    ("ALLOW", "UDP", "161", "Any", "Net-SNMP Appliance Telemetry"),
+]
+
 def is_ufw_installed() -> bool:
     code, _, _ = run_cmd(["which", "ufw"])
     return code == 0
@@ -58,7 +81,7 @@ def get_live_ufw_status() -> str:
     return "inactive"
 
 def get_firewall_status() -> Dict[str, Any]:
-    """Returns stored firewall configuration, custom and system rules, and live kernel enforcement status."""
+    """Returns stored firewall configuration, unified rules list, and live kernel enforcement status."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -69,21 +92,16 @@ def get_firewall_status() -> Dict[str, Any]:
     def_in = settings_row["default_incoming"] if settings_row else "DENY"
     def_out = settings_row["default_outgoing"] if settings_row else "ALLOW"
 
-    cursor.execute("SELECT * FROM firewall_rules ORDER BY rule_type DESC, id ASC")
+    cursor.execute("SELECT * FROM firewall_rules ORDER BY id ASC")
     rows = cursor.fetchall()
     conn.close()
 
     rules = []
-    custom_count = 0
-    system_count = 0
-
+    active_count = 0
     for r in rows:
-        is_custom = (r["rule_type"] == "custom")
-        if is_custom:
-            custom_count += 1
-        else:
-            system_count += 1
-
+        enabled = bool(r["is_enabled"])
+        if enabled:
+            active_count += 1
         rules.append({
             "id": r["id"],
             "rule_type": r["rule_type"],
@@ -92,7 +110,7 @@ def get_firewall_status() -> Dict[str, Any]:
             "port": r["port"],
             "source": r["source"],
             "comment": r["comment"] or "",
-            "is_enabled": bool(r["is_enabled"]),
+            "is_enabled": enabled,
             "created_at": r["created_at"],
             "updated_at": r["updated_at"]
         })
@@ -104,8 +122,8 @@ def get_firewall_status() -> Dict[str, Any]:
         "live_status": live_status,
         "default_incoming": def_in,
         "default_outgoing": def_out,
-        "custom_rules_count": custom_count,
-        "system_rules_count": system_count,
+        "total_rules_count": len(rules),
+        "active_rules_count": active_count,
         "rules": rules
     }
 
@@ -138,11 +156,12 @@ def apply_firewall() -> Tuple[bool, str]:
     run_cmd(["ufw", "default", "deny", "incoming"])
     run_cmd(["ufw", "default", "allow", "outgoing"])
 
-    # SAFETY GUARANTEE: Never lock administrator out of SSH or Web Console
-    run_cmd(["ufw", "allow", "22/tcp"])
-    run_cmd(["ufw", "allow", "443/tcp"])
+    # Fallback safety: If active_rules is completely empty, prevent hard lockout on SSH
+    if len(active_rules) == 0:
+        run_cmd(["ufw", "allow", "22/tcp"])
+        run_cmd(["ufw", "allow", "443/tcp"])
 
-    # Apply database rules
+    # Apply database rules in order
     for r in active_rules:
         act = r["action"].lower()
         proto = r["protocol"].upper()
@@ -163,6 +182,21 @@ def apply_firewall() -> Tuple[bool, str]:
 
     log_audit("FIREWALL_APPLIED", "admin", "ufw", "SUCCESS", {"rules_applied": len(active_rules)})
     return True, f"Firewall activated successfully! Default incoming denied. {len(active_rules)} port rules enforced."
+
+def reset_to_default_template() -> Tuple[bool, str]:
+    """Wipes all current rules and resets to the recommended baseline template required for ZclockID functions."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM firewall_rules")
+    now = time.time()
+    for action, proto, port, src, comment in DEFAULT_FIREWALL_RULES:
+        cursor.execute("""
+            INSERT INTO firewall_rules (rule_type, action, protocol, port, source, comment, is_enabled, created_at, updated_at)
+            VALUES ('standard', ?, ?, ?, ?, ?, 1, ?, ?)
+        """, (action, proto, port, src, comment, now, now))
+    conn.commit()
+    conn.close()
+    return apply_firewall()
 
 def toggle_firewall_state(enable: bool) -> Tuple[bool, str]:
     conn = sqlite3.connect(DB_PATH)
@@ -189,7 +223,7 @@ def add_custom_rule(action: str, protocol: str, port: str, source: str, comment:
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO firewall_rules (rule_type, action, protocol, port, source, comment, is_enabled, created_at, updated_at)
-        VALUES ('custom', ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES ('rule', ?, ?, ?, ?, ?, ?, ?, ?)
     """, (action, protocol, norm_port, norm_source, comment.strip(), 1 if is_enabled else 0, now, now))
     rule_id = cursor.lastrowid
     conn.commit()
@@ -229,15 +263,6 @@ def update_rule(rule_id: int, action: str, protocol: str, port: str, source: str
 def delete_rule(rule_id: int) -> bool:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT rule_type FROM firewall_rules WHERE id = ?", (rule_id,))
-    row = cursor.fetchone()
-    if not row:
-        conn.close()
-        return False
-    if row[0] == "system":
-        conn.close()
-        raise ValueError("System autoprotect rules cannot be deleted. You can disable them instead.")
-
     cursor.execute("DELETE FROM firewall_rules WHERE id = ?", (rule_id,))
     deleted = cursor.rowcount > 0
     conn.commit()

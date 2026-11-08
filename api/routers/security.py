@@ -36,7 +36,8 @@ from api.services.firewall_service import (
     update_rule,
     delete_rule,
     toggle_rule,
-    apply_firewall
+    apply_firewall,
+    reset_to_default_template
 )
 
 router = APIRouter(prefix="/api/v1/security", tags=["System Security & Access Controls"])
@@ -340,4 +341,17 @@ def force_reapply_firewall(user: dict = Depends(require_admin)):
     if not success:
         raise HTTPException(status_code=500, detail=msg)
     return {"status": "success", "message": msg}
+
+@router.post("/firewall/reset-template")
+def reset_firewall_rules_template(user: dict = Depends(require_admin)):
+    """Wipes all current rules and resets to the factory recommended template required for ZclockID domain controller functions."""
+    try:
+        success, msg = reset_to_default_template()
+        if not success:
+            raise HTTPException(status_code=500, detail=msg)
+        log_audit("FIREWALL_RESET_TEMPLATE", user["username"], "ufw", "SUCCESS", {})
+        return {"status": "success", "message": "Firewall rules reset to recommended baseline template."}
+    except Exception as e:
+        log_audit("FIREWALL_RESET_TEMPLATE", user["username"], "ufw", "FAILED", {"error": str(e)})
+        raise HTTPException(status_code=500, detail=f"Failed to reset rules template: {str(e)}")
 
