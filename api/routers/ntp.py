@@ -67,7 +67,14 @@ def get_ntp_status():
                 })
 
     code_ss, out_ss, _ = run_cmd(["ss", "-ulpn"])
-    is_server_listening = (code_ss == 0 and ":123 " in out_ss and "chronyd" in out_ss)
+    has_allow_rule = False
+    if ZCLOCK_NTP_CONF.exists():
+        try:
+            conf_text = ZCLOCK_NTP_CONF.read_text()
+            has_allow_rule = any(line.strip().startswith("allow") for line in conf_text.splitlines())
+        except Exception:
+            pass
+    is_server_listening = (code_ss == 0 and (":123 " in out_ss or ":ntp " in out_ss)) or has_allow_rule
 
     return {
         "service_active": ntp_active,

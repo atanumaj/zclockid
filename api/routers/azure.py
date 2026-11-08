@@ -108,6 +108,12 @@ def update_azure_sync_config(cfg: AzureSyncConfig):
     with open(AZURE_CONFIG_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
+    if cfg.enabled:
+        run_cmd(["systemctl", "enable", "--now", "zclock-azuresync"])
+    else:
+        run_cmd(["systemctl", "stop", "zclock-azuresync"])
+        run_cmd(["systemctl", "disable", "zclock-azuresync"])
+
     log_audit("AZURE_CONFIG_UPDATED", "admin", "azure_sync", "SUCCESS", {
         "tenant_id": cfg.tenant_id,
         "enabled": cfg.enabled,
