@@ -141,6 +141,55 @@ def launch_update_runner(updater_script: str, deb_path: Path):
             start_new_session=True
         )
 
+def ensure_os_updater_script():
+    installed_path = "/opt/zclockid/scripts/zclock-os-updater.sh"
+    if os.path.exists(installed_path):
+        return installed_path
+    repo_path = "/Users/atanu/Documents/GitHub/ZclockID/scripts/zclock-os-updater.sh"
+    if os.path.exists(repo_path):
+        return repo_path
+    fallback_path = "/tmp/zclock-os-updater.sh"
+    updater_script_content = """#!/usr/bin/env bash
+set -o pipefail
+LOG_FILE="/var/log/zclock-os-update.log"
+STATUS_FILE="/var/run/zclock-os-update.status"
+echo "UPGRADING" > "${STATUS_FILE}"
+echo "=== ZclockID Debian/Ubuntu OS Package Upgrade Initiated at $(date) ===" > "${LOG_FILE}"
+export DEBIAN_FRONTEND=noninteractive
+export APT_LISTCHANGES_FRONTEND=none
+apt-get update >> "${LOG_FILE}" 2>&1
+if apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade >> "${LOG_FILE}" 2>&1; then
+    if [ -f "/var/run/reboot-required" ]; then
+        echo "COMPLETED_REBOOT_REQUIRED" > "${STATUS_FILE}"
+    else
+        echo "COMPLETED" > "${STATUS_FILE}"
+    fi
+else
+    apt-get install -f -y >> "${LOG_FILE}" 2>&1 || true
+    echo "FAILED" > "${STATUS_FILE}"
+fi
+"""
+    with open(fallback_path, "w") as f:
+        f.write(updater_script_content)
+    os.chmod(fallback_path, 0o755)
+    return fallback_path
+
+def launch_os_update_runner(updater_script: str, mode: str = "all"):
+    code, _, _ = run_cmd(["which", "systemd-run"])
+    if code == 0:
+        subprocess.run(
+            ["systemd-run", "/bin/bash", updater_script, mode],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    else:
+        subprocess.Popen(
+            ["/bin/bash", updater_script, mode],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+
 def read_manifest_from_tar(tar_path: Path) -> Optional[dict]:
     try:
         with tarfile.open(tar_path, "r:gz") as tar:
@@ -1497,4 +1546,155 @@ def get_update_log():
         "lines": content.splitlines()[-100:],
         "size": len(content)
     }
+
+
+# ----------------- Debian / Ubuntu OS Package Manager -----------------
+
+OS_PACKAGES_CACHE = Path("/var/lib/zclockid/upgradable_packages.json")
+
+def parse_upgradable_packages(raw_stdout: str):
+    packages = []
+    security_count = 0
+    for line in raw_stdout.splitlines():
+        line = line.strip()
+        if not line or line.startswith("Listing"):
+            continue
+        m = re.match(r"^([^/\s]+)/([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+\[upgradable from:\s*([^\]]+)\]", line)
+        if m:
+            pkg_name = m.group(1)
+            suite = m.group(2)
+            cand_ver = m.group(3)
+            arch = m.group(4)
+            curr_ver = m.group(5)
+            is_sec = "security" in suite.lower()
+            if is_sec:
+                security_count += 1
+
+            cat = "General"
+            if any(pkg_name.startswith(p) for p in ["linux-image", "linux-headers", "linux-generic", "linux-modules", "linux-tools"]):
+                cat = "Kernel"
+            elif any(pkg_name.startswith(p) for p in ["openssl", "libssl", "ca-certificates", "gnutls", "krb5"]):
+                cat = "Security / Crypto"
+            elif any(pkg_name.startswith(p) for p in ["systemd", "udev", "netplan", "init", "base-files", "libc", "apparmor"]):
+                cat = "Core System"
+            elif any(pkg_name.startswith(p) for p in ["samba", "winbind", "bind9", "freeradius"]):
+                cat = "Directory / DNS"
+            elif any(pkg_name.startswith(p) for p in ["python"]):
+                cat = "Python Runtime"
+
+            packages.append({
+                "name": pkg_name,
+                "suite": suite,
+                "candidate_version": cand_ver,
+                "current_version": curr_ver,
+                "arch": arch,
+                "is_security": is_sec,
+                "category": cat
+            })
+    return packages, security_count
+
+@router.get("/api/v1/system/os-updates/info")
+def get_os_update_info():
+    """Returns cached list of upgradable system packages and background upgrade state."""
+    status_file = Path("/var/run/zclock-os-update.status")
+    last_status = status_file.read_text().strip() if status_file.exists() else "IDLE"
+
+    code, stdout, _ = run_cmd(["pgrep", "-f", "zclock-os-updater.sh|apt-get|dpkg"])
+    is_running = (code == 0 and len(stdout.strip()) > 0)
+
+    reboot_file = Path("/var/run/reboot-required")
+    reboot_required = reboot_file.exists()
+    reboot_pkgs = []
+    reboot_pkgs_file = Path("/var/run/reboot-required.pkgs")
+    if reboot_pkgs_file.exists():
+        try:
+            reboot_pkgs = [p.strip() for p in reboot_pkgs_file.read_text().splitlines() if p.strip()]
+        except Exception:
+            pass
+
+    cached_data = {}
+    if OS_PACKAGES_CACHE.exists():
+        try:
+            cached_data = json.loads(OS_PACKAGES_CACHE.read_text())
+        except Exception:
+            cached_data = {}
+
+    packages = cached_data.get("packages", [])
+    total_upgrades = cached_data.get("total_upgrades", len(packages))
+    security_upgrades = cached_data.get("security_upgrades", 0)
+    last_checked = cached_data.get("last_checked", 0)
+
+    return {
+        "is_running": is_running,
+        "last_status": last_status,
+        "reboot_required": reboot_required,
+        "reboot_packages": reboot_pkgs,
+        "total_upgrades": total_upgrades,
+        "security_upgrades": security_upgrades,
+        "last_checked": last_checked,
+        "packages": packages
+    }
+
+@router.post("/api/v1/system/os-updates/check")
+def check_os_updates():
+    """Refreshes APT cache and queries for all upgradable Debian / Ubuntu OS packages."""
+    code, stdout, _ = run_cmd(["pgrep", "-f", "zclock-os-updater.sh|apt-get|dpkg"])
+    if code == 0 and len(stdout.strip()) > 0:
+        raise HTTPException(status_code=409, detail="A package management or update task is currently running.")
+
+    run_cmd(["apt-get", "update"])
+
+    code, stdout, stderr = run_cmd(["apt", "list", "--upgradable"])
+    if code != 0:
+        code, stdout, stderr = run_cmd(["apt-get", "-s", "dist-upgrade"])
+
+    packages, security_count = parse_upgradable_packages(stdout)
+    now = time.time()
+
+    cache_payload = {
+        "status": "success",
+        "total_upgrades": len(packages),
+        "security_upgrades": security_count,
+        "packages": packages,
+        "last_checked": now
+    }
+
+    try:
+        OS_PACKAGES_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        OS_PACKAGES_CACHE.write_text(json.dumps(cache_payload, indent=2))
+    except Exception:
+        pass
+
+    log_audit("OS_UPDATES_CHECKED", "admin", "apt", "SUCCESS", {"total": len(packages), "security": security_count})
+    return cache_payload
+
+@router.post("/api/v1/system/os-updates/upgrade")
+def trigger_os_upgrade():
+    """Initiates background non-interactive Debian / Ubuntu OS package upgrade."""
+    code, stdout, _ = run_cmd(["pgrep", "-f", "zclock-os-updater.sh|apt-get|dpkg"])
+    if code == 0 and len(stdout.strip()) > 0:
+        raise HTTPException(status_code=409, detail="A package management or upgrade operation is already running.")
+
+    updater_script = ensure_os_updater_script()
+    launch_os_update_runner(updater_script, "all")
+    log_audit("OS_UPGRADE_STARTED", "admin", "apt", "STARTED", {})
+
+    return {
+        "status": "started",
+        "message": "Debian/Ubuntu system package upgrade initiated in background. You can monitor the terminal log below."
+    }
+
+@router.get("/api/v1/system/os-updates/log")
+def get_os_update_log():
+    """Returns the live output log from /var/log/zclock-os-update.log."""
+    log_file = Path("/var/log/zclock-os-update.log")
+    if not log_file.exists():
+        return {"log": "No system update log found. No upgrades have been executed yet.", "lines": []}
+    content = log_file.read_text()
+    return {
+        "log": content,
+        "lines": content.splitlines()[-150:],
+        "size": len(content)
+    }
+
 

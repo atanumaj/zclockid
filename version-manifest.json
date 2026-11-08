@@ -1,12 +1,12 @@
 {
-  "version": "1.0.1",
-  "name": "ZclockID Enterprise v1.0.1",
+  "version": "1.0.2",
+  "name": "ZclockID Enterprise v1.0.2",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T05:30:00Z",
-  "summary": "Automated Update Center, non-editable official channel, BDC join pre-flight fixes, and hostname configuration",
-  "notes": "### What's Changed in v1.0.1:\n* **Update Center Upgrades:** Automated update discovery via official upstream manifest with 1-click installation.\n* **Channel Lock:** Update channel configuration is locked to official upstream (atanumaj/zclockid) to prevent accidental misconfiguration.\n* **Pre-Update Safety Backup:** Automated snapshot backup created in /var/backups/zclockid/ prior to applying updates.\n* **BDC Domain Join:** Automated Primary DC DNS and Kerberos pre-flight resolution during secondary domain controller joins.\n* **Hostname Management:** System hostname configuration directly during the initial setup wizard.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.1_all.deb",
-  "package_name": "zclockid_1.0.1_all.deb",
+  "published_at": "2026-11-08T07:30:00Z",
+  "summary": "Debian & Ubuntu OS Package Manager in Web GUI, live APT upgrade streaming, and kernel reboot alerts",
+  "notes": "### What's Changed in v1.0.2:\n* **Debian / Ubuntu OS Package Manager:** Full GUI visibility and management of underlying operating system packages, kernel updates, and security patches (inspired by Zentyal).\n* **Categorized Package Inventory:** Upgradable system packages are automatically classified by category (Kernel, Security/Crypto, Core System, Identity & DNS) with dedicated security CVE badges.\n* **1-Click System Package Upgrade:** Non-interactive APT upgrades (`DEBIAN_FRONTEND=noninteractive apt-get upgrade -y`) executed safely in background detached daemon.\n* **Live Upgrade Terminal:** Real-time console log streaming directly in the UI for both ZclockID appliance updates and OS package upgrades.\n* **Kernel Reboot Detection:** Visual warning banner when a kernel or core glibc/systemd update requires an appliance reboot, with 1-click reboot action.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.2_all.deb",
+  "package_name": "zclockid_1.0.2_all.deb",
   "min_version_required": "1.0.0"
 }

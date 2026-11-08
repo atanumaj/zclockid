@@ -3165,177 +3165,322 @@
                     </div>
                 </div>
 
-                <!-- Main Updates Grid -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Column 1: System Environment & Channel Settings -->
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-server text-indigo-400"></i> Appliance Runtime & Release Channel
-                            </h3>
-                            <span class="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
-                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> ACTIVE RUNTIME
-                            </span>
-                        </div>
+                <!-- Sub-Navigation: Appliance vs OS Packages -->
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <button onclick="switchUpdateSubTab('appliance')" id="btn-subtab-update-appliance" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-violet-600/20 text-violet-400 border border-violet-500/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cube text-violet-400"></i> ZclockID Appliance Stack
+                        </button>
+                        <button onclick="switchUpdateSubTab('os')" id="btn-subtab-update-os" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-brands fa-ubuntu text-orange-400"></i> Debian / Ubuntu OS Packages
+                            <span id="badge-os-update-count" class="hidden px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
+                        </button>
+                    </div>
 
-                        <!-- System Specs Table -->
-                        <div class="space-y-2 text-xs font-mono">
-                            <div class="flex justify-between py-1 border-b border-slate-800/60">
-                                <span class="text-slate-400">Installed Version:</span>
-                                <span id="info-current-version" class="text-violet-300 font-bold">1.0.0</span>
-                            </div>
-                            <div class="flex justify-between py-1 border-b border-slate-800/60">
-                                <span class="text-slate-400">Package Architecture:</span>
-                                <span id="info-system-arch" class="text-slate-200">all (x86_64 / arm64)</span>
-                            </div>
-                            <div class="flex justify-between py-1 border-b border-slate-800/60">
-                                <span class="text-slate-400">Python Runtime:</span>
-                                <span id="info-python-ver" class="text-slate-200">Python 3.12</span>
-                            </div>
-                            <div class="flex justify-between py-1 border-b border-slate-800/60">
-                                <span class="text-slate-400">Detached Updater Daemon:</span>
-                                <span id="info-updater-status" class="text-emerald-400 font-semibold">Ready (/opt/zclockid/scripts/zclock-updater.sh)</span>
-                            </div>
-                            <div class="flex justify-between py-1">
-                                <span class="text-slate-400">Last Checked:</span>
-                                <span id="info-last-checked" class="text-slate-300">Never</span>
-                            </div>
-                        </div>
+                    <div id="subtab-os-actions" class="hidden flex items-center gap-2">
+                        <button onclick="checkOsPackages()" id="btn-check-os-packages" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Scan APT Packages
+                        </button>
+                        <button onclick="confirmAndRunOsUpgrade()" id="btn-upgrade-all-os" disabled class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-download"></i> Upgrade All System Packages
+                        </button>
+                    </div>
+                </div>
 
-                        <!-- Channel Settings (Non-Editable / Locked Policy) -->
-                        <div class="pt-3 border-t border-slate-800 space-y-3">
-                            <div class="flex items-center justify-between">
-                                <h4 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-shield-halved text-emerald-400"></i> Update Channel Configuration
-                                </h4>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                                    <i class="fa-solid fa-lock text-[9px]"></i> Official Upstream
+                <!-- Sub-Tab View 1: Appliance Stack Updates -->
+                <div id="subtab-view-appliance" class="space-y-6">
+                    <!-- Main Updates Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Column 1: System Environment & Channel Settings -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-server text-indigo-400"></i> Appliance Runtime & Release Channel
+                                </h3>
+                                <span class="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> ACTIVE RUNTIME
                                 </span>
                             </div>
 
-                            <div class="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-2 text-xs">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-slate-400 text-[11px]">Channel:</span>
-                                    <span class="font-mono text-emerald-400 font-semibold text-[11px] flex items-center gap-1">
-                                        <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i> Stable (Production)
-                                    </span>
+                            <!-- System Specs Table -->
+                            <div class="space-y-2 text-xs font-mono">
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Installed Version:</span>
+                                    <span id="info-current-version" class="text-violet-300 font-bold">1.0.0</span>
                                 </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-slate-400 text-[11px]">Official Repository:</span>
-                                    <span class="font-mono text-slate-200 text-[11px]">atanumaj/zclockid</span>
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Package Architecture:</span>
+                                    <span id="info-system-arch" class="text-slate-200">all (x86_64 / arm64)</span>
                                 </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="text-slate-400 text-[11px]">Manifest Endpoint:</span>
-                                    <span class="font-mono text-indigo-300 text-[11px] truncate max-w-[220px]" title="https://raw.githubusercontent.com/atanumaj/zclockid/master/version-manifest.json">GitHub Master Manifest</span>
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Python Runtime:</span>
+                                    <span id="info-python-ver" class="text-slate-200">Python 3.12</span>
                                 </div>
-                                <div class="flex items-center justify-between pt-1 border-t border-slate-900">
-                                    <span class="text-slate-400 text-[11px]">Package Format:</span>
-                                    <span class="font-mono text-slate-300 text-[11px]">Debian (.deb) All-Arch</span>
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Detached Updater Daemon:</span>
+                                    <span id="info-updater-status" class="text-emerald-400 font-semibold">Ready (/opt/zclockid/scripts/zclock-updater.sh)</span>
+                                </div>
+                                <div class="flex justify-between py-1">
+                                    <span class="text-slate-400">Last Checked:</span>
+                                    <span id="info-last-checked" class="text-slate-300">Never</span>
                                 </div>
                             </div>
 
-                            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                                <div class="flex items-center gap-2">
-                                    <input type="checkbox" id="update-auto-check" checked onchange="saveUpdateAutoCheck()" class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
-                                    <label for="update-auto-check" class="cursor-pointer text-slate-300">Check for updates on console open</label>
+                            <!-- Channel Settings (Non-Editable / Locked Policy) -->
+                            <div class="pt-3 border-t border-slate-800 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-shield-halved text-emerald-400"></i> Update Channel Configuration
+                                    </h4>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                                        <i class="fa-solid fa-lock text-[9px]"></i> Official Upstream
+                                    </span>
                                 </div>
-                                <span class="text-[10px] text-slate-500 italic"><i class="fa-solid fa-lock text-[9px] mr-0.5"></i> Locked policy</span>
+
+                                <div class="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-2 text-xs">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400 text-[11px]">Channel:</span>
+                                        <span class="font-mono text-emerald-400 font-semibold text-[11px] flex items-center gap-1">
+                                            <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i> Stable (Production)
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400 text-[11px]">Official Repository:</span>
+                                        <span class="font-mono text-slate-200 text-[11px]">atanumaj/zclockid</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400 text-[11px]">Manifest Endpoint:</span>
+                                        <span class="font-mono text-indigo-300 text-[11px] truncate max-w-[220px]" title="https://raw.githubusercontent.com/atanumaj/zclockid/master/version-manifest.json">GitHub Master Manifest</span>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-1 border-t border-slate-900">
+                                        <span class="text-slate-400 text-[11px]">Package Format:</span>
+                                        <span class="font-mono text-slate-300 text-[11px]">Debian (.deb) All-Arch</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="update-auto-check" checked onchange="saveUpdateAutoCheck()" class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
+                                        <label for="update-auto-check" class="cursor-pointer text-slate-300">Check for updates on console open</label>
+                                    </div>
+                                    <span class="text-[10px] text-slate-500 italic"><i class="fa-solid fa-lock text-[9px] mr-0.5"></i> Locked policy</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Remote Release Status & Actions -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                    <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                        <i class="fa-solid fa-cloud-arrow-down text-violet-400"></i> Remote Release Status
+                                    </h3>
+                                    <span id="remote-check-status-pill" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">READY</span>
+                                </div>
+
+                                <!-- Dynamic Release Card -->
+                                <div id="release-result-card" class="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
+                                    <div class="flex items-center gap-3 text-slate-400">
+                                        <i class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
+                                        <div class="text-xs">
+                                            <div class="font-semibold text-slate-200">No Check Performed Yet</div>
+                                            <div class="text-[11px] text-slate-400">Click "Check for Updates" above to query the configured release channel.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Expandable Release Notes / Changelog -->
+                                <div id="release-notes-container" class="hidden space-y-2">
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-file-lines text-violet-400"></i> Release Notes & Changelog
+                                        </span>
+                                        <span id="release-date-badge" class="text-[10px] font-mono text-slate-400"></span>
+                                    </div>
+                                    <div id="release-notes-body" class="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 font-mono max-h-48 overflow-y-auto custom-scroll whitespace-pre-wrap"></div>
+                                </div>
+                            </div>
+
+                            <!-- One-Click Install Action Card -->
+                            <div id="update-action-container" class="hidden pt-4 border-t border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-slate-400">Target Package: <span id="target-pkg-name" class="font-mono text-white font-semibold"></span></span>
+                                    <span class="text-xs text-slate-400">Size: <span id="target-pkg-size" class="font-mono text-emerald-400">~85 KB</span></span>
+                                </div>
+                                <button onclick="confirmAndRunUpdate()" id="btn-run-update-now" class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20">
+                                    <i class="fa-solid fa-bolt"></i> Install & Apply Update Now
+                                </button>
+                                <p class="text-[10px] text-slate-500 text-center">Appliance management API will briefly restart (3-5s). Samba AD DC service and directory replication remain uninterrupted.</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Column 2: Remote Release Status & Actions -->
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <!-- Row 2: Manual Package Upload (.deb) for Air-Gapped Environments -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div>
                                 <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                                    <i class="fa-solid fa-cloud-arrow-down text-violet-400"></i> Remote Release Status
+                                    <i class="fa-solid fa-file-arrow-up text-cyan-400"></i> Offline / Manual Package Upload (.deb)
                                 </h3>
-                                <span id="remote-check-status-pill" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">READY</span>
+                                <p class="text-xs text-slate-400 mt-0.5">Upload a thin ZclockID Debian package directly through the browser for offline environments or private custom builds.</p>
                             </div>
-
-                            <!-- Dynamic Release Card -->
-                            <div id="release-result-card" class="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
-                                <div class="flex items-center gap-3 text-slate-400">
-                                    <i class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
-                                    <div class="text-xs">
-                                        <div class="font-semibold text-slate-200">No Check Performed Yet</div>
-                                        <div class="text-[11px] text-slate-400">Click "Check for Updates" above to query the configured release channel.</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Expandable Release Notes / Changelog -->
-                            <div id="release-notes-container" class="hidden space-y-2">
-                                <div class="flex justify-between items-center text-xs">
-                                    <span class="font-semibold text-slate-300 flex items-center gap-1.5">
-                                        <i class="fa-solid fa-file-lines text-violet-400"></i> Release Notes & Changelog
-                                    </span>
-                                    <span id="release-date-badge" class="text-[10px] font-mono text-slate-400"></span>
-                                </div>
-                                <div id="release-notes-body" class="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 font-mono max-h-48 overflow-y-auto custom-scroll whitespace-pre-wrap"></div>
-                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">AIR-GAP READY</span>
                         </div>
 
-                        <!-- One-Click Install Action Card -->
-                        <div id="update-action-container" class="hidden pt-4 border-t border-slate-800 space-y-2">
-                            <div class="flex items-center justify-between">
-                                <span class="text-xs text-slate-400">Target Package: <span id="target-pkg-name" class="font-mono text-white font-semibold"></span></span>
-                                <span class="text-xs text-slate-400">Size: <span id="target-pkg-size" class="font-mono text-emerald-400">~85 KB</span></span>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-2">
+                                <div id="dropzone-update" onclick="document.getElementById('file-upload-deb').click()" class="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-xl p-6 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition flex flex-col items-center justify-center space-y-2">
+                                    <input type="file" id="file-upload-deb" accept=".deb" class="hidden" onchange="handleDebFileSelected(event)">
+                                    <div class="h-10 w-10 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-lg">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </div>
+                                    <div class="text-xs text-slate-300 font-semibold" id="upload-label-main">Click to select or drag and drop ZclockID .deb package</div>
+                                    <div class="text-[10px] text-slate-500" id="upload-label-sub">Supported format: zclockid_*.deb (Debian / Ubuntu archive)</div>
+                                </div>
                             </div>
-                            <button onclick="confirmAndRunUpdate()" id="btn-run-update-now" class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20">
-                                <i class="fa-solid fa-bolt"></i> Install & Apply Update Now
-                            </button>
-                            <p class="text-[10px] text-slate-500 text-center">Appliance management API will briefly restart (3-5s). Samba AD DC service and directory replication remain uninterrupted.</p>
+
+                            <!-- Upload Staging & Install Card -->
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
+                                <div class="space-y-2">
+                                    <div class="text-xs font-semibold text-white flex items-center justify-between">
+                                        <span>Selected File</span>
+                                        <span id="staged-file-status" class="text-[10px] font-mono text-slate-500">NO FILE</span>
+                                    </div>
+                                    <div class="text-xs font-mono text-slate-300 truncate" id="staged-file-name">None</div>
+                                    <div class="text-[11px] font-mono text-slate-400 flex justify-between">
+                                        <span>File Size:</span>
+                                        <span id="staged-file-size" class="text-white">-</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-1">
+                                        <input type="checkbox" id="upload-auto-install" checked class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
+                                        <label for="upload-auto-install" class="text-xs text-slate-300 cursor-pointer">Install immediately after upload</label>
+                                    </div>
+                                </div>
+
+                                <button onclick="submitDebUpload()" id="btn-submit-deb" disabled class="w-full py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-not-allowed">
+                                    <i class="fa-solid fa-upload"></i> Upload & Install Package
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Row 2: Manual Package Upload (.deb) for Air-Gapped Environments -->
-                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-                        <div>
-                            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                                <i class="fa-solid fa-file-arrow-up text-cyan-400"></i> Offline / Manual Package Upload (.deb)
-                            </h3>
-                            <p class="text-xs text-slate-400 mt-0.5">Upload a thin ZclockID Debian package directly through the browser for offline environments or private custom builds.</p>
+                <!-- Sub-Tab View 2: Debian / Ubuntu OS & Security Packages -->
+                <div id="subtab-view-os" class="space-y-6 hidden">
+                    <!-- Reboot Required Alert Banner -->
+                    <div id="os-reboot-banner" class="hidden p-4 rounded-xl border border-rose-500/40 bg-rose-950/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-start gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 text-lg shrink-0 mt-0.5">
+                                <i class="fa-solid fa-power-off"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                    <span>System Reboot Required</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30">KERNEL / LIBC UPDATE</span>
+                                </h4>
+                                <p class="text-xs text-slate-300 mt-0.5">A core system component (such as the Linux kernel or systemd) was upgraded. An appliance reboot is recommended to activate new binaries.</p>
+                                <div id="os-reboot-pkgs-list" class="text-[10px] font-mono text-rose-300/80 mt-1"></div>
+                            </div>
                         </div>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">AIR-GAP READY</span>
+                        <button onclick="confirmAndRebootAppliance()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 shrink-0">
+                            <i class="fa-solid fa-power-off"></i> Reboot Appliance Now
+                        </button>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="md:col-span-2">
-                            <div id="dropzone-update" onclick="document.getElementById('file-upload-deb').click()" class="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-xl p-6 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition flex flex-col items-center justify-center space-y-2">
-                                <input type="file" id="file-upload-deb" accept=".deb" class="hidden" onchange="handleDebFileSelected(event)">
-                                <div class="h-10 w-10 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-lg">
-                                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                                </div>
-                                <div class="text-xs text-slate-300 font-semibold" id="upload-label-main">Click to select or drag and drop ZclockID .deb package</div>
-                                <div class="text-[10px] text-slate-500" id="upload-label-sub">Supported format: zclockid_*.deb (Debian / Ubuntu archive)</div>
+                    <!-- OS KPI Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg shrink-0">
+                                <i class="fa-solid fa-boxes-packing"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Upgradable Packages</div>
+                                <div class="text-xl font-bold font-mono text-white mt-0.5" id="os-kpi-total">0</div>
                             </div>
                         </div>
 
-                        <!-- Upload Staging & Install Card -->
-                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
-                            <div class="space-y-2">
-                                <div class="text-xs font-semibold text-white flex items-center justify-between">
-                                    <span>Selected File</span>
-                                    <span id="staged-file-status" class="text-[10px] font-mono text-slate-500">NO FILE</span>
-                                </div>
-                                <div class="text-xs font-mono text-slate-300 truncate" id="staged-file-name">None</div>
-                                <div class="text-[11px] font-mono text-slate-400 flex justify-between">
-                                    <span>File Size:</span>
-                                    <span id="staged-file-size" class="text-white">-</span>
-                                </div>
-                                <div class="flex items-center gap-2 pt-1">
-                                    <input type="checkbox" id="upload-auto-install" checked class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
-                                    <label for="upload-auto-install" class="text-xs text-slate-300 cursor-pointer">Install immediately after upload</label>
-                                </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-lg shrink-0">
+                                <i class="fa-solid fa-shield-virus"></i>
                             </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Security Patches</div>
+                                <div class="text-xl font-bold font-mono text-rose-400 mt-0.5" id="os-kpi-security">0</div>
+                            </div>
+                        </div>
 
-                            <button onclick="submitDebUpload()" id="btn-submit-deb" disabled class="w-full py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-not-allowed">
-                                <i class="fa-solid fa-upload"></i> Upload & Install Package
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-lg shrink-0">
+                                <i class="fa-solid fa-microchip"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Kernel & Core Modules</div>
+                                <div class="text-xl font-bold font-mono text-indigo-300 mt-0.5" id="os-kpi-kernel">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 text-lg shrink-0">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Last APT Sync</div>
+                                <div class="text-xs font-mono text-slate-300 mt-1 truncate" id="os-kpi-checked">Never</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Package Search, Filter & Action Toolbar -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex flex-wrap items-center gap-3 flex-1">
+                            <div class="relative flex-1 min-w-[200px] max-w-sm">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                                <input type="text" id="os-search-input" oninput="filterOsPackagesTable()" placeholder="Search packages (e.g. openssl, linux, systemd)..." class="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 font-mono">
+                            </div>
+                            <select id="os-category-select" onchange="filterOsPackagesTable()" class="bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-300 py-1.5 px-3 focus:outline-none focus:border-violet-500">
+                                <option value="ALL">All Categories</option>
+                                <option value="SECURITY">Security Updates Only</option>
+                                <option value="Kernel">Kernel Modules</option>
+                                <option value="Core System">Core System & Init</option>
+                                <option value="Security / Crypto">Security & Cryptography</option>
+                                <option value="Directory / DNS">Directory Services & DNS</option>
+                                <option value="General">General Packages</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button onclick="checkOsPackages()" id="btn-scan-apt-table" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                                <i class="fa-solid fa-arrows-rotate"></i> Scan Repositories
                             </button>
+                            <button onclick="confirmAndRunOsUpgrade()" id="btn-upgrade-os-table" disabled class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-download"></i> Upgrade All System Packages
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Package Inventory Table -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="bg-slate-950/80 border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
+                                    <tr>
+                                        <th class="py-3 px-4">Package Name</th>
+                                        <th class="py-3 px-4">Category</th>
+                                        <th class="py-3 px-4">Installed Version</th>
+                                        <th class="py-3 px-4">Candidate Version</th>
+                                        <th class="py-3 px-4">Arch</th>
+                                        <th class="py-3 px-4">Type / Origin</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="os-packages-tbody" class="divide-y divide-slate-800/60">
+                                    <tr>
+                                        <td colspan="6" class="py-8 text-center text-slate-500 font-sans">
+                                            <i class="fa-solid fa-circle-notch fa-spin text-lg text-violet-400 mb-2 block"></i>
+                                            Checking package inventory...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -3350,7 +3495,11 @@
                             <span id="update-terminal-status-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">IDLE</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="fetchUpdateLog()" class="px-2.5 py-1 text-slate-400 hover:text-white text-xs transition flex items-center gap-1">
+                            <div class="bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex items-center gap-1 text-[11px] font-medium">
+                                <button onclick="switchUpdateLogType('appliance')" id="btn-log-tab-appliance" class="px-2.5 py-1 rounded-md bg-violet-600/30 text-violet-300 font-semibold transition">Appliance Log</button>
+                                <button onclick="switchUpdateLogType('os')" id="btn-log-tab-os" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">OS Packages Log</button>
+                            </div>
+                            <button onclick="fetchCurrentUpdateLog()" class="px-2.5 py-1 text-slate-400 hover:text-white text-xs transition flex items-center gap-1">
                                 <i class="fa-solid fa-arrows-rotate"></i> Refresh Log
                             </button>
                             <button onclick="copyUpdateLog()" class="px-2.5 py-1 text-slate-400 hover:text-white text-xs transition flex items-center gap-1">
@@ -3360,7 +3509,7 @@
                     </div>
 
                     <!-- Visual Step Progress Tracker -->
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center text-xs font-mono">
+                    <div id="step-tracker-container" class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center text-xs font-mono">
                         <div id="step-stage" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
                             <div class="text-[10px] uppercase text-slate-500 font-bold">Step 1</div>
                             <div class="font-semibold text-slate-300 mt-0.5">Package Staged</div>
@@ -3390,7 +3539,7 @@
                                 <span class="h-2.5 w-2.5 rounded-full bg-rose-500/80 inline-block"></span>
                                 <span class="h-2.5 w-2.5 rounded-full bg-amber-500/80 inline-block"></span>
                                 <span class="h-2.5 w-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
-                                <span class="ml-2 text-slate-300">/var/log/zclock-update.log</span>
+                                <span id="update-terminal-log-label" class="ml-2 text-slate-300">/var/log/zclock-update.log</span>
                             </div>
                             <span id="update-terminal-line-count">0 lines</span>
                         </div>
@@ -11027,6 +11176,334 @@
         let stagedDebFile = null;
         let updatePollInterval = null;
         let cachedLatestRelease = null;
+        let currentUpdateSubTab = 'appliance';
+        let currentUpdateLogType = 'appliance';
+        let cachedOsPackages = [];
+        let osUpgradePollInterval = null;
+
+        function switchUpdateSubTab(sub) {
+            currentUpdateSubTab = sub;
+            const btnApp = document.getElementById('btn-subtab-update-appliance');
+            const btnOs = document.getElementById('btn-subtab-update-os');
+            const viewApp = document.getElementById('subtab-view-appliance');
+            const viewOs = document.getElementById('subtab-view-os');
+            const osActions = document.getElementById('subtab-os-actions');
+
+            if (sub === 'appliance') {
+                if (btnApp) {
+                    btnApp.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-violet-600/20 text-violet-400 border border-violet-500/30 transition flex items-center gap-1.5';
+                }
+                if (btnOs) {
+                    btnOs.className = 'px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5';
+                }
+                if (viewApp) viewApp.classList.remove('hidden');
+                if (viewOs) viewOs.classList.add('hidden');
+                if (osActions) osActions.classList.add('hidden');
+            } else {
+                if (btnApp) {
+                    btnApp.className = 'px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5';
+                }
+                if (btnOs) {
+                    btnOs.className = 'px-3.5 py-1.5 rounded-lg text-xs font-bold bg-orange-600/20 text-orange-400 border border-orange-500/30 transition flex items-center gap-1.5';
+                }
+                if (viewApp) viewApp.classList.add('hidden');
+                if (viewOs) viewOs.classList.remove('hidden');
+                if (osActions) osActions.classList.remove('hidden');
+                loadOsUpdateInfo();
+            }
+        }
+
+        function switchUpdateLogType(logType) {
+            currentUpdateLogType = logType;
+            const btnApp = document.getElementById('btn-log-tab-appliance');
+            const btnOs = document.getElementById('btn-log-tab-os');
+            const label = document.getElementById('update-terminal-log-label');
+
+            if (logType === 'appliance') {
+                if (btnApp) btnApp.className = 'px-2.5 py-1 rounded-md bg-violet-600/30 text-violet-300 font-semibold transition';
+                if (btnOs) btnOs.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition';
+                if (label) label.innerText = '/var/log/zclock-update.log';
+            } else {
+                if (btnApp) btnApp.className = 'px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition';
+                if (btnOs) btnOs.className = 'px-2.5 py-1 rounded-md bg-orange-600/30 text-orange-300 font-semibold transition';
+                if (label) label.innerText = '/var/log/zclock-os-update.log';
+            }
+            fetchCurrentUpdateLog();
+        }
+
+        async function fetchCurrentUpdateLog() {
+            if (currentUpdateLogType === 'os') {
+                await fetchOsUpdateLog();
+            } else {
+                await fetchUpdateLog();
+            }
+        }
+
+        async function fetchOsUpdateLog() {
+            try {
+                const res = await fetch(`${API_BASE}/system/os-updates/log`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.log) {
+                    const pre = document.getElementById('update-terminal-pre');
+                    pre.innerText = data.log;
+                    pre.scrollTop = pre.scrollHeight;
+                    const lines = data.log.split('\n').filter(l => l.trim().length > 0);
+                    const lineCountEl = document.getElementById('update-terminal-line-count');
+                    if (lineCountEl) lineCountEl.innerText = `${lines.length} lines`;
+                }
+            } catch (err) {
+                console.warn("Could not fetch OS update log:", err);
+            }
+        }
+
+        async function loadOsUpdateInfo() {
+            try {
+                const res = await fetch(`${API_BASE}/system/os-updates/info`);
+                if (!res.ok) return;
+                const data = await res.json();
+
+                renderOsUpdateState(data);
+
+                if ((!data.packages || data.packages.length === 0) && (!data.last_checked || data.last_checked === 0)) {
+                    checkOsPackages();
+                }
+            } catch (err) {
+                console.error("Error loading OS update info:", err);
+            }
+        }
+
+        function renderOsUpdateState(data) {
+            cachedOsPackages = data.packages || [];
+            const total = data.total_upgrades !== undefined ? data.total_upgrades : cachedOsPackages.length;
+            const sec = data.security_upgrades || 0;
+
+            const badgeCount = document.getElementById('badge-os-update-count');
+            if (badgeCount) {
+                badgeCount.innerText = total;
+                if (total > 0) badgeCount.classList.remove('hidden');
+                else badgeCount.classList.add('hidden');
+            }
+
+            const kpiTotal = document.getElementById('os-kpi-total');
+            if (kpiTotal) kpiTotal.innerText = total;
+
+            const kpiSec = document.getElementById('os-kpi-security');
+            if (kpiSec) kpiSec.innerText = sec;
+
+            const kernelCount = cachedOsPackages.filter(p => p.category === 'Kernel' || p.category === 'Core System').length;
+            const kpiKernel = document.getElementById('os-kpi-kernel');
+            if (kpiKernel) kpiKernel.innerText = kernelCount;
+
+            const kpiChecked = document.getElementById('os-kpi-checked');
+            if (kpiChecked) {
+                if (data.last_checked && data.last_checked > 0) {
+                    kpiChecked.innerText = new Date(data.last_checked * 1000).toLocaleString();
+                } else {
+                    kpiChecked.innerText = 'Never';
+                }
+            }
+
+            const btnTop = document.getElementById('btn-upgrade-all-os');
+            const btnTable = document.getElementById('btn-upgrade-os-table');
+            const canUpgrade = total > 0 && !data.is_running;
+            if (btnTop) btnTop.disabled = !canUpgrade;
+            if (btnTable) btnTable.disabled = !canUpgrade;
+
+            const rebootBanner = document.getElementById('os-reboot-banner');
+            const rebootList = document.getElementById('os-reboot-pkgs-list');
+            if (rebootBanner) {
+                if (data.reboot_required) {
+                    rebootBanner.classList.remove('hidden');
+                    if (rebootList && data.reboot_packages && data.reboot_packages.length > 0) {
+                        rebootList.innerText = `Required by: ${data.reboot_packages.join(', ')}`;
+                    }
+                } else {
+                    rebootBanner.classList.add('hidden');
+                }
+            }
+
+            renderOsPackagesTable(cachedOsPackages);
+
+            if (data.is_running) {
+                startOsUpgradeWatchdog();
+            }
+        }
+
+        async function checkOsPackages() {
+            const btnTop = document.getElementById('btn-check-os-packages');
+            const btnTable = document.getElementById('btn-scan-apt-table');
+            const tbody = document.getElementById('os-packages-tbody');
+
+            if (btnTop) btnTop.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Scanning...`;
+            if (btnTable) btnTable.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Scanning...`;
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-slate-400 font-sans">
+                            <i class="fa-solid fa-circle-notch fa-spin text-xl text-violet-400 mb-2 block"></i>
+                            Querying Debian / Ubuntu APT repositories for upgradable packages...
+                        </td>
+                    </tr>
+                `;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/system/os-updates/check`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    renderOsUpdateState(data);
+                } else {
+                    alert(`Package check failed: ${data.detail || 'Unknown error'}`);
+                    loadOsUpdateInfo();
+                }
+            } catch (err) {
+                alert(`Error querying packages: ${err}`);
+                loadOsUpdateInfo();
+            } finally {
+                if (btnTop) btnTop.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Scan APT Packages`;
+                if (btnTable) btnTable.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Scan Repositories`;
+            }
+        }
+
+        function renderOsPackagesTable(packages) {
+            const tbody = document.getElementById('os-packages-tbody');
+            if (!tbody) return;
+
+            if (!packages || packages.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="py-10 text-center text-slate-400 font-sans">
+                            <div class="h-12 w-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl mx-auto mb-3">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <div class="text-sm font-bold text-white">All System Packages are Up to Date</div>
+                            <div class="text-xs text-slate-500 mt-1">This appliance has all latest Debian / Ubuntu security patches and system updates installed.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            let html = '';
+            packages.forEach(pkg => {
+                let catBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300">${pkg.category || 'General'}</span>`;
+                if (pkg.category === 'Kernel') {
+                    catBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">Kernel</span>`;
+                } else if (pkg.category === 'Security / Crypto') {
+                    catBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30">Security / Crypto</span>`;
+                } else if (pkg.category === 'Core System') {
+                    catBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">Core System</span>`;
+                } else if (pkg.category === 'Directory / DNS') {
+                    catBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Identity & DNS</span>`;
+                }
+
+                let secBadge = pkg.is_security
+                    ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white flex items-center gap-1 w-max"><i class="fa-solid fa-shield-virus text-[9px]"></i> SECURITY</span>`
+                    : `<span class="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-800/80">${pkg.suite || 'updates'}</span>`;
+
+                html += `
+                    <tr class="hover:bg-slate-800/30 transition">
+                        <td class="py-2.5 px-4 font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-cube text-slate-500 text-xs"></i>
+                            <span>${pkg.name}</span>
+                        </td>
+                        <td class="py-2.5 px-4">${catBadge}</td>
+                        <td class="py-2.5 px-4 text-slate-400">${pkg.current_version}</td>
+                        <td class="py-2.5 px-4 text-emerald-400 font-bold">${pkg.candidate_version}</td>
+                        <td class="py-2.5 px-4 text-slate-500 text-[11px]">${pkg.arch}</td>
+                        <td class="py-2.5 px-4">${secBadge}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function filterOsPackagesTable() {
+            const query = (document.getElementById('os-search-input')?.value || '').toLowerCase().trim();
+            const cat = document.getElementById('os-category-select')?.value || 'ALL';
+
+            const filtered = cachedOsPackages.filter(pkg => {
+                const matchesQuery = !query || pkg.name.toLowerCase().includes(query) || (pkg.category || '').toLowerCase().includes(query);
+                let matchesCat = true;
+                if (cat === 'SECURITY') matchesCat = pkg.is_security;
+                else if (cat !== 'ALL') matchesCat = (pkg.category === cat);
+                return matchesQuery && matchesCat;
+            });
+            renderOsPackagesTable(filtered);
+        }
+
+        async function confirmAndRunOsUpgrade() {
+            const total = cachedOsPackages.length;
+            const confirmed = confirm(`Are you sure you want to upgrade ${total} Debian/Ubuntu system packages?\n\n- Packages will be installed non-interactively via APT.\n- Live upgrade progress will stream in the terminal console below.\n- Directory replication and core AD services remain uninterrupted.`);
+            if (!confirmed) return;
+
+            const btnTop = document.getElementById('btn-upgrade-all-os');
+            const btnTable = document.getElementById('btn-upgrade-os-table');
+            if (btnTop) { btnTop.disabled = true; btnTop.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Initializing...`; }
+            if (btnTable) { btnTable.disabled = true; btnTable.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Initializing...`; }
+
+            switchUpdateLogType('os');
+            setUpdateTerminalStatus('UPGRADING OS');
+
+            try {
+                const res = await fetch(`${API_BASE}/system/os-updates/upgrade`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    appendTerminalLog(`[ZclockID Console] OS package upgrade task started: ${data.message}`);
+                    startOsUpgradeWatchdog();
+                } else {
+                    alert(`Failed to start OS upgrade: ${data.detail || 'Unknown error'}`);
+                    loadOsUpdateInfo();
+                }
+            } catch (err) {
+                alert(`Error starting upgrade: ${err}`);
+                loadOsUpdateInfo();
+            }
+        }
+
+        function startOsUpgradeWatchdog() {
+            if (osUpgradePollInterval) clearInterval(osUpgradePollInterval);
+            setUpdateTerminalStatus('UPGRADING OS');
+
+            osUpgradePollInterval = setInterval(async () => {
+                fetchOsUpdateLog();
+
+                try {
+                    const res = await fetch(`${API_BASE}/system/os-updates/info`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (!data.is_running) {
+                            clearInterval(osUpgradePollInterval);
+                            osUpgradePollInterval = null;
+                            setUpdateTerminalStatus('COMPLETE');
+                            appendTerminalLog(`\n🎉 Debian/Ubuntu package upgrade completed! Final status: ${data.last_status}`);
+                            loadOsUpdateInfo();
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Watchdog check:", e);
+                }
+            }, 3000);
+        }
+
+        async function confirmAndRebootAppliance() {
+            const confirmed = confirm("Are you sure you want to reboot this ZclockID appliance?\n\nAll services will restart and the system will be momentarily offline for 30-60 seconds.");
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/system/reboot`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    alert("Reboot command sent successfully! The appliance will restart momentarily.");
+                    location.reload();
+                } else {
+                    alert(`Reboot failed: ${data.detail || 'Unknown error'}`);
+                }
+            } catch (err) {
+                alert(`Error sending reboot signal: ${err}`);
+            }
+        }
 
         async function loadUpdateInfo() {
             try {
@@ -11082,7 +11559,18 @@
                     startUpdateWatchdog();
                 }
 
-                fetchUpdateLog();
+                fetchCurrentUpdateLog();
+
+                // Also refresh OS updates count badge in background
+                fetch(`${API_BASE}/system/os-updates/info`).then(r => r.json()).then(osData => {
+                    const total = osData.total_upgrades !== undefined ? osData.total_upgrades : (osData.packages ? osData.packages.length : 0);
+                    const badgeCount = document.getElementById('badge-os-update-count');
+                    if (badgeCount) {
+                        badgeCount.innerText = total;
+                        if (total > 0) badgeCount.classList.remove('hidden');
+                        else badgeCount.classList.add('hidden');
+                    }
+                }).catch(() => {});
             } catch (err) {
                 console.error("Error loading update info:", err);
             }

@@ -46,6 +46,7 @@ cp "${DIST_DIR}/scripts/zclock-sysvold.py" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-telemetry.sh" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-azuresync.py" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-updater.sh" "${BUILD_ROOT}/opt/zclockid/scripts/"
+cp "${DIST_DIR}/scripts/zclock-os-updater.sh" "${BUILD_ROOT}/opt/zclockid/scripts/"
 chmod 755 "${BUILD_ROOT}/opt/zclockid/scripts/"*
 
 # Write appliance VERSION file
