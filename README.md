@@ -20,10 +20,7 @@ After installation completes, navigate to:
 * **User Self-Registration:** `https://<server-ip>/register.html`
 * **REST API Documentation:** `http://<server-ip>:8000/docs`
 
-For complete deployment, configuration, and API reference:
-* 📖 **[Installation Guide](docs/INSTALLATION.md):** 1-Line installer, pre-requisites, manual setup, and uninstallation.
-* 📘 **[Administrator & User Guide](docs/USER_GUIDE.md):** Active Directory, FreeRADIUS 802.1X, DoH DNS, Cloud Sync (M365 / Entra ID), Host Firewall, and Maintenance.
-* 💻 **[REST API Documentation](docs/API_DOCUMENTATION.md):** Endpoints, authentication, request/response schemas, and curl examples.
+For complete details and uninstallation instructions, see the [Installation Guide](docs/INSTALLATION.md).
 
 ---
 
@@ -49,28 +46,30 @@ curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/
 
 ---
 
-## Documentation & Directory Structure
+## Directory Structure
 
 ```
-ZclockID/
+Inet-ZclockID/
 ├── README.md                           # Master Project Overview
 ├── docs/
-│   ├── INSTALLATION.md                 # Complete Installation & Deployment Guide
-│   ├── USER_GUIDE.md                   # Administrator & User Manual (AD, FreeRADIUS, DoH, Cloud Sync, Firewall)
-│   └── API_DOCUMENTATION.md            # Headless REST API Specification & Endpoint Examples
+│   ├── USER_GUIDE.md                   # Administrator & User Manual (Sizing, Install, Bandwidth, DNS)
+│   ├── FEASIBILITY_ANALYSIS.md         # Comprehensive Feasibility & Zentyal Comparison
+│   ├── ARCHITECTURE.md                 # System Architecture, Port Matrix & Data Flows
+│   ├── ENGINES_SPECIFICATION.md        # Technical Specs for Samba, BIND9, FreeRADIUS, Sysvol, SSO
+│   ├── API_SPECIFICATION.md            # Headless REST API Specification & Endpoints
+│   └── ROADMAP_AND_COMMERCIALIZATION.md # GTM Strategy, OVA Packaging, Sizing & Sched
 ├── config-templates/
 │   ├── samba/                          # Baseline smb.conf & provisioning templates
 │   ├── bind9/                          # named.conf.options & DLZ driver templates
 │   ├── freeradius/                     # mschap, inner-tunnel, & clients.conf templates
 │   ├── snmp/                           # snmpd.conf with custom AD OIDs
-│   ├── chrony/                         # Enterprise NTP templates
-│   └── azure/                          # Cloud sync template
+│   └── keycloak/                       # LDAP user federation schema & realm blueprints
 ├── scripts/
 │   ├── zclock-sysvold.py               # Bi-directional Sysvol sync & NTACL self-healing daemon
-│   ├── zclock-azuresync.py             # Native Microsoft Entra ID cloud sync daemon
 │   └── zclock-telemetry.sh             # SNMP pass-through script for live AD telemetry
-├── api/                                # FastAPI Modular REST API Engine
-└── web/                                # HTML5 / Tailwind Web Administration Console
+└── api-prototype/
+    ├── main.py                         # FastAPI Headless REST API implementation
+    └── requirements.txt                # Python API dependencies
 ```
 
 ---

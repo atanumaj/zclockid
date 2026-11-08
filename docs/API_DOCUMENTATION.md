@@ -1,6 +1,6 @@
 # ZclockID Appliance REST API Documentation
 
-**API Version:** `v1.0.8`  
+**API Version:** `v1.0.9`  
 **Protocol:** HTTPS  
 **Base URL:** `https://<appliance-ip>/api/v1`  
 **Interactive OpenAPI UI:** `https://<appliance-ip>/docs` (Swagger 3.1)  
@@ -52,7 +52,7 @@ All API endpoints (except `/api/v1/auth/login` and `/api/v1/status/health`) requ
   ```json
   {
     "hostname": "dc01.corp.example.com",
-    "appliance_version": "1.0.8",
+    "appliance_version": "1.0.9",
     "uptime_seconds": 348200,
     "services": {
       "samba_ad_dc": { "status": "active", "substate": "running" },

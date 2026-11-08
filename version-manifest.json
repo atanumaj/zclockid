@@ -1,12 +1,12 @@
 {
-  "version": "1.0.8",
-  "name": "ZclockID Enterprise v1.0.8",
+  "version": "1.0.9",
+  "name": "ZclockID Enterprise v1.0.9",
   "channel": "stable",
-  "release_type": "feature",
-  "published_at": "2026-11-08T09:35:00Z",
-  "summary": "Consolidate network ACLs into Firewall rules with multi-subnet comma support and relocated anti-lockout guard",
-  "notes": "### What's Changed in v1.0.8:\n* **Centralized Firewall Protection:** Consolidated all network access ACLs under Appliance Host Firewall Rules. Removed redundant Allowed IP Subnets subtab.\n* **Multi-Subnet Support:** Firewall rules now support comma-separated IP subnets or CIDR ranges (e.g., `192.168.1.0/24, 10.10.0.0/24, 180.92.168.34/32`).\n* **Relocated Anti-Lockout Guard:** Moved detected client IP banner and zero-lockout indicator directly into the Firewall section.\n* **Client IP Helper:** Added 1-click '+ Add Current IP (/32)' button inside the Firewall Rule modal.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.8_all.deb",
-  "package_name": "zclockid_1.0.8_all.deb",
+  "release_type": "patch",
+  "published_at": "2026-11-08T09:40:00Z",
+  "summary": "Streamline Firewall toggle label to 'Firewall:' with visual red (OFF) and green (ON) styling",
+  "notes": "### What's Changed in v1.0.9:\n* **Firewall Toggle Switch Styling:** Simplified label strictly to 'Firewall:', updated toggle track background to bold red (`bg-rose-600`) when OFF and green (`bg-emerald-600`) when ON, with matching red/green state text badges.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.9_all.deb",
+  "package_name": "zclockid_1.0.9_all.deb",
   "min_version_required": "1.0.0"
 }

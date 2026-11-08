@@ -16,10 +16,7 @@
 7. [FreeRADIUS 802.1X & Captive Portal Bandwidth Management](#7-freeradius-8021x--captive-portal-bandwidth-management)
 8. [Encrypted DNS (BIND9 DLZ & DNS-over-HTTPS)](#8-encrypted-dns-bind9-dlz--dns-over-https)
 9. [Sysvol Synchronization & NTACL Self-Healing](#9-sysvol-synchronization--ntacl-self-healing)
-10. [Hybrid Identity & Cloud Synchronization (Microsoft Entra ID / M365)](#10-hybrid-identity--cloud-synchronization-microsoft-entra-id--m365)
-11. [Appliance Host Firewall & System Hardening](#11-appliance-host-firewall--system-hardening)
-12. [Enterprise NTP & SNMP Monitoring](#12-enterprise-ntp--snmp-monitoring)
-13. [Appliance Operations, Maintenance, Backups & Update Center](#13-appliance-operations-maintenance-backups--update-center)
+10. [Appliance Operations, Maintenance & Troubleshooting](#10-appliance-operations-maintenance--troubleshooting)
 
 ---
 
@@ -366,118 +363,7 @@ ZclockID includes a dedicated system daemon: **`zclock-sysvold`**.
 
 ---
 
-## 10. Hybrid Identity & Cloud Synchronization (Microsoft Entra ID / M365)
-
-A critical requirement for modern Active Directory Domain Controllers is **Hybrid Identity Synchronization** with Microsoft 365 and Microsoft Entra ID (Azure AD). When enterprise employees and groups are created or modified on-premises in ZclockID, their accounts, attributes, and security states synchronize seamlessly with cloud services (Teams, Outlook, OneDrive, SharePoint, Azure).
-
-ZclockID supports **two distinct synchronization pathways**:
-
-### Architecture Comparison
-
-```
-Option 1: Native Direct Linux Sync (Zero Windows Server Licenses)
-┌─────────────────────────────────┐                 ┌─────────────────────────────────┐
-│        ZclockID Appliance       │                 │     Microsoft Cloud (M365)      │
-│  ┌───────────┐   ┌────────────┐ │  OAuth2 / HTTPS │  ┌───────────────────────────┐  │
-│  │ Samba AD  │──►│ zclock-    │─┼────────────────┼─►│ Microsoft Entra ID (Azure)│  │
-│  │ (sam.ldb) │   │ azuresync  │ │   (Port 443)    │  │ • Users, Groups, PHS      │  │
-│  └───────────┘   └────────────┘ │                 │  │ • Exchange Online / M365  │  │
-└─────────────────────────────────┘                 └─────────────────────────────────┘
-
-Option 2: Microsoft Entra Connect (via Windows Member Server)
-┌──────────────────┐         LDAP / RPC (389, 135)       ┌──────────────────────────┐         HTTPS 443         ┌─────────────────────┐
-│    ZclockID      │◄────────────────────────────────────│   Windows Member Server  │──────────────────────────►│ Microsoft Entra ID │
-│  (Samba AD DC)   │                                     │ (Microsoft Entra Connect)│                           │       (M365)        │
-└──────────────────┘                                     └──────────────────────────┘                           └─────────────────────┘
-```
-
-| Dimension | Option 1: Native Direct Linux Sync | Option 2: Microsoft Entra Connect (Windows) |
-| :--- | :--- | :--- |
-| **Windows Server Required** | **NO (100% Linux Appliance)** | **YES (Requires Windows Server VM)** |
-| **Microsoft OS Licensing** | **$0 (Zero CALs / Zero Windows licenses)** | ~$1,069 (Windows Server OS License) |
-| **Synchronization Engine** | Python daemon (`zclock-azuresync`) + MS Graph API | Official Microsoft Entra Connect MSI agent |
-| **Password Synchronization** | Supported via NT-hash export & Graph DirSync | Supported via native Windows DCSync RPC |
-| **Management Interface** | ZclockID Web Console & Headless REST API | Microsoft Entra Connect Wizard on Windows desktop |
-| **Vendor Support** | Supported by ZclockID Appliance | Supported directly by Microsoft Support |
-| **Writeback Features** | One-way on-prem to cloud (Samba $\rightarrow$ Azure) | Bi-directional (Password & Device Writeback) |
-
-### Option 1 Configuration: Native Direct Linux Sync (`zclock-azuresync`)
-
-#### 1. Prerequisites in Azure Portal
-1. Navigate to **Microsoft Entra ID > App Registrations > New Registration**:
-   * Name: `ZclockID-CloudSync`
-   * Supported Account Types: Single Tenant (Accounts in this organizational directory only)
-2. Grant **Application Permissions** (Microsoft Graph API):
-   * `User.ReadWrite.All`
-   * `Group.ReadWrite.All`
-   * `Directory.ReadWrite.All`
-   * `Domain.Read.All`
-   * *(Click "Grant admin consent for your organization")*.
-3. Generate a **Client Secret** under **Certificates & secrets** and copy the **Secret Value**, **Application (Client) ID**, and **Directory (Tenant) ID**.
-
-#### 2. Configuring Cloud Sync in ZclockID Web Console
-1. Navigate to **Cloud Sync > Microsoft Entra ID** in the Web Console.
-2. Enter your **Tenant ID**, **Client ID**, and **Client Secret**.
-3. Select your Target OU filter (default: `OU=Users,DC=corp,DC=example,DC=com`).
-4. Set your Sync Interval (e.g. 15 minutes) or click **Sync Now** for immediate trigger.
-5. Live telemetry, last synchronization timestamps, and synced account counts appear in real time.
-
----
-
-## 11. Appliance Host Firewall & System Hardening
-
-ZclockID includes an enterprise packet filtering firewall and OpenSSH hardening layer directly integrated into the Web Console and headless REST API.
-
-### Host Firewall & Port Protection
-* **Default Drop Policy:** Drops all unsolicited incoming traffic while permitting outgoing traffic and explicitly allowed services.
-* **Firewall (ON/OFF) Toggle:** Master toggle switch allows administrators to enable or disable packet filtering live without dropping SSH/HTTPS access.
-* **Multi-Subnet Ingress Rules:** Rules support specifying multiple comma-separated IP subnets or CIDRs (e.g. `192.168.1.0/24, 10.10.0.0/24, 180.92.168.34/32`).
-* **Anti-Lockout Zero-Risk Guard:** The Web Console detects the administrator's live client IP and displays an **ANTI-LOCKOUT ARMED** badge. An interactive "+ Add Current IP (/32)" button is provided in rule creation modals to instantly safeguard administrative connectivity.
-* **Unified Rules Management:** Full CRUD (edit and delete) on all default and custom rules, accompanied by a 1-click **Revert to Default Template** button to restore standard Active Directory baseline rules.
-
-### Standard Baseline Port Matrix
-| Port / Protocol | Service | Description |
-| :--- | :--- | :--- |
-| **22 / TCP** | OpenSSH | Administrative SSH access |
-| **443 / TCP** | HTTPS Proxy | Web Console, REST API & DoH |
-| **80 / TCP** | HTTP | Redirect to HTTPS |
-| **53 / TCP & UDP** | BIND9 DLZ | Active Directory DNS resolution |
-| **88, 464 / TCP & UDP** | Kerberos | KDC Authentication & Password Change |
-| **389, 636 / TCP** | LDAP / LDAPS | Active Directory Directory Service |
-| **3268, 3269 / TCP** | Global Catalog | Active Directory GC & GC-SSL |
-| **445, 139 / TCP** | SMB / NetBIOS | Sysvol replication & File sharing |
-| **137, 138 / UDP** | NetBIOS | NetBIOS Name & Datagram Services |
-| **135, 49152:65535 / TCP** | MS-RPC | RPC Endpoint Mapper & Dynamic RPC |
-| **1812, 1813 / UDP** | FreeRADIUS | 802.1X Authentication & Accounting |
-| **123 / UDP** | Chrony NTP | Enterprise network time sync |
-| **161 / UDP** | Net-SNMP | Appliance telemetry & monitoring |
-
-### OpenSSH Hardening Baseline
-* Located under **Access Control > Host Firewall & Hardening**.
-* Configure root login restrictions (`PermitRootLogin no / prohibit-password`) and enforce SSH key-based authentication (`PasswordAuthentication no`).
-
----
-
-## 12. Enterprise NTP & SNMP Monitoring
-
-### Chrony Enterprise Network Time Server
-Active Directory authentication depends strictly on synchronized time across all domain controllers, workstations, and member servers (Kerberos tickets fail if time skew exceeds 300 seconds).
-* **NTP Server (`chrony`):** Binds to Port 123/UDP and acts as authoritative NTP reference for all Windows PCs and network devices.
-* **Configurable Upstream Sources:** Add upstream NTP pools (e.g. `time.google.com`, `pool.ntp.org`) directly from the Web Console.
-* **Allowed Subnets:** Restrict time query access to internal corporate subnets.
-
-### SNMP Telemetry & Monitoring
-* **Net-SNMP Daemon:** Exposes system metrics and custom Active Directory OIDs for enterprise monitoring systems (PRTG, Zabbix, Datadog, Prometheus).
-* **Configurable Read-Only Community String:** Set custom community strings (default: `zclock_public`) with ACL subnet restrictions.
-
----
-
-## 13. Appliance Operations, Maintenance, Backups & Update Center
-
-### 1-Click Update Center (OS & Appliance Updates)
-Navigate to **Security & Management > Software Updates** in the Web Console:
-* **Appliance Releases:** Checks GitHub releases and Debian repository metadata. Click **Install Update Now** to download and upgrade ZclockID with zero downtime.
-* **Debian / Ubuntu OS Package Upgrades:** The Web Console scans upstream Ubuntu security repositories and provides a 1-click **Upgrade All Packages** button that non-interactively patches OS kernels, OpenSSL, systemd, and libraries while streaming terminal logs in real time.
+## 10. Appliance Operations, Maintenance & Troubleshooting
 
 ### Service Management Commands
 To inspect or restart core ZclockID services from the terminal:
@@ -497,9 +383,6 @@ sudo systemctl status freeradius
 
 # Check Sysvol Self-Healing Daemon
 sudo systemctl status zclock-sysvold
-
-# Check Azure Cloud Sync Daemon
-sudo systemctl status zclock-azuresync
 ```
 
 ### FreeRADIUS Live Debugging
@@ -528,5 +411,4 @@ Active Directory backups must preserve both the directory database and the Sysvo
 ### Diagnostic REST Endpoints
 * **Interactive API Documentation:** `https://<Appliance-IP>/docs`
 * **Raw Configuration Inspector:** Available directly in the Web UI under **FreeRADIUS -> Raw Config Viewer**, allowing you to inspect `/etc/freeradius/3.0/users`, `clients.conf`, and `mschap` live.
-
 
