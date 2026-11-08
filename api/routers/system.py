@@ -158,7 +158,7 @@ echo "=== ZclockID Debian/Ubuntu OS Package Upgrade Initiated at $(date) ===" > 
 export DEBIAN_FRONTEND=noninteractive
 export APT_LISTCHANGES_FRONTEND=none
 apt-get update >> "${LOG_FILE}" 2>&1
-if apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade >> "${LOG_FILE}" 2>&1; then
+if apt-get -y --with-new-pkgs -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade >> "${LOG_FILE}" 2>&1; then
     if [ -f "/var/run/reboot-required" ]; then
         echo "COMPLETED_REBOOT_REQUIRED" > "${STATUS_FILE}"
     else

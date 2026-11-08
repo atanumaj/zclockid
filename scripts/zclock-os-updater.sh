@@ -27,8 +27,8 @@ if ! apt-get update >> "${LOG_FILE}" 2>&1; then
     log "WARNING: apt-get update encountered notices. Proceeding with package evaluation..."
 fi
 
-log "Applying non-interactive Debian/Ubuntu package upgrades..."
-if apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade >> "${LOG_FILE}" 2>&1; then
+log "Applying non-interactive Debian/Ubuntu package upgrades (including kernel dependencies)..."
+if apt-get -y --with-new-pkgs -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade >> "${LOG_FILE}" 2>&1; then
     log "SUCCESS: System packages upgraded successfully."
     
     # Invalidate stale package cache
