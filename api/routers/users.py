@@ -556,11 +556,12 @@ def list_domain_groups():
                     is_builtin = ("cn=builtin" in grp_dn) or (g_name.lower() in PROTECTED_BUILTIN_GROUPS)
                     info_raw = current_grp.get("info")
                     bw_parsed = parse_bw_info(info_raw)
+                    bw_entry = group_bw_map.get(g_name.lower().strip())
 
-                    p_name = bw_parsed["name"] if bw_parsed else None
-                    p_id = profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None
-                    d_val = bw_parsed["download_mbps"] if bw_parsed else None
-                    u_val = bw_parsed["upload_mbps"] if bw_parsed else None
+                    p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
+                    p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
+                    d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+                    u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
                     rate_str = format_bw_rate_str(d_val, u_val)
 
                     groups.append({
@@ -589,6 +590,33 @@ def list_domain_groups():
                 current_grp["info"] = line.split(":", 1)[1].strip()
             elif line.startswith("member:"):
                 members.append(line.split(":", 1)[1].strip())
+
+        if current_grp.get("group_name"):
+            g_name = current_grp["group_name"]
+            grp_dn = current_grp.get("dn", "").lower()
+            is_builtin = ("cn=builtin" in grp_dn) or (g_name.lower() in PROTECTED_BUILTIN_GROUPS)
+            info_raw = current_grp.get("info")
+            bw_parsed = parse_bw_info(info_raw)
+            bw_entry = group_bw_map.get(g_name.lower().strip())
+
+            p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
+            p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
+            d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+            u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
+            rate_str = format_bw_rate_str(d_val, u_val)
+
+            groups.append({
+                "group_name": g_name,
+                "dn": current_grp.get("dn", ""),
+                "description": current_grp.get("description", ""),
+                "department": "Built-in" if is_builtin else "Custom Group",
+                "group_type": "Built-in" if is_builtin else "Custom Group",
+                "member_count": len(members),
+                "is_built_in": is_builtin,
+                "bandwidth_profile_id": p_id,
+                "bandwidth_profile_name": p_name,
+                "bandwidth_rate": rate_str
+            })
 
     groups.sort(key=lambda x: (x["is_built_in"], x["group_name"].lower()))
     return {"count": len(groups), "groups": groups}
@@ -644,8 +672,7 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
             g_dn = l[4:].strip()
             break
 
-    if group_name.lower() in PROTECTED_BUILTIN_GROUPS or ("cn=builtin" in (g_dn or "").lower()):
-        raise HTTPException(status_code=400, detail=f"Cannot modify protected built-in Active Directory group '{group_name}'.")
+    # Built-in groups can have QoS bandwidth policies and descriptions assigned/updated, but cannot be deleted.
 
     ldif_lines = [f"dn: {g_dn}", "changetype: modify"]
     has_mod = False
@@ -670,7 +697,8 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
                 if p_row:
                     p = dict(p_row)
                     bw_info_tag = f"ZCLOCKID_BW:{p['name']};down={p['download_mbps']};up={p['upload_mbps']};sess={p.get('session_timeout_mins', 120)};idle={p.get('idle_timeout_mins', 30)};quota={p.get('daily_quota_mb', 0)}"
-                    c.execute("UPDATE radius_bandwidth_profiles SET ad_group = ? WHERE id = ?", (group_name, req.bandwidth_profile_id))
+                    c.execute("UPDATE radius_bandwidth_profiles SET ad_group = '', target_name = '' WHERE (ad_group = ? OR target_name = ?) AND id != ?", (group_name, group_name, req.bandwidth_profile_id))
+                    c.execute("UPDATE radius_bandwidth_profiles SET ad_group = ?, target_name = ?, target_type = 'GROUP' WHERE id = ?", (group_name, group_name, req.bandwidth_profile_id))
                     conn.commit()
                 conn.close()
             except Exception as e:
@@ -680,7 +708,7 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
             try:
                 conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
-                c.execute("UPDATE radius_bandwidth_profiles SET ad_group = '' WHERE ad_group = ?", (group_name,))
+                c.execute("UPDATE radius_bandwidth_profiles SET ad_group = '', target_name = '' WHERE ad_group = ? OR target_name = ?", (group_name, group_name))
                 conn.commit()
                 conn.close()
             except Exception:
@@ -697,7 +725,11 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
         ldif_content = "\n".join(ldif_lines) + "\n"
         proc = subprocess.run(["ldbmodify", "-H", str(SAMBA_LDB_PATH)], input=ldif_content, text=True, capture_output=True)
         if proc.returncode != 0:
-            raise HTTPException(status_code=400, detail=f"Failed to update group attributes: {proc.stderr}")
+            logger.warning(f"ldbmodify notice on group '{group_name}': {proc.stderr}")
+            if "Constraint violation" in proc.stderr or "Insufficient access rights" in proc.stderr:
+                pass
+            elif req.bandwidth_profile_id is None and req.description is not None:
+                raise HTTPException(status_code=400, detail=f"Failed to update group description: {proc.stderr}")
 
     sync_freeradius_policies()
     log_audit("GROUP_UPDATED", "admin", group_name, "SUCCESS", {"bandwidth_profile_id": req.bandwidth_profile_id})

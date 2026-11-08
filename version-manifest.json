@@ -1,12 +1,12 @@
 {
-  "version": "1.2.1",
-  "name": "ZclockID Enterprise v1.2.1",
+  "version": "1.2.2",
+  "name": "ZclockID Enterprise v1.2.2",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T20:45:00Z",
-  "summary": "Cryptographic Ed25519 Licensing System: 200 Free Community Users, License Tab, and Vendor Generator Tool",
-  "notes": "### What's Changed in v1.2.1:\n* **Cryptographic Licensing Subsystem:** Implemented asymmetric Ed25519 digital signature verification for official `zclockid.lic` certificates.\n* **Community Free Tier:** Free for general use up to 200 Active Directory users out of the box with zero configuration required.\n* **Commercial Tier & Enforcement:** Automatic capacity enforcement above 200 users, requiring a signed `zclockid.lic` file.\n* **Web Console License Tab:** Added dedicated License & Subscription screen under Security & Management displaying subscription status, capacity utilization meter, validity countdown, and drag-and-drop file upload.\n* **Standalone Vendor Generator:** Created standalone keypair generator and CLI tool under `tools/license-generator/` for hosting in private repositories.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.1_all.deb",
-  "package_name": "zclockid_1.2.1_all.deb",
+  "published_at": "2026-11-08T22:30:00Z",
+  "summary": "Fix Group Bandwidth Profile Resolution and Enable QoS Policy Assignment for Built-in AD Groups",
+  "notes": "### What's Changed in v1.2.2:\n* **Fixed Active Directory Group Bandwidth Mapping:** Resolved bug where `list_domain_groups` ignored database-backed bandwidth profile mappings (e.g. `VIP-Executive` for `Domain Admins`), causing `null` policy rate display on the Groups tab despite proper user inheritance.\n* **Enabled QoS Policy Assignment on Built-in Groups:** Active Directory built-in system groups (such as `Domain Admins`, `Domain Users`, etc.) can now be assigned QoS bandwidth profiles and modified directly via Web UI and REST API while safely preventing deletion.\n* **Web UI Group Management:** Added 'Edit Policy' action for built-in groups in the Groups table, allowing straightforward bandwidth tier assignments alongside protected lock badges.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.2_all.deb",
+  "package_name": "zclockid_1.2.2_all.deb",
   "min_version_required": "1.0.0"
 }

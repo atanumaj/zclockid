@@ -2584,12 +2584,12 @@ def list_domain_groups():
                     is_builtin = ("cn=builtin" in grp_dn) or (g_name.lower() in PROTECTED_BUILTIN_GROUPS)
                     info_raw = current_grp.get("info")
                     bw_parsed = parse_bw_info(info_raw)
-                    bw_entry = group_bw_map.get(g_name.lower())
+                    bw_entry = group_bw_map.get(g_name.lower().strip())
 
-                    p_name = bw_parsed["name"] if bw_parsed else None
-                    p_id = profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None
-                    d_val = bw_parsed["download_mbps"] if bw_parsed else None
-                    u_val = bw_parsed["upload_mbps"] if bw_parsed else None
+                    p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
+                    p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
+                    d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+                    u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
                     rate_str = format_bw_rate_str(d_val, u_val)
 
                     groups.append({
@@ -2625,12 +2625,12 @@ def list_domain_groups():
             is_builtin = ("cn=builtin" in grp_dn) or (g_name.lower() in PROTECTED_BUILTIN_GROUPS)
             info_raw = current_grp.get("info")
             bw_parsed = parse_bw_info(info_raw)
-            bw_entry = group_bw_map.get(g_name.lower())
+            bw_entry = group_bw_map.get(g_name.lower().strip())
 
-            p_name = bw_parsed["name"] if bw_parsed else None
-            p_id = profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None
-            d_val = bw_parsed["download_mbps"] if bw_parsed else None
-            u_val = bw_parsed["upload_mbps"] if bw_parsed else None
+            p_name = bw_parsed["name"] if bw_parsed else (bw_entry["name"] if bw_entry else None)
+            p_id = bw_entry["id"] if bw_entry else (profiles_by_name.get(p_name.lower(), {}).get("id") if p_name else None)
+            d_val = bw_parsed["download_mbps"] if bw_parsed else (bw_entry["download_mbps"] if bw_entry else None)
+            u_val = bw_parsed["upload_mbps"] if bw_parsed else (bw_entry["upload_mbps"] if bw_entry else None)
             rate_str = format_bw_rate_str(d_val, u_val)
 
             groups.append({
@@ -2704,8 +2704,7 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
             g_dn = l[4:].strip()
             break
 
-    if group_name.lower() in PROTECTED_BUILTIN_GROUPS or ("cn=builtin" in (g_dn or "").lower()):
-        raise HTTPException(status_code=400, detail=f"Cannot modify protected built-in Active Directory group '{group_name}'.")
+    # Built-in groups can have QoS bandwidth policies and descriptions assigned/updated, but cannot be deleted.
 
     ldif_lines = [f"dn: {g_dn}", "changetype: modify"]
     has_mod = False

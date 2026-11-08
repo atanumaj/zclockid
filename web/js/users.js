@@ -402,14 +402,14 @@
                             </td>
                             <td class="px-4 py-2.5">${bwBadge}</td>
                             <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                <button onclick="openEditGroupModal('${g.group_name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Group Policy & Bandwidth Tier">
+                                    <i class="fa-solid fa-pen"></i> Edit Policy
+                                </button>
                                 ${!isBuiltin ? `
-                                    <button onclick="openEditGroupModal('${g.group_name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Group Policy & Bandwidth Tier">
-                                        <i class="fa-solid fa-pen"></i> Edit Policy
-                                    </button>
                                     <button onclick="deleteGroup('${g.group_name}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete Security Group">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
-                                ` : '<span class="px-2 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[10px] flex items-center gap-1 w-max ml-auto"><i class="fa-solid fa-lock text-slate-600"></i> Built-in</span>'}
+                                ` : '<span class="px-1.5 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[9px] inline-flex items-center gap-1 ml-1" title="Protected System Group (Cannot Delete)"><i class="fa-solid fa-lock text-slate-600"></i> Locked</span>'}
                             </td>
                         </tr>
                     `;
