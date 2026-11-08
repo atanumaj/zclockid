@@ -390,6 +390,69 @@ def init_db():
         )
     """)
 
+    # Appliance Host Firewall Configuration & Rules
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS firewall_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            is_enabled INTEGER DEFAULT 0,
+            default_incoming TEXT DEFAULT 'DENY',
+            default_outgoing TEXT DEFAULT 'ALLOW',
+            updated_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM firewall_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO firewall_settings (id, is_enabled, default_incoming, default_outgoing, updated_at)
+            VALUES (1, 0, 'DENY', 'ALLOW', ?)
+        """, (time.time(),))
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS firewall_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rule_type TEXT DEFAULT 'custom',
+            action TEXT DEFAULT 'ALLOW',
+            protocol TEXT DEFAULT 'TCP',
+            port TEXT NOT NULL,
+            source TEXT DEFAULT 'Any',
+            comment TEXT,
+            is_enabled INTEGER DEFAULT 1,
+            created_at REAL,
+            updated_at REAL
+        )
+    """)
+
+    # Seed required Active Directory, DNS, Kerberos, RADIUS, and Management ports
+    cursor.execute("SELECT COUNT(*) FROM firewall_rules WHERE rule_type = 'system'")
+    if cursor.fetchone()[0] == 0:
+        now = time.time()
+        system_rules = [
+            ("system", "ALLOW", "TCP", "22", "Any", "Administrative SSH Access", 1, now, now),
+            ("system", "ALLOW", "TCP", "443", "Any", "Web Console HTTPS Access", 1, now, now),
+            ("system", "ALLOW", "TCP", "80", "Any", "Web Console HTTP Redirect", 1, now, now),
+            ("system", "ALLOW", "BOTH", "53", "Any", "DNS Server (BIND9 DLZ / DoH)", 1, now, now),
+            ("system", "ALLOW", "BOTH", "88", "Any", "Active Directory Kerberos KDC", 1, now, now),
+            ("system", "ALLOW", "BOTH", "464", "Any", "Kerberos Password Change (kpasswd)", 1, now, now),
+            ("system", "ALLOW", "BOTH", "389", "Any", "Active Directory LDAP Directory Service", 1, now, now),
+            ("system", "ALLOW", "TCP", "636", "Any", "Active Directory Secure LDAP (LDAPS)", 1, now, now),
+            ("system", "ALLOW", "TCP", "3268", "Any", "Active Directory Global Catalog (GC)", 1, now, now),
+            ("system", "ALLOW", "TCP", "3269", "Any", "Active Directory Secure Global Catalog", 1, now, now),
+            ("system", "ALLOW", "TCP", "445", "Any", "Active Directory SMB & Sysvol Replication", 1, now, now),
+            ("system", "ALLOW", "TCP", "139", "Any", "NetBIOS Session Service", 1, now, now),
+            ("system", "ALLOW", "UDP", "137", "Any", "NetBIOS Name Service (NBNS)", 1, now, now),
+            ("system", "ALLOW", "UDP", "138", "Any", "NetBIOS Datagram Service", 1, now, now),
+            ("system", "ALLOW", "TCP", "135", "Any", "MS-RPC Endpoint Mapper", 1, now, now),
+            ("system", "ALLOW", "TCP", "49152:65535", "Any", "Active Directory RPC Dynamic Ports", 1, now, now),
+            ("system", "ALLOW", "UDP", "1812", "Any", "FreeRADIUS 802.1X Authentication", 1, now, now),
+            ("system", "ALLOW", "UDP", "1813", "Any", "FreeRADIUS Session Accounting", 1, now, now),
+            ("system", "ALLOW", "UDP", "123", "Any", "Chrony Enterprise NTP Server", 1, now, now),
+            ("system", "ALLOW", "UDP", "161", "Any", "Net-SNMP Appliance Telemetry", 1, now, now)
+        ]
+        cursor.executemany("""
+            INSERT INTO firewall_rules (rule_type, action, protocol, port, source, comment, is_enabled, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, system_rules)
+
     conn.commit()
     conn.close()
 

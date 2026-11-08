@@ -3584,7 +3584,7 @@
                         <i class="fa-solid fa-user-shield"></i> Active Admin Sessions
                     </button>
                     <button onclick="switchRbacSubTab('hardening')" id="rbac-subtab-btn-hardening" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
-                        <i class="fa-solid fa-shield-virus"></i> System Hardening Baseline
+                        <i class="fa-solid fa-shield-halved text-rose-500"></i> Host Firewall & Hardening
                     </button>
                 </div>
 
@@ -3891,7 +3891,187 @@
 
                 <!-- SUB-VIEW 5: SYSTEM HARDENING BASELINE -->
                 <div id="rbac-view-hardening" class="space-y-6 hidden">
-                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-4xl">
+                    <!-- APPLIANCE HOST FIREWALL & PORT PROTECTION -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-5xl">
+                        <!-- Header with Master Switch -->
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                                        <i class="fa-solid fa-shield-halved text-rose-500"></i> Appliance Host Firewall & Port Protection
+                                    </h3>
+                                    <span id="fw-status-badge" class="px-2.5 py-0.5 text-xs rounded-full bg-slate-800 text-slate-400 font-mono font-bold flex items-center gap-1.5">
+                                        <i class="fa-solid fa-circle text-[8px]"></i> Loading...
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">Enforce Linux Netfilter/UFW packet filtering. Default policy drops all unsolicited incoming traffic while allowing essential domain services and custom admin rules.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button onclick="applyFirewallChanges()" title="Force synchronize database rules to Linux kernel" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition border border-slate-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Sync Rules
+                                </button>
+                                <!-- Master Firewall Switch -->
+                                <div class="flex items-center gap-2.5 bg-slate-950/60 px-3.5 py-1.5 rounded-xl border border-slate-800">
+                                    <span class="text-xs font-semibold text-slate-300">Master Switch:</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="fw-master-toggle" class="sr-only peer" onchange="toggleFirewallMaster(this.checked)">
+                                        <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Policy Badges & Rule Counter KPIs -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                                <span class="text-slate-400 block text-[11px]">Default Ingress</span>
+                                <span class="font-bold font-mono text-rose-400 flex items-center gap-1.5 mt-0.5"><i class="fa-solid fa-ban"></i> DROP / DENY ALL</span>
+                            </div>
+                            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                                <span class="text-slate-400 block text-[11px]">Default Egress</span>
+                                <span class="font-bold font-mono text-emerald-400 flex items-center gap-1.5 mt-0.5"><i class="fa-solid fa-circle-check"></i> ALLOW ALL</span>
+                            </div>
+                            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                                <span class="text-slate-400 block text-[11px]">Lockout Protection</span>
+                                <span class="font-bold font-mono text-cyan-400 flex items-center gap-1.5 mt-0.5"><i class="fa-solid fa-lock"></i> SSH:22 & HTTPS:443 SAFE</span>
+                            </div>
+                            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                                <span class="text-slate-400 block text-[11px]">Active Rule Sets</span>
+                                <span class="font-bold font-mono text-amber-400 flex items-center gap-1.5 mt-0.5" id="fw-rules-kpi-count"><i class="fa-solid fa-list-check"></i> 0 Custom / 20 System</span>
+                            </div>
+                        </div>
+
+                        <!-- Rule Set Selector Tabs -->
+                        <div class="flex items-center justify-between border-b border-slate-800">
+                            <div class="flex gap-2">
+                                <button onclick="switchFwRulesTab('custom')" id="tab-fw-custom" class="px-3.5 py-2 text-xs font-semibold border-b-2 border-rose-500 text-rose-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-sliders"></i> Custom Rules (<span id="fw-custom-badge-count">0</span>)
+                                </button>
+                                <button onclick="switchFwRulesTab('system')" id="tab-fw-system" class="px-3.5 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-server"></i> System Core Ports (<span id="fw-system-badge-count">20</span>)
+                                </button>
+                            </div>
+                            <button onclick="openFirewallRuleModal()" id="btn-add-fw-rule" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-rose-600/30 transition flex items-center gap-1.5 mb-2">
+                                <i class="fa-solid fa-plus"></i> Add Custom Rule
+                            </button>
+                        </div>
+
+                        <!-- View 1: Custom Rules Table -->
+                        <div id="fw-view-custom" class="space-y-3">
+                            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-950/70 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                        <tr>
+                                            <th class="py-2.5 px-3">Action</th>
+                                            <th class="py-2.5 px-3">Protocol</th>
+                                            <th class="py-2.5 px-3">Port / Range</th>
+                                            <th class="py-2.5 px-3">Source Network</th>
+                                            <th class="py-2.5 px-3">Description / Comment</th>
+                                            <th class="py-2.5 px-3">State</th>
+                                            <th class="py-2.5 px-3 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fw-custom-rules-body" class="divide-y divide-slate-800/60 font-mono">
+                                        <tr>
+                                            <td colspan="7" class="py-6 text-center text-slate-500">Loading custom firewall rules...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- View 2: System Autoprotect Rules Table -->
+                        <div id="fw-view-system" class="space-y-3 hidden">
+                            <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-800/40 text-amber-300 text-xs flex items-center gap-2">
+                                <i class="fa-solid fa-circle-info text-amber-400"></i>
+                                <span>System ports are essential for Active Directory Domain Controller, Kerberos, DNS, SMB, RPC, and FreeRADIUS operations. These rules are automatically maintained.</span>
+                            </div>
+                            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-950/70 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                        <tr>
+                                            <th class="py-2.5 px-3">Service / Role</th>
+                                            <th class="py-2.5 px-3">Protocol</th>
+                                            <th class="py-2.5 px-3">Port / Range</th>
+                                            <th class="py-2.5 px-3">Source</th>
+                                            <th class="py-2.5 px-3">Policy Action</th>
+                                            <th class="py-2.5 px-3">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fw-system-rules-body" class="divide-y divide-slate-800/60 font-mono">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add / Edit Firewall Rule Modal -->
+                    <div id="modal-firewall-rule" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-shield-halved text-rose-500"></i>
+                                    <h3 id="fw-modal-title" class="font-bold text-sm text-white">Add Custom Firewall Rule</h3>
+                                </div>
+                                <button onclick="closeFirewallRuleModal()" class="text-slate-400 hover:text-white transition">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <form onsubmit="handleFirewallRuleSubmit(event)" class="p-5 space-y-4 text-xs">
+                                <input type="hidden" id="fw-rule-edit-id" value="">
+                                
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-slate-300 font-semibold mb-1">Action</label>
+                                        <select id="fw-rule-action" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500">
+                                            <option value="ALLOW">ALLOW (Permit Ingress)</option>
+                                            <option value="DENY">DENY (Drop Ingress)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-300 font-semibold mb-1">Protocol</label>
+                                        <select id="fw-rule-proto" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500">
+                                            <option value="TCP">TCP</option>
+                                            <option value="UDP">UDP</option>
+                                            <option value="BOTH">BOTH (TCP & UDP)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-slate-300 font-semibold mb-1">Port or Port Range</label>
+                                    <input type="text" id="fw-rule-port" required placeholder="e.g. 8080 or 3000-3005" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-rose-500">
+                                    <p class="text-[11px] text-slate-400 mt-1">Specify a single destination port (e.g. 8080) or range (e.g. 3000-3005).</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-slate-300 font-semibold mb-1">Source Network / IP</label>
+                                    <input type="text" id="fw-rule-source" value="Any" placeholder="Any or 192.168.1.0/24 or 10.10.0.50" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-rose-500">
+                                    <p class="text-[11px] text-slate-400 mt-1">Leave as <code>Any</code> to match all clients, or specify a CIDR subnet/IP.</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-slate-300 font-semibold mb-1">Description / Comment</label>
+                                    <input type="text" id="fw-rule-comment" placeholder="e.g. Monitoring Agent or Custom App Ingress" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder:text-slate-500 focus:outline-none focus:border-rose-500">
+                                </div>
+
+                                <div class="flex items-center gap-2 pt-1">
+                                    <input type="checkbox" id="fw-rule-enabled" checked class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-rose-600 focus:ring-0">
+                                    <label for="fw-rule-enabled" class="text-slate-300 font-medium">Enable this rule immediately</label>
+                                </div>
+
+                                <div class="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                                    <button type="button" onclick="closeFirewallRuleModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold transition">Cancel</button>
+                                    <button type="submit" id="btn-fw-rule-submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-semibold shadow-lg shadow-rose-600/30 transition flex items-center gap-1.5">
+                                        <i class="fa-solid fa-save"></i> Save Rule
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- OS HARDENING BASELINE CARD -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-5xl">
                         <div class="flex items-center justify-between border-b border-slate-800 pb-4">
                             <div>
                                 <h3 class="font-bold text-white text-base flex items-center gap-2">
@@ -12498,6 +12678,12 @@
                             <i class="fa-solid fa-arrows-rotate"></i> Refresh Sessions
                         </button>
                     `;
+                } else if (tabName === 'hardening') {
+                    actionsDiv.innerHTML = `
+                        <button onclick="fetchSecuritySettings(); fetchFirewallStatus();" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Hardening & Firewall
+                        </button>
+                    `;
                 } else {
                     actionsDiv.innerHTML = `
                         <button onclick="fetchSecuritySettings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
@@ -12566,6 +12752,9 @@
                 if (passEl) passEl.value = data.ssh_password_auth.toString();
                 const commEl = document.getElementById('sec-snmp-community');
                 if (commEl) commEl.value = data.snmp_community || 'zclock_public';
+
+                // Also refresh firewall status
+                fetchFirewallStatus();
 
             } catch (err) {
                 console.error("fetchSecuritySettings error:", err);
@@ -12705,6 +12894,323 @@
                 fetchActiveSessions();
             } catch (err) {
                 alert(`Error: ${err.message}`);
+            }
+        }
+
+        // ==================== APPLIANCE HOST FIREWALL & PORT PROTECTION ====================
+        let cachedFirewallRules = [];
+        let currentFwTab = 'custom';
+
+        function escapeFwText(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        async function fetchFirewallStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/security/firewall/status`, { headers: getAuthHeaders() });
+                if (!res.ok) return;
+                const data = await res.json();
+                
+                // Master switch
+                const toggle = document.getElementById('fw-master-toggle');
+                if (toggle) toggle.checked = !!data.is_enabled;
+
+                // Status badge
+                const badge = document.getElementById('fw-status-badge');
+                if (badge) {
+                    if (data.is_enabled) {
+                        badge.className = "px-2.5 py-0.5 text-xs rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono font-bold flex items-center gap-1.5";
+                        badge.innerHTML = '<i class="fa-solid fa-circle text-[8px] animate-pulse"></i> ACTIVE (ENFORCING)';
+                    } else {
+                        badge.className = "px-2.5 py-0.5 text-xs rounded-full bg-slate-800 border border-slate-700 text-slate-400 font-mono font-bold flex items-center gap-1.5";
+                        badge.innerHTML = '<i class="fa-solid fa-circle text-[8px]"></i> DISABLED';
+                    }
+                }
+
+                // KPIs
+                const kpiCount = document.getElementById('fw-rules-kpi-count');
+                if (kpiCount) {
+                    kpiCount.innerHTML = `<i class="fa-solid fa-list-check"></i> ${data.custom_rules_count} Custom / ${data.system_rules_count} System`;
+                }
+                const customBadge = document.getElementById('fw-custom-badge-count');
+                if (customBadge) customBadge.innerText = data.custom_rules_count;
+                const systemBadge = document.getElementById('fw-system-badge-count');
+                if (systemBadge) systemBadge.innerText = data.system_rules_count;
+
+                cachedFirewallRules = data.rules || [];
+                renderFirewallRules();
+            } catch (err) {
+                console.error("fetchFirewallStatus error:", err);
+            }
+        }
+
+        function renderFirewallRules() {
+            // Render Custom Rules
+            const customTbody = document.getElementById('fw-custom-rules-body');
+            const customRules = cachedFirewallRules.filter(r => r.rule_type === 'custom');
+            
+            if (customTbody) {
+                if (customRules.length === 0) {
+                    customTbody.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="py-6 text-center text-slate-500 font-sans">
+                                <i class="fa-solid fa-filter text-slate-600 text-xl block mb-2"></i>
+                                No custom firewall rules defined yet.
+                                <br><span class="text-[11px] text-slate-400">Click <b>Add Custom Rule</b> above to allow or deny specific ports or IP subnets.</span>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    customTbody.innerHTML = customRules.map(r => {
+                        const actionBadge = r.action === 'ALLOW'
+                            ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono"><i class="fa-solid fa-check mr-1"></i>ALLOW</span>`
+                            : `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-950/80 border border-rose-800/60 text-rose-400 font-mono"><i class="fa-solid fa-ban mr-1"></i>DENY</span>`;
+
+                        const stateBadge = r.is_enabled
+                            ? `<button onclick="toggleFwRuleState(${r.id}, false)" title="Click to disable rule" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 border border-emerald-800 text-emerald-400 hover:bg-emerald-900/60 transition"><i class="fa-solid fa-power-off mr-1"></i>ENABLED</button>`
+                            : `<button onclick="toggleFwRuleState(${r.id}, true)" title="Click to enable rule" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-400 hover:bg-slate-700 transition"><i class="fa-solid fa-pause mr-1"></i>DISABLED</button>`;
+
+                        const protoBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${r.protocol}</span>`;
+                        const portDisplay = `<span class="font-bold text-white font-mono">${r.port}</span>`;
+                        const sourceDisplay = r.source === 'Any'
+                            ? `<span class="text-slate-400">Any (0.0.0.0/0)</span>`
+                            : `<span class="text-amber-400 font-mono">${escapeFwText(r.source)}</span>`;
+
+                        return `
+                            <tr class="hover:bg-slate-800/30 transition">
+                                <td class="py-3 px-3">${actionBadge}</td>
+                                <td class="py-3 px-3">${protoBadge}</td>
+                                <td class="py-3 px-3">${portDisplay}</td>
+                                <td class="py-3 px-3">${sourceDisplay}</td>
+                                <td class="py-3 px-3 text-slate-300 font-sans text-xs">${r.comment ? escapeFwText(r.comment) : '<span class="text-slate-500 italic">No description</span>'}</td>
+                                <td class="py-3 px-3">${stateBadge}</td>
+                                <td class="py-3 px-3 text-right">
+                                    <div class="flex items-center justify-end gap-1.5">
+                                        <button onclick="editFirewallRule(${r.id})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Rule">
+                                            <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Edit
+                                        </button>
+                                        <button onclick="deleteFirewallRule(${r.id})" class="px-2.5 py-1 bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-xs transition flex items-center gap-1" title="Delete Rule">
+                                            <i class="fa-solid fa-trash-can"></i> Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // Render System Rules
+            const sysTbody = document.getElementById('fw-system-rules-body');
+            const sysRules = cachedFirewallRules.filter(r => r.rule_type === 'system');
+            if (sysTbody) {
+                sysTbody.innerHTML = sysRules.map(r => {
+                    const actionBadge = `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono"><i class="fa-solid fa-check mr-1"></i>ALLOW</span>`;
+                    const protoBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${r.protocol}</span>`;
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition text-xs">
+                            <td class="py-2.5 px-3 font-sans font-medium text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-lock text-emerald-400 text-[10px]"></i> ${r.comment ? escapeFwText(r.comment) : 'Core Service'}
+                            </td>
+                            <td class="py-2.5 px-3">${protoBadge}</td>
+                            <td class="py-2.5 px-3 font-mono font-bold text-white">${r.port}</td>
+                            <td class="py-2.5 px-3 text-slate-400 font-mono">${r.source}</td>
+                            <td class="py-2.5 px-3">${actionBadge}</td>
+                            <td class="py-2.5 px-3">
+                                <span class="px-2 py-0.5 text-[10px] rounded bg-indigo-950 border border-indigo-800/60 text-indigo-300 font-sans">
+                                    <i class="fa-solid fa-shield-halved mr-1"></i> Auto-Protected
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        function switchFwRulesTab(tab) {
+            currentFwTab = tab;
+            const customView = document.getElementById('fw-view-custom');
+            const sysView = document.getElementById('fw-view-system');
+            const customTabBtn = document.getElementById('tab-fw-custom');
+            const sysTabBtn = document.getElementById('tab-fw-system');
+            const addBtn = document.getElementById('btn-add-fw-rule');
+
+            if (tab === 'custom') {
+                if (customView) customView.classList.remove('hidden');
+                if (sysView) sysView.classList.add('hidden');
+                if (customTabBtn) {
+                    customTabBtn.className = "px-3.5 py-2 text-xs font-semibold border-b-2 border-rose-500 text-rose-400 flex items-center gap-1.5";
+                }
+                if (sysTabBtn) {
+                    sysTabBtn.className = "px-3.5 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5";
+                }
+                if (addBtn) addBtn.classList.remove('hidden');
+            } else {
+                if (customView) customView.classList.add('hidden');
+                if (sysView) sysView.classList.remove('hidden');
+                if (customTabBtn) {
+                    customTabBtn.className = "px-3.5 py-2 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5";
+                }
+                if (sysTabBtn) {
+                    sysTabBtn.className = "px-3.5 py-2 text-xs font-semibold border-b-2 border-rose-500 text-rose-400 flex items-center gap-1.5";
+                }
+                if (addBtn) addBtn.classList.add('hidden');
+            }
+        }
+
+        async function toggleFirewallMaster(enable) {
+            try {
+                const res = await fetch(`${API_BASE}/security/firewall/toggle`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ enabled: enable })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to toggle firewall state');
+                alert(data.message || (enable ? 'Firewall enabled.' : 'Firewall disabled.'));
+                fetchFirewallStatus();
+            } catch (err) {
+                alert(`Error changing firewall state: ${err.message}`);
+                fetchFirewallStatus();
+            }
+        }
+
+        async function applyFirewallChanges() {
+            try {
+                const res = await fetch(`${API_BASE}/security/firewall/apply`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to synchronize firewall');
+                alert(data.message || 'Firewall rules synchronized successfully.');
+                fetchFirewallStatus();
+            } catch (err) {
+                alert(`Firewall synchronization error: ${err.message}`);
+            }
+        }
+
+        function openFirewallRuleModal(ruleId = null) {
+            const modal = document.getElementById('modal-firewall-rule');
+            const title = document.getElementById('fw-modal-title');
+            const editId = document.getElementById('fw-rule-edit-id');
+            const action = document.getElementById('fw-rule-action');
+            const proto = document.getElementById('fw-rule-proto');
+            const port = document.getElementById('fw-rule-port');
+            const source = document.getElementById('fw-rule-source');
+            const comment = document.getElementById('fw-rule-comment');
+            const enabled = document.getElementById('fw-rule-enabled');
+
+            if (!modal) return;
+
+            if (ruleId) {
+                const rule = cachedFirewallRules.find(r => r.id === ruleId);
+                if (!rule) return;
+                if (title) title.innerText = "Edit Custom Firewall Rule";
+                if (editId) editId.value = rule.id;
+                if (action) action.value = rule.action;
+                if (proto) proto.value = rule.protocol;
+                if (port) port.value = rule.port;
+                if (source) source.value = rule.source;
+                if (comment) comment.value = rule.comment || '';
+                if (enabled) enabled.checked = !!rule.is_enabled;
+            } else {
+                if (title) title.innerText = "Add Custom Firewall Rule";
+                if (editId) editId.value = "";
+                if (action) action.value = "ALLOW";
+                if (proto) proto.value = "TCP";
+                if (port) port.value = "";
+                if (source) source.value = "Any";
+                if (comment) comment.value = "";
+                if (enabled) enabled.checked = true;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeFirewallRuleModal() {
+            const modal = document.getElementById('modal-firewall-rule');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function editFirewallRule(ruleId) {
+            openFirewallRuleModal(ruleId);
+        }
+
+        async function handleFirewallRuleSubmit(event) {
+            event.preventDefault();
+            const editId = document.getElementById('fw-rule-edit-id')?.value;
+            const action = document.getElementById('fw-rule-action')?.value || 'ALLOW';
+            const protocol = document.getElementById('fw-rule-proto')?.value || 'TCP';
+            const port = document.getElementById('fw-rule-port')?.value.trim();
+            const source = document.getElementById('fw-rule-source')?.value.trim() || 'Any';
+            const comment = document.getElementById('fw-rule-comment')?.value.trim() || '';
+            const is_enabled = document.getElementById('fw-rule-enabled')?.checked ?? true;
+
+            if (!port) {
+                alert('Port or port range is required (e.g. 8080 or 3000-3005).');
+                return;
+            }
+
+            const payload = { action, protocol, port, source, comment, is_enabled };
+            const btn = document.getElementById('btn-fw-rule-submit');
+            if (btn) btn.disabled = true;
+
+            try {
+                const url = editId
+                    ? `${API_BASE}/security/firewall/rules/${editId}`
+                    : `${API_BASE}/security/firewall/rules`;
+                const method = editId ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save firewall rule');
+
+                closeFirewallRuleModal();
+                fetchFirewallStatus();
+            } catch (err) {
+                alert(`Error saving rule: ${err.message}`);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function deleteFirewallRule(ruleId) {
+            if (!confirm("Are you sure you want to permanently delete this firewall rule?")) return;
+            try {
+                const res = await fetch(`${API_BASE}/security/firewall/rules/${ruleId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to delete rule');
+                fetchFirewallStatus();
+            } catch (err) {
+                alert(`Error deleting rule: ${err.message}`);
+            }
+        }
+
+        async function toggleFwRuleState(ruleId, newState) {
+            try {
+                const res = await fetch(`${API_BASE}/security/firewall/rules/${ruleId}/toggle`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ is_enabled: newState })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to toggle rule');
+                fetchFirewallStatus();
+            } catch (err) {
+                alert(`Error toggling rule: ${err.message}`);
             }
         }
 

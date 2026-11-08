@@ -5,13 +5,9 @@ case "$1" in
     configure)
         echo "[ZclockID] Running post-installation configuration..."
 
-        # 1. Disable native host firewalls (UFW / Firewalld)
-        # Domain controllers require dynamic RPC ports (49152-65535), Kerberos, SMB, and LDAP.
+        # 1. Ensure UFW service is unmasked for integrated ZclockID host firewall management
         if command -v ufw >/dev/null 2>&1; then
-            ufw disable >/dev/null 2>&1 || true
-            systemctl stop ufw >/dev/null 2>&1 || true
-            systemctl disable ufw >/dev/null 2>&1 || true
-            systemctl mask ufw >/dev/null 2>&1 || true
+            systemctl unmask ufw >/dev/null 2>&1 || true
         fi
 
         # 2. Decouple systemd-resolved stub listener from Port 53
@@ -97,7 +93,10 @@ case "$1" in
             pip3 install --break-system-packages python-multipart >/dev/null 2>&1 || true
         fi
 
-        # 8. Reload systemd units and restart services
+        # 8. Run database migrations and schema initialization
+        PYTHONPATH=/opt/zclockid python3 -m api.db.init_db >/dev/null 2>&1 || true
+
+        # 9. Reload systemd units and restart services
         systemctl daemon-reload
         systemctl enable zclock-api.service zclock-sysvold.service zclock-azuresync.service >/dev/null 2>&1 || true
         systemctl restart zclock-api.service >/dev/null 2>&1 || true

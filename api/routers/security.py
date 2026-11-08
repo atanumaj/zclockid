@@ -15,6 +15,11 @@ from api.schemas.security_schema import (
     SecuritySettingsResponse,
     ActiveSessionItem
 )
+from api.schemas.firewall_schema import (
+    FirewallToggleRequest,
+    FirewallRuleRequest,
+    FirewallRuleToggleRequest
+)
 from api.services.system_service import check_systemd_service, log_audit
 from api.services.security_service import (
     get_client_ip,
@@ -23,6 +28,15 @@ from api.services.security_service import (
     get_security_settings,
     apply_ssh_hardening,
     apply_snmp_hardening
+)
+from api.services.firewall_service import (
+    get_firewall_status,
+    toggle_firewall_state,
+    add_custom_rule,
+    update_rule,
+    delete_rule,
+    toggle_rule,
+    apply_firewall
 )
 
 router = APIRouter(prefix="/api/v1/security", tags=["System Security & Access Controls"])
@@ -242,3 +256,88 @@ def terminate_all_other_sessions(
 
     log_audit("ALL_OTHER_SESSIONS_TERMINATED", user["username"], "all_sessions", "SUCCESS", {"terminated": terminated_count})
     return {"status": "success", "message": f"Successfully revoked {terminated_count} other active session(s)."}
+
+
+# ----------------- Appliance Host Firewall & Port Protection -----------------
+
+@router.get("/firewall/status")
+def get_firewall_overview(user: dict = Depends(require_admin)):
+    """Returns stored firewall configuration, custom/system rules, and live enforcement state."""
+    return get_firewall_status()
+
+@router.post("/firewall/toggle")
+def toggle_firewall(req: FirewallToggleRequest, user: dict = Depends(require_admin)):
+    """Switches the host firewall master state ON or OFF."""
+    success, msg = toggle_firewall_state(req.is_enabled)
+    if not success:
+        raise HTTPException(status_code=500, detail=msg)
+    return {"status": "success", "is_enabled": req.is_enabled, "message": msg}
+
+@router.post("/firewall/rules")
+def create_firewall_rule(req: FirewallRuleRequest, user: dict = Depends(require_admin)):
+    """Adds a new custom firewall rule (ALLOW / DENY) and applies it to kernel netfilter."""
+    try:
+        rule_id = add_custom_rule(
+            action=req.action,
+            protocol=req.protocol,
+            port=req.port,
+            source=req.source,
+            comment=req.comment or "",
+            is_enabled=req.is_enabled
+        )
+        return {"status": "success", "rule_id": rule_id, "message": "Firewall rule created and applied successfully."}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add rule: {str(e)}")
+
+@router.put("/firewall/rules/{rule_id}")
+def update_firewall_rule(rule_id: int, req: FirewallRuleRequest, user: dict = Depends(require_admin)):
+    """Updates an existing firewall rule and re-applies policies."""
+    try:
+        success = update_rule(
+            rule_id=rule_id,
+            action=req.action,
+            protocol=req.protocol,
+            port=req.port,
+            source=req.source,
+            comment=req.comment or "",
+            is_enabled=req.is_enabled
+        )
+        if not success:
+            raise HTTPException(status_code=404, detail="Rule not found.")
+        return {"status": "success", "message": "Firewall rule updated and re-applied successfully."}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update rule: {str(e)}")
+
+@router.delete("/firewall/rules/{rule_id}")
+def delete_firewall_rule(rule_id: int, user: dict = Depends(require_admin)):
+    """Deletes a custom firewall rule."""
+    try:
+        success = delete_rule(rule_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Rule not found.")
+        return {"status": "success", "message": "Firewall rule deleted successfully."}
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete rule: {str(e)}")
+
+@router.post("/firewall/rules/{rule_id}/toggle")
+def toggle_firewall_rule(rule_id: int, req: FirewallRuleToggleRequest, user: dict = Depends(require_admin)):
+    """Toggles a rule enabled or disabled."""
+    success = toggle_rule(rule_id, req.is_enabled)
+    if not success:
+        raise HTTPException(status_code=404, detail="Rule not found.")
+    return {"status": "success", "message": f"Rule state toggled to {'enabled' if req.is_enabled else 'disabled'}."}
+
+@router.post("/firewall/apply")
+def force_reapply_firewall(user: dict = Depends(require_admin)):
+    """Forces complete synchronization between database rules and the Linux kernel firewall."""
+    success, msg = apply_firewall()
+    if not success:
+        raise HTTPException(status_code=500, detail=msg)
+    return {"status": "success", "message": msg}
+

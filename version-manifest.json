@@ -1,12 +1,12 @@
 {
-  "version": "1.0.2",
-  "name": "ZclockID Enterprise v1.0.2",
+  "version": "1.0.3",
+  "name": "ZclockID Enterprise v1.0.3",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T07:30:00Z",
-  "summary": "Debian & Ubuntu OS Package Manager in Web GUI, live APT upgrade streaming, and kernel reboot alerts",
-  "notes": "### What's Changed in v1.0.2:\n* **Debian / Ubuntu OS Package Manager:** Full GUI visibility and management of underlying operating system packages, kernel updates, and security patches (inspired by Zentyal).\n* **Categorized Package Inventory:** Upgradable system packages are automatically classified by category (Kernel, Security/Crypto, Core System, Identity & DNS) with dedicated security CVE badges.\n* **1-Click System Package Upgrade:** Non-interactive APT upgrades (`DEBIAN_FRONTEND=noninteractive apt-get upgrade -y`) executed safely in background detached daemon.\n* **Live Upgrade Terminal:** Real-time console log streaming directly in the UI for both ZclockID appliance updates and OS package upgrades.\n* **Kernel Reboot Detection:** Visual warning banner when a kernel or core glibc/systemd update requires an appliance reboot, with 1-click reboot action.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.2_all.deb",
-  "package_name": "zclockid_1.0.2_all.deb",
+  "published_at": "2026-11-08T08:15:00Z",
+  "summary": "Appliance Host Firewall & Port Protection with Netfilter/UFW integration, default deny ingress, and custom port rules",
+  "notes": "### What's Changed in v1.0.3:\n* **Appliance Host Firewall & Port Protection:** Full Linux Netfilter/UFW firewall integrated into Access Control > Host Firewall & Hardening.\n* **Master Firewall Switch:** Global switch to easily turn the firewall ON or OFF without risking lockout.\n* **Default Deny Policy:** Automatically enforces Default Ingress DROP/DENY ALL and Default Egress ALLOW ALL when active.\n* **Essential Service Autoprotection:** Pre-seeded rules for Active Directory, Kerberos (88/464), DNS (53), SMB (445/139), NetBIOS, RPC (135/49152-65535), FreeRADIUS (1812/1813), NTP (123), SNMP (161), SSH (22), and HTTPS (443).\n* **Custom Firewall Rules CRUD:** Add, edit, delete, and enable/disable custom ingress rules by protocol (TCP/UDP/BOTH), port/range (e.g. 8080 or 3000-3005), and source network CIDR.\n* **Remote Access Guarantee:** Built-in safeguard ensures SSH (22) and Web GUI (443) rules are strictly enforced first before activating packet filtering.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.3_all.deb",
+  "package_name": "zclockid_1.0.3_all.deb",
   "min_version_required": "1.0.0"
 }
