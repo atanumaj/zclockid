@@ -14,6 +14,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from api.core.config import SAMBA_LDB_PATH, DB_PATH
 from api.core.security import get_ad_creds, validate_ad_password_complexity
+from api.core.license import get_license_status
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.services.samba_service import parse_bw_info, format_bw_rate_str, update_user_upn
 from api.services.radius_service import sync_freeradius_policies
@@ -232,6 +233,26 @@ def list_domain_users():
 @router.post("/users", status_code=status.HTTP_201_CREATED)
 def create_domain_user(req: UserCreateRequest):
     """Creates a new Active Directory domain user with complexity validation and schema attributes."""
+    # License capacity check (Free tier up to 200 users; license required above 200 users)
+    code_cnt, stdout_cnt, _ = run_cmd([
+        "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+        "(&(objectClass=user)(!(objectClass=computer)))", "sAMAccountName"
+    ], timeout=5)
+    current_count = 0
+    if code_cnt == 0:
+        for line in stdout_cnt.splitlines():
+            line_str = line.strip()
+            if line_str.startswith("sAMAccountName:") and not line_str.endswith("$"):
+                current_count += 1
+
+    lic_stat = get_license_status(current_count)
+    if not lic_stat.get("can_create_user", True):
+        max_u = lic_stat.get("max_users", 200)
+        raise HTTPException(
+            status_code=403,
+            detail=f"User subscription limit reached ({current_count}/{max_u} users). An active ZclockID Enterprise license (zclockid.lic) is required to manage additional users. Please upload your license file under Security & Management > License."
+        )
+
     is_valid, err_msg = validate_ad_password_complexity(req.password, req.username, f"{req.given_name or ''} {req.surname or ''}")
     if not is_valid:
         raise HTTPException(status_code=400, detail=err_msg)

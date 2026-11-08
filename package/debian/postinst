@@ -106,7 +106,8 @@ EOFBIND
         fi
 
         # 5. Generate appliance self-signed TLS certificates if absent
-        mkdir -p /etc/zclockid/certs /var/lib/zclockid /var/backups/zclockid
+        mkdir -p /etc/zclockid/certs /etc/zclockid/license /var/lib/zclockid /var/backups/zclockid
+        chmod 755 /etc/zclockid/license 2>/dev/null || true
         if [ ! -f /etc/zclockid/certs/appliance.crt ]; then
             openssl req -x509 -nodes -days 1825 -newkey rsa:2048 \
                 -keyout /etc/zclockid/certs/appliance.key \

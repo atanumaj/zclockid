@@ -10,6 +10,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from fastapi import HTTPException
 from api.core.config import SAMBA_LDB_PATH, DEFAULT_REALM
 from api.core.security import get_ad_creds, validate_ad_password_complexity
+from api.core.license import get_license_status
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 
 def update_user_upn(username: str, new_upn: str) -> str:
@@ -88,6 +89,26 @@ def provision_user_in_ad(
     default_bandwidth_profile_id: int = 0,
     is_self_registered: bool = True
 ) -> bool:
+    # License capacity check
+    code_cnt, stdout_cnt, _ = run_cmd([
+        "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+        "(&(objectClass=user)(!(objectClass=computer)))", "sAMAccountName"
+    ], timeout=5)
+    current_count = 0
+    if code_cnt == 0:
+        for line in stdout_cnt.splitlines():
+            line_str = line.strip()
+            if line_str.startswith("sAMAccountName:") and not line_str.endswith("$"):
+                current_count += 1
+
+    lic_stat = get_license_status(current_count)
+    if not lic_stat.get("can_create_user", True):
+        max_u = lic_stat.get("max_users", 200)
+        raise HTTPException(
+            status_code=403,
+            detail=f"User subscription limit reached ({current_count}/{max_u} users). An active ZclockID Enterprise license (zclockid.lic) is required to manage additional users. Please upload your license file under Security & Management > License."
+        )
+
     admin_user, admin_pass = get_ad_creds()
     cmd = [
         "samba-tool", "user", "create", username, password,

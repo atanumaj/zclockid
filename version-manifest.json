@@ -1,12 +1,12 @@
 {
-  "version": "1.2.0",
-  "name": "ZclockID Enterprise v1.2.0",
+  "version": "1.2.1",
+  "name": "ZclockID Enterprise v1.2.1",
   "channel": "stable",
-  "release_type": "minor",
-  "published_at": "2026-11-08T19:50:00Z",
-  "summary": "Modular Frontend Architecture: Extracted CSS into app.css and decomposed JavaScript into 14 domain-specific controllers",
-  "notes": "### What's Changed in v1.2.0:\n* **Modular Architecture:** Segregated the 14,000+ line monolithic index.html into dedicated stylesheets (`web/css/app.css`) and 14 clean JavaScript domain modules under `web/js/` (core, dashboard, domain, ntp, users, dns, radius, sysvol, cloud, snmp, maintenance, security, federation, app).\n* **Debian Packaging:** Updated build pipeline to recursively bundle all modular web assets into `/opt/zclockid/web/`.\n* **Maintainability & Performance:** Significantly improved maintainability, modularity, and load times with 0 breaking changes to state or telemetry.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.0_all.deb",
-  "package_name": "zclockid_1.2.0_all.deb",
+  "release_type": "patch",
+  "published_at": "2026-11-08T20:45:00Z",
+  "summary": "Cryptographic Ed25519 Licensing System: 200 Free Community Users, License Tab, and Vendor Generator Tool",
+  "notes": "### What's Changed in v1.2.1:\n* **Cryptographic Licensing Subsystem:** Implemented asymmetric Ed25519 digital signature verification for official `zclockid.lic` certificates.\n* **Community Free Tier:** Free for general use up to 200 Active Directory users out of the box with zero configuration required.\n* **Commercial Tier & Enforcement:** Automatic capacity enforcement above 200 users, requiring a signed `zclockid.lic` file.\n* **Web Console License Tab:** Added dedicated License & Subscription screen under Security & Management displaying subscription status, capacity utilization meter, validity countdown, and drag-and-drop file upload.\n* **Standalone Vendor Generator:** Created standalone keypair generator and CLI tool under `tools/license-generator/` for hosting in private repositories.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.1_all.deb",
+  "package_name": "zclockid_1.2.1_all.deb",
   "min_version_required": "1.0.0"
 }

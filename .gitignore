@@ -7,5 +7,7 @@ venv/
 *.swp
 *.log
 internal-docs/
+tools/license-generator/zclockid_private_key.pem
+*.lic
 
 

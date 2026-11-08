@@ -145,7 +145,7 @@
                 switchLogsSubTab('compliance');
                 return;
             }
-            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update', 'rbac', 'apikeys', 'certs', 'syslog', 'federation'];
+            const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update', 'rbac', 'apikeys', 'certs', 'syslog', 'federation', 'license'];
             tabs.forEach(t => {
                 const el = document.getElementById(`tab-${t}`);
                 const nav = document.getElementById(`nav-${t}`);
@@ -164,7 +164,7 @@
                 NAV_ACTIVE_CLASSES.forEach(c => activeNav.classList.add(c));
             }
 
-            if (['rbac', 'apikeys', 'certs', 'syslog', 'backup', 'snmp', 'update', 'federation'].includes(tabId)) {
+            if (['rbac', 'apikeys', 'certs', 'syslog', 'backup', 'snmp', 'update', 'federation', 'license'].includes(tabId)) {
                 toggleSecurityNavGroup(true);
             }
 
@@ -195,6 +195,7 @@
             else if (tabId === 'certs') { fetchActiveCert(); }
             else if (tabId === 'syslog') { switchLogsSubTab(currentLogsSubTab || 'live'); }
             else if (tabId === 'federation') { switchFedSubTab(currentFedSubTab || 'ldap'); fetchKeycloakSettings(); }
+            else if (tabId === 'license') { fetchLicenseStatus(); }
         }
 
         function toggleSecretDisplay(idx, secret) {

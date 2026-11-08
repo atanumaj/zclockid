@@ -47,7 +47,8 @@ from api.routers import (
     certificates,
     syslog,
     security,
-    federation
+    federation,
+    license
 )
 
 app = FastAPI(
@@ -115,6 +116,7 @@ app.include_router(certificates.router)
 app.include_router(syslog.router)
 app.include_router(security.router)
 app.include_router(federation.router)
+app.include_router(license.router)
 
 # Mount Web GUI static files if available
 if WEB_DIR.exists() and (WEB_DIR / "index.html").exists():
