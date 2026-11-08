@@ -1,12 +1,12 @@
 {
-  "version": "1.0.6",
-  "name": "ZclockID Enterprise v1.0.6",
+  "version": "1.0.7",
+  "name": "ZclockID Enterprise v1.0.7",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-08T09:20:00Z",
-  "summary": "Fix Firewall ON/OFF toggle switch request payload and update label to Firewall (ON/OFF) Toggle Switch",
-  "notes": "### What's Changed in v1.0.6:\n* **Firewall (ON/OFF) Toggle Fix:** Fixed payload parameter serialization (`is_enabled` and `enabled`) so toggling the master firewall switch between ON and OFF updates smoothly in real time without validation errors.\n* **Interactive Toggle State Label:** Renamed control to \"Firewall (ON/OFF) - Toggle Switch\" and added dynamic live ON/OFF indicator badge.\n* **Unified Firewall Rules Table:** Single unified table for all system and custom port access rules with full CRUD and 1-click restore to recommended baseline.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.6_all.deb",
-  "package_name": "zclockid_1.0.6_all.deb",
+  "published_at": "2026-11-08T09:25:00Z",
+  "summary": "Streamline OS Hardening card by removing duplicate SNMP settings and daemon telemetry",
+  "notes": "### What's Changed in v1.0.7:\n* **Deduplicate SNMP Configuration:** Removed redundant SNMP Read-Only Community String input and daemons telemetry indicators from the OS Hardening view, consolidating all SNMP configuration under the dedicated SNMP Telemetry tab.\n* **Focused OpenSSH Hardening:** Dedicated the OS hardening card strictly to OpenSSH root login and password authentication baselines.\n* **Firewall ON/OFF Toggle:** Interactive toggle switch with real-time state indicator and unified rules management.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.0.7_all.deb",
+  "package_name": "zclockid_1.0.7_all.deb",
   "min_version_required": "1.0.0"
 }

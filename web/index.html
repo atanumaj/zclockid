@@ -4051,11 +4051,11 @@
                         <div class="flex items-center justify-between border-b border-slate-800 pb-4">
                             <div>
                                 <h3 class="font-bold text-white text-base flex items-center gap-2">
-                                    <i class="fa-solid fa-shield-virus text-amber-400"></i> Operating System Hardening Baselines
+                                    <i class="fa-solid fa-user-shield text-amber-400"></i> OpenSSH Daemon Hardening Baseline
                                 </h3>
-                                <p class="text-xs text-slate-400 mt-1">Configure low-level daemon hardening for OpenSSH and SNMP.</p>
+                                <p class="text-xs text-slate-400 mt-1">Configure SSH authentication security and root elevation policies.</p>
                             </div>
-                            <span class="px-2.5 py-1 text-xs rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">OS LEVEL HARDENING</span>
+                            <span class="px-2.5 py-1 text-xs rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">SSH SECURITY</span>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -4082,37 +4082,11 @@
                                     <option value="0">Disabled (Public Key Authentication Only)</option>
                                 </select>
                             </div>
-
-                            <!-- SNMP Community String -->
-                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
-                                <label class="block text-xs font-semibold text-slate-200">
-                                    <i class="fa-solid fa-lock text-amber-400 mr-1.5"></i> SNMP Read-Only Community String
-                                </label>
-                                <p class="text-[11px] text-slate-400">Read-only community name used by telemetry pollers.</p>
-                                <input type="text" id="sec-snmp-community" value="zclock_public" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-amber-500">
-                            </div>
-
-                            <!-- Daemon Service Indicators -->
-                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
-                                <label class="block text-xs font-semibold text-slate-200">
-                                    <i class="fa-solid fa-server text-emerald-400 mr-1.5"></i> Core Daemons Telemetry
-                                </label>
-                                <div class="space-y-1.5 pt-1 text-xs">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-slate-400">OpenSSH Service (port 22):</span>
-                                        <span id="sec-stat-ssh" class="font-mono text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> ACTIVE</span>
-                                    </div>
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-slate-400">SNMP Service (port 161):</span>
-                                        <span id="sec-stat-snmp" class="font-mono text-emerald-400 font-bold"><i class="fa-solid fa-circle-check"></i> ACTIVE</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="flex justify-end pt-4 border-t border-slate-800">
                             <button onclick="saveSecuritySettings('hardening')" id="btn-save-hardening" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-2">
-                                <i class="fa-solid fa-shield-virus"></i> Apply System Hardening Baseline
+                                <i class="fa-solid fa-user-shield"></i> Apply OpenSSH Hardening Baseline
                             </button>
                         </div>
                     </div>
@@ -12782,7 +12756,11 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Failed to update security settings');
 
-                alert(`Security Baseline Updated!\n\n${data.message}\nOpenSSH: ${data.ssh_result}\nSNMP: ${data.snmp_result}`);
+                if (section === 'hardening') {
+                    alert(`OpenSSH Hardening Baseline Updated!\n\nOpenSSH Service: ${data.ssh_result}`);
+                } else {
+                    alert(`Security Baseline Updated!\n\n${data.message}`);
+                }
                 fetchSecuritySettings();
             } catch (err) {
                 alert(`Security Update Rejected:\n${err.message}`);
@@ -12791,7 +12769,7 @@
                     btn.disabled = false;
                     if (section === 'timeout') btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Session & Timeout Policy';
                     else if (section === 'subnets') btn.innerHTML = '<i class="fa-solid fa-network-wired"></i> Apply Network Access ACLs';
-                    else if (section === 'hardening') btn.innerHTML = '<i class="fa-solid fa-shield-virus"></i> Apply System Hardening Baseline';
+                    else if (section === 'hardening') btn.innerHTML = '<i class="fa-solid fa-user-shield"></i> Apply OpenSSH Hardening Baseline';
                 }
             }
         }
