@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
@@ -16,6 +17,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -66,8 +68,8 @@ func getEnv(key, fallback string) string {
 
 func getOrCreateSecret() string {
 	secretPaths := []string{
-		"/zclockid/config/sysvol_secret",
 		"/etc/zclockid/sysvol_secret",
+		"/zclockid/config/sysvol_secret",
 	}
 
 	for _, p := range secretPaths {
@@ -81,7 +83,7 @@ func getOrCreateSecret() string {
 	_, _ = rand.Read(b)
 	sec := hex.EncodeToString(b)
 
-	destPath := "/zclockid/config/sysvol_secret"
+	destPath := "/etc/zclockid/sysvol_secret"
 	_ = os.MkdirAll(filepath.Dir(destPath), 0700)
 	_ = os.WriteFile(destPath, []byte(sec+"\n"), 0600)
 	return sec
@@ -131,7 +133,10 @@ func (d *SysvolDaemon) ExecuteSysvolReset() {
 	log.Println("[zclock-sysvold] Executing 'samba-tool ntacl sysvolreset'...")
 	start := time.Now()
 
-	cmd := exec.Command("samba-tool", "ntacl", "sysvolreset")
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "samba-tool", "ntacl", "sysvolreset")
 	output, err := cmd.CombinedOutput()
 	duration := time.Since(start).Seconds()
 
@@ -185,8 +190,8 @@ func (d *SysvolDaemon) GetLocalManifest() map[string]FileInfo {
 
 func (d *SysvolDaemon) LoadPartners() []Partner {
 	partnerPaths := []string{
-		"/zclockid/config/sysvol_partners.json",
 		"/etc/zclockid/sysvol_partners.json",
+		"/zclockid/config/sysvol_partners.json",
 	}
 
 	for _, p := range partnerPaths {
@@ -334,7 +339,7 @@ func (d *SysvolDaemon) WriteTelemetry() {
 	d.statusMutex.RLock()
 	defer d.statusMutex.RUnlock()
 
-	var partnersList []PartnerStatus
+	partnersList := make([]PartnerStatus, 0)
 	for _, st := range d.partnerStatuses {
 		partnersList = append(partnersList, st)
 	}
@@ -350,52 +355,78 @@ func (d *SysvolDaemon) WriteTelemetry() {
 	}
 }
 
-func (d *SysvolDaemon) Run() {
-	log.Printf("[zclock-sysvold] Starting Go Native Sysvol Guardian on %s...", d.sysvolPath)
+func (d *SysvolDaemon) Run(ctx context.Context) {
+	log.Printf("[zclock-sysvold] Starting Go Native Sysvol Guardian on %s (debounce: %v)...", d.sysvolPath, d.debounceSec)
 	d.ExecuteSysvolReset()
+
+	// Initial partner sync & telemetry pass on start
+	partners := d.LoadPartners()
+	for _, p := range partners {
+		d.SyncPartner(p)
+	}
+	d.WriteTelemetry()
 
 	var lastMtime int64 = 0
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		// 1. Check local modification
-		var maxMtime int64 = 0
-		_ = filepath.Walk(d.sysvolPath, func(path string, info os.FileInfo, err error) error {
-			if err == nil && !info.IsDir() {
-				if mt := info.ModTime().UnixNano(); mt > maxMtime {
-					maxMtime = mt
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("[zclock-sysvold] Daemon loop terminating via context...")
+			return
+		case <-ticker.C:
+			// 1. Check local modification
+			var maxMtime int64 = 0
+			_ = filepath.Walk(d.sysvolPath, func(path string, info os.FileInfo, err error) error {
+				if err == nil && !info.IsDir() {
+					if mt := info.ModTime().UnixNano(); mt > maxMtime {
+						maxMtime = mt
+					}
 				}
+				return nil
+			})
+
+			if lastMtime != 0 && maxMtime > lastMtime {
+				d.ScheduleReset("Local modification in sysvol")
 			}
-			return nil
-		})
+			lastMtime = maxMtime
 
-		if lastMtime != 0 && maxMtime > lastMtime {
-			d.ScheduleReset("Local modification in sysvol")
+			// 2. Sync partner DCs
+			pList := d.LoadPartners()
+			for _, p := range pList {
+				d.SyncPartner(p)
+			}
+
+			// 3. Write telemetry
+			d.WriteTelemetry()
 		}
-		lastMtime = maxMtime
-
-		// 2. Sync partner DCs
-		partners := d.LoadPartners()
-		for _, p := range partners {
-			d.SyncPartner(p)
-		}
-
-		// 3. Write telemetry
-		d.WriteTelemetry()
 	}
 }
 
 func main() {
 	sysvolPath := getEnv("SYSVOL_PATH", "/var/lib/samba/sysvol")
-	daemon := NewSysvolDaemon(sysvolPath, 4)
+	debounceSec := 4
+	if v := os.Getenv("DEBOUNCE_SECONDS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			debounceSec = n
+		}
+	}
+
+	daemon := NewSysvolDaemon(sysvolPath, debounceSec)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	go daemon.Run()
+	go daemon.Run(ctx)
 
 	<-sigChan
 	log.Println("[zclock-sysvold] Shutting down gracefully...")
+	cancel()
+	time.Sleep(200 * time.Millisecond)
 }
+
 

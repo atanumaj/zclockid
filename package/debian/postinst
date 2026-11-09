@@ -134,7 +134,7 @@ EOFBIND
         # 9. Reload systemd units and restart services
         systemctl daemon-reload
         systemctl enable zclock-api.service zclock-sysvold.service zclock-azuresync.service >/dev/null 2>&1 || true
-        systemctl restart zclock-api.service >/dev/null 2>&1 || true
+        systemctl restart zclock-api.service zclock-sysvold.service >/dev/null 2>&1 || true
 
         echo ""
         echo "================================================================="

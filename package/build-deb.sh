@@ -41,7 +41,15 @@ if [[ -d "${DIST_DIR}/config" ]]; then
     cp -r "${DIST_DIR}/config/"* "${BUILD_ROOT}/opt/zclockid/config/"
 fi
 
-# 3. Copy Daemons and Telemetry Scripts
+# 3. Build & Install Native Go Daemons
+mkdir -p "${BUILD_ROOT}/opt/zclockid/bin"
+if [[ -d "${DIST_DIR}/daemons/go" ]] && command -v go >/dev/null 2>&1; then
+    echo "Compiling native Go daemons (zclock-sysvold)..."
+    (cd "${DIST_DIR}/daemons/go" && go build -ldflags="-s -w" -o "${BUILD_ROOT}/opt/zclockid/bin/zclock-sysvold" ./cmd/zclock-sysvold)
+    chmod 755 "${BUILD_ROOT}/opt/zclockid/bin/zclock-sysvold"
+fi
+
+# Copy Daemons and Telemetry Scripts
 cp "${DIST_DIR}/scripts/zclock-sysvold.py" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-telemetry.sh" "${BUILD_ROOT}/opt/zclockid/scripts/"
 cp "${DIST_DIR}/scripts/zclock-azuresync.py" "${BUILD_ROOT}/opt/zclockid/scripts/"

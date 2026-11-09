@@ -82,7 +82,7 @@ def list_sysvol_partners():
         try:
             with open(SYSVOL_SYNC_STATUS_FILE) as f:
                 data = json.load(f)
-                for p in data.get("partners", []):
+                for p in (data.get("partners") or []):
                     sync_telemetry[p["ip_address"]] = p
         except Exception:
             pass
