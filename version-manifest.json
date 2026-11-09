@@ -1,12 +1,12 @@
 {
-  "version": "1.2.2",
-  "name": "ZclockID Enterprise v1.2.2",
+  "version": "1.2.3",
+  "name": "ZclockID Enterprise v1.2.3",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-08T22:30:00Z",
-  "summary": "Fix Group Bandwidth Profile Resolution and Enable QoS Policy Assignment for Built-in AD Groups",
-  "notes": "### What's Changed in v1.2.2:\n* **Fixed Active Directory Group Bandwidth Mapping:** Resolved bug where `list_domain_groups` ignored database-backed bandwidth profile mappings (e.g. `VIP-Executive` for `Domain Admins`), causing `null` policy rate display on the Groups tab despite proper user inheritance.\n* **Enabled QoS Policy Assignment on Built-in Groups:** Active Directory built-in system groups (such as `Domain Admins`, `Domain Users`, etc.) can now be assigned QoS bandwidth profiles and modified directly via Web UI and REST API while safely preventing deletion.\n* **Web UI Group Management:** Added 'Edit Policy' action for built-in groups in the Groups table, allowing straightforward bandwidth tier assignments alongside protected lock badges.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.2_all.deb",
-  "package_name": "zclockid_1.2.2_all.deb",
+  "release_type": "minor",
+  "published_at": "2026-11-09T18:39:00Z",
+  "summary": "Master Licensing Terms, First-Time Setup Agreement Checklist, and Author Provenance Fingerprinting",
+  "notes": "### What's Changed in v1.2.3:\n* **Master Software License Agreement:** Introduced master `LICENSE.md` under the 'mere aggregation' model distinguishing proprietary appliance orchestration from upstream open-source daemons (Samba GPLv3, BIND9 MPL 2.0, FreeRADIUS GPLv2, Chrony GPLv2, Nginx BSD).\n* **Setup Wizard License Acceptance Checklist:** Added mandatory license agreement checklist to initial admin setup wizard (`web/setup.html`) with an interactive review modal.\n* **Author Provenance Fingerprinting:** Embedded author identity (`Atanu Majumdar (@atanumaj)`) and Ed25519 appliance fingerprint across configuration, debian control, and UI footers.\n* **Brand & Codebase Sanitization:** Standardized project documentation and removed legacy organizational references.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.3_all.deb",
+  "package_name": "zclockid_1.2.3_all.deb",
   "min_version_required": "1.0.0"
 }
