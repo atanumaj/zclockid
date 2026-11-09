@@ -25,19 +25,19 @@
         let usersSortCol = 'username';
         let usersSortDir = 'asc';
         let usersCurrentPage = 1;
-        let usersPageSize = 50;
+        let usersPageSize = 25;
 
         let groupsSearchQuery = '';
         let groupsSortCol = 'group_name';
         let groupsSortDir = 'asc';
         let groupsCurrentPage = 1;
-        let groupsPageSize = 50;
+        let groupsPageSize = 25;
 
         let computersSearchQuery = '';
         let computersSortCol = 'name';
         let computersSortDir = 'asc';
         let computersCurrentPage = 1;
-        let computersPageSize = 50;
+        let computersPageSize = 25;
 
         function updateTableSortIcons(prefix, activeCol, dir) {
             document.querySelectorAll(`[id^="sort-icon-${prefix}-"]`).forEach(icon => {
@@ -47,6 +47,54 @@
             if (activeIcon) {
                 activeIcon.className = `fa-solid fa-sort-${dir === 'asc' ? 'up' : 'down'} text-indigo-400 text-[10px]`;
             }
+        }
+
+        function renderPaginationButtons(containerId, currentPage, totalPages, goToPageFnName) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let pages = [];
+            if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+            } else {
+                pages.push(1);
+                let start = Math.max(2, currentPage - 1);
+                let end = Math.min(totalPages - 1, currentPage + 1);
+
+                if (currentPage <= 3) {
+                    start = 2;
+                    end = 4;
+                } else if (currentPage >= totalPages - 2) {
+                    start = totalPages - 3;
+                    end = totalPages - 1;
+                }
+
+                if (start > 2) pages.push('...');
+                for (let i = start; i <= end; i++) pages.push(i);
+                if (end < totalPages - 1) pages.push('...');
+                pages.push(totalPages);
+            }
+
+            container.innerHTML = pages.map(p => {
+                if (p === '...') {
+                    return `<span class="px-2 py-1 text-slate-500 font-mono text-xs select-none">...</span>`;
+                }
+                const isActive = (p === currentPage);
+                if (isActive) {
+                    return `<button class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-bold text-xs shadow-sm shadow-indigo-600/40 select-none">${p}</button>`;
+                } else {
+                    return `<button onclick="${goToPageFnName}(${p})" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition">${p}</button>`;
+                }
+            }).join('');
+        }
+
+        function goToUsersPage(p) {
+            usersCurrentPage = p;
+            renderUsersTable();
         }
 
         function sortUsersBy(col) {
@@ -81,7 +129,7 @@
 
         function onUsersPageSizeChange() {
             const sel = document.getElementById('users-page-size');
-            usersPageSize = sel ? parseInt(sel.value, 10) : 50;
+            usersPageSize = sel ? parseInt(sel.value, 10) : 25;
             usersCurrentPage = 1;
             renderUsersTable();
         }
@@ -205,6 +253,7 @@
                     pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages} (${totalCount} users)`;
                     prevBtn.disabled = (usersCurrentPage <= 1);
                     nextBtn.disabled = (usersCurrentPage >= totalPages);
+                    renderPaginationButtons('users-page-numbers', usersCurrentPage, totalPages, 'goToUsersPage');
                 }
             }
 
@@ -562,9 +611,14 @@
             renderGroupsTable();
         }
 
+        function goToGroupsPage(p) {
+            groupsCurrentPage = p;
+            renderGroupsTable();
+        }
+
         function onGroupsPageSizeChange() {
             const sel = document.getElementById('groups-page-size');
-            groupsPageSize = sel ? parseInt(sel.value, 10) : 50;
+            groupsPageSize = sel ? parseInt(sel.value, 10) : 25;
             groupsCurrentPage = 1;
             renderGroupsTable();
         }
@@ -676,6 +730,7 @@
                     pageInfo.innerText = `Page ${groupsCurrentPage} of ${totalPages} (${totalCount} groups)`;
                     prevBtn.disabled = (groupsCurrentPage <= 1);
                     nextBtn.disabled = (groupsCurrentPage >= totalPages);
+                    renderPaginationButtons('groups-page-numbers', groupsCurrentPage, totalPages, 'goToGroupsPage');
                 }
             }
 
@@ -891,9 +946,14 @@
             renderComputersTable();
         }
 
+        function goToComputersPage(p) {
+            computersCurrentPage = p;
+            renderComputersTable();
+        }
+
         function onComputersPageSizeChange() {
             const sel = document.getElementById('computers-page-size');
-            computersPageSize = sel ? parseInt(sel.value, 10) : 50;
+            computersPageSize = sel ? parseInt(sel.value, 10) : 25;
             computersCurrentPage = 1;
             renderComputersTable();
         }
@@ -999,6 +1059,7 @@
                     pageInfo.innerText = `Page ${computersCurrentPage} of ${totalPages} (${totalCount} computers)`;
                     prevBtn.disabled = (computersCurrentPage <= 1);
                     nextBtn.disabled = (computersCurrentPage >= totalPages);
+                    renderPaginationButtons('computers-page-numbers', computersCurrentPage, totalPages, 'goToComputersPage');
                 }
             }
 
