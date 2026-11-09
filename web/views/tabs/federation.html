@@ -1,0 +1,358 @@
+                <!-- Top Header -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-purple-950/60 border border-purple-800/40 text-purple-400 font-mono">ENTERPRISE SSO • OIDC / SAML 2.0</span>
+                            <span class="text-xs text-slate-500 font-mono">IDENTITY FEDERATION</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">IAM & Keycloak SSO Federation</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Federate ZclockID Active Directory & Kerberos credentials into Keycloak (Guide)</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchKeycloakSettings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Presets
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sub-Navigation Pills -->
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto text-xs">
+                    <button onclick="switchFedSubTab('ldap')" id="fed-subtab-btn-ldap" class="px-3.5 py-1.5 rounded-lg font-semibold bg-purple-600 text-white flex items-center gap-2 transition shadow-sm">
+                        <i class="fa-solid fa-network-wired text-xs"></i> LDAP Federation Preset
+                    </button>
+                    <button onclick="switchFedSubTab('kerberos')" id="fed-subtab-btn-kerberos" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-key text-xs text-amber-400"></i> Kerberos SPNEGO Desktop SSO
+                    </button>
+                    <button onclick="switchFedSubTab('blueprint')" id="fed-subtab-btn-blueprint" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-box text-xs text-cyan-400"></i> Docker Compose Blueprint
+                    </button>
+                    <button onclick="switchFedSubTab('guide')" id="fed-subtab-btn-guide" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-book-open text-xs text-emerald-400"></i> Architecture & Guide
+                    </button>
+                </div>
+
+                <!-- SUB-VIEW 1: LDAP USER FEDERATION PRESETS -->
+                <div id="fed-view-ldap" class="space-y-6">
+                    <!-- Banner Card -->
+                    <div class="bg-gradient-to-r from-purple-950/40 via-indigo-950/20 to-slate-900 border border-purple-800/30 rounded-2xl p-5 shadow-xl">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div class="space-y-1">
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                                    Turnkey Active Directory LDAP Provider
+                                </h3>
+                                <p class="text-xs text-slate-300">
+                                    In your Keycloak Admin Console, go to <span class="font-mono text-purple-300">User Federation &gt; Add Provider &gt; ldap</span> and copy-paste the pre-populated values below.
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="px-3 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-right">
+                                    <div class="text-[10px] text-slate-500 font-mono">ACTIVE DIRECTORY REALM</div>
+                                    <div class="text-xs font-bold text-purple-400 font-mono" id="fed-badge-realm">--</div>
+                                </div>
+                                <div class="px-3 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-right">
+                                    <div class="text-[10px] text-slate-500 font-mono">DC LAN IP</div>
+                                    <div class="text-xs font-bold text-cyan-400 font-mono" id="fed-badge-ip">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LDAP Parameters Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Connection URL -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Connection URL (Standard LDAP)</span>
+                                <button onclick="copyFedParam('fed-param-ldap-url')" class="text-xs text-purple-400 hover:text-purple-300 transition flex items-center gap-1 font-semibold">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div id="fed-param-ldap-url" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-cyan-400 select-all">ldap://127.0.0.1:389</div>
+                            <p class="text-[11px] text-slate-500">For encrypted traffic, use LDAPS: <span class="font-mono text-slate-400" id="fed-param-ldaps-url">ldaps://127.0.0.1:636</span></p>
+                        </div>
+
+                        <!-- Vendor -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Vendor</span>
+                                <button onclick="copyFedParam('fed-param-vendor')" class="text-xs text-purple-400 hover:text-purple-300 transition flex items-center gap-1 font-semibold">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div id="fed-param-vendor" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-white select-all">Active Directory</div>
+                            <p class="text-[11px] text-slate-500">Enables Microsoft AD specific account controls and objectGUID binary mappers.</p>
+                        </div>
+
+                        <!-- Users DN -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Users DN</span>
+                                <button onclick="copyFedParam('fed-param-users-dn')" class="text-xs text-purple-400 hover:text-purple-300 transition flex items-center gap-1 font-semibold">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div id="fed-param-users-dn" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-emerald-400 select-all">CN=Users,DC=example,DC=com</div>
+                            <p class="text-[11px] text-slate-500">Container where user objects and security principals reside.</p>
+                        </div>
+
+                        <!-- Bind DN -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Bind DN</span>
+                                <button onclick="copyFedParam('fed-param-bind-dn')" class="text-xs text-purple-400 hover:text-purple-300 transition flex items-center gap-1 font-semibold">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div id="fed-param-bind-dn" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-xs text-indigo-400 select-all">CN=Administrator,CN=Users,DC=example,DC=com</div>
+                            <p class="text-[11px] text-slate-500">Appliance administrative principal or dedicated service account bind user.</p>
+                        </div>
+
+                        <!-- Username & RDN Attributes -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Attribute Mappings</span>
+                            </div>
+                            <div class="space-y-1.5 font-mono text-xs">
+                                <div class="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
+                                    <span class="text-slate-400">Username LDAP Attribute:</span>
+                                    <span class="text-white font-bold">sAMAccountName</span>
+                                </div>
+                                <div class="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
+                                    <span class="text-slate-400">RDN LDAP Attribute:</span>
+                                    <span class="text-white font-bold">cn</span>
+                                </div>
+                                <div class="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
+                                    <span class="text-slate-400">UUID LDAP Attribute:</span>
+                                    <span class="text-white font-bold">objectGUID</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User Object Classes & Filter -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">User Object Classes & Search Filter</span>
+                                <button onclick="copyFedParam('fed-param-filter')" class="text-xs text-purple-400 hover:text-purple-300 transition flex items-center gap-1 font-semibold">
+                                    <i class="fa-solid fa-copy"></i> Copy Filter
+                                </button>
+                            </div>
+                            <div class="p-2 rounded bg-slate-950 border border-slate-800 font-mono text-xs text-white">
+                                person, organizationalPerson, user
+                            </div>
+                            <div id="fed-param-filter" class="p-2 rounded bg-slate-950 border border-slate-800 font-mono text-[11px] text-amber-300 select-all break-all">
+                                (&amp;(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))
+                            </div>
+                            <p class="text-[11px] text-slate-500">Automatically excludes disabled or locked out accounts.</p>
+                        </div>
+                    </div>
+
+                    <!-- Live Connection Test Diagnostic Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <i class="fa-solid fa-satellite-dish text-cyan-400 text-lg"></i>
+                                <div>
+                                    <h4 class="font-bold text-sm text-white">LDAP Listener Probe Test</h4>
+                                    <p class="text-xs text-slate-400">Verify that the LDAP server is listening and accessible before configuring Keycloak.</p>
+                                </div>
+                            </div>
+                            <button onclick="runLdapProbeTest()" id="btn-ldap-probe" class="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                                <i class="fa-solid fa-bolt"></i> Run Probe Test
+                            </button>
+                        </div>
+                        <div id="fed-probe-result" class="hidden p-3 rounded-lg border text-xs font-mono"></div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 2: KERBEROS SPNEGO DESKTOP SSO -->
+                <div id="fed-view-kerberos" class="space-y-6 hidden">
+                    <!-- SPNEGO Header Banner -->
+                    <div class="bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/20 border border-amber-800/30 rounded-2xl p-5 shadow-xl space-y-2">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-amber-400"></i>
+                                Kerberos SPNEGO Passwordless Desktop SSO
+                            </h3>
+                            <span id="fed-keytab-status-badge" class="px-2.5 py-1 text-[10px] font-bold rounded font-mono bg-slate-800 text-slate-400 border border-slate-700">CHECKING...</span>
+                        </div>
+                        <p class="text-xs text-slate-300">
+                            When users are logged into domain-joined Windows, macOS, or Linux workstations, their browser automatically presents a Kerberos ticket to Keycloak for zero-touch web login.
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Keytab Automation Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                            <div class="border-b border-slate-800 pb-3">
+                                <h4 class="font-bold text-sm text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-file-shield text-amber-400"></i>
+                                    Keytab Generator &amp; Exporter
+                                </h4>
+                                <p class="text-xs text-slate-400 mt-0.5">Automates SPN registration in Active Directory and exports an AES-256 keytab for Keycloak.</p>
+                            </div>
+
+                            <form onsubmit="handleGenerateKeytab(event)" class="space-y-4 text-xs">
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Service Account</label>
+                                    <input type="text" id="fed-keytab-account" value="svc-keycloak" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500">
+                                    <p class="text-[10px] text-slate-500 mt-1">Samba AD account associated with Keycloak's HTTP principal.</p>
+                                </div>
+                                <div>
+                                    <label class="block text-slate-300 font-medium mb-1">Service Principal Name (SPN)</label>
+                                    <input type="text" id="fed-keytab-spn" placeholder="HTTP/sso.example.com" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500">
+                                    <p class="text-[10px] text-slate-500 mt-1">Must match Keycloak's public FQDN (e.g. <span class="font-mono text-slate-400">HTTP/sso.yourdomain.com</span>).</p>
+                                </div>
+                                <div class="flex items-center justify-between pt-2">
+                                    <button type="submit" id="btn-generate-keytab" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold transition flex items-center gap-1.5 shadow-md shadow-amber-900/40">
+                                        <i class="fa-solid fa-bolt"></i> Generate Keytab
+                                    </button>
+                                    <button type="button" onclick="downloadKeytabFile()" id="btn-download-keytab" disabled class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-semibold transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+                                        <i class="fa-solid fa-download"></i> Download .keytab
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Keycloak Kerberos Provider Settings -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+                            <div class="border-b border-slate-800 pb-3">
+                                <h4 class="font-bold text-sm text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-sliders text-indigo-400"></i>
+                                    Keycloak Kerberos Settings
+                                </h4>
+                                <p class="text-xs text-slate-400 mt-0.5">Settings inside Keycloak User Federation &gt; Kerberos Integration.</p>
+                            </div>
+
+                            <div class="space-y-3 text-xs">
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                                    <span class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Kerberos Realm</span>
+                                    <div id="fed-krb-realm-disp" class="font-mono font-bold text-purple-400 text-sm select-all">--</div>
+                                </div>
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                                    <span class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Server Principal</span>
+                                    <div id="fed-krb-spn-disp" class="font-mono font-bold text-amber-400 text-xs select-all">--</div>
+                                </div>
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                                    <span class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Keytab Path inside Keycloak Container</span>
+                                    <div class="font-mono text-cyan-400 text-xs select-all">/opt/keycloak/conf/keycloak.keytab</div>
+                                </div>
+                                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                                    <span class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">Password Fallback</span>
+                                    <div class="font-semibold text-emerald-400 text-xs">Use Kerberos For Password Authentication: ON</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 3: DOCKER COMPOSE BLUEPRINT -->
+                <div id="fed-view-blueprint" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-3">
+                            <div>
+                                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-box text-cyan-400"></i>
+                                    Keycloak 24 + PostgreSQL Standalone Blueprint
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Spin up Keycloak in 60 seconds on any Docker host with pre-seeded Active Directory environment variables.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="copyBlueprintFile('compose')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-copy text-cyan-400"></i> Copy docker-compose.yml
+                                </button>
+                                <button onclick="copyBlueprintFile('env')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-copy text-purple-400"></i> Copy .env
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Code Display -->
+                        <div class="space-y-4">
+                            <div>
+                                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                                    <span>docker-compose.yml</span>
+                                    <span class="text-[10px] text-slate-500 font-mono">Quarkus Runtime • Port 8080</span>
+                                </div>
+                                <pre id="blueprint-compose-code" class="p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-cyan-300 leading-relaxed overflow-x-auto max-h-80 custom-scroll">Loading docker-compose.yml...</pre>
+                            </div>
+                            <div>
+                                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center justify-between">
+                                    <span>.env configuration</span>
+                                    <span class="text-[10px] text-slate-500 font-mono">Pre-seeded with ZclockID LAN IP</span>
+                                </div>
+                                <pre id="blueprint-env-code" class="p-4 bg-slate-950 border border-slate-800 rounded-xl font-mono text-xs text-purple-300 leading-relaxed overflow-x-auto max-h-48 custom-scroll">Loading .env configuration...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 4: ARCHITECTURE & GUIDE -->
+                <div id="fed-view-guide" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+                        <div class="border-b border-slate-800 pb-4">
+                            <h3 class="font-bold text-base text-white flex items-center gap-2">
+                                <i class="fa-solid fa-sitemap text-emerald-400"></i>
+                                Hub &amp; Satellite Identity Architecture
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-1">Understanding how ZclockID and Keycloak interact in an enterprise environment.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <div class="font-bold text-sm text-indigo-400 flex items-center gap-2">
+                                    <i class="fa-solid fa-server"></i> ZclockID (Identity Core)
+                                </div>
+                                <ul class="space-y-1.5 text-slate-300 list-disc list-inside">
+                                    <li>Authoritative Active Directory Domain Controller</li>
+                                    <li>Kerberos KDC for Windows / Linux domain joining</li>
+                                    <li>LDAP / LDAPS Directory Service (Port 389 &amp; 636)</li>
+                                    <li>FreeRADIUS 802.1X Wi-Fi &amp; Switch Port Security</li>
+                                    <li>Native Samba Sysvol &amp; Group Policy Objects (GPO)</li>
+                                </ul>
+                            </div>
+                            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                                <div class="font-bold text-sm text-purple-400 flex items-center gap-2">
+                                    <i class="fa-solid fa-cloud"></i> Keycloak (SSO Gateway)
+                                </div>
+                                <ul class="space-y-1.5 text-slate-300 list-disc list-inside">
+                                    <li>Web Single Sign-On (OIDC / OAuth2 / SAML 2.0)</li>
+                                    <li>Federates user credentials directly from ZclockID LDAP</li>
+                                    <li>Protects web apps (Nextcloud, Grafana, Portals, M365)</li>
+                                    <li>Enforces Multi-Factor Authentication (TOTP / WebAuthn)</li>
+                                    <li>Zero JVM impact on core Active Directory appliance</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-800 pt-4 space-y-3">
+                            <h4 class="font-bold text-sm text-white">4-Step Deployment Walkthrough</h4>
+                            <div class="space-y-2 text-xs">
+                                <div class="flex items-start gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                    <span class="h-6 w-6 rounded-full bg-purple-600/30 text-purple-400 font-bold flex items-center justify-center shrink-0">1</span>
+                                    <div>
+                                        <span class="font-bold text-white">Deploy Keycloak:</span> Use the <span class="font-mono text-cyan-400">Docker Compose Blueprint</span> tab to launch Keycloak on your application host (e.g. 192.168.1.38).
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                    <span class="h-6 w-6 rounded-full bg-purple-600/30 text-purple-400 font-bold flex items-center justify-center shrink-0">2</span>
+                                    <div>
+                                        <span class="font-bold text-white">Configure LDAP Provider:</span> In Keycloak, add an LDAP provider using the copy-paste values from the <span class="font-mono text-purple-400">LDAP Federation Preset</span> tab.
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                    <span class="h-6 w-6 rounded-full bg-purple-600/30 text-purple-400 font-bold flex items-center justify-center shrink-0">3</span>
+                                    <div>
+                                        <span class="font-bold text-white">Sync Users:</span> Click "Sync All Users" in Keycloak. Your ZclockID Active Directory users and groups are now live in Keycloak!
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3 bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                    <span class="h-6 w-6 rounded-full bg-purple-600/30 text-purple-400 font-bold flex items-center justify-center shrink-0">4</span>
+                                    <div>
+                                        <span class="font-bold text-white">Enable SPNEGO (Optional):</span> Export the Kerberos keytab from the <span class="font-mono text-amber-400">Kerberos SPNEGO</span> tab for silent browser single sign-on.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>

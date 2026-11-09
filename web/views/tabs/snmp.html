@@ -1,0 +1,274 @@
+                <div class="flex justify-between items-center bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-sm">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-satellite-dish text-cyan-400"></i> SNMP & Telemetry Management
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Configure SNMP daemon parameters, access control lists, and monitor Active Directory enterprise MIB telemetry OIDs.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchSnmpStatus(); fetchSnmpConfig();" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Top Metric Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-lg">
+                            <i class="fa-solid fa-server"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Daemon State</div>
+                            <div class="text-sm font-bold flex items-center gap-2">
+                                <span id="snmp-status-badge" class="inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> ACTIVE (UDP 161)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg">
+                            <i class="fa-solid fa-sitemap"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">AD DC Health OID</div>
+                            <div class="text-sm font-bold text-white font-mono" id="snmp-metric-ad">HEALTHY</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 text-lg">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Active SMB Sessions</div>
+                            <div class="text-sm font-bold text-white font-mono" id="snmp-metric-sessions">0</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Sysvol / Radius OID</div>
+                            <div class="text-xs font-bold text-white font-mono flex items-center gap-2">
+                                <span id="snmp-metric-sysvol" class="text-emerald-400">HEALTHY</span>
+                                <span class="text-slate-600">|</span>
+                                <span id="snmp-metric-radius" class="text-emerald-400">ACTIVE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Grid: Config Form & RFC 1157 Query Tester -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- SNMP Daemon Configuration Form -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-sliders text-cyan-400"></i> SNMP Server Parameters
+                                </h3>
+                                <span class="text-[11px] font-mono text-slate-500">/etc/snmp/snmpd.conf</span>
+                            </div>
+
+                            <form id="form-snmp-config" onsubmit="saveSnmpConfig(event)" class="space-y-4 text-xs">
+                                <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                                    <div>
+                                        <div class="font-semibold text-slate-200">Enable SNMP Daemon</div>
+                                        <div class="text-[11px] text-slate-400">Listen for inbound SNMP GET/WALK requests on UDP port 161</div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="snmp-cfg-enabled" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                    </label>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-slate-300 block mb-1 font-medium">Agent Listening Address</label>
+                                        <input type="text" id="snmp-cfg-address" required
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                                        <p class="text-[10px] text-slate-500 mt-1">Default: `udp:161,udp6:[::1]:161`</p>
+                                    </div>
+                                    <div>
+                                        <label class="text-slate-300 block mb-1 font-medium">Read-Only Community String</label>
+                                        <div class="relative">
+                                            <input type="text" id="snmp-cfg-community" required
+                                                class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none pr-9">
+                                            <i class="fa-solid fa-key absolute right-3 top-3 text-slate-500 text-xs"></i>
+                                        </div>
+                                        <p class="text-[10px] text-slate-500 mt-1">SNMPv1/v2c rocommunity secret</p>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-slate-300 block mb-1 font-medium">System Location (sysLocation)</label>
+                                        <input type="text" id="snmp-cfg-location" required
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="text-slate-300 block mb-1 font-medium">System Contact (sysContact)</label>
+                                        <input type="email" id="snmp-cfg-contact" required
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-slate-300 block mb-1 font-medium">Allowed Client Subnets / Management IPs</label>
+                                    <input type="text" id="snmp-cfg-subnets" required
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                                    <p class="text-[10px] text-slate-500 mt-1">Comma-separated list (e.g. `192.168.1.0/24, 127.0.0.1, 10.10.0.0/24`)</p>
+                                </div>
+
+                                <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                                    <div>
+                                        <div class="font-semibold text-slate-200">AD DC Telemetry OID Extensions</div>
+                                        <div class="text-[11px] text-slate-400">Expose `.1.3.6.1.4.1.99999.1.*` MIB metrics via `/usr/local/bin/zclock-telemetry.sh`</div>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="snmp-cfg-extensions" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                    </label>
+                                </div>
+
+                                <div class="pt-3 border-t border-slate-800 flex justify-end">
+                                    <button type="submit" id="btn-save-snmp-config" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-cyan-900/50">
+                                        <i class="fa-solid fa-floppy-disk"></i> Save & Restart SNMP Daemon
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Interactive RFC 1157 SNMP Query / Walk Tester -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-terminal text-emerald-400"></i> Interactive SNMP Query & Walk Tester
+                                </h3>
+                                <span class="text-[11px] font-mono text-slate-500">SNMP v2c</span>
+                            </div>
+
+                            <form onsubmit="executeSnmpTestQuery(event)" class="space-y-4 text-xs">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="text-slate-300 block mb-1 font-medium">Target Host / IP</label>
+                                        <input type="text" id="snmp-test-target" value="127.0.0.1" required
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="text-slate-300 block mb-1 font-medium">Community String</label>
+                                        <input type="text" id="snmp-test-community" value="zclock_public" required
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="text-slate-300 block mb-1 font-medium">Target OID / Tree</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="snmp-test-oid" value=".1.3.6.1.4.1.99999.1" required
+                                            class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                                        <button type="submit" id="btn-run-snmp-test" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-900/50">
+                                            <i class="fa-solid fa-play"></i> Query / Walk
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Preset Quick Buttons -->
+                                <div class="flex flex-wrap gap-1.5 pt-1">
+                                    <span class="text-[10px] text-slate-500 self-center mr-1">Presets:</span>
+                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">All Telemetry (.99999.1)</button>
+                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1.1')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">AD Health (.1.1)</button>
+                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1.2')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">DRS Repl (.1.2)</button>
+                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1.3')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">SMB Sessions (.1.3)</button>
+                                    <button type="button" onclick="setQueryOid('.1.3.6.1.2.1.1.1.0')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-mono transition">sysDescr (.1.1.0)</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Terminal Response Output Container -->
+                        <div class="mt-4">
+                            <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
+                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-terminal text-slate-500"></i> Command Output & SNMP Response</span>
+                                <span id="snmp-test-time" class="text-slate-500">-</span>
+                            </div>
+                            <pre id="snmp-test-output" class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-400 whitespace-pre-wrap break-all max-h-56 overflow-y-auto custom-scroll">Ready. Click 'Query / Walk' to test SNMP connectivity.</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enterprise MIB OID Reference Table -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
+                        <div>
+                            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-table-list text-cyan-400"></i> Enterprise AD DC Telemetry MIB Registry
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">ZclockID registered private enterprise MIB tree: iso.org.dod.internet.private.enterprises.99999.1</p>
+                        </div>
+                        <span class="text-xs font-mono px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-400 border border-cyan-800/40">Base OID: .1.3.6.1.4.1.99999.1</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs text-slate-300">
+                            <thead class="bg-slate-950/50 text-slate-400 font-mono text-[11px] uppercase border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">Sub-OID</th>
+                                    <th class="px-4 py-2.5">Metric Name</th>
+                                    <th class="px-4 py-2.5">Description</th>
+                                    <th class="px-4 py-2.5">Backend Source</th>
+                                    <th class="px-4 py-2.5">Expected Values</th>
+                                    <th class="px-4 py-2.5 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr class="hover:bg-slate-800/20">
+                                    <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.1</td>
+                                    <td class="px-4 py-3 font-semibold text-white">ad_status</td>
+                                    <td class="px-4 py-3 font-sans text-slate-300">Active Directory Domain Controller daemon operational state</td>
+                                    <td class="px-4 py-3 text-slate-400">systemctl is-active samba-ad-dc</td>
+                                    <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">"HEALTHY"</span> / <span class="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px]">"CRITICAL"</span></td>
+                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.1'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                </tr>
+                                <tr class="hover:bg-slate-800/20">
+                                    <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.2</td>
+                                    <td class="px-4 py-3 font-semibold text-white">drs_repl_health</td>
+                                    <td class="px-4 py-3 font-sans text-slate-300">Total consecutive DRS directory partition replication failures</td>
+                                    <td class="px-4 py-3 text-slate-400">samba-tool drs showrepl</td>
+                                    <td class="px-4 py-3"><span class="text-slate-300">Integer (0 = in sync)</span></td>
+                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.2'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                </tr>
+                                <tr class="hover:bg-slate-800/20">
+                                    <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.3</td>
+                                    <td class="px-4 py-3 font-semibold text-white">active_sessions</td>
+                                    <td class="px-4 py-3 font-sans text-slate-300">Active client SMB / CIFS session count connected to DC</td>
+                                    <td class="px-4 py-3 text-slate-400">smbstatus -b</td>
+                                    <td class="px-4 py-3"><span class="text-slate-300">Integer count</span></td>
+                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.3'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                </tr>
+                                <tr class="hover:bg-slate-800/20">
+                                    <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.4</td>
+                                    <td class="px-4 py-3 font-semibold text-white">sysvol_health</td>
+                                    <td class="px-4 py-3 font-sans text-slate-300">Sysvol share Windows NTACL filesystem security descriptor check</td>
+                                    <td class="px-4 py-3 text-slate-400">samba-tool ntacl sysvolcheck</td>
+                                    <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">"HEALTHY"</span> / <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px]">"ACL_MISMATCH"</span></td>
+                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.4'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                </tr>
+                                <tr class="hover:bg-slate-800/20">
+                                    <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.5</td>
+                                    <td class="px-4 py-3 font-semibold text-white">radius_auths</td>
+                                    <td class="px-4 py-3 font-sans text-slate-300">FreeRADIUS 802.1X / WPA Enterprise authentication service status</td>
+                                    <td class="px-4 py-3 text-slate-400">systemctl is-active freeradius</td>
+                                    <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">"ACTIVE"</span> / <span class="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px]">"INACTIVE"</span></td>
+                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.5'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>

@@ -1,0 +1,58 @@
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-yellow-950/60 border border-yellow-800/40 text-yellow-400 font-mono">REST API TOKENS</span>
+                            <span class="text-xs text-slate-500 font-mono">SCOPED BEARER KEYS</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">API Key Management</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Issue and revoke cryptographically secure API tokens (<code class="text-yellow-400">zck_live_...</code>) for automated scrapers, CI/CD, and monitoring integrations.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchApiKeys()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Keys
+                        </button>
+                        <button onclick="openApiKeyCreateModal()" class="px-3.5 py-2 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold text-xs rounded-lg shadow-lg shadow-yellow-600/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-key"></i> Generate New Key
+                        </button>
+                    </div>
+                </div>
+
+                <!-- API Keys Table Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-passport text-yellow-400"></i>
+                            <h3 class="font-bold text-sm text-white">Active Programmatic API Keys</h3>
+                        </div>
+                        <span id="api-keys-count-pill" class="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-mono">0 keys</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="py-3 px-4">Key Name</th>
+                                    <th class="py-3 px-4">Token Prefix</th>
+                                    <th class="py-3 px-4">Granted Scopes</th>
+                                    <th class="py-3 px-4">CIDR Whitelist</th>
+                                    <th class="py-3 px-4">Expiration</th>
+                                    <th class="py-3 px-4">Last Used</th>
+                                    <th class="py-3 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="api-keys-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
+                                <tr>
+                                    <td colspan="7" class="py-6 text-center text-slate-500">Loading API keys...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Usage Documentation Card -->
+                <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                    <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-terminal text-yellow-400"></i> Using API Tokens with cURL or Python
+                    </h4>
+                    <p class="text-xs text-slate-400 mb-3">Include the generated live key in the <code class="text-yellow-400">Authorization</code> bearer header or <code class="text-yellow-400">X-API-Key</code> request header:</p>
+                    <pre class="bg-slate-950 p-3 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-400 overflow-x-auto">curl -k -H "Authorization: Bearer zck_live_xxxxxxxxxxxxxxxxxxxxxxxx" https://&lt;appliance-ip&gt;/api/v1/system/status</pre>
+                </div>

@@ -1,0 +1,488 @@
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-950/60 border border-amber-800/40 text-amber-400 font-mono">HYBRID DIRECTORY RBAC & SECURITY</span>
+                            <span class="text-xs text-slate-500 font-mono">SYSTEM-WIDE ACCESS BASELINE</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">Access Control & Security Controls</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Enforce Active Directory role mappings, session timeouts, brute-force lockout, host firewall packet filtering, and OS hardening.</p>
+                    </div>
+                    <div class="flex items-center gap-2" id="rbac-header-actions">
+                        <button onclick="fetchRbacMappings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                        </button>
+                        <button onclick="openRbacMappingModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Add Role Mapping
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sub-Navigation Pills -->
+                <div class="flex items-center gap-2 border-b border-slate-800 pb-3 overflow-x-auto text-xs">
+                    <button onclick="switchRbacSubTab('mappings')" id="rbac-subtab-btn-mappings" class="px-3.5 py-1.5 rounded-lg font-semibold bg-amber-600 text-white flex items-center gap-2 transition shadow-sm">
+                        <i class="fa-solid fa-users-gear"></i> Role Mappings
+                    </button>
+                    <button onclick="switchRbacSubTab('timeout')" id="rbac-subtab-btn-timeout" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-clock"></i> Session & Timeout Policy
+                    </button>
+                    <button onclick="switchRbacSubTab('sessions')" id="rbac-subtab-btn-sessions" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-user-shield"></i> Active Admin Sessions
+                    </button>
+                    <button onclick="switchRbacSubTab('hardening')" id="rbac-subtab-btn-hardening" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-shield-halved text-rose-500"></i> Host Firewall & Hardening
+                    </button>
+                </div>
+
+                <!-- SUB-VIEW 1: ROLE MAPPINGS -->
+                <div id="rbac-view-mappings" class="space-y-6">
+                    <!-- RBAC Metrics Overview -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Configured Mappings</span>
+                                <i class="fa-solid fa-users-gear text-amber-400"></i>
+                            </div>
+                            <div class="text-2xl font-bold text-white font-mono" id="rbac-total-mappings">--</div>
+                            <div class="text-[11px] text-slate-500 mt-1">Active Directory & User rules</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Your Session Role</span>
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+                            </div>
+                            <div class="text-lg font-bold text-emerald-400 font-mono" id="rbac-current-role">fulladmin</div>
+                            <div class="text-[11px] text-slate-500 mt-1" id="rbac-current-role-desc">Full Appliance Administrator</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Break-Glass Admin</span>
+                                <i class="fa-solid fa-key text-indigo-400"></i>
+                            </div>
+                            <div class="text-sm font-bold text-slate-200 font-mono">LOCAL FALLBACK ACTIVE</div>
+                            <div class="text-[11px] text-emerald-400 mt-1"><i class="fa-solid fa-check"></i> Built-in admin always fulladmin</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                            <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
+                                <span>Directory Sync</span>
+                                <i class="fa-solid fa-sync text-cyan-400"></i>
+                            </div>
+                            <div class="text-sm font-bold text-cyan-400 font-mono">LIVE SAM.LDB RESOLUTION</div>
+                            <div class="text-[11px] text-slate-500 mt-1">Direct token group inspection</div>
+                        </div>
+                    </div>
+
+                    <!-- Mappings Table Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/40">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-list-check text-amber-400"></i>
+                                <h3 class="font-bold text-sm text-white">Configured Role Mappings</h3>
+                            </div>
+                            <span id="rbac-mapping-count-pill" class="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-mono">0 mappings</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="py-3 px-4">Principal Type</th>
+                                        <th class="py-3 px-4">Active Directory Principal Name</th>
+                                        <th class="py-3 px-4">Assigned Role</th>
+                                        <th class="py-3 px-4">Description</th>
+                                        <th class="py-3 px-4">Created</th>
+                                        <th class="py-3 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rbac-mappings-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
+                                    <tr>
+                                        <td colspan="6" class="py-6 text-center text-slate-500">Loading RBAC mappings...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Appliance Role Hierarchy Reference -->
+                    <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                        <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-indigo-400"></i> Appliance Role Hierarchy & Capability Matrix
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-emerald-900/40 space-y-1.5">
+                                <div class="flex items-center gap-2 text-emerald-400 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span> fulladmin
+                                </div>
+                                <p class="text-[11px] text-slate-400">Complete, unrestricted read and write control over all domains, RADIUS, DNS, certificates, and system updates.</p>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-indigo-900/40 space-y-1.5">
+                                <div class="flex items-center gap-2 text-indigo-400 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-indigo-500"></span> operator
+                                </div>
+                                <p class="text-[11px] text-slate-400">Can manage users, groups, RADIUS clients, MAB MAC addresses, and registrations. Cannot modify certs or system settings.</p>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-cyan-900/40 space-y-1.5">
+                                <div class="flex items-center gap-2 text-cyan-400 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-cyan-500"></span> report
+                                </div>
+                                <p class="text-[11px] text-slate-400">Read-only auditing access to compliance logs, RADIUS telemetry, Sysvol sync health, and active live log viewers.</p>
+                            </div>
+                            <div class="p-3.5 bg-slate-950/80 rounded-lg border border-slate-800 space-y-1.5">
+                                <div class="flex items-center gap-2 text-slate-300 font-bold">
+                                    <span class="h-2 w-2 rounded-full bg-slate-500"></span> readonly
+                                </div>
+                                <p class="text-[11px] text-slate-400">Safe inspection mode. All configuration modification buttons, provisioning actions, and toggles are locked.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 2: SESSION & TIMEOUT POLICY -->
+                <div id="rbac-view-timeout" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-4xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                            <div>
+                                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-clock text-amber-400"></i> Administrative Session & Timeout Policy
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">Configure idle auto-logout, maximum session longevity, and brute-force lockout safeguards.</p>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs rounded-full bg-amber-950/80 border border-amber-800/60 text-amber-400 font-mono">SYSTEM ENFORCED</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Idle Timeout -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-stopwatch text-indigo-400 mr-1.5"></i> Session Idle Timeout
+                                </label>
+                                <p class="text-[11px] text-slate-400">Auto-terminates active browser session when no user interaction occurs.</p>
+                                <select id="sec-idle-timeout" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="5">5 Minutes (High Security)</option>
+                                    <option value="10">10 Minutes</option>
+                                    <option value="15" selected>15 Minutes (Recommended)</option>
+                                    <option value="30">30 Minutes</option>
+                                    <option value="60">60 Minutes (1 Hour)</option>
+                                    <option value="120">120 Minutes (2 Hours)</option>
+                                    <option value="0">Disabled (Not Recommended)</option>
+                                </select>
+                            </div>
+
+                            <!-- Max Session Lifetime -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-hourglass-end text-cyan-400 mr-1.5"></i> Max Session Duration (Absolute)
+                                </label>
+                                <p class="text-[11px] text-slate-400">Forces complete re-authentication once exceeded, even if user is active.</p>
+                                <select id="sec-max-lifetime" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="4">4 Hours</option>
+                                    <option value="8" selected>8 Hours (Standard Workshift)</option>
+                                    <option value="12">12 Hours</option>
+                                    <option value="24">24 Hours (1 Day)</option>
+                                    <option value="48">48 Hours</option>
+                                </select>
+                            </div>
+
+                            <!-- Max Failed Logins -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-shield-virus text-rose-400 mr-1.5"></i> Brute-Force Lockout Threshold
+                                </label>
+                                <p class="text-[11px] text-slate-400">Maximum consecutive failed login attempts permitted before temporary lockout.</p>
+                                <select id="sec-max-failed" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="3">3 Attempts (Strict)</option>
+                                    <option value="5" selected>5 Attempts (Recommended)</option>
+                                    <option value="10">10 Attempts</option>
+                                </select>
+                            </div>
+
+                            <!-- Lockout Duration -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-lock text-amber-400 mr-1.5"></i> Temporary Lockout Duration
+                                </label>
+                                <p class="text-[11px] text-slate-400">Duration during which locked accounts/IPs are rejected with HTTP 429.</p>
+                                <select id="sec-lockout-duration" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="5">5 Minutes</option>
+                                    <option value="15" selected>15 Minutes (Recommended)</option>
+                                    <option value="30">30 Minutes</option>
+                                    <option value="60">60 Minutes (1 Hour)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-4 border-t border-slate-800">
+                            <button onclick="saveSecuritySettings('timeout')" id="btn-save-timeout" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> Save Session & Timeout Policy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 3: ACTIVE ADMIN SESSIONS -->
+                <div id="rbac-view-sessions" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                        <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/40">
+                            <div>
+                                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-user-shield text-amber-400"></i> Active Appliance Administrative Sessions
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Live authenticated sessions stored in appliance SQLite security store.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="fetchActiveSessions()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                                </button>
+                                <button onclick="terminateAllOtherSessions()" class="px-3 py-1.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 text-rose-300 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-ban"></i> Terminate All Other Sessions
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950/60 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="py-3 px-4">User</th>
+                                        <th class="py-3 px-4">Role</th>
+                                        <th class="py-3 px-4">Client IP</th>
+                                        <th class="py-3 px-4">User Agent / Platform</th>
+                                        <th class="py-3 px-4">Logged In</th>
+                                        <th class="py-3 px-4">Last Activity</th>
+                                        <th class="py-3 px-4">Status</th>
+                                        <th class="py-3 px-4 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sec-sessions-tbody" class="divide-y divide-slate-800 font-sans text-slate-300">
+                                    <tr>
+                                        <td colspan="8" class="py-6 text-center text-slate-500">Loading active sessions...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 4: SYSTEM HARDENING BASELINE -->
+                <div id="rbac-view-hardening" class="space-y-6 hidden">
+                    <!-- APPLIANCE HOST FIREWALL & PORT PROTECTION -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-5xl">
+                        <!-- Header with Master Switch -->
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="font-bold text-white text-base flex items-center gap-2">
+                                        <i class="fa-solid fa-shield-halved text-rose-500"></i> Appliance Host Firewall & Port Protection
+                                    </h3>
+                                    <span id="fw-status-badge" class="px-2.5 py-0.5 text-xs rounded-full bg-slate-800 text-slate-400 font-mono font-bold flex items-center gap-1.5">
+                                        <i class="fa-solid fa-circle text-[8px]"></i> Loading...
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1">Configure packet filtering rules. Default policy drops all unsolicited incoming traffic while allowing rules defined below. Each rule can be edited, deleted, or restored to the recommended template.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2.5">
+                                <button onclick="resetFirewallTemplate()" title="Revert all rules back to the factory recommended Active Directory baseline template" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-semibold rounded-lg transition border border-amber-800/60 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-rotate-left"></i> Revert to Default Template
+                                </button>
+                                <button onclick="applyFirewallChanges()" title="Force synchronize database rules to Linux kernel" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition border border-slate-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Sync Rules
+                                </button>
+                                <button onclick="openFirewallRuleModal()" id="btn-add-fw-rule" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-rose-600/30 transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-plus"></i> Add Rule
+                                </button>
+                                <!-- Firewall Toggle Switch -->
+                                <div class="flex items-center gap-2.5 bg-slate-950/60 px-3.5 py-1.5 rounded-xl border border-slate-800">
+                                    <span class="text-xs font-semibold text-slate-300">Firewall:</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="fw-master-toggle" class="sr-only peer" onchange="toggleFirewallMaster(this.checked)">
+                                        <div id="fw-toggle-track" class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                    </label>
+                                    <span id="fw-toggle-state-text" class="text-xs font-mono font-bold text-rose-400">OFF</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Anti-Lockout Guard & Client IP Detection -->
+                        <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg">
+                                    <i class="fa-solid fa-location-crosshairs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-semibold text-slate-200">
+                                        Detected Client IP: <span id="sec-current-client-ip" class="font-mono text-amber-400 ml-1">Detecting...</span>
+                                    </div>
+                                    <div class="text-[11px] text-slate-400">Zero-Lockout Guard is active. Firewall policies automatically safeguard administrative connectivity to prevent lockout.</div>
+                                </div>
+                            </div>
+                            <span class="px-2.5 py-1 text-[11px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono font-bold flex items-center gap-1.5 self-start md:self-auto">
+                                <i class="fa-solid fa-shield-check"></i> ANTI-LOCKOUT ARMED
+                            </span>
+                        </div>
+
+                        <!-- Policy Badges & Rule Counter KPIs -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                                <span class="text-slate-400 block text-[11px]">Default Ingress</span>
+                                <span class="font-bold font-mono text-rose-400 flex items-center gap-1.5 mt-0.5"><i class="fa-solid fa-ban"></i> DROP / DENY ALL</span>
+                            </div>
+                            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                                <span class="text-slate-400 block text-[11px]">Default Egress</span>
+                                <span class="font-bold font-mono text-emerald-400 flex items-center gap-1.5 mt-0.5"><i class="fa-solid fa-circle-check"></i> ALLOW ALL</span>
+                            </div>
+                            <div class="bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                                <span class="text-slate-400 block text-[11px]">Enforced Rules</span>
+                                <span class="font-bold font-mono text-amber-400 flex items-center gap-1.5 mt-0.5" id="fw-rules-kpi-count"><i class="fa-solid fa-list-check"></i> 0 Rules (0 Active)</span>
+                            </div>
+                        </div>
+
+                        <!-- Search and Controls Bar -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-white uppercase font-mono tracking-wider"><i class="fa-solid fa-list text-rose-400 mr-1.5"></i> Firewall Rules</span>
+                                <span id="fw-rules-badge-count" class="px-2 py-0.5 text-[11px] rounded bg-slate-800 text-slate-300 font-mono">0</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                                    <input type="text" id="fw-search-input" oninput="filterFirewallRules()" placeholder="Filter by port, protocol, source, comment..." class="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-slate-500 font-sans focus:outline-none focus:border-rose-500 w-64">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Single Unified Rules Table -->
+                        <div class="overflow-x-auto rounded-xl border border-slate-800">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-950/70 text-slate-400 font-mono uppercase text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Action</th>
+                                        <th class="py-2.5 px-3">Protocol</th>
+                                        <th class="py-2.5 px-3">Port / Range</th>
+                                        <th class="py-2.5 px-3">Source Network</th>
+                                        <th class="py-2.5 px-3">Service / Description</th>
+                                        <th class="py-2.5 px-3">State</th>
+                                        <th class="py-2.5 px-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fw-rules-body" class="divide-y divide-slate-800/60 font-mono">
+                                    <tr>
+                                        <td colspan="7" class="py-6 text-center text-slate-500">Loading firewall rules...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Add / Edit Firewall Rule Modal -->
+                    <div id="modal-firewall-rule" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                                <div class="flex items-center gap-2">
+                                    <i class="fa-solid fa-shield-halved text-rose-500"></i>
+                                    <h3 id="fw-modal-title" class="font-bold text-sm text-white">Add Firewall Rule</h3>
+                                </div>
+                                <button onclick="closeFirewallRuleModal()" class="text-slate-400 hover:text-white transition">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <form onsubmit="handleFirewallRuleSubmit(event)" class="p-5 space-y-4 text-xs">
+                                <input type="hidden" id="fw-rule-edit-id" value="">
+                                
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-slate-300 font-semibold mb-1">Action</label>
+                                        <select id="fw-rule-action" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500">
+                                            <option value="ALLOW">ALLOW (Permit Ingress)</option>
+                                            <option value="DENY">DENY (Drop Ingress)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-300 font-semibold mb-1">Protocol</label>
+                                        <select id="fw-rule-proto" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-rose-500">
+                                            <option value="TCP">TCP</option>
+                                            <option value="UDP">UDP</option>
+                                            <option value="BOTH">BOTH (TCP & UDP)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-slate-300 font-semibold mb-1">Port or Port Range</label>
+                                    <input type="text" id="fw-rule-port" required placeholder="e.g. 8080 or 3000-3005" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-rose-500">
+                                    <p class="text-[11px] text-slate-400 mt-1">Specify a single destination port (e.g. 8080) or range (e.g. 3000-3005).</p>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="block text-slate-300 font-semibold">Source Network / IP Subnets</label>
+                                        <button type="button" onclick="insertCurrentClientIpIntoFirewall()" class="text-[11px] text-amber-400 hover:underline flex items-center gap-1 font-mono">
+                                            <i class="fa-solid fa-plus"></i> Add Current IP (/32)
+                                        </button>
+                                    </div>
+                                    <input type="text" id="fw-rule-source" value="Any" placeholder="Any or 192.168.1.0/24, 10.10.0.0/24, 180.92.168.34/32" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono placeholder:text-slate-500 focus:outline-none focus:border-rose-500">
+                                    <p class="text-[11px] text-slate-400 mt-1">Leave as <code>Any</code> to allow all networks, or provide one or more subnets/IPs separated by comma (e.g. <code class="text-amber-400">192.168.1.0/24, 10.10.0.0/24</code>).</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-slate-300 font-semibold mb-1">Description / Comment</label>
+                                    <input type="text" id="fw-rule-comment" placeholder="e.g. Monitoring Agent or Custom App Ingress" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder:text-slate-500 focus:outline-none focus:border-rose-500">
+                                </div>
+
+                                <div class="flex items-center gap-2 pt-1">
+                                    <input type="checkbox" id="fw-rule-enabled" checked class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-rose-600 focus:ring-0">
+                                    <label for="fw-rule-enabled" class="text-slate-300 font-medium">Enable this rule immediately</label>
+                                </div>
+
+                                <div class="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                                    <button type="button" onclick="closeFirewallRuleModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold transition">Cancel</button>
+                                    <button type="submit" id="btn-fw-rule-submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-semibold shadow-lg shadow-rose-600/30 transition flex items-center gap-1.5">
+                                        <i class="fa-solid fa-save"></i> Save Rule
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- OS HARDENING BASELINE CARD -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 max-w-5xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                            <div>
+                                <h3 class="font-bold text-white text-base flex items-center gap-2">
+                                    <i class="fa-solid fa-user-shield text-amber-400"></i> OpenSSH Daemon Hardening Baseline
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-1">Configure SSH authentication security and root elevation policies.</p>
+                            </div>
+                            <span class="px-2.5 py-1 text-xs rounded-full bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">SSH SECURITY</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- SSH PermitRootLogin -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-user-lock text-rose-400 mr-1.5"></i> SSH Direct Root Login
+                                </label>
+                                <p class="text-[11px] text-slate-400">Enforces unprivileged operator login with sudo elevation.</p>
+                                <select id="sec-ssh-permit-root" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="0" selected>Disabled (Recommended - sudo elevation required)</option>
+                                    <option value="1">Enabled (PermitRootLogin yes)</option>
+                                </select>
+                            </div>
+
+                            <!-- SSH PasswordAuthentication -->
+                            <div class="space-y-2 bg-slate-950/40 p-4 rounded-xl border border-slate-800">
+                                <label class="block text-xs font-semibold text-slate-200">
+                                    <i class="fa-solid fa-key text-indigo-400 mr-1.5"></i> SSH Password Authentication
+                                </label>
+                                <p class="text-[11px] text-slate-400">Permit SSH login via password or require SSH authorized keys.</p>
+                                <select id="sec-ssh-password-auth" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="1" selected>Enabled (Password Allowed)</option>
+                                    <option value="0">Disabled (Public Key Authentication Only)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-4 border-t border-slate-800">
+                            <button onclick="saveSecuritySettings('hardening')" id="btn-save-hardening" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-2">
+                                <i class="fa-solid fa-user-shield"></i> Apply OpenSSH Hardening Baseline
+                            </button>
+                        </div>
+                    </div>
+                </div>

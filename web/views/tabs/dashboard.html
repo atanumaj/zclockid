@@ -1,0 +1,615 @@
+                <!-- Product Punchline & Identity Hero Banner -->
+                <div class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-900/40 rounded-2xl p-6 shadow-xl shadow-indigo-950/20">
+                    <div class="absolute -right-12 -top-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="absolute -left-12 -bottom-12 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div class="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                        <div class="space-y-2">
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-800/60 text-indigo-300 text-[11px] font-mono tracking-wide">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                Unified Identity, Access Control & Network Policy Platform
+                            </div>
+                            <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2 flex-wrap">
+                                <span>ZclockID</span>
+                                <span class="text-slate-500 font-light text-xl sm:text-2xl">—</span>
+                                <span class="bg-gradient-to-r from-indigo-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">All Identity in One Place</span>
+                            </h1>
+                            <p class="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                                Complete enterprise directory services, RADIUS-based 802.1X dynamic bandwidth controls, DNS-over-HTTPS, and multi-master file replication — all converged in a hardened, high-availability appliance.
+                            </p>
+                        </div>
+
+                        <!-- Quick Telemetry & Management Highlights -->
+                        <div class="flex flex-wrap lg:flex-nowrap gap-2.5 shrink-0">
+                            <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
+                                <div class="text-[10px] text-slate-400 uppercase font-sans font-medium">Domain Controller</div>
+                                <div id="hero-domain-realm" class="text-xs font-bold font-mono text-emerald-400 mt-0.5">--</div>
+                                <div class="text-[9px] text-slate-500 font-mono mt-0.5">Samba 4.23 AD DC</div>
+                            </div>
+                            <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
+                                <div class="text-[10px] text-slate-400 uppercase font-sans font-medium">802.1X Access</div>
+                                <div class="text-xs font-bold font-mono text-cyan-400 mt-0.5">FreeRADIUS 3</div>
+                                <div class="text-[9px] text-slate-500 font-mono mt-0.5">Dynamic QoS & MAB</div>
+                            </div>
+                            <div class="bg-slate-950/80 border border-slate-800 rounded-xl px-3.5 py-2.5 min-w-[120px]">
+                                <div class="text-[10px] text-slate-400 uppercase font-sans font-medium">Admin Interface</div>
+                                <div class="text-xs font-bold font-mono text-indigo-400 mt-0.5">RSAT & Web UI</div>
+                                <div class="text-[9px] text-slate-500 font-mono mt-0.5">Microsoft MMC Ready</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resource Gauges -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-microchip text-indigo-400"></i> CPU Utilization</span>
+                            <span id="meter-cpu" class="font-mono text-indigo-400 font-bold">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2">
+                            <div id="bar-cpu" class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: 5%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-memory text-emerald-400"></i> Memory (RAM)</span>
+                            <span id="meter-mem" class="font-mono text-emerald-400 font-bold">0 MB</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2">
+                            <div id="bar-mem" class="bg-emerald-600 h-2 rounded-full transition-all duration-500" style="width: 20%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-hard-drive text-cyan-400"></i> Root Storage</span>
+                            <span id="meter-disk" class="font-mono text-cyan-400 font-bold">0 GB</span>
+                        </div>
+                        <div class="w-full bg-slate-800 rounded-full h-2">
+                            <div id="bar-disk" class="bg-cyan-600 h-2 rounded-full transition-all duration-500" style="width: 10%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 24-Hour Authentication Activity & Telemetry Graph -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 space-y-4 shadow-xl">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-lg shrink-0">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-sm font-bold text-white">Active Directory & RADIUS Authentications (Last 24 Hours)</h3>
+                                    <span class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-semibold">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE TELEMETRY
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-0.5">Real-time hourly telemetry for Kerberos KDC (UDP/88), LDAP Binds (389/636), FreeRADIUS 802.1X (1812), and Management Sessions</p>
+                            </div>
+                        </div>
+
+                        <!-- Metric Summary Pills -->
+                        <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Total Auths (24h)</span>
+                                <span id="auth-metric-total" class="font-bold text-white text-xs">--</span>
+                            </div>
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Success Rate</span>
+                                <span id="auth-metric-rate" class="font-bold text-emerald-400 text-xs">--%</span>
+                            </div>
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Peak Load / hr</span>
+                                <span id="auth-metric-peak" class="font-bold text-sky-400 text-xs">--</span>
+                            </div>
+                            <div class="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                                <span class="text-slate-400 text-[10px] block uppercase font-sans">Active Sessions</span>
+                                <span id="auth-metric-sessions" class="font-bold text-amber-400 text-xs">--</span>
+                            </div>
+                            <button onclick="fetchAuthStats24h()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition border border-slate-700" title="Refresh Graph">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chart Container -->
+                    <div class="relative w-full h-64 md:h-72">
+                        <canvas id="authChart24h"></canvas>
+                    </div>
+
+                    <!-- Protocol Legend & Hourly Peak Footer -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+                        <div class="flex flex-wrap items-center gap-4">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Successful Logins (<span id="legend-kerb-ldap" class="font-mono text-emerald-300">--</span>)
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Failed / Rejected (<span id="legend-failed" class="font-mono text-rose-300">--</span>)
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span> FreeRADIUS 802.1X (<span id="legend-radius" class="font-mono text-sky-300">--</span>)
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 font-mono">
+                            <span>Peak Hour: <strong id="auth-peak-time" class="text-slate-300 font-sans">--</strong></span>
+                            <span class="mx-2">&bull;</span>
+                            <span>Sampling: 60-min buckets</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Microsoft RSAT (Remote Server Administration Tools) Integration & Quick Guide -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 transition-all">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none" onclick="toggleRsatGuide()">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-sky-600/20 border border-sky-500/30 flex items-center justify-center text-sky-400 text-lg shrink-0">
+                                <i class="fa-brands fa-windows"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <span>Microsoft RSAT Administration & Snap-in Guide</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-950/80 text-sky-300 border border-sky-800/60 font-semibold">100% MMC Compatible</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Manage ZclockID Samba AD DC natively from your Windows workstation using official Microsoft MMC consoles</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                            <a href="https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/remote-server-administration-tools" target="_blank" rel="noopener noreferrer"
+                                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Docs
+                            </a>
+                            <button type="button" onclick="toggleRsatGuide()"
+                                class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700" id="rsat-guide-toggle-btn">
+                                <span id="rsat-guide-toggle-text">Collapse Guide</span>
+                                <i id="rsat-guide-chevron" class="fa-solid fa-chevron-up text-xs transition-transform duration-200"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3-Step Setup Guide & Snap-ins Grid (Collapsible) -->
+                    <div id="rsat-guide-content" class="grid grid-cols-1 lg:grid-cols-3 gap-5 pt-4 mt-4 border-t border-slate-800">
+                        <!-- Step 1: Install RSAT on Windows -->
+                        <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-4 space-y-3 flex flex-col justify-between">
+                            <div class="space-y-2.5">
+                                <div class="flex items-center gap-2 text-xs font-bold text-indigo-400">
+                                    <span class="w-5 h-5 rounded-full bg-indigo-900/80 border border-indigo-700 flex items-center justify-center text-[10px]">1</span>
+                                    Install RSAT on Windows 10 / 11
+                                </div>
+                                <p class="text-[11px] text-slate-300 leading-relaxed">
+                                    RSAT is included with modern Windows as an Optional Feature. Open <strong class="text-white">PowerShell as Administrator</strong> and run:
+                                </p>
+                                <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5 relative font-mono text-[11px] text-cyan-300 break-all select-all">
+                                    <code>Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online</code>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
+                                <span class="text-slate-500">GUI: Settings &rarr; Optional features &rarr; RSAT</span>
+                                <button type="button" onclick="copyToClipboard('Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online', 'Copied RSAT PowerShell install command!')"
+                                    class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] transition flex items-center gap-1">
+                                    <i class="fa-regular fa-copy"></i> Copy Command
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Join Domain & Authenticate -->
+                        <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-4 space-y-3 flex flex-col justify-between">
+                            <div class="space-y-2.5">
+                                <div class="flex items-center gap-2 text-xs font-bold text-cyan-400">
+                                    <span class="w-5 h-5 rounded-full bg-cyan-900/80 border border-cyan-700 flex items-center justify-center text-[10px]">2</span>
+                                    Point DNS & Join Domain
+                                </div>
+                                <div class="space-y-2 text-[11px] text-slate-300">
+                                    <div class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
+                                        <div><strong>Set Preferred DNS:</strong> Point client IPv4 DNS to ZclockID (<code id="rsat-dns-ip" class="text-cyan-300 font-mono">appliance-ip</code>).</div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
+                                        <div><strong>Join Domain:</strong> In <code class="text-slate-300 font-mono">sysdm.cpl</code>, join domain <strong id="rsat-domain-name" class="text-white font-mono">DOMAIN</strong>.</div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <i class="fa-solid fa-circle-check text-emerald-400 text-xs mt-0.5 shrink-0"></i>
+                                        <div><strong>Log In:</strong> Sign in with Domain Administrator credentials (<code class="text-indigo-300 font-mono">Administrator@example.com</code>).</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-[10px] text-slate-500 pt-2 border-t border-slate-800/60">
+                                Both Domain Admin and delegated accounts supported
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Launch Native MMC Snap-ins -->
+                        <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-4 space-y-2.5">
+                            <div class="flex items-center gap-2 text-xs font-bold text-emerald-400">
+                                <span class="w-5 h-5 rounded-full bg-emerald-900/80 border border-emerald-700 flex items-center justify-center text-[10px]">3</span>
+                                Launch MMC Snap-in Consoles
+                            </div>
+                            <p class="text-[11px] text-slate-400">Press <kbd class="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded font-mono text-[10px]">Win + R</kbd> and run any snap-in:</p>
+                            
+                            <div class="space-y-1.5 pt-1">
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-users text-indigo-400 text-xs"></i>
+                                        <span class="text-slate-300">AD Users & Computers</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('dsa.msc', 'Copied dsa.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>dsa.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-sliders text-emerald-400 text-xs"></i>
+                                        <span class="text-slate-300">Group Policy (GPMC)</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('gpmc.msc', 'Copied gpmc.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>gpmc.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-server text-sky-400 text-xs"></i>
+                                        <span class="text-slate-300">DNS Manager Console</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('dnsmgmt.msc', 'Copied dnsmgmt.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>dnsmgmt.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between p-1.5 bg-slate-900 rounded border border-slate-800/60 text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-sitemap text-amber-400 text-xs"></i>
+                                        <span class="text-slate-300">AD Sites & Services</span>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('dssite.msc', 'Copied dssite.msc')"
+                                        class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
+                                        <code>dssite.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Software Updates & Release Banner -->
+                <div class="bg-gradient-to-r from-slate-900 via-indigo-950/20 to-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center gap-3.5">
+                        <div class="h-10 w-10 rounded-xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400 text-lg shrink-0">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-white">Appliance Version & Updates</span>
+                                <span id="dash-version-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-950/80 text-violet-300 border border-violet-800/50">v1.0.0</span>
+                                <span id="dash-update-available-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">UPDATE AVAILABLE</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-0.5" id="dash-update-summary">Automated Debian package updates with persistent configurations & state</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="checkForSystemUpdates()" id="btn-dash-check-updates" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-magnifying-glass text-slate-400"></i> Check Updates
+                        </button>
+                        <button onclick="showTab('update')" class="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-violet-600/30">
+                            <i class="fa-solid fa-cloud-arrow-down"></i> Update Center
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Detailed Subsystems Engine Grid (Zentyal Style) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-server text-indigo-400"></i> Subsystem Engines & Daemon Lifecycle Status
+                            </h3>
+                            <p class="text-xs text-slate-400">Live process metrics, port bindings, runtime controls (Start, Stop, Restart, Reload), and boot autostart configuration</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="fetchSystemStatus()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate"></i> Refresh Metrics
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- 1. Samba Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
+                                        <span id="enabled-samba-ad-dc" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-indigo-400 transition" onclick="openServiceControlModal('samba-ad-dc')">Samba AD DC</h4>
+                                </div>
+                                <span id="badge-samba-ad-dc" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-samba-ad-dc" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-samba-ad-dc" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-indigo-300 truncate max-w-[170px]" title="53, 88, 135, 139, 389, 445, 464, 636, 3268">53, 88, 135, 389, 445...</span></div>
+                            </div>
+                            <div id="actions-samba-ad-dc" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('samba-ad-dc', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('samba-ad-dc', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('samba-ad-dc')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('samba-ad-dc', 'Samba Active Directory')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 2. BIND9 Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
+                                        <span id="enabled-bind9" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" onclick="openServiceControlModal('bind9')">BIND9 DLZ & DoH</h4>
+                                </div>
+                                <span id="badge-bind9" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-bind9" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-bind9" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-cyan-300">53 (DNS), 8053 (DoH)</span></div>
+                            </div>
+                            <div id="actions-bind9" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('bind9', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('bind9', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('bind9')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('bind9', 'BIND9 DNS Engine')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3. FreeRADIUS Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-amber-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-800/40">INFRA ENGINE</span>
+                                        <span id="enabled-freeradius" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-amber-400 transition" onclick="openServiceControlModal('freeradius')">FreeRADIUS 3</h4>
+                                </div>
+                                <span id="badge-freeradius" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-freeradius" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-freeradius" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-amber-300">1812 (Auth), 1813 (Acct)</span></div>
+                            </div>
+                            <div id="actions-freeradius" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('freeradius', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('freeradius', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('freeradius')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('freeradius', 'FreeRADIUS 802.1X')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 4. Chrony NTP Server Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-sky-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-sky-950/60 border border-sky-800/40">INFRA ENGINE</span>
+                                        <span id="enabled-chrony" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-sky-400 transition" onclick="openServiceControlModal('chrony')">Chrony NTP Server</h4>
+                                </div>
+                                <span id="badge-chrony" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-chrony" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-chrony" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-sky-300">123 (UDP Authenticated)</span></div>
+                            </div>
+                            <div id="actions-chrony" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('chrony', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('chrony', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('chrony')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('chrony', 'Chrony NTP Service')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 5. Sysvol Daemon Card (Custom Built) -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-violet-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-violet-950/60 border border-violet-800/40">ZCLOCK CORE</span>
+                                        <span id="enabled-zclock-sysvold" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" onclick="openServiceControlModal('zclock-sysvold')">zclock-sysvold</h4>
+                                </div>
+                                <span id="badge-zclock-sysvold" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-zclock-sysvold" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-zclock-sysvold" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Path:</span> <span class="text-violet-300">/var/lib/samba/sysvol</span></div>
+                            </div>
+                            <div id="actions-zclock-sysvold" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('zclock-sysvold', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('zclock-sysvold', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('zclock-sysvold')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('zclock-sysvold', 'Sysvol NTACL Guardian')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 6. Azure Cloud Sync Daemon (Custom Built) -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-violet-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-violet-950/60 border border-violet-800/40">ZCLOCK CORE</span>
+                                        <span id="enabled-zclock-azuresync" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-950 text-amber-400 border border-amber-800">BOOT: OFF</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" onclick="openServiceControlModal('zclock-azuresync')">zclock-azuresync</h4>
+                                </div>
+                                <span id="badge-zclock-azuresync" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900 text-slate-400 border border-slate-700">INACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-zclock-azuresync" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-zclock-azuresync" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Cloud:</span> <span class="text-violet-300">Microsoft Entra ID</span></div>
+                            </div>
+                            <div id="actions-zclock-azuresync" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('zclock-azuresync', 'start')" class="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/30">
+                                    <i class="fa-solid fa-play"></i> Start
+                                </button>
+                                <button onclick="controlService('zclock-azuresync', 'restart')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-semibold transition" title="Restart Service">
+                                    <i class="fa-solid fa-arrows-rotate"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('zclock-azuresync')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('zclock-azuresync', 'Azure Cloud Sync')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 7. Management API (Custom Built) -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-violet-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-violet-950/60 border border-violet-800/40">ZCLOCK CORE</span>
+                                        <span id="enabled-zclock-api" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" onclick="openServiceControlModal('zclock-api')">zclock-api</h4>
+                                </div>
+                                <span id="badge-zclock-api" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-zclock-api" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-zclock-api" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-violet-300">8000 (FastAPI Engine)</span></div>
+                            </div>
+                            <div id="actions-zclock-api" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('zclock-api', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('zclock-api', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('zclock-api')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('zclock-api', 'ZclockID REST API')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 8. Nginx Ingress Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
+                                        <span id="enabled-nginx" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" onclick="openServiceControlModal('nginx')">Nginx Multiplexer</h4>
+                                </div>
+                                <span id="badge-nginx" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-nginx" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-nginx" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-cyan-300">80, 443 (HTTP/2 TLS)</span></div>
+                            </div>
+                            <div id="actions-nginx" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('nginx', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('nginx', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('nginx')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('nginx', 'Nginx Ingress Proxy')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 9. SNMP Telemetry Card -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
+                                        <span id="enabled-snmpd" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" onclick="openServiceControlModal('snmpd')">SNMP Daemon</h4>
+                                </div>
+                                <span id="badge-snmpd" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
+                            </div>
+                            <div class="text-[11px] font-mono text-slate-400 space-y-1">
+                                <div class="flex justify-between"><span>PID:</span> <span id="pid-snmpd" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>RAM:</span> <span id="mem-snmpd" class="text-white">-</span></div>
+                                <div class="flex justify-between"><span>Ports:</span> <span class="text-cyan-300">161 (UDP)</span></div>
+                            </div>
+                            <div id="actions-snmpd" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
+                                <button onclick="controlService('snmpd', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Restart
+                                </button>
+                                <button onclick="controlService('snmpd', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <i class="fa-solid fa-stop"></i>
+                                </button>
+                                <button onclick="openServiceControlModal('snmpd')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </button>
+                                <button onclick="openLogViewer('snmpd', 'SNMP Telemetry')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <i class="fa-solid fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>

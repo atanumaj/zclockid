@@ -139,12 +139,84 @@
             'shadow-sm'
         ];
 
-        function showTab(tabId) {
+        // ==================== ASYNC VIEW & MODAL LOADERS ====================
+        const loadedTabs = new Set();
+        const loadingTabs = new Map();
+        let modalsLoaded = false;
+        let modalsLoading = null;
+
+        async function ensureTabLoaded(tabId) {
+            if (loadedTabs.has(tabId)) return;
+            if (loadingTabs.has(tabId)) return loadingTabs.get(tabId);
+
+            const promise = (async () => {
+                const container = document.getElementById(`tab-${tabId}`);
+                if (!container) return;
+                try {
+                    const resp = await fetch(`views/tabs/${tabId}.html`);
+                    if (!resp.ok) {
+                        console.error(`Failed to load view for tab "${tabId}": HTTP ${resp.status}`);
+                        return;
+                    }
+                    const html = await resp.text();
+                    container.innerHTML = html;
+                    loadedTabs.add(tabId);
+                } catch (err) {
+                    console.error(`Network error loading tab "${tabId}":`, err);
+                } finally {
+                    loadingTabs.delete(tabId);
+                }
+            })();
+
+            loadingTabs.set(tabId, promise);
+            return promise;
+        }
+
+        async function loadModals() {
+            if (modalsLoaded) return;
+            if (modalsLoading) return modalsLoading;
+
+            modalsLoading = (async () => {
+                const container = document.getElementById('modals-container');
+                if (!container) return;
+                try {
+                    const resp = await fetch('views/modals.html');
+                    if (resp.ok) {
+                        container.innerHTML = await resp.text();
+                        modalsLoaded = true;
+                    } else {
+                        console.error(`Failed to load modals view: HTTP ${resp.status}`);
+                    }
+                } catch (err) {
+                    console.error('Network error loading modals view:', err);
+                } finally {
+                    modalsLoading = null;
+                }
+            })();
+
+            return modalsLoading;
+        }
+
+        async function preloadAllTabs() {
+            const tabsToPreload = [
+                'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol',
+                'azure', 'registrations', 'backup', 'snmp', 'update',
+                'rbac', 'apikeys', 'certs', 'syslog', 'federation', 'license'
+            ];
+            for (const tab of tabsToPreload) {
+                if (!loadedTabs.has(tab)) {
+                    await ensureTabLoaded(tab);
+                }
+            }
+        }
+
+        async function showTab(tabId) {
             if (tabId === 'reports') {
-                showTab('syslog');
+                await showTab('syslog');
                 switchLogsSubTab('compliance');
                 return;
             }
+            await ensureTabLoaded(tabId);
             const tabs = ['dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol', 'azure', 'registrations', 'reports', 'backup', 'snmp', 'update', 'rbac', 'apikeys', 'certs', 'syslog', 'federation', 'license'];
             tabs.forEach(t => {
                 const el = document.getElementById(`tab-${t}`);

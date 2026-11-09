@@ -1,0 +1,360 @@
+                <!-- Top Header & Primary Tabs (General vs Advance) -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-3">
+                        <!-- Primary Mode Switcher (General vs Advance) -->
+                        <div class="inline-flex p-1 bg-slate-950 border border-slate-800 rounded-xl">
+                            <button onclick="switchRadiusMainTab('general')" id="rad-main-tab-general" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 transition">
+                                <i class="fa-solid fa-tower-broadcast"></i> General
+                            </button>
+                            <button onclick="switchRadiusMainTab('advance')" id="rad-main-tab-advance" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition">
+                                <i class="fa-solid fa-gears"></i> Advance
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="controlService('freeradius', 'restart')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-rotate text-amber-400"></i> Restart FreeRADIUS
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sub-Navigation for General -->
+                <div id="rad-subnav-general" class="flex flex-wrap items-center gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80">
+                    <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-network-wired"></i> NAS Clients & APs
+                    </button>
+                    <button onclick="switchRadiusSubTab('bandwidth')" id="rad-tab-bandwidth" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-gauge-high"></i> Bandwidth & Rate Limits
+                    </button>
+                    <button onclick="switchRadiusSubTab('eap')" id="rad-tab-eap" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved"></i> EAP & Certificates
+                    </button>
+                    <button onclick="switchRadiusSubTab('accounting')" id="rad-tab-accounting" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-chart-line"></i> Live Sessions & Acct
+                    </button>
+                </div>
+
+                <!-- Sub-Navigation for Advance -->
+                <div id="rad-subnav-advance" class="flex flex-wrap items-center gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80 hidden">
+                    <button onclick="switchRadiusSubTab('mab')" id="rad-tab-mab" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print"></i> MAB (MAC Bypass)
+                    </button>
+                    <button onclick="switchRadiusSubTab('custom')" id="rad-tab-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-code-branch"></i> Custom Attributes (VSA)
+                    </button>
+                    <button onclick="switchRadiusSubTab('settings')" id="rad-tab-settings" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-sliders"></i> Engine Parameters & Logging
+                    </button>
+                    <button onclick="switchRadiusSubTab('config')" id="rad-tab-config" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-code"></i> View Raw Config
+                    </button>
+                </div>
+
+                <!-- SUB-SECTION 1: NAS Clients -->
+                <div id="radius-sec-clients" class="space-y-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-tower-broadcast text-amber-400"></i> Authorized Network Access Servers (NAS)
+                                </h3>
+                                <p class="text-xs text-slate-400">Switches and wireless access points allowed to authenticate 802.1X supplicants against Samba AD</p>
+                            </div>
+                            <button onclick="openRadiusModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add NAS Client
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Client Identifier</th>
+                                        <th class="px-4 py-2.5">IP Address / CIDR</th>
+                                        <th class="px-4 py-2.5">NAS Hardware</th>
+                                        <th class="px-4 py-2.5">Shared Secret (RADIUS Key)</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">Loading NAS clients...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 2: Captive Portal Bandwidth Management & Rate Limits -->
+                <div id="radius-sec-bandwidth" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-gauge-high text-cyan-400"></i> Captive Portal Bandwidth Management & Rate Limits
+                                </h3>
+                                <p class="text-xs text-slate-400">Enforces per-user upload/download speeds, session timeouts, and data quotas across pfSense, MikroTik Hotspot, and TP-Link Omada</p>
+                            </div>
+                            <button onclick="openAddBandwidthModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add Bandwidth Tier
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Tier / Profile Name</th>
+                                        <th class="px-4 py-2.5">Download Limit</th>
+                                        <th class="px-4 py-2.5">Upload Limit</th>
+                                        <th class="px-4 py-2.5">Timeouts (Session / Idle)</th>
+                                        <th class="px-4 py-2.5">Daily Quota</th>
+                                        <th class="px-4 py-2.5">Policy Scope</th>
+                                        <th class="px-4 py-2.5">Enforced RADIUS Attributes</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-bandwidth-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="8" class="px-4 py-4 text-center font-sans text-slate-500">Loading bandwidth profiles...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 3: EAP & Certificate Profiles -->
+                <div id="radius-sec-eap" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- Protocol Status Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-emerald-400"></i> Supported 802.1X EAP Protocols
+                            </h3>
+                            <div class="space-y-3 text-xs">
+                                <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-white">EAP-PEAP-MSCHAPv2</div>
+                                        <div class="text-[11px] text-slate-400">WPA2/WPA3-Enterprise password authentication validated against Samba AD KDC via winbind</div>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">ENABLED</span>
+                                </div>
+                                <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg flex items-center justify-between">
+                                    <div>
+                                        <div class="font-bold text-white">EAP-TLS (Certificate Auth)</div>
+                                        <div class="text-[11px] text-slate-400">Mutual TLS authentication for smartcards, YubiKeys, and client certificates issued by ZclockID CA</div>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">ENABLED</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 802.1X Server Certificate Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-certificate text-amber-400"></i> FreeRADIUS Server TLS Certificate
+                                </h3>
+                                <button onclick="renewRadiusCert()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold transition flex items-center gap-1">
+                                    <i class="fa-solid fa-rotate"></i> Re-issue Cert
+                                </button>
+                            </div>
+                            <div class="p-3 bg-slate-950 border border-slate-800 rounded-lg space-y-2 text-xs font-mono">
+                                <div class="flex justify-between"><span class="text-slate-400">Subject:</span> <span id="rad-cert-subject" class="text-white">CN=radius</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Issuer:</span> <span id="rad-cert-issuer" class="text-cyan-400">ZclockID Root CA</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Algorithm:</span> <span id="rad-cert-algo" class="text-slate-300">RSA 4096-bit / SHA-256</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Validity:</span> <span id="rad-cert-validity" class="text-emerald-400">Valid (3,480 days remaining)</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">Cert Path:</span> <span class="text-slate-400">/etc/freeradius/3.0/certs/server.pem</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 4: Live Sessions & Accounting Log (pfSense Style) -->
+                <div id="radius-sec-accounting" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-stopwatch text-indigo-400"></i> Active 802.1X Accounting Sessions (pfSense Style)
+                                </h3>
+                                <p class="text-xs text-slate-400">Real-time session tracker, client MAC bindings, and bandwidth consumption</p>
+                            </div>
+                            <button onclick="fetchRadiusSessions()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate"></i> Refresh Sessions
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Username</th>
+                                        <th class="px-4 py-2.5">NAS Device</th>
+                                        <th class="px-4 py-2.5">Client MAC (Calling-Station)</th>
+                                        <th class="px-4 py-2.5">Framed IP</th>
+                                        <th class="px-4 py-2.5">Duration</th>
+                                        <th class="px-4 py-2.5">Data In / Out</th>
+                                        <th class="px-4 py-2.5">State</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-acct-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="8" class="px-4 py-4 text-center font-sans text-slate-500">Loading accounting sessions...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 5: MAC Authentication Bypass (MAB - Advanced Mode) -->
+                <div id="radius-sec-mab" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-print text-indigo-400"></i> MAC Authentication Bypass (MAB) for Headless Devices
+                                </h3>
+                                <p class="text-xs text-slate-400">Allows IoT devices, printers, IP phones, and cameras without 802.1X supplicants to access assigned VLANs</p>
+                            </div>
+                            <button onclick="openMabModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Register MAB Device
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Hardware MAC Address</th>
+                                        <th class="px-4 py-2.5">Device Identifier</th>
+                                        <th class="px-4 py-2.5">Assigned VLAN</th>
+                                        <th class="px-4 py-2.5">Static IP</th>
+                                        <th class="px-4 py-2.5">Description</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-mab-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading MAB devices...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 6: Custom Attributes & Policies (Advanced Mode) -->
+                <div id="radius-sec-custom" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-code-branch text-amber-400"></i> Vendor-Specific Attributes (VSA) & RADIUS Policies
+                                </h3>
+                                <p class="text-xs text-slate-400">Inject granular RADIUS check/reply items (Cisco-AVPair, Session-Timeout, Mikrotik-Rate-Limit) globally or per-group</p>
+                            </div>
+                            <button onclick="openCustomAttrModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-plus"></i> Add Custom Attribute
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Target Scope</th>
+                                        <th class="px-4 py-2.5">Scope Identifier</th>
+                                        <th class="px-4 py-2.5">Attribute Name</th>
+                                        <th class="px-4 py-2.5">Operator</th>
+                                        <th class="px-4 py-2.5">Value</th>
+                                        <th class="px-4 py-2.5">Description</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="radius-custom-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading custom attributes...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 7: Engine Parameters & Logging (Advanced Mode) -->
+                <div id="radius-sec-settings" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 max-w-2xl">
+                        <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sliders text-indigo-400"></i> FreeRADIUS Daemon Parameters & Logging (pfSense Style)
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <label class="text-slate-400 block mb-1">Authentication UDP Port</label>
+                                <input id="rad-cfg-auth-port" type="number" value="1812" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Accounting UDP Port</label>
+                                <input id="rad-cfg-acct-port" type="number" value="1813" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Listening Interface IP</label>
+                                <input id="rad-cfg-listen-ip" type="text" value="0.0.0.0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono" placeholder="0.0.0.0">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Interim-Update Interval (Seconds)</label>
+                                <input id="rad-cfg-interval" type="number" value="300" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Max Requests (Thread Pool)</label>
+                                <input id="rad-cfg-max-requests" type="number" value="1024" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-400 block mb-1">Max Server Workers</label>
+                                <input id="rad-cfg-max-servers" type="number" value="32" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-mono">
+                            </div>
+                        </div>
+
+                        <!-- Logging Toggles -->
+                        <div class="pt-2 border-t border-slate-800 space-y-2 text-xs">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="rad-cfg-log-auth" checked class="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0">
+                                <span class="text-slate-300">Log all 802.1X authentication requests (Success & Deny) to syslog</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="rad-cfg-log-badpass" checked class="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0">
+                                <span class="text-slate-300">Log bad password attempts (audit trail for brute-force defense)</span>
+                            </label>
+                        </div>
+
+                        <div class="pt-2">
+                            <button onclick="saveRadiusSettings()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition">
+                                Save RADIUS Engine Parameters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-SECTION 8: Raw Config Inspector (pfSense Style) -->
+                <div id="radius-sec-config" class="space-y-6 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-file-code text-cyan-400"></i> FreeRADIUS Raw Configuration Inspector (pfSense Style)
+                                </h3>
+                                <p class="text-xs text-slate-400">View real-time generated directives across FreeRADIUS configuration files</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="flex bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+                                    <button onclick="loadRawRadiusConfig('clients')" id="rad-cfgfile-clients" class="px-2.5 py-1 rounded bg-amber-600/20 text-amber-400 font-semibold font-mono">clients.conf</button>
+                                    <button onclick="loadRawRadiusConfig('authorize')" id="rad-cfgfile-authorize" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">authorize</button>
+                                    <button onclick="loadRawRadiusConfig('mschap')" id="rad-cfgfile-mschap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">mschap</button>
+                                    <button onclick="loadRawRadiusConfig('eap')" id="rad-cfgfile-eap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">eap.conf</button>
+                                </div>
+                                <button onclick="copyRawConfigToClipboard()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition flex items-center gap-1.5 border border-slate-700">
+                                    <i class="fa-solid fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="relative">
+                            <pre id="radius-raw-config-display" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-[11px] font-mono text-emerald-400 overflow-x-auto max-h-[500px]">Loading configuration...</pre>
+                        </div>
+                    </div>
+                </div>

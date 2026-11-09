@@ -1,0 +1,326 @@
+                <!-- Directory Subtab Navigation -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div class="flex items-center gap-2 flex-nowrap overflow-x-auto">
+                        <button onclick="switchDirectorySubtab('users')" id="btn-subtab-users" class="px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center gap-2 transition whitespace-nowrap shrink-0">
+                            <i class="fa-solid fa-user"></i> Domain Users
+                            <span id="badge-users-count" class="px-1.5 py-0.2 rounded-full bg-indigo-900/60 text-indigo-300 text-[10px] font-mono">0</span>
+                        </button>
+                        <button onclick="switchDirectorySubtab('groups')" id="btn-subtab-groups" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent flex items-center gap-2 transition whitespace-nowrap shrink-0">
+                            <i class="fa-solid fa-users-rectangle"></i> Security Groups
+                            <span id="badge-groups-count" class="px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono">0</span>
+                        </button>
+                        <button onclick="switchDirectorySubtab('computers')" id="btn-subtab-computers" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent flex items-center gap-2 transition whitespace-nowrap shrink-0">
+                            <i class="fa-solid fa-desktop"></i> Domain Computers
+                            <span id="badge-computers-count" class="px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SUB-PANE 1: DOMAIN USERS -->
+                <div id="dir-pane-users" class="space-y-4">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-user-shield text-emerald-400"></i> Active Directory Domain Users
+                                </h3>
+                                <p class="text-xs text-slate-400">Manage individual domain user accounts, login credentials, and user-specific bandwidth profiles</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 hover:text-slate-200">
+                                    <input type="checkbox" id="chk-show-system-users" onchange="renderUsersTable()" class="rounded bg-slate-900 border-slate-700 text-emerald-600 focus:ring-0">
+                                    <span class="text-[11px]">Show System Accounts (krbtgt, Guest)</span>
+                                </label>
+                                <button onclick="fetchUsers()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700" title="Reload Domain Users">
+                                    <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                                </button>
+                                <button onclick="openUserModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-user-plus"></i> New User
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Users Search, Filter & Sizing Toolbar -->
+                        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2 pb-1 border-t border-slate-800/60">
+                            <div class="relative flex-1 max-w-md">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input type="text" id="users-search-input" oninput="onUsersSearchInput()" placeholder="Search users by username, full name, department, email, group..." class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none font-sans">
+                                <button id="users-search-clear" onclick="clearUsersSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs hidden" title="Clear filter"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 justify-between md:justify-end">
+                                <span id="users-filter-stats" class="text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-1 rounded border border-slate-800">Showing 0 of 0</span>
+                                <div class="flex items-center gap-2">
+                                    <label for="users-page-size" class="text-xs text-slate-400 whitespace-nowrap">Show per page:</label>
+                                    <select id="users-page-size" onchange="onUsersPageSizeChange()" class="bg-slate-950 border border-slate-700 hover:border-slate-600 rounded-lg px-2.5 py-1 text-xs text-indigo-300 font-medium focus:outline-none focus:border-indigo-500 font-sans cursor-pointer">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                        <option value="0">All items</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th onclick="sortUsersBy('username')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Username / UPN">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>User Account & UPN</span>
+                                                <i id="sort-icon-user-username" class="fa-solid fa-sort-up text-indigo-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Full Name">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Full Name</span>
+                                                <i id="sort-icon-user-name" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('department')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Department">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Department</span>
+                                                <i id="sort-icon-user-department" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('user_bw')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by User Bandwidth Tier">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>User Bandwidth Tier</span>
+                                                <i id="sort-icon-user-user_bw" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('group_bw')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Inherited Group Bandwidth Tier">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Group Bandwidth Tier</span>
+                                                <i id="sort-icon-user-group_bw" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('status')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Status">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Account State</span>
+                                                <i id="sort-icon-user-status" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Users Pagination Footer -->
+                        <div id="users-pagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 text-xs text-slate-400 border-t border-slate-800/80">
+                            <div id="users-pagination-info" class="text-xs font-mono text-slate-400">Page 1 of 1</div>
+                            <div class="flex items-center gap-1.5 flex-wrap justify-center">
+                                <button id="users-prev-btn" onclick="prevUsersPage()" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 font-semibold text-xs transition flex items-center gap-1">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                                </button>
+                                <div id="users-page-numbers" class="flex items-center gap-1"></div>
+                                <button id="users-next-btn" onclick="nextUsersPage()" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 font-semibold text-xs transition flex items-center gap-1">
+                                    Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PANE 2: SECURITY GROUPS -->
+                <div id="dir-pane-groups" class="space-y-4 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-users-rectangle text-indigo-400"></i> Active Directory Security Groups
+                                </h3>
+                                <p class="text-xs text-slate-400">Domain groups mapped to FreeRADIUS captive portal / gateway bandwidth profiles</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 hover:text-slate-200">
+                                    <input type="checkbox" id="chk-show-builtin-groups" onchange="renderGroupsTable()" class="rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+                                    <span class="text-[11px]">Show Built-in System Groups</span>
+                                </label>
+                                <button onclick="openGroupModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-folder-plus"></i> New Security Group
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Groups Search, Filter & Sizing Toolbar -->
+                        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2 pb-1 border-t border-slate-800/60">
+                            <div class="relative flex-1 max-w-md">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input type="text" id="groups-search-input" oninput="onGroupsSearchInput()" placeholder="Search groups by name, description, bandwidth policy..." class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none font-sans">
+                                <button id="groups-search-clear" onclick="clearGroupsSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs hidden" title="Clear filter"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 justify-between md:justify-end">
+                                <span id="groups-filter-stats" class="text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-1 rounded border border-slate-800">Showing 0 of 0</span>
+                                <div class="flex items-center gap-2">
+                                    <label for="groups-page-size" class="text-xs text-slate-400 whitespace-nowrap">Show per page:</label>
+                                    <select id="groups-page-size" onchange="onGroupsPageSizeChange()" class="bg-slate-950 border border-slate-700 hover:border-slate-600 rounded-lg px-2.5 py-1 text-xs text-indigo-300 font-medium focus:outline-none focus:border-indigo-500 font-sans cursor-pointer">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                        <option value="0">All items</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th onclick="sortGroupsBy('group_name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Group Name">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Security Group Name</span>
+                                                <i id="sort-icon-group-group_name" class="fa-solid fa-sort-up text-indigo-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('is_built_in')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Scope / Type">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Scope / Type</span>
+                                                <i id="sort-icon-group-is_built_in" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('description')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Description">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Description / Purpose</span>
+                                                <i id="sort-icon-group-description" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('members')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Active Members">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Active Members</span>
+                                                <i id="sort-icon-group-members" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('bandwidth_profile_name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Bandwidth Policy">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Gateway / Bandwidth Policy</span>
+                                                <i id="sort-icon-group-bandwidth_profile_name" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="groups-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading security groups...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Groups Pagination Footer -->
+                        <div id="groups-pagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 text-xs text-slate-400 border-t border-slate-800/80">
+                            <div id="groups-pagination-info" class="text-xs font-mono text-slate-400">Page 1 of 1</div>
+                            <div class="flex items-center gap-1.5 flex-wrap justify-center">
+                                <button id="groups-prev-btn" onclick="prevGroupsPage()" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 font-semibold text-xs transition flex items-center gap-1">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                                </button>
+                                <div id="groups-page-numbers" class="flex items-center gap-1"></div>
+                                <button id="groups-next-btn" onclick="nextGroupsPage()" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 font-semibold text-xs transition flex items-center gap-1">
+                                    Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-PANE 3: DOMAIN COMPUTERS -->
+                <div id="dir-pane-computers" class="space-y-4 hidden">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-desktop text-cyan-400"></i> Active Directory Domain Computers & Servers
+                                </h3>
+                                <p class="text-xs text-slate-400">Workstations, member servers, and domain controllers registered in this forest</p>
+                            </div>
+                            <button onclick="fetchComputers()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate"></i> Refresh Computers
+                            </button>
+                        </div>
+
+                        <!-- Computers Search, Filter & Sizing Toolbar -->
+                        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2 pb-1 border-t border-slate-800/60">
+                            <div class="relative flex-1 max-w-md">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input type="text" id="computers-search-input" oninput="onComputersSearchInput()" placeholder="Search computers by name, hostname, OS, role..." class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none font-sans">
+                                <button id="computers-search-clear" onclick="clearComputersSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs hidden" title="Clear filter"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 justify-between md:justify-end">
+                                <span id="computers-filter-stats" class="text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-1 rounded border border-slate-800">Showing 0 of 0</span>
+                                <div class="flex items-center gap-2">
+                                    <label for="computers-page-size" class="text-xs text-slate-400 whitespace-nowrap">Show per page:</label>
+                                    <select id="computers-page-size" onchange="onComputersPageSizeChange()" class="bg-slate-950 border border-slate-700 hover:border-slate-600 rounded-lg px-2.5 py-1 text-xs text-indigo-300 font-medium focus:outline-none focus:border-indigo-500 font-sans cursor-pointer">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                        <option value="0">All items</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th onclick="sortComputersBy('name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Computer Account Name">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Computer Account</span>
+                                                <i id="sort-icon-comp-name" class="fa-solid fa-sort-up text-indigo-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('dns_hostname')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by DNS Hostname">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>DNS Hostname</span>
+                                                <i id="sort-icon-comp-dns_hostname" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('operating_system')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Operating System">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Operating System & Version</span>
+                                                <i id="sort-icon-comp-operating_system" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('is_dc')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Role">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Role</span>
+                                                <i id="sort-icon-comp-is_dc" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('created_at')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Joined Date">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Joined Date</span>
+                                                <i id="sort-icon-comp-created_at" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="computers-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Querying joined computers...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Computers Pagination Footer -->
+                        <div id="computers-pagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 text-xs text-slate-400 border-t border-slate-800/80">
+                            <div id="computers-pagination-info" class="text-xs font-mono text-slate-400">Page 1 of 1</div>
+                            <div class="flex items-center gap-1.5 flex-wrap justify-center">
+                                <button id="computers-prev-btn" onclick="prevComputersPage()" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 font-semibold text-xs transition flex items-center gap-1">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                                </button>
+                                <div id="computers-page-numbers" class="flex items-center gap-1"></div>
+                                <button id="computers-next-btn" onclick="nextComputersPage()" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 font-semibold text-xs transition flex items-center gap-1">
+                                    Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>

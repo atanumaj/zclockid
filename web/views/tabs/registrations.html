@@ -1,0 +1,106 @@
+                <!-- Header Banner -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-sm">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-user-clock text-indigo-400"></i> User Self-Registration & Directory Onboarding
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Configure mobile OTP verification, automatic provisioning, and review pending domain signup requests.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="copyRegistrationLink()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public portal link">
+                            <i class="fa-solid fa-copy text-indigo-400"></i> Copy Portal Link
+                        </button>
+                        <a href="/register.html" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal
+                        </a>
+                        <button onclick="openRegistrationSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
+                            <i class="fa-solid fa-sliders text-cyan-400"></i> Settings
+                        </button>
+                        <button onclick="fetchRegistrations()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Top Metric Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Verification Mode</div>
+                            <div class="text-xs font-bold text-white font-mono mt-0.5" id="reg-stat-mode">
+                                <span class="text-cyan-400 font-semibold"><i class="fa-solid fa-mobile-screen"></i> Mobile OTP Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 text-lg">
+                            <i class="fa-solid fa-hourglass-half"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Pending Approval</div>
+                            <div class="text-lg font-bold text-white font-mono" id="reg-stat-pending">0</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">Auto-Provisioned (OTP)</div>
+                            <div class="text-lg font-bold text-white font-mono" id="reg-stat-auto">0</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                        <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-lg">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-slate-400 uppercase">SMS Gateway</div>
+                            <div class="text-xs font-bold text-white font-mono mt-0.5 uppercase" id="reg-stat-sms">SIMULATOR</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Registration Queue Table Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-900/50">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-white">Queue Filter:</span>
+                            <div class="flex flex-wrap gap-1">
+                                <button onclick="fetchRegistrations('all')" id="reg-filter-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
+                                <button onclick="fetchRegistrations('PENDING_APPROVAL')" id="reg-filter-PENDING_APPROVAL" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending Approval</button>
+                                <button onclick="fetchRegistrations('PENDING_OTP')" id="reg-filter-PENDING_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending OTP</button>
+                                <button onclick="fetchRegistrations('VERIFIED_AUTO_PROVISIONED')" id="reg-filter-VERIFIED_AUTO_PROVISIONED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Auto-Provisioned</button>
+                                <button onclick="fetchRegistrations('APPROVED')" id="reg-filter-APPROVED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Approved</button>
+                            </div>
+                        </div>
+                        <div class="text-xs text-slate-500 font-mono">
+                            Default Domain: <span class="text-indigo-400 font-semibold" id="reg-queue-domain">-</span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950/60 text-[10px] font-mono tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">Username / Name</th>
+                                    <th class="px-4 py-2.5">Mobile (OTP)</th>
+                                    <th class="px-4 py-2.5">Email</th>
+                                    <th class="px-4 py-2.5">Department</th>
+                                    <th class="px-4 py-2.5">Status</th>
+                                    <th class="px-4 py-2.5">Submitted</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="registrations-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading registrations queue...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>

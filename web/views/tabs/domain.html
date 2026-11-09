@@ -1,0 +1,164 @@
+                <!-- Domain & Server Identity Card (Zentyal Style) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired text-indigo-400"></i> Active Directory Domain & Server Identity
+                            </h3>
+                            <p class="text-xs text-slate-400">Server role, Kerberos realm, NetBIOS computer name, system hostname, and domain SID</p>
+                        </div>
+                        <button onclick="openIdentityModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                            <i class="fa-solid fa-pen-to-square"></i> Edit Identity & Hostname
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Server Role</span>
+                            <div id="domain-role-val" class="text-emerald-400 font-bold text-xs truncate">Primary Domain Controller</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Primary Realm (FQDN)</span>
+                            <div id="domain-realm-val" class="text-white font-bold text-xs">--</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">NetBIOS Domain Name</span>
+                            <div id="domain-netbios-val" class="text-indigo-400 font-bold text-xs">--</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">NetBIOS Computer Name</span>
+                            <div id="domain-netbios-name-val" class="text-white font-bold text-xs">--</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">System Hostname & FQDN</span>
+                            <div id="domain-fqdn-val" class="text-cyan-400 font-bold text-xs truncate">--</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Server Description</span>
+                            <div id="domain-desc-val" class="text-slate-300 font-sans text-xs truncate">ZclockID Active Directory Domain Controller</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Domain Controller Type</span>
+                                <span id="domain-dc-type-badge" class="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800">PRIMARY</span>
+                            </div>
+                            <div id="domain-dc-type-val" class="text-emerald-300 font-bold text-xs truncate flex items-center gap-1.5">
+                                <i class="fa-solid fa-crown text-amber-400 text-[11px]"></i> Master (Primary DC)
+                            </div>
+                            <span id="domain-dc-type-sub" class="text-[10px] text-slate-400 font-sans block pt-0.5 truncate">PDC Emulator & FSMO Role Master</span>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Domain SID</span>
+                            <div id="domain-sid-val" class="text-amber-400 font-bold text-xs truncate">S-1-5-21-...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Directory Functional Levels Card (DFL & FFL) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-layer-group text-indigo-400"></i> Active Directory Domain & Forest Functional Levels
+                            </h3>
+                            <p class="text-xs text-slate-400">Unlock advanced Kerberos claims, Privileged Access Management (PAM), AES-256 encryption, and modern AD directory features</p>
+                        </div>
+                        <button onclick="openFunctionalLevelModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50 whitespace-nowrap">
+                            <i class="fa-solid fa-arrow-up-right-dots"></i> Raise Functional Level
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Domain Level (DFL)</span>
+                                <span id="card-dfl-badge" class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono font-bold">2016</span>
+                            </div>
+                            <div id="card-dfl-title" class="text-white font-bold text-xs truncate">Windows Server 2016</div>
+                            <p class="text-[10px] text-slate-400 font-sans pt-1">Governs Kerberos armoring, dynamic access control, and domain security policy.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Forest Level (FFL)</span>
+                                <span id="card-ffl-badge" class="px-2 py-0.5 rounded text-[10px] bg-sky-950 text-sky-300 border border-sky-800 font-mono font-bold">2016</span>
+                            </div>
+                            <div id="card-ffl-title" class="text-white font-bold text-xs truncate">Windows Server 2016</div>
+                            <p class="text-[10px] text-slate-400 font-sans pt-1">Governs cross-forest trust mechanisms, global catalog replication, and schema attributes.</p>
+                        </div>
+
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-slate-500 text-[10px] uppercase font-sans">Lowest DC Level</span>
+                                <span id="card-lowest-badge" class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-bold">2008_R2</span>
+                            </div>
+                            <div id="card-lowest-title" class="text-white font-bold text-xs truncate">Windows Server 2008 R2</div>
+                            <p class="text-[10px] text-slate-400 font-sans pt-1">Active Directory DC operating system version capability across all replication peers.</p>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-indigo-950/40 border border-indigo-800/40 rounded-xl flex items-start gap-3 text-xs text-indigo-200">
+                        <i class="fa-solid fa-circle-info text-indigo-400 mt-0.5 text-sm shrink-0"></i>
+                        <div>
+                            <span class="font-semibold text-white">Why is the baseline functional level Windows Server 2008 R2?</span>
+                            <p class="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
+                                Pure Samba 4 Active Directory domain controllers run at the Windows Server 2008 R2 functional level for DRS replication stability and cross-vendor compatibility. Windows 10/11 clients, modern RSAT tools, AES-256 Kerberos, and Server 2016/2019 schema extensions remain fully supported on this baseline. Raising the functional level to native 2016 requires Windows Server 2016+ DCs holding the Schema Master role.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alternate Domain & UPN Suffixes Management (Zentyal Style) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-at text-emerald-400"></i> Alternate Domain & UPN Suffixes (Email Logins)
+                            </h3>
+                            <p class="text-xs text-slate-400">Configure secondary domain names so users can log in as user@alternate.com instead of the forest root</p>
+                        </div>
+                        <button onclick="openUpnModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i> Add Alternate Domain UPN
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">Domain UPN Suffix</th>
+                                    <th class="px-4 py-2.5">Role Type</th>
+                                    <th class="px-4 py-2.5">Status</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="upn-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="4" class="px-4 py-4 text-center font-sans text-slate-500">Loading domain UPN suffixes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- DRS Replication Sync -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-arrows-split-up-and-left text-cyan-400"></i> Directory Replication Service (DRS) Health
+                                </h3>
+                                <span id="drs-health-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">STANDALONE ROOT</span>
+                            </div>
+                            <p class="text-xs text-slate-400">Inbound and outbound neighbor synchronization across multi-DC topologies</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="fetchDrsStatus()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm" title="Refresh DRS Replication Status">
+                                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                            </button>
+                            <button onclick="forceDrsSync()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                                <i class="fa-solid fa-bolt"></i> Force Immediate DRS Sync
+                            </button>
+                        </div>
+                    </div>
+                    <pre id="drs-output" class="text-[11px] font-mono bg-slate-950 p-4 rounded-xl border border-slate-800 text-cyan-300 max-h-56 overflow-y-auto custom-scroll leading-relaxed select-all">Loading DRS replication status...</pre>
+                </div>

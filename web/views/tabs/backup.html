@@ -1,0 +1,72 @@
+                <!-- Backup Header & Action Bar -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-xl p-5">
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center gap-2.5">
+                            <i class="fa-solid fa-box-archive text-emerald-400"></i> Backup & Disaster Recovery
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Complete configuration export, Active Directory database recovery, and multi-module backup archives</p>
+                    </div>
+                    <div class="flex items-center gap-2.5">
+                        <button onclick="fetchBackups()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5" title="Refresh List">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
+                        <button onclick="openUploadBackupModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-upload text-sky-400"></i> Upload Backup
+                        </button>
+                        <button onclick="openCreateBackupModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-emerald-900/50">
+                            <i class="fa-solid fa-plus"></i> Create Backup
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Backup Metric Strip -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Total Backups</span>
+                        <div id="backup-stat-count" class="text-white font-bold text-base">0</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Stored in local repository</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Repository Storage</span>
+                        <div id="backup-stat-size" class="text-emerald-400 font-bold text-base">0 MB</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Compressed .tar.gz archives</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Last Backup</span>
+                        <div id="backup-stat-last" class="text-cyan-300 font-bold text-xs truncate">Never</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Automated or manual</span>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-1">
+                        <span class="text-slate-500 text-[10px] uppercase font-sans">Storage Path</span>
+                        <div class="text-slate-300 font-bold text-xs truncate">/var/backups/zclockid</div>
+                        <span class="text-[10px] text-slate-500 font-sans block">Persistent Linux volume</span>
+                    </div>
+                </div>
+
+                <!-- Backup Archives Table -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white">Appliance Backup Archives</h3>
+                            <p class="text-xs text-slate-400">Download backups for off-site disaster recovery or restore to roll back system changes</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left text-slate-300">
+                            <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4 py-2.5">Archive Filename</th>
+                                    <th class="px-4 py-2.5">Backup Type</th>
+                                    <th class="px-4 py-2.5">Size</th>
+                                    <th class="px-4 py-2.5">Created At</th>
+                                    <th class="px-4 py-2.5">Realm / Host</th>
+                                    <th class="px-4 py-2.5 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backups-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading backup archives...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>

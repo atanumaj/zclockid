@@ -1,0 +1,399 @@
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-xl p-5">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-arrows-rotate text-violet-400"></i> Software Update & Release Management
+                            </h2>
+                            <span id="update-current-ver-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-950 text-violet-300 border border-violet-800">v1.0.0</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">Non-disruptive, atomic Debian package upgrades. Preserves all Samba SAM databases, sysvol directories, and SSL certificates.</p>
+                    </div>
+                    <div>
+                        <button onclick="checkForSystemUpdates()" id="btn-check-updates-top" class="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-violet-600/30">
+                            <i class="fa-solid fa-magnifying-glass"></i> Check for Updates
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sub-Navigation: Appliance vs OS Packages -->
+                <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <button onclick="switchUpdateSubTab('appliance')" id="btn-subtab-update-appliance" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-violet-600/20 text-violet-400 border border-violet-500/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-cube text-violet-400"></i> ZclockID Appliance Stack
+                        </button>
+                        <button onclick="switchUpdateSubTab('os')" id="btn-subtab-update-os" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                            <i class="fa-brands fa-ubuntu text-orange-400"></i> Debian / Ubuntu OS Packages
+                            <span id="badge-os-update-count" class="hidden px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">0</span>
+                        </button>
+                    </div>
+
+                    <div id="subtab-os-actions" class="hidden flex items-center gap-2">
+                        <button onclick="checkOsPackages()" id="btn-check-os-packages" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Scan APT Packages
+                        </button>
+                        <button onclick="confirmAndRunOsUpgrade()" id="btn-upgrade-all-os" disabled class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-download"></i> Upgrade All System Packages
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sub-Tab View 1: Appliance Stack Updates -->
+                <div id="subtab-view-appliance" class="space-y-6">
+                    <!-- Main Updates Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Column 1: System Environment & Channel Settings -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-server text-indigo-400"></i> Appliance Runtime & Release Channel
+                                </h3>
+                                <span class="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span> ACTIVE RUNTIME
+                                </span>
+                            </div>
+
+                            <!-- System Specs Table -->
+                            <div class="space-y-2 text-xs font-mono">
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Installed Version:</span>
+                                    <span id="info-current-version" class="text-violet-300 font-bold">1.0.0</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Package Architecture:</span>
+                                    <span id="info-system-arch" class="text-slate-200">all (x86_64 / arm64)</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Python Runtime:</span>
+                                    <span id="info-python-ver" class="text-slate-200">Python 3.12</span>
+                                </div>
+                                <div class="flex justify-between py-1 border-b border-slate-800/60">
+                                    <span class="text-slate-400">Detached Updater Daemon:</span>
+                                    <span id="info-updater-status" class="text-emerald-400 font-semibold">Ready (/opt/zclockid/scripts/zclock-updater.sh)</span>
+                                </div>
+                                <div class="flex justify-between py-1">
+                                    <span class="text-slate-400">Last Checked:</span>
+                                    <span id="info-last-checked" class="text-slate-300">Never</span>
+                                </div>
+                            </div>
+
+                            <!-- Channel Settings (Non-Editable / Locked Policy) -->
+                            <div class="pt-3 border-t border-slate-800 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-shield-halved text-emerald-400"></i> Update Channel Configuration
+                                    </h4>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                                        <i class="fa-solid fa-lock text-[9px]"></i> Official Upstream
+                                    </span>
+                                </div>
+
+                                <div class="bg-slate-950/70 border border-slate-800 rounded-lg p-3 space-y-2 text-xs">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400 text-[11px]">Channel:</span>
+                                        <span class="font-mono text-emerald-400 font-semibold text-[11px] flex items-center gap-1">
+                                            <i class="fa-solid fa-circle-check text-emerald-500 text-[10px]"></i> Stable (Production)
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400 text-[11px]">Official Repository:</span>
+                                        <span class="font-mono text-slate-200 text-[11px]">atanumaj/zclockid</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-slate-400 text-[11px]">Manifest Endpoint:</span>
+                                        <span class="font-mono text-indigo-300 text-[11px] truncate max-w-[220px]" title="https://raw.githubusercontent.com/atanumaj/zclockid/master/version-manifest.json">GitHub Master Manifest</span>
+                                    </div>
+                                    <div class="flex items-center justify-between pt-1 border-t border-slate-900">
+                                        <span class="text-slate-400 text-[11px]">Package Format:</span>
+                                        <span class="font-mono text-slate-300 text-[11px]">Debian (.deb) All-Arch</span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="update-auto-check" checked onchange="saveUpdateAutoCheck()" class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
+                                        <label for="update-auto-check" class="cursor-pointer text-slate-300">Check for updates on console open</label>
+                                    </div>
+                                    <span class="text-[10px] text-slate-500 italic"><i class="fa-solid fa-lock text-[9px] mr-0.5"></i> Locked policy</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Column 2: Remote Release Status & Actions -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4 flex flex-col justify-between">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                    <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                        <i class="fa-solid fa-cloud-arrow-down text-violet-400"></i> Remote Release Status
+                                    </h3>
+                                    <span id="remote-check-status-pill" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">READY</span>
+                                </div>
+
+                                <!-- Dynamic Release Card -->
+                                <div id="release-result-card" class="p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
+                                    <div class="flex items-center gap-3 text-slate-400">
+                                        <i class="fa-solid fa-circle-info text-indigo-400 text-lg"></i>
+                                        <div class="text-xs">
+                                            <div class="font-semibold text-slate-200">No Check Performed Yet</div>
+                                            <div class="text-[11px] text-slate-400">Click "Check for Updates" above to query the configured release channel.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Expandable Release Notes / Changelog -->
+                                <div id="release-notes-container" class="hidden space-y-2">
+                                    <div class="flex justify-between items-center text-xs">
+                                        <span class="font-semibold text-slate-300 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-file-lines text-violet-400"></i> Release Notes & Changelog
+                                        </span>
+                                        <span id="release-date-badge" class="text-[10px] font-mono text-slate-400"></span>
+                                    </div>
+                                    <div id="release-notes-body" class="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs text-slate-300 font-mono max-h-48 overflow-y-auto custom-scroll whitespace-pre-wrap"></div>
+                                </div>
+                            </div>
+
+                            <!-- One-Click Install Action Card -->
+                            <div id="update-action-container" class="hidden pt-4 border-t border-slate-800 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs text-slate-400">Target Package: <span id="target-pkg-name" class="font-mono text-white font-semibold"></span></span>
+                                    <span class="text-xs text-slate-400">Size: <span id="target-pkg-size" class="font-mono text-emerald-400">~85 KB</span></span>
+                                </div>
+                                <button onclick="confirmAndRunUpdate()" id="btn-run-update-now" class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-violet-600/20">
+                                    <i class="fa-solid fa-bolt"></i> Install & Apply Update Now
+                                </button>
+                                <p class="text-[10px] text-slate-500 text-center">Appliance management API will briefly restart (3-5s). Samba AD DC service and directory replication remain uninterrupted.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Manual Package Upload (.deb) for Air-Gapped Environments -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div>
+                                <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                    <i class="fa-solid fa-file-arrow-up text-cyan-400"></i> Offline / Manual Package Upload (.deb)
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Upload a thin ZclockID Debian package directly through the browser for offline environments or private custom builds.</p>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">AIR-GAP READY</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="md:col-span-2">
+                                <div id="dropzone-update" onclick="document.getElementById('file-upload-deb').click()" class="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-xl p-6 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition flex flex-col items-center justify-center space-y-2">
+                                    <input type="file" id="file-upload-deb" accept=".deb" class="hidden" onchange="handleDebFileSelected(event)">
+                                    <div class="h-10 w-10 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-lg">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </div>
+                                    <div class="text-xs text-slate-300 font-semibold" id="upload-label-main">Click to select or drag and drop ZclockID .deb package</div>
+                                    <div class="text-[10px] text-slate-500" id="upload-label-sub">Supported format: zclockid_*.deb (Debian / Ubuntu archive)</div>
+                                </div>
+                            </div>
+
+                            <!-- Upload Staging & Install Card -->
+                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
+                                <div class="space-y-2">
+                                    <div class="text-xs font-semibold text-white flex items-center justify-between">
+                                        <span>Selected File</span>
+                                        <span id="staged-file-status" class="text-[10px] font-mono text-slate-500">NO FILE</span>
+                                    </div>
+                                    <div class="text-xs font-mono text-slate-300 truncate" id="staged-file-name">None</div>
+                                    <div class="text-[11px] font-mono text-slate-400 flex justify-between">
+                                        <span>File Size:</span>
+                                        <span id="staged-file-size" class="text-white">-</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 pt-1">
+                                        <input type="checkbox" id="upload-auto-install" checked class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
+                                        <label for="upload-auto-install" class="text-xs text-slate-300 cursor-pointer">Install immediately after upload</label>
+                                    </div>
+                                </div>
+
+                                <button onclick="submitDebUpload()" id="btn-submit-deb" disabled class="w-full py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-not-allowed">
+                                    <i class="fa-solid fa-upload"></i> Upload & Install Package
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub-Tab View 2: Debian / Ubuntu OS & Security Packages -->
+                <div id="subtab-view-os" class="space-y-6 hidden">
+                    <!-- Reboot Required Alert Banner -->
+                    <div id="os-reboot-banner" class="hidden p-4 rounded-xl border border-rose-500/40 bg-rose-950/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-start gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 text-lg shrink-0 mt-0.5">
+                                <i class="fa-solid fa-power-off"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                    <span>System Reboot Required</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30">KERNEL / LIBC UPDATE</span>
+                                </h4>
+                                <p class="text-xs text-slate-300 mt-0.5">A core system component (such as the Linux kernel or systemd) was upgraded. An appliance reboot is recommended to activate new binaries.</p>
+                                <div id="os-reboot-pkgs-list" class="text-[10px] font-mono text-rose-300/80 mt-1"></div>
+                            </div>
+                        </div>
+                        <button onclick="confirmAndRebootAppliance()" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-rose-600/30 shrink-0">
+                            <i class="fa-solid fa-power-off"></i> Reboot Appliance Now
+                        </button>
+                    </div>
+
+                    <!-- OS KPI Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-lg shrink-0">
+                                <i class="fa-solid fa-boxes-packing"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Upgradable Packages</div>
+                                <div class="text-xl font-bold font-mono text-white mt-0.5" id="os-kpi-total">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-lg shrink-0">
+                                <i class="fa-solid fa-shield-virus"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Security Patches</div>
+                                <div class="text-xl font-bold font-mono text-rose-400 mt-0.5" id="os-kpi-security">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-lg shrink-0">
+                                <i class="fa-solid fa-microchip"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Kernel & Core Modules</div>
+                                <div class="text-xl font-bold font-mono text-indigo-300 mt-0.5" id="os-kpi-kernel">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 text-lg shrink-0">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Last APT Sync</div>
+                                <div class="text-xs font-mono text-slate-300 mt-1 truncate" id="os-kpi-checked">Never</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Package Search, Filter & Action Toolbar -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex flex-wrap items-center gap-3 flex-1">
+                            <div class="relative flex-1 min-w-[200px] max-w-sm">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                                <input type="text" id="os-search-input" oninput="filterOsPackagesTable()" placeholder="Search packages (e.g. openssl, linux, systemd)..." class="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500 font-mono">
+                            </div>
+                            <select id="os-category-select" onchange="filterOsPackagesTable()" class="bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-300 py-1.5 px-3 focus:outline-none focus:border-violet-500">
+                                <option value="ALL">All Categories</option>
+                                <option value="SECURITY">Security Updates Only</option>
+                                <option value="Kernel">Kernel Modules</option>
+                                <option value="Core System">Core System & Init</option>
+                                <option value="Security / Crypto">Security & Cryptography</option>
+                                <option value="Directory / DNS">Directory Services & DNS</option>
+                                <option value="General">General Packages</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button onclick="checkOsPackages()" id="btn-scan-apt-table" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                                <i class="fa-solid fa-arrows-rotate"></i> Scan Repositories
+                            </button>
+                            <button onclick="confirmAndRunOsUpgrade()" id="btn-upgrade-os-table" disabled class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-sm shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-download"></i> Upgrade All System Packages
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Package Inventory Table -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="bg-slate-950/80 border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400 font-sans font-semibold">
+                                    <tr>
+                                        <th class="py-3 px-4">Package Name</th>
+                                        <th class="py-3 px-4">Category</th>
+                                        <th class="py-3 px-4">Installed Version</th>
+                                        <th class="py-3 px-4">Candidate Version</th>
+                                        <th class="py-3 px-4">Arch</th>
+                                        <th class="py-3 px-4">Type / Origin</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="os-packages-tbody" class="divide-y divide-slate-800/60">
+                                    <tr>
+                                        <td colspan="6" class="py-8 text-center text-slate-500 font-sans">
+                                            <i class="fa-solid fa-circle-notch fa-spin text-lg text-violet-400 mb-2 block"></i>
+                                            Checking package inventory...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 3: Live Update Progress Console & Terminal -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-terminal text-emerald-400"></i> Update Engine Console & Live Logs
+                            </h3>
+                            <span id="update-terminal-status-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400">IDLE</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex items-center gap-1 text-[11px] font-medium">
+                                <button onclick="switchUpdateLogType('appliance')" id="btn-log-tab-appliance" class="px-2.5 py-1 rounded-md bg-violet-600/30 text-violet-300 font-semibold transition">Appliance Log</button>
+                                <button onclick="switchUpdateLogType('os')" id="btn-log-tab-os" class="px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition">OS Packages Log</button>
+                            </div>
+                            <button onclick="fetchCurrentUpdateLog()" class="px-2.5 py-1 text-slate-400 hover:text-white text-xs transition flex items-center gap-1">
+                                <i class="fa-solid fa-arrows-rotate"></i> Refresh Log
+                            </button>
+                            <button onclick="copyUpdateLog()" class="px-2.5 py-1 text-slate-400 hover:text-white text-xs transition flex items-center gap-1">
+                                <i class="fa-solid fa-copy"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Visual Step Progress Tracker -->
+                    <div id="step-tracker-container" class="grid grid-cols-2 md:grid-cols-5 gap-2 text-center text-xs font-mono">
+                        <div id="step-stage" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 1</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">Package Staged</div>
+                        </div>
+                        <div id="step-verify" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 2</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">Verify Integrity</div>
+                        </div>
+                        <div id="step-unpack" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 3</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">dpkg & postinst</div>
+                        </div>
+                        <div id="step-restart" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 4</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">Service Reload</div>
+                        </div>
+                        <div id="step-healthy" class="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-500 transition">
+                            <div class="text-[10px] uppercase text-slate-500 font-bold">Step 5</div>
+                            <div class="font-semibold text-slate-300 mt-0.5">System Online</div>
+                        </div>
+                    </div>
+
+                    <!-- Live Terminal Output -->
+                    <div class="relative bg-slate-950 rounded-xl border border-slate-800 overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-2 bg-slate-900/80 border-b border-slate-800 text-[11px] font-mono text-slate-400">
+                            <div class="flex items-center gap-2">
+                                <span class="h-2.5 w-2.5 rounded-full bg-rose-500/80 inline-block"></span>
+                                <span class="h-2.5 w-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+                                <span class="h-2.5 w-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+                                <span id="update-terminal-log-label" class="ml-2 text-slate-300">/var/log/zclock-update.log</span>
+                            </div>
+                            <span id="update-terminal-line-count">0 lines</span>
+                        </div>
+                        <pre id="update-terminal-pre" class="p-4 font-mono text-xs text-emerald-400 leading-relaxed max-h-72 overflow-y-auto custom-scroll whitespace-pre-wrap select-all">Appliance updater is idle. Ready for update checks or package installation.</pre>
+                    </div>
+                </div>

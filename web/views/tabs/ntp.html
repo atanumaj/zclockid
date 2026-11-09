@@ -1,0 +1,183 @@
+                <!-- Header Banner -->
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-amber-400"></i> Authoritative NTP Time Server & Clock Sync
+                            </h3>
+                            <p class="text-xs text-slate-400">Microsoft MS-SNTP signed time synchronization for Windows Active Directory clients and LAN network devices</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="triggerNtpSyncNow()" id="btn-ntp-step" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-amber-900/50">
+                                <i class="fa-solid fa-bolt"></i> Step Clock Now
+                            </button>
+                            <button onclick="controlService('chrony', 'restart')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-arrows-rotate"></i> Restart Chrony
+                            </button>
+                            <button onclick="openLogViewer('chrony', 'Chrony NTP Service')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-terminal text-indigo-400"></i> Live Logs
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Telemetry Metrics Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">NTP Server Status</span>
+                            <div class="flex items-center gap-2">
+                                <span id="ntp-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span id="ntp-status-text" class="text-emerald-400 font-bold text-xs truncate">SERVING (PORT 123)</span>
+                            </div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Active Directory MS-SNTP</span>
+                            <div id="ntp-signd-val" class="text-emerald-400 font-bold text-xs truncate">ACTIVE (ntp_signd)</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">Clock Stratum & Reference</span>
+                            <div id="ntp-stratum-val" class="text-cyan-400 font-bold text-xs truncate">Stratum 3</div>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-500 text-[10px] uppercase font-sans">System Clock Offset</span>
+                            <div id="ntp-offset-val" class="text-white font-bold text-xs truncate">+0.00 ms</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Two Column Layout: Configuration & Live Sources -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Column 1: NTP Configuration Form (6 cols) -->
+                    <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-5">
+                        <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+                            <div>
+                                <h4 class="text-sm font-semibold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-sliders text-amber-400"></i> NTP Server Settings
+                                </h4>
+                                <p class="text-xs text-slate-400">Manage time broadcast, client access rules, and upstream sources</p>
+                            </div>
+                            <span class="text-[10px] bg-amber-950/60 text-amber-300 border border-amber-800/60 px-2 py-0.5 rounded font-mono">UDP 123</span>
+                        </div>
+
+                        <form id="ntp-config-form" onsubmit="saveNtpConfig(event)" class="space-y-4 text-xs">
+                            <!-- NTP Server Switch -->
+                            <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                                <div>
+                                    <label for="ntp-cfg-server-enabled" class="font-medium text-slate-200 cursor-pointer block">Act as Authoritative Local NTP Server</label>
+                                    <p class="text-[11px] text-slate-400">Answer incoming NTP queries from LAN computers and domain members</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ntp-cfg-server-enabled" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                </label>
+                            </div>
+
+                            <!-- MS-SNTP Toggle -->
+                            <div class="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                                <div>
+                                    <label for="ntp-cfg-ms-sntp" class="font-medium text-slate-200 cursor-pointer block">Active Directory MS-SNTP Time Signing</label>
+                                    <p class="text-[11px] text-slate-400">Cryptographically signs NTP packets for Windows domain workstations via <code class="text-amber-300">/var/lib/samba/ntp_signd</code></p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ntp-cfg-ms-sntp" class="sr-only peer" checked>
+                                    <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                </label>
+                            </div>
+
+                            <!-- Allowed Subnets -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">Allowed Client Subnets / Networks</label>
+                                <input type="text" id="ntp-cfg-subnets" required placeholder="e.g. 0.0.0.0/0, ::/0 or 192.168.1.0/24, 10.10.0.0/16"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-amber-500 transition text-xs">
+                                <p class="text-[10px] text-slate-500">Comma-separated IPv4 and IPv6 subnets permitted to synchronize time</p>
+                            </div>
+
+                            <!-- Upstream NTP Servers -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">Upstream NTP Servers (Time Sources)</label>
+                                <textarea id="ntp-cfg-upstreams" rows="3" required placeholder="time.google.com&#10;pool.ntp.org&#10;time.windows.com"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-amber-500 transition text-xs custom-scroll"></textarea>
+                                <p class="text-[10px] text-slate-500">One NTP hostname or IP address per line (e.g. time.google.com, 0.pool.ntp.org)</p>
+                            </div>
+
+                            <!-- System Timezone -->
+                            <div class="space-y-1">
+                                <label class="block font-medium text-slate-300">Appliance Timezone</label>
+                                <select id="ntp-cfg-timezone" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-amber-500 transition text-xs">
+                                    <option value="Asia/Kolkata">Asia/Kolkata (IST +05:30)</option>
+                                    <option value="UTC">UTC (Universal Coordinated Time)</option>
+                                    <option value="America/New_York">America/New_York (EST/EDT)</option>
+                                    <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                                    <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                                    <option value="Europe/London">Europe/London (GMT/BST)</option>
+                                    <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                                    <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                                    <option value="Asia/Dubai">Asia/Dubai (GST +04:00)</option>
+                                    <option value="Asia/Singapore">Asia/Singapore (SGT +08:00)</option>
+                                    <option value="Asia/Tokyo">Asia/Tokyo (JST +09:00)</option>
+                                    <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                                </select>
+                                <p class="text-[10px] text-slate-500">System timezone updated via <code class="text-amber-300">timedatectl</code></p>
+                            </div>
+
+                            <div class="pt-2 flex items-center justify-end gap-3">
+                                <button type="button" onclick="fetchNtpConfig()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">
+                                    Reset
+                                </button>
+                                <button type="submit" id="btn-save-ntp-cfg" class="px-5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-amber-900/50">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save NTP Settings
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Column 2: Active NTP Sources & Peers Table (6 cols) -->
+                    <div class="lg:col-span-6 space-y-5">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+                            <div class="border-b border-slate-800 pb-3 flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-semibold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-satellite-dish text-cyan-400"></i> Active NTP Time Sources & Peers
+                                    </h4>
+                                    <p class="text-xs text-slate-400">Real-time telemetry parsed from <code class="text-cyan-300">chronyc sources -v</code></p>
+                                </div>
+                                <button onclick="fetchNtpStatus()" class="text-slate-400 hover:text-white transition text-xs" title="Refresh">
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-left text-slate-300">
+                                    <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
+                                        <tr>
+                                            <th class="px-3 py-2">State</th>
+                                            <th class="px-3 py-2">Source Host/IP</th>
+                                            <th class="px-3 py-2">Stratum</th>
+                                            <th class="px-3 py-2">Reach</th>
+                                            <th class="px-3 py-2">Offset</th>
+                                            <th class="px-3 py-2">Last Rx</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ntp-sources-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                        <tr><td colspan="6" class="px-3 py-4 text-center font-sans text-slate-500">Querying active NTP sources...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Kerberos Clock Skew Warning Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
+                            <h4 class="text-xs font-semibold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-rose-400"></i> Kerberos 5-Minute Maximum Clock Skew Tolerance
+                            </h4>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Active Directory Kerberos V5 tickets (<code class="text-slate-200">KRB_AP_REQ</code>) include an encrypted timestamp. If a client workstation's clock drifts by more than <strong class="text-white">300 seconds (5 minutes)</strong> from this Domain Controller, Kerberos authentication is immediately rejected with <code class="text-rose-400">KRB_AP_ERR_SKEW</code>.
+                            </p>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Windows clients joined to the domain should point their Windows Time service to this appliance:
+                            </p>
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-[11px] font-mono text-cyan-300">
+                                w32tm /config /manualpeerlist:"&lt;appliance-ip&gt;" /syncfromflags:manual /reliable:YES /update
+                            </div>
+                        </div>
+                    </div>
+                </div>

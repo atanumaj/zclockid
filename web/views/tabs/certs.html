@@ -1,0 +1,166 @@
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-teal-950/60 border border-teal-800/40 text-teal-400 font-mono">X.509 PKI & TLS</span>
+                            <span class="text-xs text-slate-500 font-mono">HTTPS ENCRYPTION</span>
+                        </div>
+                        <h2 class="text-xl font-bold tracking-tight text-white mt-1">SSL/TLS Certificate Management</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Manage appliance Web GUI and API certificates with custom SANs, enterprise PEM uploads, and CSR generation.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchActiveCert()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Certificate
+                        </button>
+                        <a href="/api/v1/certificates/download/active" class="px-3 py-2 bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-teal-600/30 transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-download"></i> Download Active .crt
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Active Certificate Inspector Card -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="h-10 w-10 rounded-xl bg-teal-600/20 border border-teal-500/30 flex items-center justify-center text-teal-400 text-lg">
+                                <i class="fa-solid fa-certificate"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-white text-base" id="cert-subject-cn">Active Certificate</h3>
+                                <p class="text-xs text-slate-400 font-mono" id="cert-issuer">Issuer: --</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="cert-status-badge" class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-950 border border-emerald-800 text-emerald-400 font-mono">VALID</span>
+                            <span id="cert-type-badge" class="px-2 py-1 text-xs font-medium rounded-full bg-slate-800 text-slate-300 font-mono">SELF-SIGNED</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                        <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-400 block text-[10px] font-mono uppercase">Validity Period</span>
+                            <div class="font-bold text-slate-200" id="cert-valid-from">--</div>
+                            <div class="text-slate-400 text-[11px]">Until: <span id="cert-valid-to" class="text-slate-200 font-mono font-bold">--</span></div>
+                            <div class="text-[11px] text-teal-400 font-bold" id="cert-days-remaining">-- days remaining</div>
+                        </div>
+                        <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-400 block text-[10px] font-mono uppercase">Cryptographic Details</span>
+                            <div>Algorithm: <span id="cert-sig-alg" class="font-mono text-slate-200 font-bold">SHA256</span></div>
+                            <div class="truncate text-slate-400 font-mono text-[11px]">Serial: <span id="cert-serial" class="text-slate-300">--</span></div>
+                        </div>
+                        <div class="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1">
+                            <span class="text-slate-400 block text-[10px] font-mono uppercase">Subject Alternative Names (SANs)</span>
+                            <div id="cert-sans-container" class="flex flex-wrap gap-1 mt-1">
+                                <span class="text-slate-500 text-[11px]">No SANs found</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Certificate Operations Grid (3 Tabs/Cards) -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Action Card 1: Generate Self-Signed Certificate -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fa-solid fa-wand-magic-sparkles text-teal-400"></i>
+                                <h4 class="font-bold text-sm text-white">Generate Self-Signed Certificate</h4>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-4">Create a new RSA 2048-bit certificate with SANs matching your local DC hostnames and LAN IP addresses.</p>
+                            <form onsubmit="handleGenerateSelfSignedCert(event)" class="space-y-3">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Common Name (CN)</label>
+                                    <input type="text" id="cert-gen-cn" value="" placeholder="e.g. zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Subject Alternative Names (comma-separated)</label>
+                                    <input type="text" id="cert-gen-sans" value="" placeholder="e.g. 192.168.1.100, zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Validity (Days)</label>
+                                        <input type="number" id="cert-gen-days" value="365" min="30" max="3650" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Organization</label>
+                                        <input type="text" id="cert-gen-org" value="ZclockID Organization" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                                    </div>
+                                </div>
+                                <button type="submit" id="cert-gen-btn" class="w-full mt-2 py-2 bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-teal-600/30 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-rotate"></i> Generate & Reload Nginx
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Action Card 2: Upload Custom Certificate -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fa-solid fa-cloud-arrow-up text-indigo-400"></i>
+                                <h4 class="font-bold text-sm text-white">Upload Enterprise PEM Certificate</h4>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-3">Install an enterprise or CA-signed certificate. Keys are validated against the certificate before Nginx reloads.</p>
+                            <form onsubmit="handleUploadCustomCert(event)" class="space-y-2.5">
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Server Certificate PEM</label>
+                                    <textarea id="cert-upload-cert" rows="2" placeholder="-----BEGIN CERTIFICATE-----" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Private Key PEM</label>
+                                    <textarea id="cert-upload-key" rows="2" placeholder="-----BEGIN PRIVATE KEY-----" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">Intermediate CA Chain (Optional)</label>
+                                    <textarea id="cert-upload-chain" rows="1" placeholder="-----BEGIN CERTIFICATE----- (Optional)" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-[11px] font-mono text-slate-300 focus:outline-none"></textarea>
+                                </div>
+                                <button type="submit" id="cert-upload-btn" class="w-full mt-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-shield-check"></i> Validate & Install
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Action Card 3: Generate CSR -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="fa-solid fa-file-signature text-amber-400"></i>
+                                <h4 class="font-bold text-sm text-white">Generate CSR for Enterprise CA</h4>
+                            </div>
+                            <p class="text-xs text-slate-400 mb-4">Create a Certificate Signing Request to submit to your Active Directory Certificate Services (AD CS) or external CA.</p>
+                            <form onsubmit="handleGenerateCsr(event)" class="space-y-2.5">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Common Name</label>
+                                        <input type="text" id="csr-cn" value="" placeholder="e.g. zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Organization</label>
+                                        <input type="text" id="csr-org" value="ZclockID Organization" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">City</label>
+                                        <input type="text" id="csr-city" value="City" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">State</label>
+                                        <input type="text" id="csr-state" value="State" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-slate-300 mb-1">Country</label>
+                                        <input type="text" id="csr-country" value="US" maxlength="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-medium text-slate-300 mb-1">SANs (comma-separated)</label>
+                                    <input type="text" id="csr-sans" value="" placeholder="e.g. 192.168.1.100, zclockid.company.local" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                                </div>
+                                <button type="submit" id="csr-gen-btn" class="w-full mt-2 py-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs rounded-lg transition shadow-lg shadow-amber-600/30 flex items-center justify-center gap-1.5">
+                                    <i class="fa-solid fa-file-pen"></i> Generate Request (CSR)
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>

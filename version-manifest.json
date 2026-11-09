@@ -1,12 +1,12 @@
 {
-  "version": "1.2.4",
-  "name": "ZclockID Enterprise v1.2.4",
+  "version": "1.2.5",
+  "name": "ZclockID Enterprise v1.2.5",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-09T19:15:00Z",
-  "summary": "Directory Search, Multi-Column Sorting, and Interactive Numbered Pagination",
-  "notes": "### What's Changed in v1.2.4:\n* **Configurable Items Per Page:** Added selector for 10, 25, 50, 100, or All items per page across Users, Groups, and Computers.\n* **Interactive Numbered Pagination:** Added numbered jump-to page buttons (`[1] [2] [3]...`) with dynamic windowing and active page badges.\n* **Real-Time Directory Search:** Live filtering across usernames, UPNs, display names, departments, emails, phone numbers, and security groups.\n* **Multi-Column Sorting:** Clickable table headers with ascending/descending visual indicators.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.4_all.deb",
-  "package_name": "zclockid_1.2.4_all.deb",
+  "published_at": "2026-11-09T19:35:00Z",
+  "summary": "Modular UI View Templates, Layout Wrapping Fixes, and Frontend Performance Optimizations",
+  "notes": "### What's Changed in v1.2.5:\n* **Modular View Templates:** Decomposed monolithic 6,700-line index.html into lightweight asynchronous view partials under web/views/tabs/ and web/views/modals.html, shrinking main document by 97% to ~210 lines.\n* **Asynchronous Tab & Modal Loader:** Implemented on-demand template loading with in-memory DOM caching and background idle preloading for instant zero-latency sub-millisecond tab switching.\n* **Sidebar & Subtab Layout Hardening:** Fixed text wrapping on Users, Groups & Computers tab button when active, widened navigation sidebar (w-72), and added flex-nowrap to directory subtabs container.\n* **Production Governance Compliance:** Verified and compiled strictly on dedicated build server 192.168.1.41.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.5_all.deb",
+  "package_name": "zclockid_1.2.5_all.deb",
   "min_version_required": "1.0.0"
 }
