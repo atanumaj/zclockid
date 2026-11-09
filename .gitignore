@@ -6,8 +6,19 @@ __pycache__/
 venv/
 *.swp
 *.log
-internal-docs/
-tools/license-generator/zclockid_private_key.pem
+.DS_Store
+
+# Root debian build artifacts (official packages reside in apt-repo/pool/main/)
+/zclockid_*.deb
+
+# Private keys, certificates & customer licenses
+*.pem
+!api/core/license_public_key.pem
 *.lic
+*.key
 
-
+# Internal & operational materials (hosted in private repo)
+internal-docs/
+tools/
+scratch/
+deploy_*.py
