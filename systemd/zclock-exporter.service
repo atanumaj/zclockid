@@ -1,0 +1,14 @@
+[Unit]
+Description=ZclockID Prometheus & Linux Kernel Telemetry Exporter (Go Native)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/zclockid/bin/zclock-exporter
+Restart=always
+RestartSec=5s
+Environment=EXPORTER_PORT=9101
+
+[Install]
+WantedBy=multi-user.target

@@ -44,9 +44,10 @@ fi
 # 3. Build & Install Native Go Daemons
 mkdir -p "${BUILD_ROOT}/opt/zclockid/bin"
 if [[ -d "${DIST_DIR}/daemons/go" ]] && command -v go >/dev/null 2>&1; then
-    echo "Compiling native Go daemons (zclock-sysvold)..."
+    echo "Compiling native Go daemons (zclock-sysvold, zclock-exporter)..."
     (cd "${DIST_DIR}/daemons/go" && go build -ldflags="-s -w" -o "${BUILD_ROOT}/opt/zclockid/bin/zclock-sysvold" ./cmd/zclock-sysvold)
-    chmod 755 "${BUILD_ROOT}/opt/zclockid/bin/zclock-sysvold"
+    (cd "${DIST_DIR}/daemons/go" && go build -ldflags="-s -w" -o "${BUILD_ROOT}/opt/zclockid/bin/zclock-exporter" ./cmd/zclock-exporter)
+    chmod 755 "${BUILD_ROOT}/opt/zclockid/bin/"*
 fi
 
 # Copy Daemons and Telemetry Scripts
@@ -88,7 +89,7 @@ if [[ -d "${DIST_DIR}/config-templates/freeradius" ]]; then
 fi
 
 # 6. Copy systemd unit files
-for svc in zclock-api.service zclock-sysvold.service zclock-azuresync.service; do
+for svc in zclock-api.service zclock-sysvold.service zclock-azuresync.service zclock-exporter.service; do
     if [[ -f "${DIST_DIR}/systemd/${svc}" ]]; then
         cp "${DIST_DIR}/systemd/${svc}" "${BUILD_ROOT}/etc/systemd/system/"
     fi

@@ -53,6 +53,72 @@ def check_systemd_service(service_name: str) -> Dict[str, Any]:
         "memory_mb": mem_mb
     }
 
+def check_systemd_services_batch(service_names: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Introspects multiple systemd services in a single ultra-fast batch call (<50ms)."""
+    res = {
+        name: {
+            "status": "inactive",
+            "systemd_state": "unknown",
+            "enabled": "unknown",
+            "pid": None,
+            "memory_mb": None
+        }
+        for name in service_names
+    }
+
+    cmd = ["systemctl", "show"] + service_names + ["--property=Id,ActiveState,MainPID,MemoryCurrent,UnitFileState"]
+    code, out, _ = run_cmd(cmd, timeout=6)
+    if code != 0 or not out:
+        return {s: check_systemd_service(s) for s in service_names}
+
+    blocks = out.split("\n\n")
+    for block in blocks:
+        lines = block.strip().splitlines()
+        svc_id = None
+        active_state = "unknown"
+        unit_file = "unknown"
+        pid = None
+        mem_mb = None
+
+        for line in lines:
+            if line.startswith("Id="):
+                svc_id = line.split("=", 1)[1].strip()
+                if svc_id.endswith(".service"):
+                    svc_id = svc_id[:-8]
+            elif line.startswith("ActiveState="):
+                active_state = line.split("=", 1)[1].strip()
+            elif line.startswith("UnitFileState="):
+                unit_file = line.split("=", 1)[1].strip()
+            elif line.startswith("MainPID="):
+                try:
+                    p = int(line.split("=", 1)[1].strip())
+                    if p > 0: pid = p
+                except:
+                    pass
+            elif line.startswith("MemoryCurrent="):
+                try:
+                    raw_b = int(line.split("=", 1)[1].strip())
+                    if 0 < raw_b < 10**14:
+                        mem_mb = round(raw_b / (1024 * 1024), 1)
+                except:
+                    pass
+
+        target_name = svc_id
+        if svc_id == "named" and "bind9" in res:
+            target_name = "bind9"
+
+        if target_name and target_name in res:
+            is_active = (active_state == "active")
+            res[target_name] = {
+                "status": "active" if is_active else ("failed" if active_state == "failed" else "inactive"),
+                "systemd_state": active_state,
+                "enabled": unit_file,
+                "pid": pid,
+                "memory_mb": mem_mb
+            }
+
+    return res
+
 def log_audit(event_type: str, actor: str, target: str, status: str, details: Dict[str, Any]):
     try:
         conn = get_db_connection()

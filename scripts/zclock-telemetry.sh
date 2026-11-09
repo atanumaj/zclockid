@@ -6,6 +6,11 @@ set -eo pipefail
 
 COMMAND="${1:-status}"
 
+# Fast path: Delegate to compiled native Go exporter if installed
+if [[ -x "/opt/zclockid/bin/zclock-exporter" ]]; then
+    exec /opt/zclockid/bin/zclock-exporter "$COMMAND"
+fi
+
 case "$COMMAND" in
     ad_status)
         if systemctl is-active --quiet samba-ad-dc; then

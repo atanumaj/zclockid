@@ -34,6 +34,7 @@ from api.core.config import (
 from api.services.system_service import (
     run_cmd,
     check_systemd_service,
+    check_systemd_services_batch,
     log_audit,
     get_appliance_version
 )
@@ -208,17 +209,30 @@ def read_manifest_from_tar(tar_path: Path) -> Optional[dict]:
 @router.get("/api/v1/system/status")
 def get_system_status():
     """Returns comprehensive appliance health, engine statuses, PIDs, memory, and ports."""
+    service_names = [
+        "samba-ad-dc",
+        "bind9",
+        "freeradius",
+        "chrony",
+        "zclock-sysvold",
+        "zclock-azuresync",
+        "zclock-exporter",
+        "zclock-api",
+        "nginx",
+        "snmpd"
+    ]
+    raw_services = check_systemd_services_batch(service_names)
     services = {
-        "samba_ad_dc": check_systemd_service("samba-ad-dc"),
-        "bind9": check_systemd_service("bind9"),
-        "freeradius": check_systemd_service("freeradius"),
-        "chrony": check_systemd_service("chrony"),
-        "zclock_sysvold": check_systemd_service("zclock-sysvold"),
-        "zclock_azuresync": check_systemd_service("zclock-azuresync"),
-        "zclock_exporter": check_systemd_service("zclock-exporter"),
-        "zclock_api": check_systemd_service("zclock-api"),
-        "nginx": check_systemd_service("nginx"),
-        "snmpd": check_systemd_service("snmpd")
+        "samba_ad_dc": raw_services.get("samba-ad-dc", {}),
+        "bind9": raw_services.get("bind9", {}),
+        "freeradius": raw_services.get("freeradius", {}),
+        "chrony": raw_services.get("chrony", {}),
+        "zclock_sysvold": raw_services.get("zclock-sysvold", {}),
+        "zclock_azuresync": raw_services.get("zclock-azuresync", {}),
+        "zclock_exporter": raw_services.get("zclock-exporter", {}),
+        "zclock_api": raw_services.get("zclock-api", {}),
+        "nginx": raw_services.get("nginx", {}),
+        "snmpd": raw_services.get("snmpd", {})
     }
 
     ports_map = {
@@ -241,22 +255,39 @@ def get_system_status():
         "Prometheus Exporter": 9101
     }
 
-    import psutil
-    cpu_percent = psutil.cpu_percent(interval=None)
-    mem = psutil.virtual_memory()
-    disk = psutil.disk_usage("/")
+    # Fast path: Try ultra-fast Linux kernel telemetry from Go native exporter (<1ms)
+    resources = None
+    uptime_sec = 0.0
+    try:
+        r = requests.get("http://127.0.0.1:9101/stats", timeout=0.15)
+        if r.status_code == 200:
+            data = r.json()
+            res_data = data.get("resources", {})
+            uptime_sec = float(data.get("uptime_seconds", 0.0))
+            mem_tot = res_data.get("memory_total_bytes", 0) / (1024 * 1024)
+            mem_used = res_data.get("memory_used_bytes", 0) / (1024 * 1024)
+            disk_tot = res_data.get("disk_total_bytes", 0) / (1024 * 1024 * 1024)
+            disk_used = res_data.get("disk_used_bytes", 0) / (1024 * 1024 * 1024)
+            resources = {
+                "cpu_percent": float(res_data.get("cpu_percent", 0.0)),
+                "memory_total_mb": round(mem_tot, 1),
+                "memory_used_mb": round(mem_used, 1),
+                "memory_percent": float(res_data.get("memory_percent", 0.0)),
+                "disk_total_gb": round(disk_tot, 1),
+                "disk_used_gb": round(disk_used, 1),
+                "disk_percent": float(res_data.get("disk_percent", 0.0))
+            }
+    except Exception:
+        pass
 
-    active_count = sum(1 for s in services.values() if s.get("status") == "active")
-    health = "HEALTHY" if active_count >= 5 else ("INITIALIZING" if active_count >= 3 else "DEGRADED")
-
-    return {
-        "hostname": os.uname().nodename,
-        "uptime_seconds": time.time() - psutil.boot_time(),
-        "version": get_appliance_version(),
-        "services": services,
-        "overall_health": health,
-        "ports": ports_map,
-        "resources": {
+    # Fallback to psutil if exporter is starting up or unavailable
+    if not resources:
+        import psutil
+        cpu_percent = psutil.cpu_percent(interval=None)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage("/")
+        uptime_sec = time.time() - psutil.boot_time()
+        resources = {
             "cpu_percent": cpu_percent,
             "memory_total_mb": round(mem.total / (1024 * 1024), 1),
             "memory_used_mb": round(mem.used / (1024 * 1024), 1),
@@ -265,6 +296,18 @@ def get_system_status():
             "disk_used_gb": round(disk.used / (1024 * 1024 * 1024), 1),
             "disk_percent": disk.percent
         }
+
+    active_count = sum(1 for s in services.values() if s.get("status") == "active")
+    health = "HEALTHY" if active_count >= 5 else ("INITIALIZING" if active_count >= 3 else "DEGRADED")
+
+    return {
+        "hostname": os.uname().nodename,
+        "uptime_seconds": uptime_sec,
+        "version": get_appliance_version(),
+        "services": services,
+        "overall_health": health,
+        "ports": ports_map,
+        "resources": resources
     }
 
 
