@@ -7,14 +7,14 @@
 version: "2.0.0"
 appliance:
   name: "ZclockID Enterprise AD DC"
-  hostname: "inet-zclockid"
-  netbios_name: "INET-ZCLOCKID"
+  hostname: "zclockid-dc"
+  netbios_name: "ZCLOCKID-DC"
   description: "ZclockID Active Directory Domain Controller"
   root_dir: "/zclockid"
 
 domain:
-  realm: "INET.NET"
-  workgroup: "INET"
+  realm: "CORP.EXAMPLE.COM"
+  workgroup: "CORP"
   functional_level: "2016"
   server_role: "master"       # master (Primary DC) | alternate (Backup DC) | rodc
   use_rfc2307: true

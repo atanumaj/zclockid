@@ -179,7 +179,7 @@ def get_domain_info():
     }
     realm = "NOT_PROVISIONED"
     domain = "NOT_PROVISIONED"
-    netbios_name = "INET-ZCLOCKID"
+    netbios_name = "ZCLOCKID-DC"
     server_desc = "ZclockID Active Directory Domain Controller"
     server_role = "Active Directory Domain Controller"
 
@@ -214,7 +214,7 @@ def get_domain_info():
                 domain_sid = line.split(":", 1)[1].strip()
 
     code_hn, out_hn, _ = run_cmd(["hostname", "-s"])
-    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "inet-zclockid"
+    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "zclockid-dc"
     code_fqdn, out_fqdn, _ = run_cmd(["hostname", "-f"])
     raw_fqdn = out_fqdn.strip() if code_fqdn == 0 else ""
     fqdn = raw_fqdn if "." in raw_fqdn else f"{hostname}.{realm.lower()}"

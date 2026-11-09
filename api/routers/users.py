@@ -129,8 +129,8 @@ def list_domain_users():
                 if current_user.get("username"):
                     u = current_user["username"]
                     if not u.endswith("$"):
-                        is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
-                        is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
+                        is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-zclockid"] or u.lower().startswith("dns-")
+                        is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-zclockid"] or u.lower().startswith("dns-")
                         uac = current_user.get("uac", 512)
                         is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                         upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
@@ -835,7 +835,7 @@ def delete_domain_computer(computer_name: str):
     if c_d != 0 or "dn: " not in o_d:
         raise HTTPException(status_code=404, detail=f"Computer account '{computer_name}' not found.")
 
-    if "ou=domain controllers" in o_d.lower() or computer_name.upper() in ["INET-ZCLOCKID", "ZCLOCKID"]:
+    if "ou=domain controllers" in o_d.lower() or computer_name.upper() in ["ZCLOCKID-DC", "ZCLOCKID"]:
         raise HTTPException(status_code=400, detail="Cannot delete Domain Controller computer accounts.")
 
     admin_user, admin_pass = get_ad_creds()

@@ -99,7 +99,7 @@
                         : '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-400 border border-rose-800">DISABLED</span>';
 
                     const isBuiltin = u.is_built_in;
-                    const isSystemAccount = u.is_system_hidden || ['krbtgt', 'guest', 'dns-inet-zclockid'].includes(u.username.toLowerCase());
+                    const isSystemAccount = u.is_system_hidden || ['krbtgt', 'guest', 'dns-zclockid'].includes(u.username.toLowerCase()) || u.username.toLowerCase().startsWith('dns-');
 
                     return `
                         <tr class="hover:bg-slate-800/30">

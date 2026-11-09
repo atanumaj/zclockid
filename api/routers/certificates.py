@@ -154,7 +154,7 @@ def generate_self_signed_certificate(req: SelfSignedCertRequest):
             backup_key = f.read()
 
     # Determine Common Name
-    cn = req.common_name or os.uname().nodename or "inet-zclockid"
+    cn = req.common_name or os.uname().nodename or "zclockid-dc"
 
     # Generate RSA Private Key (2048-bit)
     private_key = rsa.generate_private_key(
@@ -188,7 +188,7 @@ def generate_self_signed_certificate(req: SelfSignedCertRequest):
 
     name_attributes = [
         x509.NameAttribute(NameOID.COMMON_NAME, cn),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME, req.organization or "Inet Secure Labs"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, req.organization or "ZclockID Enterprise"),
         x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "ZclockID Appliance")
     ]
     subject = issuer = x509.Name(name_attributes)

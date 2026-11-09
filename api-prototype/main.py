@@ -161,7 +161,7 @@ def init_db():
             enabled INTEGER DEFAULT 1,
             require_mobile_otp INTEGER DEFAULT 1,
             auto_approve_with_otp INTEGER DEFAULT 1,
-            default_domain TEXT DEFAULT 'inet.net',
+            default_domain TEXT DEFAULT 'corp.example.com',
             default_group TEXT DEFAULT 'Domain Users',
             default_bandwidth_profile_id INTEGER DEFAULT 0,
             sms_gateway_type TEXT DEFAULT 'simulated',
@@ -174,7 +174,7 @@ def init_db():
             smtp_port INTEGER DEFAULT 587,
             smtp_user TEXT DEFAULT '',
             smtp_pass TEXT DEFAULT '',
-            smtp_from TEXT DEFAULT 'no-reply@inet.net',
+            smtp_from TEXT DEFAULT 'no-reply@corp.example.com',
             updated_at REAL
         )
     """)
@@ -196,7 +196,7 @@ def init_db():
                 id, enabled, require_mobile_otp, auto_approve_with_otp, default_domain, default_group,
                 sms_gateway_type, sms_sender_id, sms_template, updated_at
             ) VALUES (
-                1, 1, 1, 1, 'inet.net', 'Domain Users',
+                1, 1, 1, 1, 'corp.example.com', 'Domain Users',
                 'simulated', 'ZCLOCK', 'Your ZclockID verification code is {otp}. Valid for 10 minutes.', ?
             )
         """, (time.time(),))
@@ -380,7 +380,7 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS update_settings (
             id INTEGER PRIMARY KEY CHECK (id = 1),
-            github_repo TEXT DEFAULT 'atanude/Inet-ZclockID',
+            github_repo TEXT DEFAULT 'atanumaj/zclockid',
             custom_manifest_url TEXT DEFAULT '',
             auto_check INTEGER DEFAULT 1,
             last_checked REAL DEFAULT 0,
@@ -400,7 +400,7 @@ def init_db():
                 latest_version, latest_release_name, latest_release_notes,
                 latest_download_url, last_check_status, updated_at
             ) VALUES (
-                1, 'atanude/Inet-ZclockID', '', 1, 0, '', '', '', '', 'NOT_CHECKED', ?
+                1, 'atanumaj/zclockid', '', 1, 0, '', '', '', '', 'NOT_CHECKED', ?
             )
         """, (time.time(),))
 
@@ -509,7 +509,7 @@ def run_cmd(cmd: List[str], timeout: int = 45) -> tuple[int, str, str]:
 
 def get_ad_creds() -> tuple[str, str]:
     admin_user = "Administrator"
-    admin_pass = "P@ssw0rd@inet"
+    admin_pass = "ZclockID@Admin2026!"
     if AD_CREDS_FILE.exists():
         try:
             with open(AD_CREDS_FILE) as f:
@@ -576,7 +576,7 @@ def get_primary_realm() -> str:
                     return line.split("=", 1)[1].strip()
         except Exception:
             pass
-    return "INET.NET"
+    return "CORP.EXAMPLE.COM"
 
 def get_self_registration_settings() -> dict:
     conn = sqlite3.connect(DB_PATH)
@@ -959,7 +959,7 @@ class GroupUpdateRequest(BaseModel):
     bandwidth_profile_id: Optional[int] = None
 
 class DnsRecordRequest(BaseModel):
-    zone: str = Field(..., example="inet.net")
+    zone: str = Field(..., example="corp.example.com")
     record_name: str = Field(..., example="web")
     record_type: str = Field("A", pattern="^(A|AAAA|CNAME|TXT|SRV|MX|PTR)$")
     record_data: str = Field(..., example="192.168.1.55")
@@ -1048,7 +1048,7 @@ class SysvolPartnerRequest(BaseModel):
     shared_secret: str = Field(..., example="PartnerSyncSecret2026!")
 
 class SysvolFileUploadRequest(BaseModel):
-    rel_path: str = Field(..., example="inet.net/Policies/{GUID}/GPT.INI")
+    rel_path: str = Field(..., example="corp.example.com/Policies/{GUID}/GPT.INI")
     content_base64: str
     mtime: Optional[float] = None
 
@@ -1057,7 +1057,7 @@ class AzureSyncConfig(BaseModel):
     tenant_id: str = ""
     client_id: str = ""
     client_secret: Optional[str] = None
-    default_domain: Optional[str] = "inet.net"
+    default_domain: Optional[str] = "corp.example.com"
     source_ou: Optional[str] = ""
     sync_interval_seconds: Optional[int] = 900
     exclude_disabled: Optional[bool] = True
@@ -1082,7 +1082,7 @@ class NtpConfigRequest(BaseModel):
     timezone: Optional[str] = None
 
 class DohTestRequest(BaseModel):
-    query_name: Optional[str] = "inet.net"
+    query_name: Optional[str] = "corp.example.com"
     query_type: Optional[str] = "A"
     qname: Optional[str] = None
     rtype: Optional[str] = None
@@ -1105,7 +1105,7 @@ class BackupInspectRequest(BaseModel):
 class SnmpConfigRequest(BaseModel):
     enabled: bool = True
     agent_address: str = "udp:161,udp6:[::1]:161"
-    sys_location: str = "Inet Secure Labs Datacenter"
+    sys_location: str = "ZclockID Datacenter"
     sys_contact: str = "admin@example.com"
     community_string: str = "zclock_public"
     allowed_subnets: str = "192.168.1.0/24, 127.0.0.1"
@@ -1126,7 +1126,7 @@ class SelfRegistrationSettingsRequest(BaseModel):
     enabled: bool = True
     require_mobile_otp: bool = True
     auto_approve_with_otp: bool = True
-    default_domain: Optional[str] = "inet.net"
+    default_domain: Optional[str] = "corp.example.com"
     default_group: Optional[str] = "Domain Users"
     default_bandwidth_profile_id: Optional[int] = 0
     allowed_departments: Optional[str] = "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
@@ -1140,7 +1140,7 @@ class SelfRegistrationSettingsRequest(BaseModel):
     smtp_port: Optional[int] = 587
     smtp_user: Optional[str] = ""
     smtp_pass: Optional[str] = ""
-    smtp_from: Optional[str] = "no-reply@inet.net"
+    smtp_from: Optional[str] = "no-reply@corp.example.com"
 
 class SelfRegistrationSubmitRequest(BaseModel):
     username: str
@@ -1545,7 +1545,7 @@ def get_domain_info():
     }
     realm = "NOT_PROVISIONED"
     domain = "NOT_PROVISIONED"
-    netbios_name = "INET-ZCLOCKID"
+    netbios_name = "ZCLOCKID-DC"
     server_desc = "ZclockID Active Directory Domain Controller"
     server_role = "Active Directory Domain Controller"
 
@@ -1581,7 +1581,7 @@ def get_domain_info():
                 domain_sid = line.split(":", 1)[1].strip()
 
     code_hn, out_hn, _ = run_cmd(["hostname", "-s"])
-    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "inet-zclockid"
+    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "zclockid-dc"
     code_fqdn, out_fqdn, _ = run_cmd(["hostname", "-f"])
     raw_fqdn = out_fqdn.strip() if code_fqdn == 0 else ""
     fqdn = raw_fqdn if "." in raw_fqdn else f"{hostname}.{realm.lower()}"
@@ -1812,7 +1812,7 @@ def update_system_identity(req: SystemIdentityUpdateRequest):
             if os.path.exists("/etc/hosts"):
                 with open("/etc/hosts", "r") as f:
                     hosts_content = f.read()
-                realm = "inet.net"
+                realm = "corp.example.com"
                 if os.path.exists("/etc/samba/smb.conf"):
                     with open("/etc/samba/smb.conf") as f:
                         for l in f:
@@ -2063,8 +2063,8 @@ def list_domain_users():
                 if current_user.get("username"):
                     u = current_user["username"]
                     if not u.endswith("$"):
-                        is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
-                        is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
+                        is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-zclockid-dc"] or u.lower().startswith("dns-")
+                        is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-zclockid-dc"] or u.lower().startswith("dns-")
                         uac = current_user.get("uac", 512)
                         is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                         upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
@@ -2164,8 +2164,8 @@ def list_domain_users():
         if current_user.get("username"):
             u = current_user["username"]
             if not u.endswith("$"):
-                is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
-                is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-inet-zclockid"] or u.lower().startswith("dns-")
+                is_built_in = u.lower() in ["administrator", "guest", "krbtgt", "dns-zclockid-dc"] or u.lower().startswith("dns-")
+                is_system_hidden = u.lower() in ["guest", "krbtgt", "dns-zclockid-dc"] or u.lower().startswith("dns-")
                 uac = current_user.get("uac", 512)
                 is_disabled = (uac & 2) != 0 or u in ["Guest", "krbtgt"]
                 upn = current_user.get("user_principal_name") or f"{u}@{primary_realm}"
@@ -2219,7 +2219,7 @@ def list_domain_users():
                         "department": "Corporate Staff",
                         "status": "active" if u not in ["Guest", "krbtgt"] else "disabled",
                         "is_disabled": u in ["Guest", "krbtgt"],
-                        "is_built_in": u in ["Administrator", "Guest", "krbtgt", "dns-inet-zclockid"],
+                        "is_built_in": u in ["Administrator", "Guest", "krbtgt", "dns-zclockid-dc"],
                         "groups": [],
                         "bandwidth_profile_id": bw_entry["profile_id"] if bw_entry else None,
                         "bandwidth_profile_name": bw_entry["profile_name"] if bw_entry else None,
@@ -2819,7 +2819,7 @@ def list_domain_computers():
 
                     computers.append({
                         "name": current_comp["name"],
-                        "dns_hostname": current_comp.get("dNSHostName") or f"{current_comp['name'].lower()}.inet.net",
+                        "dns_hostname": current_comp.get("dNSHostName") or f"{current_comp['name'].lower()}.corp.example.com",
                         "operating_system": current_comp.get("operatingSystem") or "Windows / Linux Client",
                         "os_version": current_comp.get("operatingSystemVersion") or "-",
                         "is_dc": is_dc,
@@ -2867,7 +2867,7 @@ def list_domain_computers():
 
             computers.append({
                 "name": current_comp["name"],
-                "dns_hostname": current_comp.get("dNSHostName") or f"{current_comp['name'].lower()}.inet.net",
+                "dns_hostname": current_comp.get("dNSHostName") or f"{current_comp['name'].lower()}.corp.example.com",
                 "operating_system": current_comp.get("operatingSystem") or "Windows / Linux Client",
                 "os_version": current_comp.get("operatingSystemVersion") or "-",
                 "is_dc": is_dc,
@@ -2887,7 +2887,7 @@ def delete_domain_computer(computer_name: str):
     if c_d != 0 or "dn: " not in o_d:
         raise HTTPException(status_code=404, detail=f"Computer account '{computer_name}' not found.")
 
-    if "ou=domain controllers" in o_d.lower() or computer_name.upper() in ["INET-ZCLOCKID", "ZCLOCKID"]:
+    if "ou=domain controllers" in o_d.lower() or computer_name.upper() in ["ZCLOCKID-DC", "ZCLOCKID"]:
         raise HTTPException(status_code=400, detail="Cannot delete Domain Controller computer accounts.")
 
     admin_user, admin_pass = get_ad_creds()
@@ -2968,7 +2968,7 @@ def list_dns_zones():
                 z = line.split(":")[-1].strip()
                 zones.append(z)
     if not zones:
-        zones = ["inet.net", "_msdcs.inet.net"]
+        zones = ["corp.example.com", "_msdcs.corp.example.com"]
     return {"zones": zones}
 
 @app.post("/api/v1/dns/zones")
@@ -2983,7 +2983,7 @@ def create_dns_zone(req: DnsZoneCreateRequest):
     return {"status": "success", "message": f"DNS Zone '{req.zone_name}' created successfully."}
 
 @app.get("/api/v1/dns/records")
-def get_dns_records(zone: str = "inet.net"):
+def get_dns_records(zone: str = "corp.example.com"):
     """Queries all DNS records in a zone hierarchically, crawling subnodes, AD SRV, and Host records."""
     admin_user, admin_pass = get_ad_creds()
     records = []
@@ -3048,7 +3048,7 @@ def get_doh_status(request: Request):
     code_ss, out_ss, _ = run_cmd(["ss", "-tlpn"])
     is_bind_doh = (code_ss == 0 and ":8053" in out_ss and "named" in out_ss)
 
-    realm = "inet.net"
+    realm = "corp.example.com"
     if os.path.exists("/etc/samba/smb.conf"):
         with open("/etc/samba/smb.conf") as f:
             for l in f:
@@ -3056,7 +3056,7 @@ def get_doh_status(request: Request):
                     realm = l.split("=")[1].strip().lower()
 
     code_hn, out_hn, _ = run_cmd(["hostname", "-s"])
-    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "inet-zclockid"
+    hostname = out_hn.strip() if code_hn == 0 and out_hn.strip() else "zclockid-dc"
     fqdn = f"{hostname}.{realm}"
 
     return {
@@ -3079,7 +3079,7 @@ def get_doh_status(request: Request):
 @app.post("/api/v1/dns/doh/test")
 def test_doh_resolution(req: DohTestRequest):
     """Executes a live DNS-over-HTTPS (DoH) query via RFC 8484 and decodes the response wire format."""
-    target_qname = (req.qname or req.query_name or "inet.net").strip()
+    target_qname = (req.qname or req.query_name or "corp.example.com").strip()
     target_rtype = (req.rtype or req.query_type or "A").strip().upper()
 
     try:
@@ -3175,7 +3175,7 @@ def delete_dns_record(zone: str, record_name: str, record_type: str, record_data
 @app.get("/api/v1/dns/diagnostics")
 def get_dns_diagnostics():
     """Runs verification tests for Kerberos, LDAP, and Kpasswd service discovery records."""
-    realm = "inet.net"
+    realm = "corp.example.com"
     if os.path.exists("/etc/samba/smb.conf"):
         with open("/etc/samba/smb.conf") as f:
             for line in f:
@@ -3483,8 +3483,8 @@ def get_freeradius_certificate_info():
         "status": "CONFIGURED",
         "server_cert_path": str(RADIUS_SERVER_CERT),
         "ca_cert_path": str(RADIUS_CA_CERT),
-        "subject": "CN=radius.inet.net, O=Inet Secure Labs, C=IN",
-        "issuer": "CN=Inet Secure Root CA, O=Inet Secure Labs",
+        "subject": "CN=radius.corp.example.com, O=ZclockID Enterprise, C=IN",
+        "issuer": "CN=ZclockID Root CA, O=ZclockID Enterprise",
         "valid_from": "2026-01-01 00:00:00",
         "valid_to": "2036-01-01 00:00:00",
         "days_remaining": 3480,
@@ -3827,7 +3827,7 @@ def renew_radius_tls_certificate():
     cmd = [
         "openssl", "req", "-x509", "-newkey", "rsa:4096", "-sha256", "-days", "3650", "-nodes",
         "-keyout", str(key_file), "-out", str(cert_file),
-        "-subj", "/CN=radius.inet.net/O=Inet Secure Labs/OU=802.1X Enterprise Security"
+        "-subj", "/CN=radius.corp.example.com/O=ZclockID Enterprise/OU=802.1X Enterprise Security"
     ]
     res = run_cmd(cmd, timeout=20)
     if res.get("returncode", 0) != 0 and not cert_file.exists():
@@ -3835,7 +3835,7 @@ def renew_radius_tls_certificate():
         cert_file.write_text("-----BEGIN CERTIFICATE-----\nMIIDSampleCertForZclockIDRADIUS8021X==\n-----END CERTIFICATE-----\n")
 
     run_cmd(["systemctl", "restart", "freeradius"])
-    log_audit("RADIUS_CERT_RENEWED", "admin", "radius.inet.net", "SUCCESS", {})
+    log_audit("RADIUS_CERT_RENEWED", "admin", "radius.corp.example.com", "SUCCESS", {})
     return {"status": "success", "message": "FreeRADIUS 802.1X Server TLS certificate renewed successfully.", "info": get_freeradius_certificate_info()}
 
 # ----------------- View Rendered Config (pfSense Style Inspector) -----------------
@@ -4249,7 +4249,7 @@ def get_azure_sync_config():
         "tenant_id": "",
         "client_id": "",
         "client_secret": "",
-        "default_domain": "inet.net",
+        "default_domain": "corp.example.com",
         "source_ou": "",
         "sync_interval_seconds": 900,
         "exclude_disabled": True,
@@ -4672,8 +4672,8 @@ def list_backups():
             "mtime": stat.st_mtime,
             "backup_type": b_type,
             "description": manifest.get("description", "Appliance backup") if manifest else "Appliance backup archive",
-            "hostname": manifest.get("hostname", "inet-zclockid") if manifest else "unknown",
-            "realm": manifest.get("realm", "INET.NET") if manifest else "unknown",
+            "hostname": manifest.get("hostname", "zclockid-dc") if manifest else "unknown",
+            "realm": manifest.get("realm", "CORP.EXAMPLE.COM") if manifest else "unknown",
             "modules": manifest.get("modules_included", []) if manifest else [],
             "manifest": manifest
         })
@@ -4704,8 +4704,8 @@ def create_backup(req: BackupCreateRequest):
 
     try:
         domain_info = get_domain_info()
-        realm = domain_info.get("realm", "INET.NET")
-        hostname = domain_info.get("hostname", "inet-zclockid")
+        realm = domain_info.get("realm", "CORP.EXAMPLE.COM")
+        hostname = domain_info.get("hostname", "zclockid-dc")
         domain_sid = domain_info.get("domain_sid", "Unknown")
 
         manifest = {
@@ -4716,7 +4716,7 @@ def create_backup(req: BackupCreateRequest):
             "created_at": datetime.datetime.now().isoformat(),
             "hostname": hostname,
             "realm": realm,
-            "netbios_name": domain_info.get("netbios_name", "INET"),
+            "netbios_name": domain_info.get("netbios_name", "CORP"),
             "domain_sid": domain_sid,
             "functional_levels": {
                 "domain_level": domain_info.get("domain_functional_level", "Windows Server 2016"),
@@ -5105,7 +5105,7 @@ def get_snmp_config():
     config = {
         "enabled": is_active,
         "agent_address": "udp:161,udp6:[::1]:161",
-        "sys_location": "Inet Secure Labs Datacenter",
+        "sys_location": "ZclockID Datacenter",
         "sys_contact": "admin@example.com",
         "community_string": "zclock_public",
         "allowed_subnets": "192.168.1.0/24, 127.0.0.1",
@@ -5720,7 +5720,7 @@ def delete_registration_request(req_id: int):
 # ----------------- Software Update & Version Management -----------------
 
 class UpdateSettingsModel(BaseModel):
-    github_repo: Optional[str] = "atanude/Inet-ZclockID"
+    github_repo: Optional[str] = "atanumaj/zclockid"
     custom_manifest_url: Optional[str] = ""
     auto_check: Optional[bool] = True
 
@@ -5780,7 +5780,7 @@ def get_update_info():
         "last_update_status": last_status,
         "update_available": is_newer,
         "settings": {
-            "github_repo": row["github_repo"] if row else "atanude/Inet-ZclockID",
+            "github_repo": row["github_repo"] if row else "atanumaj/zclockid",
             "custom_manifest_url": row["custom_manifest_url"] if row else "",
             "auto_check": bool(row["auto_check"]) if row else True,
             "last_checked": row["last_checked"] if row else 0,
@@ -5816,7 +5816,7 @@ def check_for_updates(req: Optional[UpdateCheckModel] = None):
     cursor.execute("SELECT * FROM update_settings WHERE id = 1")
     row = cursor.fetchone()
 
-    repo = (req.github_repo if req and req.github_repo else (row["github_repo"] if row else "atanude/Inet-ZclockID")).strip()
+    repo = (req.github_repo if req and req.github_repo else (row["github_repo"] if row else "atanumaj/zclockid")).strip()
     manifest_url = (req.custom_manifest_url if req and req.custom_manifest_url else (row["custom_manifest_url"] if row else "")).strip()
 
     curr_ver = get_appliance_version()

@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/
 ### What this script does automatically:
 1. Adds `/etc/apt/sources.list.d/zclockid.sources` (modern DEB822 format) and `/etc/apt/sources.list.d/zclockid.list` pointing to the ZclockID repository.
 2. Configures non-interactive pre-seeding for Kerberos (`krb5-config`).
-3. Installs `zclockid` (v1.0.0) alongside all upstream dependencies:
+3. Installs `zclockid` alongside all upstream dependencies:
    * Samba Active Directory Domain Controller (`samba-ad-dc`)
    * BIND9 DLZ with DNS-over-HTTPS (`bind9`)
    * FreeRADIUS 3 with MS-CHAP & EAP 802.1X (`freeradius`)
@@ -70,11 +70,11 @@ sudo apt-get install -y zclockid
 ### Option B: Direct DEB Package Installation
 ```bash
 # Download package from GitHub repository
-wget https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.1_all.deb
+wget https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.2_all.deb
 
 # Install package and resolve dependencies
 sudo apt-get update
-sudo apt-get install -y ./zclockid_1.2.1_all.deb
+sudo apt-get install -y ./zclockid_1.2.2_all.deb
 ```
 
 ---

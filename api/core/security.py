@@ -28,7 +28,7 @@ def generate_otp_code(length: int = 6) -> str:
 
 def get_ad_creds() -> Tuple[str, str]:
     admin_user = "Administrator"
-    admin_pass = "P@ssw0rd@inet"
+    admin_pass = "ZclockID@Admin2026!"
     if AD_CREDS_FILE.exists():
         try:
             with open(AD_CREDS_FILE) as f:

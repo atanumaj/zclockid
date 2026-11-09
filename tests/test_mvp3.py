@@ -22,7 +22,7 @@ def test_mvp3():
 
     # 1. Local Admin Authentication (Break-Glass)
     print("\n[TEST 1] Hybrid Login - Local Admin (Break-Glass)...")
-    res = session.post(f"{BASE_URL}/auth/login", json={"username": "admin", "password": "P@ssw0rd@inet"}, timeout=8)
+    res = session.post(f"{BASE_URL}/auth/login", json={"username": "admin", "password": "ZclockID@Admin2026!"}, timeout=8)
     assert res.status_code == 200, f"Local login failed: {res.text}"
     local_data = res.json()
     print(f"  -> Local Admin Logged In: username={local_data.get('username')}, role={local_data.get('role')}, is_ad_user={local_data.get('is_ad_user')}")
@@ -31,7 +31,7 @@ def test_mvp3():
 
     # 2. Active Directory Domain Admin Authentication
     print("\n[TEST 2] Hybrid Login - Active Directory Domain Admin (Administrator)...")
-    res = session.post(f"{BASE_URL}/auth/login", json={"username": "Administrator", "password": "P@ssw0rd@inet"}, timeout=8)
+    res = session.post(f"{BASE_URL}/auth/login", json={"username": "Administrator", "password": "ZclockID@Admin2026!"}, timeout=8)
     assert res.status_code == 200, f"AD login failed: {res.text}"
     ad_data = res.json()
     ad_token = ad_data.get("access_token") or ad_data.get("token")
@@ -126,12 +126,12 @@ def test_mvp3():
 
     # Test CSR Generation
     csr_res = session.post(f"{BASE_URL}/certificates/csr", headers=headers, json={
-        "common_name": "inet-zclockid.inet.net",
-        "organization": "Inet Secure Labs",
-        "city": "Chennai",
-        "state": "Tamil Nadu",
-        "country": "IN",
-        "san_list": ["192.168.1.41", "inet-zclockid.inet.net"]
+        "common_name": "zclockid-dc.corp.example.com",
+        "organization": "ZclockID Enterprise",
+        "city": "Austin",
+        "state": "Texas",
+        "country": "US",
+        "san_list": ["10.0.0.10", "zclockid-dc.corp.example.com"]
     }, timeout=5)
     assert csr_res.status_code == 200, f"CSR generation failed: {csr_res.text}"
     csr_pem = csr_res.json().get("csr_pem", "")

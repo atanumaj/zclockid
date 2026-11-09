@@ -125,8 +125,8 @@ ZclockID requires specific ports open on the internal firewall to serve Windows 
 1. **Clone the ZclockID Repository:**
    ```bash
    cd /opt
-   git clone https://github.com/atanu/Inet-ZclockID.git
-   cd Inet-ZclockID
+   git clone https://github.com/atanumaj/zclockid.git
+   cd zclockid
    ```
 
 2. **Run the Installer:**
@@ -155,8 +155,8 @@ When launching ZclockID for the first time, navigate to `https://<Appliance-IP>/
 ### Option A: Provision a New Active Directory Forest (Primary DC)
 To create a new root domain:
 1. Select **"Provision New Forest / Primary DC"**.
-2. **Domain Realm (FQDN):** Enter your enterprise realm (e.g., `INETCSC.NET`).
-3. **NetBIOS Domain Name:** Enter the short NetBIOS name (e.g., `INETCSC`).
+2. **Domain Realm (FQDN):** Enter your enterprise realm (e.g., `CORP.EXAMPLE.COM`).
+3. **NetBIOS Domain Name:** Enter the short NetBIOS name (e.g., `CORP`).
 4. **Administrator Password:** Set a complex password meeting enterprise complexity requirements (minimum 8 characters, uppercase, lowercase, numbers, and symbols).
 5. **DNS Forwarder:** Provide upstream DNS resolvers (e.g., `1.1.1.1, 8.8.8.8`).
 6. Click **"Provision Domain Controller"**. The backend invokes `samba-tool domain provision` and automatically establishes BIND9 DLZ links.
@@ -164,8 +164,8 @@ To create a new root domain:
 ### Option B: Join as an Additional Domain Controller (Secondary DC)
 To join an existing Windows or Samba Active Directory domain for high availability:
 1. Select **"Join Existing Domain (Secondary DC)"**.
-2. **Existing Domain Realm:** Enter existing realm (e.g., `INETCSC.NET`).
-3. **Primary DC IP Address:** IP of the existing PDC (e.g., `192.168.1.23`).
+2. **Existing Domain Realm:** Enter existing realm (e.g., `CORP.EXAMPLE.COM`).
+3. **Primary DC IP Address:** IP of the existing PDC (e.g., `10.0.0.10`).
 4. **Domain Administrator Credentials:** Administrator username and password.
 5. Click **"Join Domain & Sync DRS"**. ZclockID will execute `samba-tool domain join` and initiate initial DRS directory replication.
 
@@ -232,14 +232,14 @@ ZclockID implements full Active Directory RPC endpoints (DRSUAPI, SAMR, LSARPC, 
   ```
 
 #### 2. Connecting to ZclockID
-1. **Set Preferred DNS:** In the Windows client network adapter IPv4 properties, point the Preferred DNS server to your ZclockID appliance IP (e.g., `192.168.1.41`).
+1. **Set Preferred DNS:** In the Windows client network adapter IPv4 properties, point the Preferred DNS server to your ZclockID appliance IP (e.g., `10.0.0.10`).
 2. **Join Domain:**
    * Press `Win + R`, type `sysdm.cpl`, and press Enter.
    * Under **Computer Name**, click **Change...**
-   * Select **Domain** and enter your AD realm (e.g., `INET.NET`).
+   * Select **Domain** and enter your AD realm (e.g., `CORP.EXAMPLE.COM`).
    * Authenticate using `Administrator` credentials.
    * Reboot when prompted.
-3. **Sign In:** Log into Windows using your Domain Administrator account (e.g. `Administrator@inet.net` or `INET\Administrator`).
+3. **Sign In:** Log into Windows using your Domain Administrator account (e.g. `Administrator@corp.example.com` or `CORP\Administrator`).
 
 #### 3. Native MMC Snap-in Reference
 
@@ -293,7 +293,7 @@ The appliance provides an integrated self-registration workflow for guest Wi-Fi 
 
 * **Active Directory Password Policy Enforcement:** Real-time client-side checklist and strict backend verification requiring passwords to satisfy Active Directory complexity (minimum 8 characters, at least 3 categories: uppercase, lowercase, numbers, and symbols, with username and name exclusion).
 * **Dynamic Organization Departments (Max 100):** Administrators can define corporate departments under Settings (e.g. `DevOps`, `Finance`, `Operations`). The registration portal dynamically renders this exact list in the department dropdown.
-* **Default Provisioning Domain:** Dropdown selector offering the Primary AD Forest Root Realm alongside any registered alternate UPN/SPN suffixes (e.g. `example.com`, `corp.inet.net`). New users are automatically created with this UPN domain.
+* **Default Provisioning Domain:** Dropdown selector offering the Primary AD Forest Root Realm alongside any registered alternate UPN/SPN suffixes (e.g. `example.com`, `corp.example.com`). New users are automatically created with this UPN domain.
 * **Default Security Group:** Dropdown populated directly from Active Directory groups (defaults to `Domain Users` if blank or unselected).
 * **Default Bandwidth Profile:** Dropdown populated from the Bandwidth & Rate Limit policy objects (defaults to `None` if unselected).
   * When set, this profile acts as the **Global Fallback Captive Portal Profile** in FreeRADIUS for any unregistered or unassigned client.

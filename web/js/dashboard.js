@@ -15,7 +15,7 @@
                     document.getElementById('bar-disk').style.width = `${data.resources.disk_percent}%`;
                 }
 
-                document.getElementById('header-host').innerText = data.hostname || 'inet-zclockid';
+                document.getElementById('header-host').innerText = data.hostname || 'zclockid';
                 document.getElementById('appliance-health').innerText = data.overall_health || 'HEALTHY';
                 const upH = Math.floor(data.uptime_seconds / 3600);
                 const upM = Math.floor((data.uptime_seconds % 3600) / 60);

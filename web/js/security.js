@@ -1100,7 +1100,7 @@
                 common_name: document.getElementById('cert-gen-cn').value.trim(),
                 san_list: sans,
                 validity_days: parseInt(document.getElementById('cert-gen-days').value) || 365,
-                organization: document.getElementById('cert-gen-org').value.trim() || 'Inet Secure Labs'
+                organization: document.getElementById('cert-gen-org').value.trim() || 'ZclockID Enterprise'
             };
 
             try {
