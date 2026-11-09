@@ -4,7 +4,14 @@ ZclockID License Verification & Capacity Subsystem
 Manages cryptographically signed 'zclockid.lic' enterprise licenses.
 Free for general use up to 200 users; requires an active license certificate above 200 users.
 Uses asymmetric Ed25519 digital signature verification.
+
+Author & Copyright (c) 2026 Atanu Majumdar (@atanumaj). All Rights Reserved.
 """
+
+__author__ = "Atanu Majumdar (@atanumaj)"
+__copyright__ = "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved."
+__license__ = "ZclockID Commercial & Community License"
+LICENSE_FINGERPRINT = "ZCLOCKID-ATANUMAJ-ED25519-2026"
 
 import os
 import json
@@ -143,6 +150,9 @@ def get_license_status(current_user_count: int) -> Dict[str, Any]:
             "days_remaining": None,
             "can_create_user": can_create,
             "over_limit": current_user_count > max_users,
+            "author": "Atanu Majumdar (@atanumaj)",
+            "author_url": "https://github.com/atanumaj",
+            "copyright": "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved.",
             "notice": "Appliance is operating under the free Community tier (up to 200 users). A signed license is required for deployments exceeding 200 users."
         }
 
@@ -253,6 +263,9 @@ def get_license_status(current_user_count: int) -> Dict[str, Any]:
         "can_create_user": can_create,
         "over_limit": not is_unlimited and current_user_count > max_users,
         "features": payload.get("features", ["all"]),
+        "author": "Atanu Majumdar (@atanumaj)",
+        "author_url": "https://github.com/atanumaj",
+        "copyright": "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved.",
         "notice": "License active and in good standing."
     }
 

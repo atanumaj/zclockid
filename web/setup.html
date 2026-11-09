@@ -84,10 +84,39 @@
                                 class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                         </div>
                     </div>
+
+                    <!-- License Agreement Acceptance Checklist -->
+                    <div class="mt-4 p-4 bg-slate-950/70 border border-slate-800 rounded-xl space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                <i class="fa-solid fa-file-contract text-amber-400"></i> License Agreement &amp; Terms of Use
+                            </span>
+                            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded">COMMUNITY TIER INCLUDED</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 leading-relaxed">
+                            ZclockID is free for general use up to <strong>200 Active Directory users</strong>. Subsystems orchestrate standalone upstream open-source daemons (Samba GPLv3, BIND9 MPL 2.0, FreeRADIUS GPLv2) alongside the proprietary appliance management software authored by <strong>Atanu Majumdar (@atanumaj)</strong>.
+                        </p>
+                        
+                        <div class="pt-2 border-t border-slate-800/60">
+                            <label class="flex items-start gap-3 cursor-pointer group select-none">
+                                <input type="checkbox" id="accept_license" onchange="toggleLicenseAcceptance()"
+                                    class="mt-0.5 h-4 w-4 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0 cursor-pointer">
+                                <span class="text-xs text-slate-300 leading-snug group-hover:text-slate-100 transition">
+                                    I have read and agree to the 
+                                    <button type="button" onclick="openLicenseModal()" class="text-indigo-400 hover:text-indigo-300 underline font-semibold focus:outline-none">
+                                        ZclockID Software License Agreement
+                                    </button> 
+                                    and acknowledge that deployments exceeding 200 users require an Enterprise subscription.
+                                    <span class="block text-[10px] text-slate-500 mt-0.5 font-mono">Copyright &copy; 2026 Atanu Majumdar (@atanumaj). All Rights Reserved.</span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex justify-end pt-4">
-                    <button onclick="goToStep(2)" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center gap-1.5">
+                    <button id="btn-step-1-next" onclick="goToStep(2)" disabled
+                        class="px-5 py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold cursor-not-allowed transition flex items-center gap-1.5">
                         Next: Domain Mode <i class="fa-solid fa-arrow-right"></i>
                     </button>
                 </div>
@@ -285,6 +314,11 @@
         function goToStep(step) {
             // Validation
             if (step === 2) {
+                const acceptBox = document.getElementById("accept_license");
+                if (!acceptBox || !acceptBox.checked) {
+                    alert("Please read and accept the ZclockID Software License Agreement before proceeding.");
+                    return;
+                }
                 const p1 = document.getElementById('admin_password').value;
                 const p2 = document.getElementById('admin_password_confirm').value;
                 if (!p1 || p1.length < 8) {
@@ -396,7 +430,97 @@
                 document.getElementById('action-buttons').classList.remove('hidden');
             }
         }
+
+        function openLicenseModal() {
+            document.getElementById("license-modal").classList.remove("hidden");
+        }
+        function closeLicenseModal() {
+            document.getElementById("license-modal").classList.add("hidden");
+        }
+        function acceptAndCloseLicenseModal() {
+            const cb = document.getElementById("accept_license");
+            if (cb) cb.checked = true;
+            toggleLicenseAcceptance();
+            closeLicenseModal();
+        }
+        function toggleLicenseAcceptance() {
+            const isAccepted = document.getElementById("accept_license")?.checked || false;
+            const btn = document.getElementById("btn-step-1-next");
+            if (btn) {
+                btn.disabled = !isAccepted;
+                btn.className = isAccepted 
+                    ? "px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow transition flex items-center gap-1.5 cursor-pointer"
+                    : "px-5 py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold cursor-not-allowed transition flex items-center gap-1.5";
+            }
+        }
     </script>
+
+    <!-- License Agreement Modal -->
+    <div id="license-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/70">
+                <div class="flex items-center gap-2.5">
+                    <div class="h-8 w-8 rounded-lg bg-amber-600/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <i class="fa-solid fa-file-contract"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">ZclockID Software License Agreement</h3>
+                        <span class="text-[10px] font-mono text-slate-400">Community &amp; Enterprise Commercial Terms</span>
+                    </div>
+                </div>
+                <button onclick="closeLicenseModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="p-5 overflow-y-auto space-y-4 text-xs text-slate-300 leading-relaxed font-sans custom-scroll">
+                <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1 font-mono text-[11px]">
+                    <div class="text-white font-bold">Copyright &copy; 2026 Atanu Majumdar (@atanumaj). All Rights Reserved.</div>
+                    <div class="text-slate-400">Author &amp; Architect: Atanu Majumdar (<a href="https://github.com/atanumaj" target="_blank" class="text-indigo-400 underline">github.com/atanumaj</a>)</div>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-bold text-white uppercase text-[11px] tracking-wider text-indigo-300">1. Proprietary Software Grant</h4>
+                    <p>
+                        This Agreement governs your deployment of the ZclockID appliance management software, including the FastAPI backend (<code class="text-amber-400 font-mono">api/</code>), the Glassmorphism Web Console (<code class="text-amber-400 font-mono">web/</code>), the <code class="text-amber-400 font-mono">zclock-sysvold</code> replication engine, and the Ed25519 cryptographic licensing subsystem. All title and intellectual property rights remain exclusively with <strong>Atanu Majumdar (@atanumaj)</strong>.
+                    </p>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-bold text-white uppercase text-[11px] tracking-wider text-indigo-300">2. Licensing Tiers &amp; Capacity</h4>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-300">
+                        <li><strong>Community Free Tier (Up to 200 Users):</strong> You are granted a royalty-free, perpetual license for internal business, educational, or homelab use up to <strong>200 Active Directory users</strong> without acquiring a commercial license key.</li>
+                        <li><strong>Enterprise Commercial Subscription (Above 200 Users):</strong> Active Directory deployments exceeding 200 users require an active, cryptographically signed commercial license certificate (<code class="text-amber-400 font-mono">zclockid.lic</code>).</li>
+                    </ul>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-bold text-white uppercase text-[11px] tracking-wider text-indigo-300">3. Third-Party Open Source Components</h4>
+                    <p>
+                        The appliance orchestrates standalone upstream open-source daemons (Samba GPLv3, BIND9 MPL 2.0, FreeRADIUS GPLv2, Chrony GPLv2, Nginx BSD). Under the "mere aggregation" model, these components operate independently under their respective upstream open-source licenses.
+                    </p>
+                </div>
+
+                <div class="space-y-2">
+                    <h4 class="font-bold text-white uppercase text-[11px] tracking-wider text-indigo-300">4. Warranty Disclaimer</h4>
+                    <p class="text-[11px] text-slate-400 uppercase">
+                        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DAMAGES ARISING FROM ITS USE.
+                    </p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-950/70 flex justify-between items-center">
+                <span class="text-[11px] text-slate-500 font-mono">Repository: atanumaj/zclockid</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="closeLicenseModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
+                        Close
+                    </button>
+                    <button onclick="acceptAndCloseLicenseModal()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-check"></i> Accept Agreement
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
 

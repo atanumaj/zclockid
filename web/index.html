@@ -152,8 +152,11 @@
                 <div class="pt-2 text-center cursor-pointer group" onclick="showTab('update')">
                     <span class="text-[10px] text-slate-500 group-hover:text-violet-400 transition flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-circle-check text-emerald-500 text-[8px]" id="appliance-version-dot"></i>
-                        <span id="appliance-version-label">ZclockID v1.0.0</span>
+                        <span id="appliance-version-label">ZclockID v1.2.2</span>
                     </span>
+                </div>
+                <div class="pt-1 text-center font-sans text-[10px] text-slate-400 leading-tight">
+                    &copy; 2026 <a href="https://github.com/atanumaj" target="_blank" class="text-slate-400 hover:text-indigo-400 font-medium">Atanu Majumdar (@atanumaj)</a>
                 </div>
             </div>
         </aside>
@@ -4639,6 +4642,39 @@
 
                         <!-- Feedback banner -->
                         <div id="lic-upload-feedback" class="hidden p-3 rounded-lg text-xs border"></div>
+                    </div>
+                </div>
+
+                <!-- Authorship, Legal Attributions & Open Source Component Card -->
+                <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5 space-y-3 text-xs">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <i class="fa-solid fa-scale-balanced text-indigo-400"></i>
+                            <span class="font-bold text-white text-sm">ZclockID Licensing &amp; Legal Attributions</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">MERE AGGREGATION MODEL</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-slate-300">
+                        <div class="space-y-1.5">
+                            <span class="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Proprietary Management Subsystem</span>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                The ZclockID REST API, Web Console, Sysvol NTACL self-healing engine, and Ed25519 licensing controller are proprietary software owned by the author.
+                            </p>
+                            <div class="text-[11px] font-mono text-indigo-300 pt-1">
+                                &copy; 2026 <a href="https://github.com/atanumaj" target="_blank" class="underline hover:text-indigo-200">Atanu Majumdar (@atanumaj)</a>. All rights reserved.
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <span class="text-slate-400 font-semibold block text-[11px] uppercase tracking-wider">Third-Party Open Source Components</span>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                Standalone daemons (Samba GPLv3+, BIND9 MPL 2.0, FreeRADIUS GPLv2, Chrony GPLv2, Nginx BSD) operate independently under their respective open-source licenses.
+                            </p>
+                            <div class="text-[11px] pt-1">
+                                <a href="https://github.com/atanumaj/zclockid/blob/master/LICENSE.md" target="_blank" class="text-amber-400 hover:text-amber-300 flex items-center gap-1 font-sans">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> View Full License Agreement &amp; GPL Attributions
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

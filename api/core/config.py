@@ -64,10 +64,13 @@ try:
 except Exception:
     pass
 
-# Product Metadata
+# Product Metadata & Author Fingerprint
 APP_NAME = "ZclockID Enterprise Management Appliance"
 APP_VERSION = "1.2.2"
+APP_AUTHOR = "Atanu Majumdar (@atanumaj)"
+APP_COPYRIGHT = "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved."
 APP_REPO = "atanumaj/zclockid"
 OFFICIAL_MANIFEST_URL = "https://raw.githubusercontent.com/atanumaj/zclockid/master/version-manifest.json"
 OFFICIAL_CHANNEL = "stable"
 DEFAULT_REALM = ""
+APPLIANCE_FINGERPRINT = "ZCLOCKID-ATANUMAJ-2026-ED25519"
