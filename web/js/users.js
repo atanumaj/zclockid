@@ -20,25 +20,199 @@
             else if (subtab === 'computers') fetchComputers();
         }
 
+        // ==================== Search, Sort & Pagination State ====================
+        let usersSearchQuery = '';
+        let usersSortCol = 'username';
+        let usersSortDir = 'asc';
+        let usersCurrentPage = 1;
+        let usersPageSize = 50;
+
+        let groupsSearchQuery = '';
+        let groupsSortCol = 'group_name';
+        let groupsSortDir = 'asc';
+        let groupsCurrentPage = 1;
+        let groupsPageSize = 50;
+
+        let computersSearchQuery = '';
+        let computersSortCol = 'name';
+        let computersSortDir = 'asc';
+        let computersCurrentPage = 1;
+        let computersPageSize = 50;
+
+        function updateTableSortIcons(prefix, activeCol, dir) {
+            document.querySelectorAll(`[id^="sort-icon-${prefix}-"]`).forEach(icon => {
+                icon.className = 'fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]';
+            });
+            const activeIcon = document.getElementById(`sort-icon-${prefix}-${activeCol}`);
+            if (activeIcon) {
+                activeIcon.className = `fa-solid fa-sort-${dir === 'asc' ? 'up' : 'down'} text-indigo-400 text-[10px]`;
+            }
+        }
+
+        function sortUsersBy(col) {
+            if (usersSortCol === col) {
+                usersSortDir = (usersSortDir === 'asc') ? 'desc' : 'asc';
+            } else {
+                usersSortCol = col;
+                usersSortDir = 'asc';
+            }
+            usersCurrentPage = 1;
+            renderUsersTable();
+        }
+
+        function onUsersSearchInput() {
+            const input = document.getElementById('users-search-input');
+            usersSearchQuery = input ? input.value : '';
+            const clearBtn = document.getElementById('users-search-clear');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !usersSearchQuery);
+            usersCurrentPage = 1;
+            renderUsersTable();
+        }
+
+        function clearUsersSearch() {
+            const input = document.getElementById('users-search-input');
+            if (input) input.value = '';
+            usersSearchQuery = '';
+            const clearBtn = document.getElementById('users-search-clear');
+            if (clearBtn) clearBtn.classList.add('hidden');
+            usersCurrentPage = 1;
+            renderUsersTable();
+        }
+
+        function onUsersPageSizeChange() {
+            const sel = document.getElementById('users-page-size');
+            usersPageSize = sel ? parseInt(sel.value, 10) : 50;
+            usersCurrentPage = 1;
+            renderUsersTable();
+        }
+
+        function prevUsersPage() {
+            if (usersCurrentPage > 1) {
+                usersCurrentPage--;
+                renderUsersTable();
+            }
+        }
+
+        function nextUsersPage() {
+            usersCurrentPage++;
+            renderUsersTable();
+        }
+
         function renderUsersTable() {
             const chk = document.getElementById('chk-show-system-users');
             const showSystem = chk ? chk.checked : false;
             // Always keep Administrator + all normal domain users. Hide krbtgt, Guest, and dns-* unless checkbox is checked.
-            const usersToRender = showSystem 
-                ? globalUsers 
-                : globalUsers.filter(u => !u.is_system_hidden && u.username.toLowerCase() !== 'krbtgt' && u.username.toLowerCase() !== 'guest' && !u.username.toLowerCase().startsWith('dns-'));
+            const baseUsers = showSystem 
+                ? (globalUsers || []) 
+                : (globalUsers || []).filter(u => !u.is_system_hidden && u.username.toLowerCase() !== 'krbtgt' && u.username.toLowerCase() !== 'guest' && !u.username.toLowerCase().startsWith('dns-'));
 
             const badge = document.getElementById('badge-users-count');
             if (badge) {
-                const visibleCount = globalUsers.filter(u => !u.is_system_hidden && u.username.toLowerCase() !== 'krbtgt' && u.username.toLowerCase() !== 'guest' && !u.username.toLowerCase().startsWith('dns-')).length;
-                badge.innerText = showSystem ? `${globalUsers.length}` : `${visibleCount}`;
+                badge.innerText = `${baseUsers.length}`;
+            }
+
+            // Search filter
+            let filtered = [...baseUsers];
+            const q = (usersSearchQuery || '').toLowerCase().trim();
+            if (q) {
+                filtered = filtered.filter(u => {
+                    const uName = (u.username || '').toLowerCase();
+                    const fName = (u.name || `${u.given_name || ''} ${u.surname || ''}`).toLowerCase();
+                    const upn = (u.user_principal_name || '').toLowerCase();
+                    const email = (u.email || '').toLowerCase();
+                    const mobile = (u.mobile || '').toLowerCase();
+                    const dept = (u.department || '').toLowerCase();
+                    const grps = Array.isArray(u.groups) ? u.groups.join(' ').toLowerCase() : '';
+                    const ubw = (u.bandwidth_profile_name || '').toLowerCase();
+                    const gbw = (u.group_bandwidth_profile_name || '').toLowerCase();
+                    const stat = (u.status || '').toLowerCase();
+                    return uName.includes(q) || fName.includes(q) || upn.includes(q) ||
+                           email.includes(q) || mobile.includes(q) || dept.includes(q) ||
+                           grps.includes(q) || ubw.includes(q) || gbw.includes(q) || stat.includes(q);
+                });
+            }
+
+            // Sorting
+            filtered.sort((a, b) => {
+                let valA = '';
+                let valB = '';
+                if (usersSortCol === 'username') {
+                    valA = (a.username || '').toLowerCase();
+                    valB = (b.username || '').toLowerCase();
+                } else if (usersSortCol === 'name') {
+                    valA = (a.name || `${a.given_name || ''} ${a.surname || ''}`).toLowerCase();
+                    valB = (b.name || `${b.given_name || ''} ${b.surname || ''}`).toLowerCase();
+                } else if (usersSortCol === 'department') {
+                    valA = (a.department || '').toLowerCase();
+                    valB = (b.department || '').toLowerCase();
+                } else if (usersSortCol === 'user_bw') {
+                    valA = (a.bandwidth_profile_name || '').toLowerCase();
+                    valB = (b.bandwidth_profile_name || '').toLowerCase();
+                } else if (usersSortCol === 'group_bw') {
+                    valA = (a.group_bandwidth_profile_name || '').toLowerCase();
+                    valB = (b.group_bandwidth_profile_name || '').toLowerCase();
+                } else if (usersSortCol === 'status') {
+                    valA = (a.status || '').toLowerCase();
+                    valB = (b.status || '').toLowerCase();
+                }
+
+                if (valA < valB) return usersSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return usersSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            updateTableSortIcons('user', usersSortCol, usersSortDir);
+
+            // Pagination calculations
+            const totalCount = filtered.length;
+            let pageItems = filtered;
+            let totalPages = 1;
+
+            if (usersPageSize > 0 && totalCount > 0) {
+                totalPages = Math.max(1, Math.ceil(totalCount / usersPageSize));
+                if (usersCurrentPage > totalPages) usersCurrentPage = totalPages;
+                if (usersCurrentPage < 1) usersCurrentPage = 1;
+                const startIdx = (usersCurrentPage - 1) * usersPageSize;
+                pageItems = filtered.slice(startIdx, startIdx + usersPageSize);
+            } else {
+                usersCurrentPage = 1;
+            }
+
+            // Stats label
+            const statsEl = document.getElementById('users-filter-stats');
+            if (statsEl) {
+                if (q) {
+                    statsEl.innerText = `Showing ${filtered.length} of ${baseUsers.length} (filtered)`;
+                } else if (usersPageSize > 0 && baseUsers.length > usersPageSize) {
+                    const startNum = ((usersCurrentPage - 1) * usersPageSize) + 1;
+                    const endNum = Math.min(usersCurrentPage * usersPageSize, totalCount);
+                    statsEl.innerText = `Showing ${startNum}-${endNum} of ${totalCount}`;
+                } else {
+                    statsEl.innerText = `Showing ${totalCount} of ${baseUsers.length}`;
+                }
+            }
+
+            // Pagination Controls
+            const paginationBar = document.getElementById('users-pagination');
+            const pageInfo = document.getElementById('users-pagination-info');
+            const prevBtn = document.getElementById('users-prev-btn');
+            const nextBtn = document.getElementById('users-next-btn');
+            if (paginationBar && pageInfo && prevBtn && nextBtn) {
+                if (usersPageSize === 0 || totalCount <= usersPageSize) {
+                    paginationBar.classList.add('hidden');
+                } else {
+                    paginationBar.classList.remove('hidden');
+                    pageInfo.innerText = `Page ${usersCurrentPage} of ${totalPages} (${totalCount} users)`;
+                    prevBtn.disabled = (usersCurrentPage <= 1);
+                    nextBtn.disabled = (usersCurrentPage >= totalPages);
+                }
             }
 
             const tbody = document.getElementById('users-table-body');
             if (!tbody) return;
 
-            if (usersToRender.length > 0) {
-                tbody.innerHTML = usersToRender.map(u => {
+            if (pageItems.length > 0) {
+                tbody.innerHTML = pageItems.map(u => {
                     const nameDisplay = u.name || u.username;
                     const contactDetails = [];
                     if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${u.email}</span>`);
@@ -142,7 +316,9 @@
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center font-sans text-slate-500">No domain users found. Create one using "+ New User".</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center font-sans text-slate-500">' + 
+                    (q ? 'No domain users matched your search query.' : 'No domain users found. Create one using "+ New User".') + 
+                    '</td></tr>';
             }
         }
 
@@ -356,22 +532,158 @@
         }
 
         // 5. Users, Groups & Computers
+        function sortGroupsBy(col) {
+            if (groupsSortCol === col) {
+                groupsSortDir = (groupsSortDir === 'asc') ? 'desc' : 'asc';
+            } else {
+                groupsSortCol = col;
+                groupsSortDir = 'asc';
+            }
+            groupsCurrentPage = 1;
+            renderGroupsTable();
+        }
+
+        function onGroupsSearchInput() {
+            const input = document.getElementById('groups-search-input');
+            groupsSearchQuery = input ? input.value : '';
+            const clearBtn = document.getElementById('groups-search-clear');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !groupsSearchQuery);
+            groupsCurrentPage = 1;
+            renderGroupsTable();
+        }
+
+        function clearGroupsSearch() {
+            const input = document.getElementById('groups-search-input');
+            if (input) input.value = '';
+            groupsSearchQuery = '';
+            const clearBtn = document.getElementById('groups-search-clear');
+            if (clearBtn) clearBtn.classList.add('hidden');
+            groupsCurrentPage = 1;
+            renderGroupsTable();
+        }
+
+        function onGroupsPageSizeChange() {
+            const sel = document.getElementById('groups-page-size');
+            groupsPageSize = sel ? parseInt(sel.value, 10) : 50;
+            groupsCurrentPage = 1;
+            renderGroupsTable();
+        }
+
+        function prevGroupsPage() {
+            if (groupsCurrentPage > 1) {
+                groupsCurrentPage--;
+                renderGroupsTable();
+            }
+        }
+
+        function nextGroupsPage() {
+            groupsCurrentPage++;
+            renderGroupsTable();
+        }
+
         function renderGroupsTable() {
             const chk = document.getElementById('chk-show-builtin-groups');
             const showBuiltin = chk ? chk.checked : false;
-            const groupsToRender = showBuiltin ? globalGroups : globalGroups.filter(g => !g.is_built_in);
+            const baseGroups = showBuiltin ? (globalGroups || []) : (globalGroups || []).filter(g => !g.is_built_in);
 
             const badgeCount = document.getElementById('badge-groups-count');
             if (badgeCount) {
-                const customCount = globalGroups.filter(g => !g.is_built_in).length;
-                badgeCount.innerText = showBuiltin ? `${globalGroups.length}` : `${customCount}`;
+                badgeCount.innerText = `${baseGroups.length}`;
+            }
+
+            // Search filter
+            let filtered = [...baseGroups];
+            const q = (groupsSearchQuery || '').toLowerCase().trim();
+            if (q) {
+                filtered = filtered.filter(g => {
+                    const gName = (g.group_name || '').toLowerCase();
+                    const desc = (g.description || '').toLowerCase();
+                    const bw = (g.bandwidth_profile_name || '').toLowerCase();
+                    const dn = (g.dn || '').toLowerCase();
+                    const type = g.is_built_in ? 'builtin built-in system' : 'custom security';
+                    return gName.includes(q) || desc.includes(q) || bw.includes(q) || dn.includes(q) || type.includes(q);
+                });
+            }
+
+            // Sorting
+            filtered.sort((a, b) => {
+                let valA = '';
+                let valB = '';
+                if (groupsSortCol === 'group_name') {
+                    valA = (a.group_name || '').toLowerCase();
+                    valB = (b.group_name || '').toLowerCase();
+                } else if (groupsSortCol === 'is_built_in') {
+                    valA = a.is_built_in ? 1 : 0;
+                    valB = b.is_built_in ? 1 : 0;
+                } else if (groupsSortCol === 'description') {
+                    valA = (a.description || '').toLowerCase();
+                    valB = (b.description || '').toLowerCase();
+                } else if (groupsSortCol === 'members') {
+                    valA = a.member_count !== undefined ? a.member_count : (a.members ? a.members.length : 0);
+                    valB = b.member_count !== undefined ? b.member_count : (b.members ? b.members.length : 0);
+                    return groupsSortDir === 'asc' ? valA - valB : valB - valA;
+                } else if (groupsSortCol === 'bandwidth_profile_name') {
+                    valA = (a.bandwidth_profile_name || '').toLowerCase();
+                    valB = (b.bandwidth_profile_name || '').toLowerCase();
+                }
+
+                if (valA < valB) return groupsSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return groupsSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            updateTableSortIcons('group', groupsSortCol, groupsSortDir);
+
+            // Pagination
+            const totalCount = filtered.length;
+            let pageItems = filtered;
+            let totalPages = 1;
+
+            if (groupsPageSize > 0 && totalCount > 0) {
+                totalPages = Math.max(1, Math.ceil(totalCount / groupsPageSize));
+                if (groupsCurrentPage > totalPages) groupsCurrentPage = totalPages;
+                if (groupsCurrentPage < 1) groupsCurrentPage = 1;
+                const startIdx = (groupsCurrentPage - 1) * groupsPageSize;
+                pageItems = filtered.slice(startIdx, startIdx + groupsPageSize);
+            } else {
+                groupsCurrentPage = 1;
+            }
+
+            // Stats
+            const statsEl = document.getElementById('groups-filter-stats');
+            if (statsEl) {
+                if (q) {
+                    statsEl.innerText = `Showing ${filtered.length} of ${baseGroups.length} (filtered)`;
+                } else if (groupsPageSize > 0 && baseGroups.length > groupsPageSize) {
+                    const startNum = ((groupsCurrentPage - 1) * groupsPageSize) + 1;
+                    const endNum = Math.min(groupsCurrentPage * groupsPageSize, totalCount);
+                    statsEl.innerText = `Showing ${startNum}-${endNum} of ${totalCount}`;
+                } else {
+                    statsEl.innerText = `Showing ${totalCount} of ${baseGroups.length}`;
+                }
+            }
+
+            // Pagination Bar
+            const paginationBar = document.getElementById('groups-pagination');
+            const pageInfo = document.getElementById('groups-pagination-info');
+            const prevBtn = document.getElementById('groups-prev-btn');
+            const nextBtn = document.getElementById('groups-next-btn');
+            if (paginationBar && pageInfo && prevBtn && nextBtn) {
+                if (groupsPageSize === 0 || totalCount <= groupsPageSize) {
+                    paginationBar.classList.add('hidden');
+                } else {
+                    paginationBar.classList.remove('hidden');
+                    pageInfo.innerText = `Page ${groupsCurrentPage} of ${totalPages} (${totalCount} groups)`;
+                    prevBtn.disabled = (groupsCurrentPage <= 1);
+                    nextBtn.disabled = (groupsCurrentPage >= totalPages);
+                }
             }
 
             const tbody = document.getElementById('groups-table-body');
             if (!tbody) return;
 
-            if (groupsToRender.length > 0) {
-                tbody.innerHTML = groupsToRender.map(g => {
+            if (pageItems.length > 0) {
+                tbody.innerHTML = pageItems.map(g => {
                     let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> None</span>';
                     if (g.bandwidth_profile_name) {
                         bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${g.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${g.bandwidth_profile_name} (${g.bandwidth_rate || ''})</span>`;
@@ -415,7 +727,9 @@
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">No custom security groups found. Create one using "+ New Security Group" or check "Show Built-in System Groups".</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">' + 
+                    (q ? 'No security groups matched your search query.' : 'No custom security groups found. Create one using "+ New Security Group" or check "Show Built-in System Groups".') + 
+                    '</td></tr>';
             }
         }
 
@@ -546,54 +860,198 @@
             }
         }
 
+        // ==================== Domain Computers Search, Sort & Pagination ====================
+        function sortComputersBy(col) {
+            if (computersSortCol === col) {
+                computersSortDir = (computersSortDir === 'asc') ? 'desc' : 'asc';
+            } else {
+                computersSortCol = col;
+                computersSortDir = 'asc';
+            }
+            computersCurrentPage = 1;
+            renderComputersTable();
+        }
+
+        function onComputersSearchInput() {
+            const input = document.getElementById('computers-search-input');
+            computersSearchQuery = input ? input.value : '';
+            const clearBtn = document.getElementById('computers-search-clear');
+            if (clearBtn) clearBtn.classList.toggle('hidden', !computersSearchQuery);
+            computersCurrentPage = 1;
+            renderComputersTable();
+        }
+
+        function clearComputersSearch() {
+            const input = document.getElementById('computers-search-input');
+            if (input) input.value = '';
+            computersSearchQuery = '';
+            const clearBtn = document.getElementById('computers-search-clear');
+            if (clearBtn) clearBtn.classList.add('hidden');
+            computersCurrentPage = 1;
+            renderComputersTable();
+        }
+
+        function onComputersPageSizeChange() {
+            const sel = document.getElementById('computers-page-size');
+            computersPageSize = sel ? parseInt(sel.value, 10) : 50;
+            computersCurrentPage = 1;
+            renderComputersTable();
+        }
+
+        function prevComputersPage() {
+            if (computersCurrentPage > 1) {
+                computersCurrentPage--;
+                renderComputersTable();
+            }
+        }
+
+        function nextComputersPage() {
+            computersCurrentPage++;
+            renderComputersTable();
+        }
+
+        function renderComputersTable() {
+            const baseComputers = globalComputers || [];
+            const badge = document.getElementById('badge-computers-count');
+            if (badge) badge.innerText = `${baseComputers.length}`;
+
+            // Search filter
+            let filtered = [...baseComputers];
+            const q = (computersSearchQuery || '').toLowerCase().trim();
+            if (q) {
+                filtered = filtered.filter(c => {
+                    const cName = (c.name || '').toLowerCase();
+                    const host = (c.dns_hostname || '').toLowerCase();
+                    const os = (c.operating_system || '').toLowerCase();
+                    const osVer = (c.os_version || '').toLowerCase();
+                    const role = c.is_dc ? 'domain controller dc server' : 'workstation client server';
+                    return cName.includes(q) || host.includes(q) || os.includes(q) || osVer.includes(q) || role.includes(q);
+                });
+            }
+
+            // Sorting
+            filtered.sort((a, b) => {
+                let valA = '';
+                let valB = '';
+                if (computersSortCol === 'name') {
+                    valA = (a.name || '').toLowerCase();
+                    valB = (b.name || '').toLowerCase();
+                } else if (computersSortCol === 'dns_hostname') {
+                    valA = (a.dns_hostname || '').toLowerCase();
+                    valB = (b.dns_hostname || '').toLowerCase();
+                } else if (computersSortCol === 'operating_system') {
+                    valA = (a.operating_system || '').toLowerCase();
+                    valB = (b.operating_system || '').toLowerCase();
+                } else if (computersSortCol === 'is_dc') {
+                    valA = a.is_dc ? 1 : 0;
+                    valB = b.is_dc ? 1 : 0;
+                } else if (computersSortCol === 'created_at') {
+                    valA = (a.created_at || '').toLowerCase();
+                    valB = (b.created_at || '').toLowerCase();
+                }
+
+                if (valA < valB) return computersSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return computersSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            updateTableSortIcons('comp', computersSortCol, computersSortDir);
+
+            // Pagination
+            const totalCount = filtered.length;
+            let pageItems = filtered;
+            let totalPages = 1;
+
+            if (computersPageSize > 0 && totalCount > 0) {
+                totalPages = Math.max(1, Math.ceil(totalCount / computersPageSize));
+                if (computersCurrentPage > totalPages) computersCurrentPage = totalPages;
+                if (computersCurrentPage < 1) computersCurrentPage = 1;
+                const startIdx = (computersCurrentPage - 1) * computersPageSize;
+                pageItems = filtered.slice(startIdx, startIdx + computersPageSize);
+            } else {
+                computersCurrentPage = 1;
+            }
+
+            // Stats
+            const statsEl = document.getElementById('computers-filter-stats');
+            if (statsEl) {
+                if (q) {
+                    statsEl.innerText = `Showing ${filtered.length} of ${baseComputers.length} (filtered)`;
+                } else if (computersPageSize > 0 && baseComputers.length > computersPageSize) {
+                    const startNum = ((computersCurrentPage - 1) * computersPageSize) + 1;
+                    const endNum = Math.min(computersCurrentPage * computersPageSize, totalCount);
+                    statsEl.innerText = `Showing ${startNum}-${endNum} of ${totalCount}`;
+                } else {
+                    statsEl.innerText = `Showing ${totalCount} of ${baseComputers.length}`;
+                }
+            }
+
+            // Pagination Bar
+            const paginationBar = document.getElementById('computers-pagination');
+            const pageInfo = document.getElementById('computers-pagination-info');
+            const prevBtn = document.getElementById('computers-prev-btn');
+            const nextBtn = document.getElementById('computers-next-btn');
+            if (paginationBar && pageInfo && prevBtn && nextBtn) {
+                if (computersPageSize === 0 || totalCount <= computersPageSize) {
+                    paginationBar.classList.add('hidden');
+                } else {
+                    paginationBar.classList.remove('hidden');
+                    pageInfo.innerText = `Page ${computersCurrentPage} of ${totalPages} (${totalCount} computers)`;
+                    prevBtn.disabled = (computersCurrentPage <= 1);
+                    nextBtn.disabled = (computersCurrentPage >= totalPages);
+                }
+            }
+
+            const tbody = document.getElementById('computers-table-body');
+            if (!tbody) return;
+
+            if (pageItems.length > 0) {
+                tbody.innerHTML = pageItems.map(c => {
+                    const icon = c.is_dc ? 'fa-server text-indigo-400' : 'fa-desktop text-cyan-400';
+                    const roleBadge = c.is_dc
+                        ? '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-indigo-400"></i> Domain Controller</span>'
+                        : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700 font-mono flex items-center gap-1 w-max"><i class="fa-solid fa-desktop text-slate-400"></i> Domain Workstation</span>';
+
+                    return `
+                        <tr class="hover:bg-slate-800/30">
+                            <td class="px-4 py-2.5">
+                                <div class="font-bold text-white flex items-center gap-1.5 font-mono">
+                                    <i class="fa-solid ${icon} text-[11px]"></i> ${c.name}
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title="${c.dn}">${c.dn ? c.dn.split(',')[1] || '' : ''}</div>
+                            </td>
+                            <td class="px-4 py-2.5 font-mono text-cyan-300 text-xs">
+                                ${c.dns_hostname || '-'}
+                            </td>
+                            <td class="px-4 py-2.5">
+                                <div class="font-semibold text-slate-200">${c.operating_system}</div>
+                                <div class="text-[10px] text-slate-400 font-mono">Version: ${c.os_version}</div>
+                            </td>
+                            <td class="px-4 py-2.5">${roleBadge}</td>
+                            <td class="px-4 py-2.5 text-slate-400 font-mono text-[11px]">${c.created_at || '-'}</td>
+                            <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                                ${!c.is_dc ? `
+                                    <button onclick="deleteComputer('${c.name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 text-xs transition" title="Disjoin / Remove Computer Account">
+                                        <i class="fa-solid fa-trash-can mr-1"></i> Remove
+                                    </button>
+                                ` : '<span class="px-2 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[10px] flex items-center gap-1 w-max ml-auto"><i class="fa-solid fa-lock text-slate-600"></i> Primary DC</span>'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">' +
+                    (q ? 'No domain computers matched your search query.' : 'No domain computers found. Workstations will appear here automatically when joined to the domain.') +
+                    '</td></tr>';
+            }
+        }
+
         async function fetchComputers() {
             try {
                 const res = await fetch(`${API_BASE}/computers`);
                 const data = await res.json();
                 globalComputers = data.computers || [];
-                const badge = document.getElementById('badge-computers-count');
-                if (badge) badge.innerText = globalComputers.length;
-
-                const tbody = document.getElementById('computers-table-body');
-                if (!tbody) return;
-
-                if (globalComputers.length > 0) {
-                    tbody.innerHTML = globalComputers.map(c => {
-                        const icon = c.is_dc ? 'fa-server text-indigo-400' : 'fa-desktop text-cyan-400';
-                        const roleBadge = c.is_dc
-                            ? '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-indigo-400"></i> Domain Controller</span>'
-                            : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700 font-mono flex items-center gap-1 w-max"><i class="fa-solid fa-desktop text-slate-400"></i> Domain Workstation</span>';
-
-                        return `
-                            <tr class="hover:bg-slate-800/30">
-                                <td class="px-4 py-2.5">
-                                    <div class="font-bold text-white flex items-center gap-1.5 font-mono">
-                                        <i class="fa-solid ${icon} text-[11px]"></i> ${c.name}
-                                    </div>
-                                    <div class="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title="${c.dn}">${c.dn ? c.dn.split(',')[1] || '' : ''}</div>
-                                </td>
-                                <td class="px-4 py-2.5 font-mono text-cyan-300 text-xs">
-                                    ${c.dns_hostname || '-'}
-                                </td>
-                                <td class="px-4 py-2.5">
-                                    <div class="font-semibold text-slate-200">${c.operating_system}</div>
-                                    <div class="text-[10px] text-slate-400 font-mono">Version: ${c.os_version}</div>
-                                </td>
-                                <td class="px-4 py-2.5">${roleBadge}</td>
-                                <td class="px-4 py-2.5 text-slate-400 font-mono text-[11px]">${c.created_at || '-'}</td>
-                                <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                                    ${!c.is_dc ? `
-                                        <button onclick="deleteComputer('${c.name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 text-xs transition" title="Disjoin / Remove Computer Account">
-                                            <i class="fa-solid fa-trash-can mr-1"></i> Remove
-                                        </button>
-                                    ` : '<span class="px-2 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[10px] flex items-center gap-1 w-max ml-auto"><i class="fa-solid fa-lock text-slate-600"></i> Primary DC</span>'}
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center font-sans text-slate-500">No domain computers found. Workstations will appear here automatically when joined to the domain.</td></tr>';
-                }
+                renderComputersTable();
             } catch (err) {
                 console.error('Error fetching computers:', err);
             }

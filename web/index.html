@@ -1182,16 +1182,67 @@
                             </div>
                         </div>
 
+                        <!-- Users Search, Filter & Sizing Toolbar -->
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 border-t border-slate-800/60">
+                            <div class="relative flex-1 max-w-md">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input type="text" id="users-search-input" oninput="onUsersSearchInput()" placeholder="Filter users by username, full name, department, email, group..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans">
+                                <button id="users-search-clear" onclick="clearUsersSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs hidden" title="Clear filter"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 justify-between sm:justify-end">
+                                <span id="users-filter-stats" class="text-[11px] font-mono text-slate-400">Showing 0 of 0</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[11px] font-sans">Page:</span>
+                                    <select id="users-page-size" onchange="onUsersPageSizeChange()" class="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500 font-mono">
+                                        <option value="25">25</option>
+                                        <option value="50" selected>50</option>
+                                        <option value="100">100</option>
+                                        <option value="0">All</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="overflow-x-auto">
                             <table class="w-full text-xs text-left text-slate-300">
                                 <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                     <tr>
-                                        <th class="px-4 py-2.5">User Account & UPN</th>
-                                        <th class="px-4 py-2.5">Full Name</th>
-                                        <th class="px-4 py-2.5">Department</th>
-                                        <th class="px-4 py-2.5">User Bandwidth Tier</th>
-                                        <th class="px-4 py-2.5">Group Bandwidth Tier</th>
-                                        <th class="px-4 py-2.5">Account State</th>
+                                        <th onclick="sortUsersBy('username')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Username / UPN">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>User Account & UPN</span>
+                                                <i id="sort-icon-user-username" class="fa-solid fa-sort-up text-indigo-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Full Name">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Full Name</span>
+                                                <i id="sort-icon-user-name" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('department')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Department">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Department</span>
+                                                <i id="sort-icon-user-department" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('user_bw')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by User Bandwidth Tier">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>User Bandwidth Tier</span>
+                                                <i id="sort-icon-user-user_bw" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('group_bw')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Inherited Group Bandwidth Tier">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Group Bandwidth Tier</span>
+                                                <i id="sort-icon-user-group_bw" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortUsersBy('status')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Status">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Account State</span>
+                                                <i id="sort-icon-user-status" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
                                         <th class="px-4 py-2.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -1199,6 +1250,19 @@
                                     <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading user accounts...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Users Pagination Footer -->
+                        <div id="users-pagination" class="flex items-center justify-between pt-2 text-xs text-slate-400 border-t border-slate-800/80">
+                            <div id="users-pagination-info" class="text-[11px] font-mono text-slate-400">Page 1 of 1</div>
+                            <div class="flex items-center gap-1.5">
+                                <button id="users-prev-btn" onclick="prevUsersPage()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold text-[11px] transition">
+                                    <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                                </button>
+                                <button id="users-next-btn" onclick="nextUsersPage()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold text-[11px] transition">
+                                    Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1224,15 +1288,60 @@
                             </div>
                         </div>
 
+                        <!-- Groups Search, Filter & Sizing Toolbar -->
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 border-t border-slate-800/60">
+                            <div class="relative flex-1 max-w-md">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input type="text" id="groups-search-input" oninput="onGroupsSearchInput()" placeholder="Filter groups by name, description, bandwidth policy..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans">
+                                <button id="groups-search-clear" onclick="clearGroupsSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs hidden" title="Clear filter"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 justify-between sm:justify-end">
+                                <span id="groups-filter-stats" class="text-[11px] font-mono text-slate-400">Showing 0 of 0</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[11px] font-sans">Page:</span>
+                                    <select id="groups-page-size" onchange="onGroupsPageSizeChange()" class="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500 font-mono">
+                                        <option value="25">25</option>
+                                        <option value="50" selected>50</option>
+                                        <option value="0">All</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="overflow-x-auto">
                             <table class="w-full text-xs text-left text-slate-300">
                                 <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                     <tr>
-                                        <th class="px-4 py-2.5">Security Group Name</th>
-                                        <th class="px-4 py-2.5">Scope / Type</th>
-                                        <th class="px-4 py-2.5">Description / Purpose</th>
-                                        <th class="px-4 py-2.5">Active Members</th>
-                                        <th class="px-4 py-2.5">Gateway / Bandwidth Policy</th>
+                                        <th onclick="sortGroupsBy('group_name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Group Name">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Security Group Name</span>
+                                                <i id="sort-icon-group-group_name" class="fa-solid fa-sort-up text-indigo-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('is_built_in')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Scope / Type">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Scope / Type</span>
+                                                <i id="sort-icon-group-is_built_in" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('description')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Description">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Description / Purpose</span>
+                                                <i id="sort-icon-group-description" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('members')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Active Members">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Active Members</span>
+                                                <i id="sort-icon-group-members" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortGroupsBy('bandwidth_profile_name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Bandwidth Policy">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Gateway / Bandwidth Policy</span>
+                                                <i id="sort-icon-group-bandwidth_profile_name" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
                                         <th class="px-4 py-2.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -1240,6 +1349,19 @@
                                     <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Loading security groups...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Groups Pagination Footer -->
+                        <div id="groups-pagination" class="flex items-center justify-between pt-2 text-xs text-slate-400 border-t border-slate-800/80">
+                            <div id="groups-pagination-info" class="text-[11px] font-mono text-slate-400">Page 1 of 1</div>
+                            <div class="flex items-center gap-1.5">
+                                <button id="groups-prev-btn" onclick="prevGroupsPage()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold text-[11px] transition">
+                                    <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                                </button>
+                                <button id="groups-next-btn" onclick="nextGroupsPage()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold text-[11px] transition">
+                                    Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1259,15 +1381,60 @@
                             </button>
                         </div>
 
+                        <!-- Computers Search, Filter & Sizing Toolbar -->
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 border-t border-slate-800/60">
+                            <div class="relative flex-1 max-w-md">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                <input type="text" id="computers-search-input" oninput="onComputersSearchInput()" placeholder="Filter computers by name, hostname, OS, role..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans">
+                                <button id="computers-search-clear" onclick="clearComputersSearch()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs hidden" title="Clear filter"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="flex items-center gap-3 text-xs text-slate-400 justify-between sm:justify-end">
+                                <span id="computers-filter-stats" class="text-[11px] font-mono text-slate-400">Showing 0 of 0</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-[11px] font-sans">Page:</span>
+                                    <select id="computers-page-size" onchange="onComputersPageSizeChange()" class="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500 font-mono">
+                                        <option value="25">25</option>
+                                        <option value="50" selected>50</option>
+                                        <option value="0">All</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="overflow-x-auto">
                             <table class="w-full text-xs text-left text-slate-300">
                                 <thead class="text-slate-400 uppercase bg-slate-950 text-[10px] tracking-wider border-b border-slate-800">
                                     <tr>
-                                        <th class="px-4 py-2.5">Computer Account</th>
-                                        <th class="px-4 py-2.5">DNS Hostname</th>
-                                        <th class="px-4 py-2.5">Operating System & Version</th>
-                                        <th class="px-4 py-2.5">Role</th>
-                                        <th class="px-4 py-2.5">Joined Date</th>
+                                        <th onclick="sortComputersBy('name')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Computer Account Name">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Computer Account</span>
+                                                <i id="sort-icon-comp-name" class="fa-solid fa-sort-up text-indigo-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('dns_hostname')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by DNS Hostname">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>DNS Hostname</span>
+                                                <i id="sort-icon-comp-dns_hostname" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('operating_system')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Operating System">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Operating System & Version</span>
+                                                <i id="sort-icon-comp-operating_system" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('is_dc')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Role">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Role</span>
+                                                <i id="sort-icon-comp-is_dc" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
+                                        <th onclick="sortComputersBy('created_at')" class="px-4 py-2.5 cursor-pointer select-none hover:text-white transition group" title="Sort by Joined Date">
+                                            <div class="flex items-center gap-1.5">
+                                                <span>Joined Date</span>
+                                                <i id="sort-icon-comp-created_at" class="fa-solid fa-sort text-slate-600 group-hover:text-slate-400 text-[10px]"></i>
+                                            </div>
+                                        </th>
                                         <th class="px-4 py-2.5 text-right">Actions</th>
                                     </tr>
                                 </thead>
@@ -1275,6 +1442,19 @@
                                     <tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">Querying joined computers...</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Computers Pagination Footer -->
+                        <div id="computers-pagination" class="flex items-center justify-between pt-2 text-xs text-slate-400 border-t border-slate-800/80">
+                            <div id="computers-pagination-info" class="text-[11px] font-mono text-slate-400">Page 1 of 1</div>
+                            <div class="flex items-center gap-1.5">
+                                <button id="computers-prev-btn" onclick="prevComputersPage()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold text-[11px] transition">
+                                    <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                                </button>
+                                <button id="computers-next-btn" onclick="nextComputersPage()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 font-semibold text-[11px] transition">
+                                    Next <i class="fa-solid fa-chevron-right ml-1"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
