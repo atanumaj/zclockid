@@ -1,12 +1,12 @@
 {
-  "version": "1.2.7",
-  "name": "ZclockID Enterprise v1.2.7",
+  "version": "1.2.8",
+  "name": "ZclockID Enterprise v1.2.8",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-09T20:05:00Z",
-  "summary": "Phase 3: High-Performance Go Metrics & Linux Kernel Telemetry Exporter (zclock-exporter)",
-  "notes": "### What's Changed in v1.2.7:\n* **Phase 3: Native Go Metrics & Kernel Telemetry Exporter:** Added `zclock-exporter` compiled binary (`/opt/zclockid/bin/zclock-exporter`) listening on port 9101, serving Prometheus `/metrics` and JSON `/stats`.\n* **Single-Call Systemd Batch Introspection:** Replaced 30 individual `systemctl` subprocess forks with single-call batch inspection (`check_systemd_services_batch`), cutting dashboard polling latency from ~1.8s down to < 50ms.\n* **Direct Kernel /proc Stat Sampling:** Accurate CPU utilization calculated directly from `/proc/stat` and `/proc/meminfo` with zero CPU spike overhead.\n* **Instant Telemetry Helper Delegation:** `/usr/local/bin/zclock-telemetry.sh` delegates directly to `zclock-exporter` for sub-millisecond SNMP and CLI query execution.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.7_all.deb",
-  "package_name": "zclockid_1.2.7_all.deb",
+  "release_type": "minor",
+  "published_at": "2026-11-10T11:30:00Z",
+  "summary": "Self Services Redesign: Self-Service Password Reset (SSPR) Portal & Logs, Month Filters, Live Search, Pagination, and CSV Exports",
+  "notes": "### What's Changed in v1.2.8:\n* **Self Services Redesign:** Renamed Self-Registrations to 'Self Services' with dual subtab interface ('Self Registration' and 'Self Service Password').\n* **Self-Service Password Reset (SSPR) Portal:** Added user-facing `/password-reset.html` supporting current password change, email OTP verification, and mobile SMS OTP reset.\n* **AD Contact Fallback Guard:** Automatically detects if email or mobile are missing from Active Directory user record and prompts user to contact their Domain Administrator.\n* **SSPR Management & Audit Trail:** Full audit logging of password reset requests, IP addresses, methods, and outcomes.\n* **Interactive Pagination, Search & Month Filter:** Dual-tab support for month dropdown filtering, live search queries, selectable items-per-page (10/25/50/100/All), and numbered pagination.\n* **CSV Data Export:** One-click CSV log downloads for both Self-Registration queues and Password Reset activity.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.8_all.deb",
+  "package_name": "zclockid_1.2.8_all.deb",
   "min_version_required": "1.0.0"
 }

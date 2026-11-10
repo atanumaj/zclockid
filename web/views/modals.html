@@ -296,6 +296,216 @@
         </div>
     </div>
 
+    <!-- Self-Service Password Reset Settings Modal -->
+    <div id="modal-self-service-password-settings" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-key text-indigo-400"></i>
+                    <h3 class="text-sm font-bold text-white">Self-Service Password Reset Policy & Recovery Settings</h3>
+                </div>
+                <button onclick="closeSspprSettingsModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <form onsubmit="saveSspprSettings(event)" class="p-5 flex-1 overflow-y-auto custom-scroll space-y-5 text-xs">
+                <!-- Master Toggle -->
+                <div class="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800">
+                    <div>
+                        <div class="font-semibold text-white">Enable Self-Service Password Portal</div>
+                        <div class="text-[11px] text-slate-400">Allow users to access `/password-reset.html` to change or reset passwords</div>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="sspr-cfg-enabled" class="sr-only peer" checked>
+                        <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                    </label>
+                </div>
+
+                <!-- Recovery Methods Allowed -->
+                <div class="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-cyan-400"></i> Allowed Password Reset & Change Methods
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-500">Authentication Gateways</span>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800/60">
+                            <div>
+                                <div class="font-semibold text-slate-200">Reset with Current (Old) Password</div>
+                                <div class="text-[10px] text-slate-400">Allows users to change their password by authenticating with their current password</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sspr-cfg-allow-old" class="sr-only peer" checked>
+                                <div class="w-9 h-5 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800/60">
+                            <div>
+                                <div class="font-semibold text-slate-200">Reset via Email OTP</div>
+                                <div class="text-[10px] text-slate-400">Sends one-time verification code to the user's registered corporate email</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sspr-cfg-allow-email" class="sr-only peer" checked>
+                                <div class="w-9 h-5 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800/60">
+                            <div>
+                                <div class="font-semibold text-slate-200">Reset via Mobile SMS OTP</div>
+                                <div class="text-[10px] text-slate-400">Sends one-time verification code to the user's registered mobile phone number</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="sspr-cfg-allow-otp" class="sr-only peer" checked>
+                                <div class="w-9 h-5 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Password Policy & Constraints -->
+                <div class="p-4 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-lock text-amber-400"></i> Password & OTP Security Policy
+                        </span>
+                        <span class="text-[10px] font-mono text-slate-500">Domain Enforcement</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Minimum Password Length</label>
+                            <input type="number" id="sspr-cfg-min-len" value="8" min="6" max="64"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">OTP Expiry (Minutes)</label>
+                            <input type="number" id="sspr-cfg-otp-expiry" value="10" min="2" max="60"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Max Daily Attempts / User</label>
+                            <input type="number" id="sspr-cfg-max-attempts" value="5" min="1" max="50"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <div>
+                            <span class="font-medium text-slate-200">Enforce Active Directory Password Complexity</span>
+                            <p class="text-[10px] text-slate-500">Requires uppercase, lowercase, numbers, and special characters</p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="sspr-cfg-complexity" class="sr-only peer" checked>
+                            <div class="w-9 h-5 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Email Notifications / SMTP Settings -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-envelope text-indigo-400"></i> SSPR Email Dispatch (SMTP)</div>
+                            <div class="text-[11px] text-slate-400">Send password reset OTP codes and completion notices to user's registered email</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="sspr-cfg-smtp-enabled" onchange="toggleSspprSmtpFields()" class="sr-only peer">
+                            <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        </label>
+                    </div>
+
+                    <div id="sec-sspr-smtp-fields" class="space-y-3 hidden pt-2 border-t border-slate-800/80">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="md:col-span-2">
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Server Host</label>
+                                <input type="text" id="sspr-cfg-smtp-host" placeholder="smtp.gmail.com or smtp.office365.com"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Port</label>
+                                <input type="number" id="sspr-cfg-smtp-port" value="587"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Username / Email</label>
+                                <input type="text" id="sspr-cfg-smtp-user" placeholder="no-reply@company.com"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="text-slate-300 block mb-1 font-medium">SMTP Password</label>
+                                <input type="password" id="sspr-cfg-smtp-pass" placeholder="••••••••••••"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Sender From Address</label>
+                            <input type="email" id="sspr-cfg-smtp-from" placeholder="no-reply@example.com"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SMS Gateway Provider Configuration -->
+                <div class="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span class="font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-comment-sms text-cyan-400"></i> SMS Gateway Provider (SSPR OTP)</span>
+                        <span class="text-[10px] font-mono text-slate-500">Mobile OTP Dispatch</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">SMS Provider Type</label>
+                            <select id="sspr-cfg-sms-type" onchange="toggleSspprSmsFields()" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                                <option value="simulated">Simulated / Local Appliance Log (Development / Lab)</option>
+                                <option value="webhook">Custom Webhook / HTTP GET or POST API</option>
+                                <option value="twilio">Twilio Messaging API</option>
+                                <option value="fast2sms">Fast2SMS (Quick Transactional OTP)</option>
+                                <option value="msg91">MSG91 OTP API</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">SMS Sender ID</label>
+                            <input type="text" id="sspr-cfg-sender" value="ZCLOCK" placeholder="ZCLOCK"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div id="sec-sspr-sms-ext" class="space-y-3 hidden">
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">Gateway Endpoint URL / Twilio Messages URL</label>
+                            <input type="url" id="sspr-cfg-sms-url" placeholder="https://api.gateway.example.com/sms/send"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-slate-300 block mb-1 font-medium">API Authorization Key / Token</label>
+                            <input type="password" id="sspr-cfg-sms-key" placeholder="••••••••••••••••••••••••••••"
+                                class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-slate-300 block mb-1 font-medium">SMS Message Template</label>
+                        <input type="text" id="sspr-cfg-sms-template" value="Your ZclockID password reset verification code is {otp}. Valid for 10 minutes."
+                            class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                        <p class="text-[10px] text-slate-500 mt-1">Use <code class="text-cyan-400 font-mono">{otp}</code> and <code class="text-cyan-400 font-mono">{username}</code> as dynamic tags</p>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                    <button type="button" onclick="closeSspprSettingsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="submit" id="btn-save-sspr-settings" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                        <i class="fa-solid fa-floppy-disk"></i> Save SSPR Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Change User UPN Modal -->
     <div id="modal-change-upn" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">

@@ -1,106 +1,336 @@
-                <!-- Header Banner -->
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-sm">
-                    <div>
-                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-user-clock text-indigo-400"></i> User Self-Registration & Directory Onboarding
-                        </h2>
-                        <p class="text-xs text-slate-400 mt-1">Configure mobile OTP verification, automatic provisioning, and review pending domain signup requests.</p>
+                <!-- Subtab Navigation Bar -->
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="btn-subtab-registration" onclick="switchSelfServiceSubtab('registration')"
+                            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-sm shadow-indigo-600/30">
+                            <i class="fa-solid fa-user-plus text-xs"></i>
+                            <span>Self Registration</span>
+                        </button>
+                        <button type="button" id="btn-subtab-password" onclick="switchSelfServiceSubtab('password')"
+                            class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
+                            <i class="fa-solid fa-key text-xs"></i>
+                            <span>Self Service Password</span>
+                        </button>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button onclick="copyRegistrationLink()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public portal link">
-                            <i class="fa-solid fa-copy text-indigo-400"></i> Copy Portal Link
-                        </button>
-                        <a href="/register.html" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal
-                        </a>
-                        <button onclick="openRegistrationSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
-                            <i class="fa-solid fa-sliders text-cyan-400"></i> Settings
-                        </button>
-                        <button onclick="fetchRegistrations()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
-                            <i class="fa-solid fa-rotate"></i> Refresh
-                        </button>
+                    <div class="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Active Directory Self-Services
                     </div>
                 </div>
 
-                <!-- Top Metric Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
-                        <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg">
-                            <i class="fa-solid fa-shield-halved"></i>
-                        </div>
+                <!-- ===================================================================== -->
+                <!-- PANE 1: SELF REGISTRATION                                             -->
+                <!-- ===================================================================== -->
+                <div id="selfservice-pane-registration" class="space-y-5">
+                    <!-- Header Banner -->
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-sm">
                         <div>
-                            <div class="text-[10px] font-mono text-slate-400 uppercase">Verification Mode</div>
-                            <div class="text-xs font-bold text-white font-mono mt-0.5" id="reg-stat-mode">
-                                <span class="text-cyan-400 font-semibold"><i class="fa-solid fa-mobile-screen"></i> Mobile OTP Active</span>
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-user-clock text-indigo-400"></i> User Self-Registration & Directory Onboarding
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">Configure mobile OTP verification, automatic provisioning, and review pending domain signup requests.</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="copyRegistrationLink()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public portal link">
+                                <i class="fa-solid fa-copy text-indigo-400"></i> Copy Portal Link
+                            </button>
+                            <a href="/register.html" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal
+                            </a>
+                            <button onclick="openRegistrationSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
+                                <i class="fa-solid fa-sliders text-cyan-400"></i> Settings
+                            </button>
+                            <button onclick="exportRegistrationLogs()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Export registrations CSV">
+                                <i class="fa-solid fa-file-csv text-emerald-400"></i> Export CSV
+                            </button>
+                            <button onclick="fetchRegistrations()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Top Metric Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Verification Mode</div>
+                                <div class="text-xs font-bold text-white font-mono mt-0.5" id="reg-stat-mode">
+                                    <span class="text-cyan-400 font-semibold"><i class="fa-solid fa-mobile-screen"></i> Mobile OTP Active</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 text-lg">
+                                <i class="fa-solid fa-hourglass-half"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Pending Approval</div>
+                                <div class="text-lg font-bold text-white font-mono" id="reg-stat-pending">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">
+                                <i class="fa-solid fa-user-check"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Auto-Provisioned (OTP)</div>
+                                <div class="text-lg font-bold text-white font-mono" id="reg-stat-auto">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-lg">
+                                <i class="fa-solid fa-satellite-dish"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">SMS Gateway</div>
+                                <div class="text-xs font-bold text-white font-mono mt-0.5 uppercase" id="reg-stat-sms">SIMULATOR</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
-                        <div class="p-2.5 rounded-lg bg-amber-500/10 text-amber-400 text-lg">
-                            <i class="fa-solid fa-hourglass-half"></i>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-mono text-slate-400 uppercase">Pending Approval</div>
-                            <div class="text-lg font-bold text-white font-mono" id="reg-stat-pending">0</div>
-                        </div>
-                    </div>
+                    <!-- Search, Filter & Pagination Controls Bar -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                        <div class="p-4 border-b border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-900/50">
+                            <!-- Status Filters -->
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-xs font-bold text-white mr-1">Status:</span>
+                                <button onclick="setRegStatusFilter('all')" id="reg-filter-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
+                                <button onclick="setRegStatusFilter('PENDING_APPROVAL')" id="reg-filter-PENDING_APPROVAL" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending Approval</button>
+                                <button onclick="setRegStatusFilter('PENDING_OTP')" id="reg-filter-PENDING_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending OTP</button>
+                                <button onclick="setRegStatusFilter('VERIFIED_AUTO_PROVISIONED')" id="reg-filter-VERIFIED_AUTO_PROVISIONED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Auto-Provisioned</button>
+                                <button onclick="setRegStatusFilter('APPROVED')" id="reg-filter-APPROVED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Approved</button>
+                            </div>
 
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
-                        <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">
-                            <i class="fa-solid fa-user-check"></i>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-mono text-slate-400 uppercase">Auto-Provisioned (OTP)</div>
-                            <div class="text-lg font-bold text-white font-mono" id="reg-stat-auto">0</div>
-                        </div>
-                    </div>
+                            <!-- Search, Month, and Page Size -->
+                            <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto">
+                                <!-- Month Filter -->
+                                <select id="reg-filter-month" onchange="onRegMonthChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
+                                    <option value="">All Months</option>
+                                    <!-- Populated dynamically -->
+                                </select>
 
-                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
-                        <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-lg">
-                            <i class="fa-solid fa-satellite-dish"></i>
+                                <!-- Live Search Input -->
+                                <div class="relative flex-1 sm:w-60">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                                    <input type="text" id="reg-search-input" oninput="onRegSearchInput()" placeholder="Search username, name, phone..."
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono">
+                                </div>
+
+                                <!-- Page Size Selector -->
+                                <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                                    <span class="text-[11px]">Show:</span>
+                                    <select id="reg-page-size" onchange="onRegPageSizeChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono focus:border-indigo-500 focus:outline-none">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                        <option value="all">All</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <div class="text-[10px] font-mono text-slate-400 uppercase">SMS Gateway</div>
-                            <div class="text-xs font-bold text-white font-mono mt-0.5 uppercase" id="reg-stat-sms">SIMULATOR</div>
+
+                        <!-- Registration Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950/60 text-[10px] font-mono tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Username / Name</th>
+                                        <th class="px-4 py-2.5">Mobile (OTP)</th>
+                                        <th class="px-4 py-2.5">Email</th>
+                                        <th class="px-4 py-2.5">Department</th>
+                                        <th class="px-4 py-2.5">Status</th>
+                                        <th class="px-4 py-2.5">Submitted</th>
+                                        <th class="px-4 py-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="registrations-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading registrations queue...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination Footer -->
+                        <div class="p-3 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-950/40 text-xs text-slate-400">
+                            <div id="reg-pagination-info" class="font-mono text-[11px]">
+                                Showing 0 of 0 entries
+                            </div>
+                            <div class="flex items-center gap-1.5" id="reg-pagination-controls">
+                                <button type="button" id="reg-btn-prev" onclick="goToRegPage(regCurrentPage - 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                                </button>
+                                <div id="reg-page-numbers" class="flex items-center gap-1"></div>
+                                <button type="button" id="reg-btn-next" onclick="goToRegPage(regCurrentPage + 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                    Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Registration Queue Table Card -->
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-                    <div class="p-4 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-slate-900/50">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold text-white">Queue Filter:</span>
-                            <div class="flex flex-wrap gap-1">
-                                <button onclick="fetchRegistrations('all')" id="reg-filter-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
-                                <button onclick="fetchRegistrations('PENDING_APPROVAL')" id="reg-filter-PENDING_APPROVAL" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending Approval</button>
-                                <button onclick="fetchRegistrations('PENDING_OTP')" id="reg-filter-PENDING_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending OTP</button>
-                                <button onclick="fetchRegistrations('VERIFIED_AUTO_PROVISIONED')" id="reg-filter-VERIFIED_AUTO_PROVISIONED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Auto-Provisioned</button>
-                                <button onclick="fetchRegistrations('APPROVED')" id="reg-filter-APPROVED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Approved</button>
-                            </div>
+                <!-- ===================================================================== -->
+                <!-- PANE 2: SELF SERVICE PASSWORD                                         -->
+                <!-- ===================================================================== -->
+                <div id="selfservice-pane-password" class="space-y-5 hidden">
+                    <!-- Header Banner -->
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-sm">
+                        <div>
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-key text-indigo-400"></i> Self-Service Password Reset (SSPR)
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-1">Audit password change operations, monitor OTP verification requests, and configure recovery policies.</p>
                         </div>
-                        <div class="text-xs text-slate-500 font-mono">
-                            Default Domain: <span class="text-indigo-400 font-semibold" id="reg-queue-domain">-</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="copyPasswordResetLink()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public SSPR portal link">
+                                <i class="fa-solid fa-copy text-indigo-400"></i> Copy Portal Link
+                            </button>
+                            <a href="/password-reset.html" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal
+                            </a>
+                            <button onclick="openSspprSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
+                                <i class="fa-solid fa-sliders text-cyan-400"></i> Settings
+                            </button>
+                            <button onclick="exportSspprLogs()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Export SSPR logs CSV">
+                                <i class="fa-solid fa-file-csv text-emerald-400"></i> Export CSV
+                            </button>
+                            <button onclick="fetchSspprLogs()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate"></i> Refresh
+                            </button>
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-xs text-left text-slate-300">
-                            <thead class="text-slate-400 uppercase bg-slate-950/60 text-[10px] font-mono tracking-wider border-b border-slate-800">
-                                <tr>
-                                    <th class="px-4 py-2.5">Username / Name</th>
-                                    <th class="px-4 py-2.5">Mobile (OTP)</th>
-                                    <th class="px-4 py-2.5">Email</th>
-                                    <th class="px-4 py-2.5">Department</th>
-                                    <th class="px-4 py-2.5">Status</th>
-                                    <th class="px-4 py-2.5">Submitted</th>
-                                    <th class="px-4 py-2.5 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="registrations-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
-                                <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading registrations queue...</td></tr>
-                            </tbody>
-                        </table>
+                    <!-- Top Metric Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-lg">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Total SSPR Resets</div>
+                                <div class="text-lg font-bold text-white font-mono mt-0.5" id="sspr-stat-total">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-lg">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Completed Resets</div>
+                                <div class="text-lg font-bold text-emerald-400 font-mono" id="sspr-stat-completed">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 text-lg">
+                                <i class="fa-solid fa-lock"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Via Current Password</div>
+                                <div class="text-lg font-bold text-white font-mono" id="sspr-stat-old">0</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-3">
+                            <div class="p-2.5 rounded-lg bg-purple-500/10 text-purple-400 text-lg">
+                                <i class="fa-solid fa-envelope-circle-check"></i>
+                            </div>
+                            <div>
+                                <div class="text-[10px] font-mono text-slate-400 uppercase">Via OTP (Email / SMS)</div>
+                                <div class="text-lg font-bold text-white font-mono" id="sspr-stat-otp">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search, Filter & Pagination Controls Bar -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                        <div class="p-4 border-b border-slate-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-900/50">
+                            <!-- Method Filters -->
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-xs font-bold text-white mr-1">Method:</span>
+                                <button onclick="setSspprMethodFilter('all')" id="sspr-method-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
+                                <button onclick="setSspprMethodFilter('OLD_PASSWORD')" id="sspr-method-OLD_PASSWORD" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Current Password</button>
+                                <button onclick="setSspprMethodFilter('EMAIL_OTP')" id="sspr-method-EMAIL_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Email OTP</button>
+                                <button onclick="setSspprMethodFilter('SMS_OTP')" id="sspr-method-SMS_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">SMS OTP</button>
+                            </div>
+
+                            <!-- Search, Month, Status and Page Size -->
+                            <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto">
+                                <!-- Status Filter -->
+                                <select id="sspr-filter-status" onchange="onSspprStatusChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
+                                    <option value="all">All Statuses</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="PENDING_OTP">Pending OTP</option>
+                                    <option value="FAILED">Failed</option>
+                                    <option value="EXPIRED">Expired</option>
+                                </select>
+
+                                <!-- Month Filter -->
+                                <select id="sspr-filter-month" onchange="onSspprMonthChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
+                                    <option value="">All Months</option>
+                                    <!-- Populated dynamically -->
+                                </select>
+
+                                <!-- Live Search Input -->
+                                <div class="relative flex-1 sm:w-60">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                                    <input type="text" id="sspr-search-input" oninput="onSspprSearchInput()" placeholder="Search username, IP, recipient..."
+                                        class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono">
+                                </div>
+
+                                <!-- Page Size Selector -->
+                                <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                                    <span class="text-[11px]">Show:</span>
+                                    <select id="sspr-page-size" onchange="onSspprPageSizeChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono focus:border-indigo-500 focus:outline-none">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                        <option value="all">All</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SSPR Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left text-slate-300">
+                                <thead class="text-slate-400 uppercase bg-slate-950/60 text-[10px] font-mono tracking-wider border-b border-slate-800">
+                                    <tr>
+                                        <th class="px-4 py-2.5">Date & Time</th>
+                                        <th class="px-4 py-2.5">Username</th>
+                                        <th class="px-4 py-2.5">Method</th>
+                                        <th class="px-4 py-2.5">Recipient</th>
+                                        <th class="px-4 py-2.5">Status</th>
+                                        <th class="px-4 py-2.5">IP Address</th>
+                                        <th class="px-4 py-2.5">Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sspr-table-body" class="divide-y divide-slate-800/60 font-mono text-[11px]">
+                                    <tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">Loading password reset activity logs...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination Footer -->
+                        <div class="p-3 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 bg-slate-950/40 text-xs text-slate-400">
+                            <div id="sspr-pagination-info" class="font-mono text-[11px]">
+                                Showing 0 of 0 entries
+                            </div>
+                            <div class="flex items-center gap-1.5" id="sspr-pagination-controls">
+                                <button type="button" id="sspr-btn-prev" onclick="goToSspprPage(ssprCurrentPage - 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
+                                </button>
+                                <div id="sspr-page-numbers" class="flex items-center gap-1"></div>
+                                <button type="button" id="sspr-btn-next" onclick="goToSspprPage(ssprCurrentPage + 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                    Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>

@@ -257,7 +257,14 @@
             }
             else if (tabId === 'sysvol') { fetchSysvolStatus(); fetchSysvolPartners(); }
             else if (tabId === 'azure') { fetchAzureStatus(); fetchAzureConfig(); }
-            else if (tabId === 'registrations') { fetchRegistrations(); fetchRegistrationSettings(); }
+            else if (tabId === 'registrations') {
+                if (typeof activeSelfServiceSubtab !== 'undefined' && activeSelfServiceSubtab === 'password') {
+                    fetchSspprLogs();
+                } else {
+                    fetchRegistrations();
+                    fetchRegistrationSettings();
+                }
+            }
             else if (tabId === 'reports') { fetchAuditEvents(); }
             else if (tabId === 'backup') { fetchBackups(); }
             else if (tabId === 'snmp') { fetchSnmpStatus(); fetchSnmpConfig(); }
@@ -468,5 +475,49 @@
             localStorage.removeItem('zclockid_user');
             localStorage.removeItem('zclockid_role');
             window.location.href = '/login.html';
+        }
+
+        // ==================== UNIVERSAL PAGINATION HELPER ====================
+        function renderPaginationButtons(containerId, currentPage, totalPages, goToPageFnName) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let pages = [];
+            if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+            } else {
+                pages.push(1);
+                let start = Math.max(2, currentPage - 1);
+                let end = Math.min(totalPages - 1, currentPage + 1);
+
+                if (currentPage <= 3) {
+                    start = 2;
+                    end = 4;
+                } else if (currentPage >= totalPages - 2) {
+                    start = totalPages - 3;
+                    end = totalPages - 1;
+                }
+
+                if (start > 2) pages.push('...');
+                for (let i = start; i <= end; i++) pages.push(i);
+                if (end < totalPages - 1) pages.push('...');
+                pages.push(totalPages);
+            }
+
+            container.innerHTML = pages.map(p => {
+                if (p === '...') {
+                    return `<span class="px-2 py-1 text-slate-500 font-mono text-xs select-none">...</span>`;
+                }
+                const isActive = (p === currentPage);
+                if (isActive) {
+                    return `<button type="button" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-bold text-xs shadow-sm shadow-indigo-600/40 select-none">${p}</button>`;
+                } else {
+                    return `<button type="button" onclick="${goToPageFnName}(${p})" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition">${p}</button>`;
+                }
+            }).join('');
         }
 

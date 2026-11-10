@@ -135,6 +135,70 @@ def init_db():
             )
         """, (time.time(),))
 
+    # Self Service Password Settings
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS self_service_password_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            enabled INTEGER DEFAULT 1,
+            allow_old_password_reset INTEGER DEFAULT 1,
+            allow_email_reset INTEGER DEFAULT 1,
+            allow_otp_reset INTEGER DEFAULT 1,
+            min_password_length INTEGER DEFAULT 8,
+            require_complexity INTEGER DEFAULT 1,
+            otp_expiry_minutes INTEGER DEFAULT 10,
+            max_daily_attempts INTEGER DEFAULT 5,
+            email_smtp_enabled INTEGER DEFAULT 0,
+            smtp_host TEXT DEFAULT '',
+            smtp_port INTEGER DEFAULT 587,
+            smtp_user TEXT DEFAULT '',
+            smtp_pass TEXT DEFAULT '',
+            smtp_from TEXT DEFAULT '',
+            sms_gateway_type TEXT DEFAULT 'simulated',
+            sms_gateway_url TEXT DEFAULT '',
+            sms_api_key TEXT DEFAULT '',
+            sms_sender_id TEXT DEFAULT 'ZCLOCK',
+            sms_template TEXT DEFAULT 'Your ZclockID password reset verification code is {otp}. Valid for 10 minutes.',
+            updated_at REAL
+        )
+    """)
+
+    cursor.execute("SELECT COUNT(*) FROM self_service_password_settings")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO self_service_password_settings (
+                id, enabled, allow_old_password_reset, allow_email_reset, allow_otp_reset,
+                min_password_length, require_complexity, otp_expiry_minutes, max_daily_attempts,
+                sms_gateway_type, sms_sender_id, sms_template, updated_at
+            ) VALUES (
+                1, 1, 1, 1, 1,
+                8, 1, 10, 5,
+                'simulated', 'ZCLOCK', 'Your ZclockID password reset verification code is {otp}. Valid for 10 minutes.', ?
+            )
+        """, (time.time(),))
+
+    # Self Service Password Reset Logs
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS self_service_password_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            method TEXT NOT NULL,
+            recipient TEXT,
+            otp_code TEXT,
+            otp_expires_at REAL,
+            status TEXT DEFAULT 'PENDING',
+            ip_address TEXT,
+            user_agent TEXT,
+            created_at REAL,
+            completed_at REAL,
+            notes TEXT
+        )
+    """)
+
+    # Index for fast month/date queries and username lookups
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_logs_created ON self_service_password_logs(created_at)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_logs_user ON self_service_password_logs(username)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_self_reg_created ON self_registrations(created_at)")
+
     # Audit & Reporting Events
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS audit_events (
