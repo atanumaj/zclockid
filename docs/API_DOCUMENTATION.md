@@ -1,6 +1,6 @@
 # ZclockID Appliance REST API Documentation
 
-**API Version:** `v1.2.2`  
+**API Version:** `v1.3.0`  
 **Protocol:** HTTPS  
 **Base URL:** `https://<appliance-ip>/api/v1`  
 **Interactive OpenAPI UI:** `https://<appliance-ip>/docs` (Swagger 3.1)  
@@ -268,3 +268,40 @@ All API endpoints (except `/api/v1/auth/login` and `/api/v1/status/health`) requ
 * `GET /api/v1/backup/list`: List existing AD and configuration backup archives.
 * `POST /api/v1/backup/create`: Trigger online Active Directory snapshot (`samba-tool domain backup`).
 * `GET /api/v1/backup/download/{filename}`: Download backup tarball.
+
+---
+
+## 13. Self Services, SSPR, SMS Testing & Custom Portal Templates
+
+### 13.1. Self-Registration Portal & Admin Queue
+* `GET /api/v1/public/register/config`: Public onboarding configuration, primary realm, and department list.
+* `POST /api/v1/public/register/initiate`: Submit signup request and dispatch mobile OTP if required.
+* `POST /api/v1/public/register/verify-otp`: Verify 6-digit OTP and auto-provision user into Active Directory.
+* `POST /api/v1/public/register/resend-otp`: Re-dispatch registration OTP.
+* `GET /api/v1/registrations/requests`: List signup queue (`status_filter`).
+* `GET /api/v1/registrations/settings` & `POST /api/v1/registrations/settings`: Read/update registration, provisioning, SMTP, and SMS gateway settings.
+* `GET /api/v1/self-service/registrations/export`: Download filtered registration records as CSV (`status_filter`, `month`, `search`).
+
+### 13.2. Self-Service Password Reset (SSPR)
+* `GET /api/v1/self-service/password/config`: Public SSPR policy, enabled methods, password rules, and primary realm.
+* `POST /api/v1/self-service/password/change-with-old`: Direct password change authenticating user's current password over localhost Samba SAMR.
+* `POST /api/v1/self-service/password/request-otp`: Look up AD user `mail` / `mobile` attributes and dispatch verification OTP (`channel`: `"email"` or `"sms"`). Returns HTTP `400` prompting Domain Administrator contact if contact attribute is absent.
+* `POST /api/v1/self-service/password/verify-and-reset`: Validate OTP and reset password in Active Directory.
+* `GET /api/v1/self-service/password/settings` & `POST /api/v1/self-service/password/settings`: Read/update SSPR policies, OTP/password rules, SMTP, and SMS settings.
+* `GET /api/v1/self-service/password/logs`: Query password reset logs (`month`, `status_filter`, `search`, `limit`).
+* `GET /api/v1/self-service/password/logs/export`: Download filtered SSPR audit trail as CSV (`method`, `status`, `month`, `search`).
+
+### 13.3. SMS Gateway Testing
+* `POST /api/v1/self-service/test-sms`: Dispatch a one-off test SMS (`123456`) using unsaved or saved gateway parameters (`mobile`, `sms_gateway_type`, `sms_gateway_url`, `sms_api_key`, `sms_sender_id`, `sms_template`). Supports `webhook` HTTP `GET` query templates (`{to}`, `{to10}`, `{message}`, `{sender}`, `{apikey}`) and `POST` JSON payloads.
+
+### 13.4. Custom Portal HTML Templates & Branding Assets (pfSense-Style)
+*(Routes for `{portal_type}` accept `registration` or `password`)*
+* `GET /api/v1/self-service/portal-template/{portal_type}/status`: Get custom HTML activation state, file metadata, and uploaded assets list.
+* `GET /api/v1/self-service/portal-template/{portal_type}/example`: Download commented starter HTML template (`zclockid-register-example.html` or `zclockid-password-reset-example.html`).
+* `POST /api/v1/self-service/portal-template/{portal_type}/upload`: Multipart upload of custom `.html`/`.htm` template (saved to `DATA_DIR/portals/` and activated).
+* `POST /api/v1/self-service/portal-template/{portal_type}/toggle`: Enable/disable custom HTML override (`{"use_custom_html": true|false}`).
+* `DELETE /api/v1/self-service/portal-template/{portal_type}`: Delete custom HTML file and revert to built-in portal template.
+* `GET /api/v1/self-service/portal-assets`: List uploaded branding assets.
+* `POST /api/v1/self-service/portal-assets/upload`: Upload logo/image/CSS asset (`.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`, `.ico`, `.css`, max 5 MB) served publicly at `GET /portal-assets/{filename}`.
+* `DELETE /api/v1/self-service/portal-assets/{filename}`: Delete an uploaded portal asset.
+

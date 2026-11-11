@@ -1,6 +1,6 @@
 # ZclockID Appliance Administrator & User Guide
 
-**Document Version:** 1.0  
+**Document Version:** 1.3.0  
 **Target Platform:** ZclockID Enterprise Appliance (Ubuntu 24.04 LTS / Samba 4.19+ / FreeRADIUS 3.0+ / BIND 9.18+)  
 **Target Audience:** Systems Engineers, Network Administrators, and IT Infrastructure Operations  
 
@@ -16,7 +16,8 @@
 7. [FreeRADIUS 802.1X & Captive Portal Bandwidth Management](#7-freeradius-8021x--captive-portal-bandwidth-management)
 8. [Encrypted DNS (BIND9 DLZ & DNS-over-HTTPS)](#8-encrypted-dns-bind9-dlz--dns-over-https)
 9. [Sysvol Synchronization & NTACL Self-Healing](#9-sysvol-synchronization--ntacl-self-healing)
-10. [Appliance Operations, Maintenance & Troubleshooting](#10-appliance-operations-maintenance--troubleshooting)
+10. [Self Services (Onboarding, SSPR, SMS Gateways & Custom Portals)](#10-self-services-onboarding-sspr-sms-gateways--custom-portals)
+11. [Appliance Operations, Maintenance & Troubleshooting](#11-appliance-operations-maintenance--troubleshooting)
 
 ---
 
@@ -363,7 +364,44 @@ ZclockID includes a dedicated system daemon: **`zclock-sysvold`**.
 
 ---
 
-## 10. Appliance Operations, Maintenance & Troubleshooting
+## 10. Self Services (Onboarding, SSPR, SMS Gateways & Custom Portals)
+
+Under **Self Services** in the Web Console, administrators can manage two dedicated portals: **Self Registration** (`/register.html`) and **Self Service Password** (`/password-reset.html`). Both views provide live search, month filtering (`YYYY-MM`), selectable page sizes (`10`, `25`, `50`, `100`, `All`), numbered pagination, and one-click **Export CSV** log downloads.
+
+### A. Self Registration (`/register.html`)
+* **Verification Modes:** Enable **Require Mobile OTP Verification** for instant zero-touch provisioning into Active Directory, or disable it to route signups into the **Pending Approval** admin queue.
+* **Provisioning Defaults:** Assign default primary/alternate UPN domain, default Active Directory security group, default FreeRADIUS bandwidth profile, and up to 100 organization departments.
+
+### B. Self-Service Password Reset — SSPR (`/password-reset.html`)
+Users can change or recover their Active Directory password using up to three configurable methods:
+1. **Current (Old) Password:** Authenticates directly via native Samba SAMR (`--ipaddress=127.0.0.1 --use-kerberos=off`) to verify the current password and apply the new one.
+2. **Email OTP:** Looks up the user's `mail` attribute in `sam.ldb`, sends a time-limited 6-digit verification code via SMTP, and resets the password upon verification.
+3. **Mobile SMS OTP:** Looks up `mobile` or `telephoneNumber` in `sam.ldb` and dispatches a 6-digit OTP via the configured SMS provider.
+* **Contact Fallback Guard:** If neither an email address nor a mobile phone number is configured on the user's Active Directory object, the portal prompts the user to contact their Domain Administrator.
+
+### C. SMS Gateway Configuration (HTTP GET Webhooks & DLT Compliance)
+Both **Self Registration → Settings** and **Self Service Password → Settings** support `Simulated`, `Twilio`, `Fast2SMS`, `MSG91`, and `Custom Webhook / HTTP GET or POST API`, along with an inline **Send Test SMS** verification tool:
+* **HTTP `GET` Parameterized URLs:** Include dynamic placeholders in the **Gateway Endpoint URL**:
+  * `{to}` — Full mobile number as entered (URL-encoded)
+  * `{to10}` — Last 10 numeric digits (recommended for Indian SMS gateways stripping `+91`)
+  * `{message}` — Rendered SMS message body (with `{otp}` and `{username}` substituted)
+  * `{sender}` — Configured **SMS Sender ID**
+  * `{apikey}` — Configured **API Authorization Key / Token**
+* **Plain JSON `POST` Webhooks:** If the URL contains no placeholders or query parameters, ZclockID submits an HTTP `POST` JSON payload `{"to", "message", "sender", "api_key"}`.
+* **TRAI DLT Compliance (India):** Ensure your **SMS Template** wording exactly matches the registered DLT Template ID (`tmpid`) in your gateway URL using `{otp}`, otherwise telecom operators will silently drop messages even if the HTTP API returns `200 OK`.
+
+### D. Custom Portal Pages & Logo Asset Manager (pfSense-Style)
+Organizations can customize the look, corporate logo, styling, and instructional text of `/register.html` and `/password-reset.html` without risking overwrites during ZclockID upgrades:
+1. Open **Settings** under either **Self Registration** or **Self Service Password** and scroll to **Custom Portal Page (HTML Template)**.
+2. Click **Download Example HTML Template** (`zclockid-register-example.html` or `zclockid-password-reset-example.html`).
+3. *(Optional)* Upload your corporate logo or stylesheet under **Portal Logo / Assets Manager** (`.png`, `.jpg`, `.svg`, `.webp`, `.ico`, `.css`) and click **Copy Path** (served persistently at `/portal-assets/<filename>`).
+4. Edit the downloaded HTML template to insert your `<img src="/portal-assets/logo.png">`, custom branding, colors, or disclaimer text while keeping the form input IDs and `/api/v1/...` calls intact.
+5. Click **Upload & Activate HTML** (or use **Preview Portal**, the **Enable Custom Uploaded HTML Page** toggle, or **Reset to Default**).
+* **Upgrade Persistence:** Uploaded HTML templates and assets are stored under `/zclockid/data/portals/` (`/var/lib/zclockid/portals/`) and persist across all `dpkg` / Update Center upgrades.
+
+---
+
+## 11. Appliance Operations, Maintenance & Troubleshooting
 
 ### Service Management Commands
 To inspect or restart core ZclockID services from the terminal:
