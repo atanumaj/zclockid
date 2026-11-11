@@ -461,6 +461,7 @@
 
         function openRegistrationSettingsModal() {
             fetchRegistrationSettings();
+            if (typeof fetchPortalTemplateStatus === 'function') fetchPortalTemplateStatus('registration');
             document.getElementById('modal-registration-settings').classList.remove('hidden');
         }
 

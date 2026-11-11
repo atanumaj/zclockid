@@ -13,12 +13,13 @@ import json
 import secrets
 import sqlite3
 import logging
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Request, Response, status
+from fastapi import APIRouter, HTTPException, Request, Response, status, UploadFile, File, Body
 from fastapi.responses import PlainTextResponse
 
-from api.core.config import DB_PATH, SAMBA_LDB_PATH
+from api.core.config import DB_PATH, SAMBA_LDB_PATH, DATA_DIR, WEB_DIR
 from api.core.security import get_ad_creds, validate_ad_password_complexity
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.routers.registration import dispatch_sms, dispatch_email
@@ -719,4 +720,269 @@ def test_sms_gateway(req: TestSmsRequest):
     if not ok:
         raise HTTPException(status_code=400, detail=f"SMS Gateway test failed: {details}")
     return {"status": "success", "message": f"Test SMS sent successfully to {req.mobile}. Gateway Response: {details}"}
+
+
+# ==================== CUSTOM PORTAL HTML TEMPLATES & ASSETS (PFSENSE STYLE) ====================
+
+PORTAL_DIR = DATA_DIR / "portals"
+PORTAL_ASSETS_DIR = PORTAL_DIR / "assets"
+
+_PORTAL_MAP = {
+    "registration": {
+        "filename": "register.html",
+        "example_name": "zclockid-register-example.html",
+        "table": "self_registration_settings",
+        "label": "Self-Registration Portal"
+    },
+    "password": {
+        "filename": "password-reset.html",
+        "example_name": "zclockid-password-reset-example.html",
+        "table": "self_service_password_settings",
+        "label": "Self-Service Password Portal"
+    }
+}
+
+
+def _get_portal_meta(portal_type: str) -> Dict[str, str]:
+    pt = portal_type.lower().strip()
+    if pt not in _PORTAL_MAP:
+        raise HTTPException(status_code=400, detail="Invalid portal type. Must be 'registration' or 'password'.")
+    return _PORTAL_MAP[pt]
+
+
+def _list_portal_assets() -> List[Dict[str, Any]]:
+    PORTAL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    items = []
+    for f in sorted(PORTAL_ASSETS_DIR.iterdir(), key=lambda p: p.name.lower()):
+        if f.is_file():
+            st = f.stat()
+            items.append({
+                "filename": f.name,
+                "size": st.st_size,
+                "url": f"/portal-assets/{f.name}",
+                "updated_at": st.st_mtime
+            })
+    return items
+
+
+@router.get("/portal-template/{portal_type}/status")
+def get_portal_template_status(portal_type: str):
+    """Returns custom portal HTML activation state, custom file metadata, and uploaded logo assets."""
+    meta = _get_portal_meta(portal_type)
+    PORTAL_DIR.mkdir(parents=True, exist_ok=True)
+    custom_path = PORTAL_DIR / meta["filename"]
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT use_custom_html, custom_html_updated_at FROM {meta['table']} WHERE id = 1")
+    row = cursor.fetchone()
+    conn.close()
+
+    use_custom = bool(row["use_custom_html"]) if row and "use_custom_html" in row.keys() else False
+    db_updated = row["custom_html_updated_at"] if row and "custom_html_updated_at" in row.keys() else None
+
+    has_custom = custom_path.exists() and custom_path.is_file()
+    return {
+        "status": "success",
+        "portal_type": portal_type,
+        "use_custom_html": use_custom and has_custom,
+        "has_custom_file": has_custom,
+        "custom_file_size": custom_path.stat().st_size if has_custom else 0,
+        "custom_html_updated_at": custom_path.stat().st_mtime if has_custom else db_updated,
+        "assets": _list_portal_assets()
+    }
+
+
+@router.get("/portal-template/{portal_type}/example")
+def download_example_portal_template(portal_type: str):
+    """Generates and downloads the commented example HTML template for pfSense-style customization."""
+    meta = _get_portal_meta(portal_type)
+    src_path = WEB_DIR / meta["filename"]
+    if not src_path.exists():
+        raise HTTPException(status_code=404, detail=f"Built-in template '{meta['filename']}' not found.")
+
+    html_content = src_path.read_text(encoding="utf-8")
+
+    header_comment = (
+        f"<!-- =========================================================================\n"
+        f"     ZCLOCKID CUSTOM {meta['label'].upper()} TEMPLATE (EXAMPLE)\n"
+        f"     \n"
+        f"     How to customize (pfSense Captive Portal Style):\n"
+        f"     1. Upload your company logo/images under 'Portal Assets' in Settings\n"
+        f"        (they are served from /portal-assets/<filename>).\n"
+        f"     2. Add your <img src=\"/portal-assets/your-logo.png\"> or custom CSS,\n"
+        f"        headings, colors, and corporate footer text below.\n"
+        f"     3. Keep the form input IDs and /api/v1/... fetch() calls intact so\n"
+        f"        Active Directory & OTP verification continue working.\n"
+        f"     4. Upload this customized .html file in ZclockID Settings.\n"
+        f"     ========================================================================= -->\n"
+    )
+
+    logo_hint = (
+        "        <!-- Header (CUSTOMIZE LOGO, TITLE, AND SUBTITLE BELOW) -->\n"
+        "        <!-- Example Organization Logo (upload your image under Portal Assets first):\n"
+        "        <div class=\"text-center mb-2\">\n"
+        "            <img src=\"/portal-assets/company-logo.png\" alt=\"Company Logo\" class=\"h-14 mx-auto object-contain\">\n"
+        "        </div>\n"
+        "        -->"
+    )
+
+    customized = html_content.replace("        <!-- Header -->", logo_hint, 1)
+    final_html = header_comment + customized
+
+    return Response(
+        content=final_html,
+        media_type="text/html",
+        headers={"Content-Disposition": f"attachment; filename={meta['example_name']}"}
+    )
+
+
+@router.post("/portal-template/{portal_type}/upload")
+async def upload_custom_portal_template(portal_type: str, file: UploadFile = File(...)):
+    """Uploads and activates a custom HTML template in persistent DATA_DIR storage."""
+    meta = _get_portal_meta(portal_type)
+    fname = (file.filename or "").lower()
+    if not fname.endswith((".html", ".htm")):
+        raise HTTPException(status_code=400, detail="Only .html or .htm template files are accepted.")
+
+    raw = await file.read()
+    if len(raw) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="HTML file exceeds 2 MB size limit.")
+    if len(raw) < 20:
+        raise HTTPException(status_code=400, detail="Uploaded HTML file appears to be empty.")
+
+    try:
+        decoded = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="HTML file must be UTF-8 encoded.")
+
+    lower_html = decoded.lower()
+    if "<html" not in lower_html and "<body" not in lower_html and "<form" not in lower_html:
+        raise HTTPException(status_code=400, detail="Invalid HTML template: missing <html>, <body>, or <form> tags.")
+
+    PORTAL_DIR.mkdir(parents=True, exist_ok=True)
+    dest = PORTAL_DIR / meta["filename"]
+    dest.write_text(decoded, encoding="utf-8")
+
+    now_ts = time.time()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        f"UPDATE {meta['table']} SET use_custom_html = 1, custom_html_updated_at = ? WHERE id = 1",
+        (now_ts,)
+    )
+    conn.commit()
+    conn.close()
+
+    log_audit("PORTAL_CUSTOM_HTML_UPLOADED", "admin", portal_type, "SUCCESS", {
+        "filename": file.filename,
+        "bytes": len(raw)
+    })
+
+    return {
+        "status": "success",
+        "portal_type": portal_type,
+        "use_custom_html": True,
+        "size": len(raw),
+        "message": f"Custom {meta['label']} uploaded and activated successfully."
+    }
+
+
+@router.post("/portal-template/{portal_type}/toggle")
+def toggle_custom_portal_template(portal_type: str, payload: Dict[str, Any] = Body(...)):
+    """Enables or disables custom HTML template override (falling back to built-in page when disabled)."""
+    meta = _get_portal_meta(portal_type)
+    enable = bool(payload.get("use_custom_html", False))
+    custom_path = PORTAL_DIR / meta["filename"]
+
+    if enable and not custom_path.exists():
+        raise HTTPException(status_code=400, detail="No custom HTML file has been uploaded yet. Please upload an HTML file first.")
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(f"UPDATE {meta['table']} SET use_custom_html = ? WHERE id = 1", (1 if enable else 0,))
+    conn.commit()
+    conn.close()
+
+    log_audit("PORTAL_CUSTOM_HTML_TOGGLED", "admin", portal_type, "SUCCESS", {"use_custom_html": enable})
+    return {
+        "status": "success",
+        "use_custom_html": enable,
+        "message": f"Custom HTML template {'enabled' if enable else 'disabled (using built-in default)'}."
+    }
+
+
+@router.delete("/portal-template/{portal_type}")
+def reset_custom_portal_template(portal_type: str):
+    """Deletes custom uploaded HTML file and reverts to ZclockID built-in default template."""
+    meta = _get_portal_meta(portal_type)
+    custom_path = PORTAL_DIR / meta["filename"]
+    if custom_path.exists():
+        custom_path.unlink()
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(f"UPDATE {meta['table']} SET use_custom_html = 0, custom_html_updated_at = NULL WHERE id = 1")
+    conn.commit()
+    conn.close()
+
+    log_audit("PORTAL_CUSTOM_HTML_RESET", "admin", portal_type, "SUCCESS", {})
+    return {
+        "status": "success",
+        "use_custom_html": False,
+        "message": f"Reverted {meta['label']} to built-in default template."
+    }
+
+
+@router.get("/portal-assets")
+def list_portal_assets_endpoint():
+    """Lists all uploaded branding logos/images/CSS available at /portal-assets/."""
+    return {"status": "success", "assets": _list_portal_assets()}
+
+
+@router.post("/portal-assets/upload")
+async def upload_portal_asset(file: UploadFile = File(...)):
+    """Uploads a branding asset (PNG, JPG, SVG, WEBP, ICO, CSS) to persistent storage."""
+    orig_name = Path(file.filename or "asset").name
+    safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", orig_name)
+    allowed_exts = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".css")
+    if not safe_name.lower().endswith(allowed_exts):
+        raise HTTPException(status_code=400, detail=f"Unsupported file type. Allowed: {', '.join(allowed_exts)}")
+
+    raw = await file.read()
+    if len(raw) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Asset file exceeds 5 MB limit.")
+    if len(raw) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    PORTAL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    dest = PORTAL_ASSETS_DIR / safe_name
+    dest.write_bytes(raw)
+
+    log_audit("PORTAL_ASSET_UPLOADED", "admin", safe_name, "SUCCESS", {"bytes": len(raw)})
+    return {
+        "status": "success",
+        "filename": safe_name,
+        "size": len(raw),
+        "url": f"/portal-assets/{safe_name}",
+        "message": f"Asset '{safe_name}' uploaded. Reference it in HTML as /portal-assets/{safe_name}"
+    }
+
+
+@router.delete("/portal-assets/{filename}")
+def delete_portal_asset(filename: str):
+    """Deletes an uploaded portal branding asset."""
+    safe_name = Path(filename).name
+    PORTAL_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    target = (PORTAL_ASSETS_DIR / safe_name).resolve()
+    if target.parent != PORTAL_ASSETS_DIR.resolve():
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="Asset not found.")
+
+    target.unlink()
+    log_audit("PORTAL_ASSET_DELETED", "admin", safe_name, "SUCCESS", {})
+    return {"status": "success", "message": f"Asset '{safe_name}' deleted."}
+
 

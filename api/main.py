@@ -16,15 +16,18 @@ for _p in [str(_ROOT_DIR), str(_BASE_DIR)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+import sqlite3
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from api.core.config import (
     APP_NAME,
     APP_VERSION,
-    WEB_DIR
+    WEB_DIR,
+    DATA_DIR,
+    DB_PATH
 )
 from api.db.init_db import init_db
 from api.services.radius_service import sync_freeradius_policies
@@ -119,6 +122,48 @@ app.include_router(security.router)
 app.include_router(federation.router)
 app.include_router(license.router)
 app.include_router(self_service.router)
+
+def _serve_portal_html(table_name: str, filename: str):
+    """Serves custom uploaded portal HTML from DATA_DIR/portals if enabled, else built-in WEB_DIR page."""
+    use_custom = False
+    custom_file = DATA_DIR / "portals" / filename
+    try:
+        if custom_file.exists() and custom_file.is_file():
+            conn = sqlite3.connect(DB_PATH)
+            cur = conn.cursor()
+            cur.execute(f"SELECT use_custom_html FROM {table_name} WHERE id = 1")
+            row = cur.fetchone()
+            conn.close()
+            if row and row[0]:
+                use_custom = True
+    except Exception:
+        use_custom = False
+
+    target = custom_file if use_custom else (WEB_DIR / filename)
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"Portal template '{filename}' not found.")
+    return FileResponse(
+        path=str(target),
+        media_type="text/html",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+    )
+
+@app.get("/register.html")
+def serve_registration_portal():
+    return _serve_portal_html("self_registration_settings", "register.html")
+
+@app.get("/password-reset.html")
+def serve_password_reset_portal():
+    return _serve_portal_html("self_service_password_settings", "password-reset.html")
+
+@app.get("/portal-assets/{filename}")
+def serve_portal_asset(filename: str):
+    assets_dir = (DATA_DIR / "portals" / "assets").resolve()
+    safe_name = Path(filename).name
+    target = (assets_dir / safe_name).resolve()
+    if target.parent != assets_dir or not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail="Portal asset not found.")
+    return FileResponse(path=str(target))
 
 # Mount Web GUI static files if available
 if WEB_DIR.exists() and (WEB_DIR / "index.html").exists():

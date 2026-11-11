@@ -121,6 +121,10 @@ def init_db():
         cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN default_bandwidth_profile_id INTEGER DEFAULT 0")
     if "allowed_departments" not in sreg_cols:
         cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN allowed_departments TEXT DEFAULT 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations'")
+    if "use_custom_html" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN use_custom_html INTEGER DEFAULT 0")
+    if "custom_html_updated_at" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN custom_html_updated_at REAL")
 
     cursor.execute("SELECT COUNT(*) FROM self_registration_settings")
     if cursor.fetchone()[0] == 0:
@@ -158,9 +162,18 @@ def init_db():
             sms_api_key TEXT DEFAULT '',
             sms_sender_id TEXT DEFAULT 'ZCLOCK',
             sms_template TEXT DEFAULT 'Your ZclockID password reset verification code is {otp}. Valid for 10 minutes.',
+            use_custom_html INTEGER DEFAULT 0,
+            custom_html_updated_at REAL,
             updated_at REAL
         )
     """)
+
+    cursor.execute("PRAGMA table_info(self_service_password_settings)")
+    sspr_cols = [row[1] for row in cursor.fetchall()]
+    if "use_custom_html" not in sspr_cols:
+        cursor.execute("ALTER TABLE self_service_password_settings ADD COLUMN use_custom_html INTEGER DEFAULT 0")
+    if "custom_html_updated_at" not in sspr_cols:
+        cursor.execute("ALTER TABLE self_service_password_settings ADD COLUMN custom_html_updated_at REAL")
 
     cursor.execute("SELECT COUNT(*) FROM self_service_password_settings")
     if cursor.fetchone()[0] == 0:

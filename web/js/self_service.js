@@ -532,6 +532,7 @@ function exportSspprLogs() {
 // ==================== SSPR SETTINGS MODAL ====================
 function openSspprSettingsModal() {
     fetchSspprSettings();
+    fetchPortalTemplateStatus('password');
     document.getElementById('modal-self-service-password-settings')?.classList.remove('hidden');
 }
 
@@ -697,4 +698,263 @@ async function sendTestSms(prefix) {
         }
     }
 }
+
+// ==================== CUSTOM PORTAL HTML TEMPLATES & ASSETS (PFSENSE STYLE) ====================
+function _portalPrefix(portalType) {
+    return portalType === 'password' ? 'sspr' : 'reg';
+}
+
+async function fetchPortalTemplateStatus(portalType) {
+    const p = _portalPrefix(portalType);
+    const token = localStorage.getItem('zclockid_token');
+    try {
+        const res = await fetch(`/api/v1/self-service/portal-template/${portalType}/status?_t=${Date.now()}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) return;
+
+        const chk = document.getElementById(`${p}-cfg-use-custom-html`);
+        const badge = document.getElementById(`${p}-portal-status-badge`);
+        const meta = document.getElementById(`${p}-portal-file-meta`);
+        const resetBtn = document.getElementById(`btn-${p}-portal-reset`);
+
+        if (chk) chk.checked = Boolean(data.use_custom_html);
+
+        if (badge) {
+            if (data.use_custom_html) {
+                badge.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700 font-semibold';
+                badge.innerText = 'Custom HTML Active';
+            } else {
+                badge.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700';
+                badge.innerText = 'Built-in Default';
+            }
+        }
+
+        if (meta) {
+            if (data.has_custom_file) {
+                const kb = (data.custom_file_size / 1024).toFixed(1);
+                const dt = data.custom_html_updated_at ? new Date(data.custom_html_updated_at * 1000).toLocaleString() : '';
+                meta.innerText = `Custom HTML uploaded (${kb} KB) ${dt ? '• Updated ' + dt : ''}`;
+            } else {
+                meta.innerText = 'No custom HTML uploaded yet — download example template below to start';
+            }
+        }
+
+        if (resetBtn) {
+            if (data.has_custom_file) resetBtn.classList.remove('hidden');
+            else resetBtn.classList.add('hidden');
+        }
+
+        renderPortalAssetsList(p, portalType, data.assets || []);
+    } catch (err) {
+        console.error('Failed to load portal template status:', err);
+    }
+}
+
+function renderPortalAssetsList(prefix, portalType, assets) {
+    const container = document.getElementById(`${prefix}-portal-assets-list`);
+    if (!container) return;
+
+    if (!assets || assets.length === 0) {
+        container.innerHTML = `<div class="text-[10px] text-slate-500 italic py-1">No uploaded logos or assets yet.</div>`;
+        return;
+    }
+
+    container.innerHTML = assets.map(a => {
+        const kb = (a.size / 1024).toFixed(1);
+        const safeName = a.filename.replace(/'/g, "\\'");
+        const safeUrl = a.url.replace(/'/g, "\\'");
+        return `
+            <div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-slate-950 border border-slate-800/80">
+                <div class="flex items-center gap-2 truncate">
+                    <i class="fa-regular fa-file-image text-cyan-400 text-xs"></i>
+                    <span class="font-mono text-slate-200 truncate">${a.filename}</span>
+                    <span class="text-[10px] text-slate-500">(${kb} KB)</span>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="copyPortalAssetUrl('${safeUrl}')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-mono" title="Copy URL to use in HTML">
+                        Copy Path
+                    </button>
+                    <button type="button" onclick="deletePortalAsset('${safeName}', '${portalType}')" class="text-slate-500 hover:text-rose-400 px-1" title="Delete Asset">
+                        <i class="fa-solid fa-trash-can text-[10px]"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function copyPortalAssetUrl(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        alert(`Asset path copied:\n${url}\n\nUse this in your custom HTML, e.g.:\n<img src="${url}" alt="Logo" class="h-14 mx-auto">`);
+    }).catch(() => {
+        prompt('Copy asset path:', url);
+    });
+}
+
+function downloadExamplePortalTemplate(portalType) {
+    const token = localStorage.getItem('zclockid_token');
+    fetch(`/api/v1/self-service/portal-template/${portalType}/example`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to download template');
+        return res.blob();
+    })
+    .then(blob => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = portalType === 'password' ? 'zclockid-password-reset-example.html' : 'zclockid-register-example.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    })
+    .catch(err => alert(`Error downloading example template: ${err.message}`));
+}
+
+async function uploadPortalAsset(portalType) {
+    const p = _portalPrefix(portalType);
+    const input = document.getElementById(`${p}-portal-asset-file`);
+    const file = input?.files?.[0];
+    if (!file) {
+        alert('Please choose an image or CSS file (PNG, JPG, SVG, WEBP, ICO, CSS) to upload.');
+        return;
+    }
+
+    const btn = document.getElementById(`btn-${p}-upload-asset`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Uploading...`;
+    }
+
+    const token = localStorage.getItem('zclockid_token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch('/api/v1/self-service/portal-assets/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Asset upload failed');
+
+        if (input) input.value = '';
+        await fetchPortalTemplateStatus('registration');
+        await fetchPortalTemplateStatus('password');
+        alert(data.message);
+    } catch (err) {
+        alert(`Upload error: ${err.message}`);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-upload mr-1"></i> Upload Asset`;
+        }
+    }
+}
+
+async function deletePortalAsset(filename, portalType) {
+    if (!confirm(`Delete portal asset '${filename}'?`)) return;
+    const token = localStorage.getItem('zclockid_token');
+    try {
+        const res = await fetch(`/api/v1/self-service/portal-assets/${encodeURIComponent(filename)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Delete failed');
+        await fetchPortalTemplateStatus('registration');
+        await fetchPortalTemplateStatus('password');
+    } catch (err) {
+        alert(`Delete error: ${err.message}`);
+    }
+}
+
+async function uploadCustomPortalHtml(portalType) {
+    const p = _portalPrefix(portalType);
+    const input = document.getElementById(`${p}-portal-html-file`);
+    const file = input?.files?.[0];
+    if (!file) {
+        alert('Please select a customized .html file to upload.');
+        return;
+    }
+
+    const btn = document.getElementById(`btn-${p}-upload-html`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-1"></i> Uploading...`;
+    }
+
+    const token = localStorage.getItem('zclockid_token');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetch(`/api/v1/self-service/portal-template/${portalType}/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+        if (input) input.value = '';
+        await fetchPortalTemplateStatus(portalType);
+        alert(data.message);
+    } catch (err) {
+        alert(`HTML Upload error: ${err.message}`);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-cloud-arrow-up mr-1"></i> Upload & Activate HTML`;
+        }
+    }
+}
+
+async function toggleCustomPortal(portalType) {
+    const p = _portalPrefix(portalType);
+    const chk = document.getElementById(`${p}-cfg-use-custom-html`);
+    if (!chk) return;
+    const enable = chk.checked;
+    const token = localStorage.getItem('zclockid_token');
+
+    try {
+        const res = await fetch(`/api/v1/self-service/portal-template/${portalType}/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ use_custom_html: enable })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            chk.checked = !enable;
+            throw new Error(data.detail || 'Toggle failed');
+        }
+        await fetchPortalTemplateStatus(portalType);
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+async function resetCustomPortalHtml(portalType) {
+    if (!confirm('Remove custom HTML upload and revert to the ZclockID built-in portal page?')) return;
+    const token = localStorage.getItem('zclockid_token');
+    try {
+        const res = await fetch(`/api/v1/self-service/portal-template/${portalType}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Reset failed');
+        await fetchPortalTemplateStatus(portalType);
+        alert(data.message);
+    } catch (err) {
+        alert(`Reset error: ${err.message}`);
+    }
+}
+
 
