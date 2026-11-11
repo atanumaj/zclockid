@@ -26,7 +26,8 @@ from api.schemas.self_service_schema import (
     PasswordChangeOldRequest,
     PasswordResetOtpRequest,
     PasswordResetVerifyRequest,
-    PasswordResetSettingsUpdate
+    PasswordResetSettingsUpdate,
+    TestSmsRequest
 )
 
 logger = logging.getLogger("zclockid.self_service")
@@ -701,3 +702,21 @@ def export_registration_logs_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+
+@router.post("/test-sms")
+def test_sms_gateway(req: TestSmsRequest):
+    """Dispatches a one-off test SMS using the provided gateway settings before or after saving."""
+    test_otp = "123456"
+    msg = (req.sms_template or "Your ZclockID verification code is {otp}.").replace("{otp}", test_otp).replace("{username}", "ZclockID-Test")
+    settings_dict = {
+        "sms_gateway_type": req.sms_gateway_type,
+        "sms_gateway_url": req.sms_gateway_url,
+        "sms_api_key": req.sms_api_key,
+        "sms_sender_id": req.sms_sender_id
+    }
+    ok, details = dispatch_sms(req.mobile.strip(), msg, settings_dict)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"SMS Gateway test failed: {details}")
+    return {"status": "success", "message": f"Test SMS sent successfully to {req.mobile}. Gateway Response: {details}"}
+

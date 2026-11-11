@@ -222,8 +222,9 @@
                     <div id="sec-sms-ext" class="space-y-3 hidden">
                         <div>
                             <label class="text-slate-300 block mb-1 font-medium">Gateway Endpoint URL / Twilio Messages URL</label>
-                            <input type="url" id="reg-cfg-sms-url" placeholder="https://api.gateway.example.com/sms/send"
+                            <input type="url" id="reg-cfg-sms-url" placeholder="https://api.gateway.example.com/sms.aspx?to={to10}&msg={message}&apikey={apikey}"
                                 class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                            <p class="text-[10px] text-slate-500 mt-1">For HTTP GET webhooks, use tags: <code class="text-cyan-400 font-mono">{to}</code>, <code class="text-cyan-400 font-mono">{to10}</code> (10-digit), <code class="text-cyan-400 font-mono">{message}</code>, <code class="text-cyan-400 font-mono">{sender}</code>, <code class="text-cyan-400 font-mono">{apikey}</code></p>
                         </div>
                         <div>
                             <label class="text-slate-300 block mb-1 font-medium">API Authorization Key / Token</label>
@@ -237,6 +238,15 @@
                         <input type="text" id="reg-cfg-sms-template" value="Your ZclockID verification code is {otp}. Valid for 10 minutes."
                             class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
                         <p class="text-[10px] text-slate-500 mt-1">Use <code class="text-cyan-400 font-mono">{otp}</code> and <code class="text-cyan-400 font-mono">{username}</code> as dynamic tags</p>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input type="text" id="reg-test-sms-mobile" placeholder="Test Mobile (+919582889339)"
+                            class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        <button type="button" onclick="sendTestSms('reg')" id="btn-reg-test-sms"
+                            class="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-paper-plane"></i> Send Test SMS
+                        </button>
                     </div>
                 </div>
 
@@ -478,8 +488,9 @@
                     <div id="sec-sspr-sms-ext" class="space-y-3 hidden">
                         <div>
                             <label class="text-slate-300 block mb-1 font-medium">Gateway Endpoint URL / Twilio Messages URL</label>
-                            <input type="url" id="sspr-cfg-sms-url" placeholder="https://api.gateway.example.com/sms/send"
+                            <input type="url" id="sspr-cfg-sms-url" placeholder="https://api.gateway.example.com/sms.aspx?to={to10}&msg={message}&apikey={apikey}"
                                 class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                            <p class="text-[10px] text-slate-500 mt-1">For HTTP GET webhooks, use tags: <code class="text-cyan-400 font-mono">{to}</code>, <code class="text-cyan-400 font-mono">{to10}</code> (10-digit), <code class="text-cyan-400 font-mono">{message}</code>, <code class="text-cyan-400 font-mono">{sender}</code>, <code class="text-cyan-400 font-mono">{apikey}</code></p>
                         </div>
                         <div>
                             <label class="text-slate-300 block mb-1 font-medium">API Authorization Key / Token</label>
@@ -493,6 +504,15 @@
                         <input type="text" id="sspr-cfg-sms-template" value="Your ZclockID password reset verification code is {otp}. Valid for 10 minutes."
                             class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
                         <p class="text-[10px] text-slate-500 mt-1">Use <code class="text-cyan-400 font-mono">{otp}</code> and <code class="text-cyan-400 font-mono">{username}</code> as dynamic tags</p>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input type="text" id="sspr-test-sms-mobile" placeholder="Test Mobile (+919582889339)"
+                            class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
+                        <button type="button" onclick="sendTestSms('sspr')" id="btn-sspr-test-sms"
+                            class="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-paper-plane"></i> Send Test SMS
+                        </button>
                     </div>
                 </div>
 

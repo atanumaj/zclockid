@@ -1,12 +1,12 @@
 {
-  "version": "1.2.8",
-  "name": "ZclockID Enterprise v1.2.8",
+  "version": "1.2.9",
+  "name": "ZclockID Enterprise v1.2.9",
   "channel": "stable",
-  "release_type": "minor",
-  "published_at": "2026-11-10T11:30:00Z",
-  "summary": "Self Services Redesign: Self-Service Password Reset (SSPR) Portal & Logs, Month Filters, Live Search, Pagination, and CSV Exports",
-  "notes": "### What's Changed in v1.2.8:\n* **Self Services Redesign:** Renamed Self-Registrations to 'Self Services' with dual subtab interface ('Self Registration' and 'Self Service Password').\n* **Self-Service Password Reset (SSPR) Portal:** Added user-facing `/password-reset.html` supporting current password change, email OTP verification, and mobile SMS OTP reset.\n* **AD Contact Fallback Guard:** Automatically detects if email or mobile are missing from Active Directory user record and prompts user to contact their Domain Administrator.\n* **SSPR Management & Audit Trail:** Full audit logging of password reset requests, IP addresses, methods, and outcomes.\n* **Interactive Pagination, Search & Month Filter:** Dual-tab support for month dropdown filtering, live search queries, selectable items-per-page (10/25/50/100/All), and numbered pagination.\n* **CSV Data Export:** One-click CSV log downloads for both Self-Registration queues and Password Reset activity.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.8_all.deb",
-  "package_name": "zclockid_1.2.8_all.deb",
+  "release_type": "patch",
+  "published_at": "2026-11-11T12:30:00Z",
+  "summary": "HTTP GET SMS Webhook Template Support & Test SMS Action",
+  "notes": "### What's Changed in v1.2.9:\n* **HTTP GET SMS Webhook Support:** Enhanced `Custom Webhook / HTTP GET or POST API` in SMS Gateway dispatch to dynamically substitute `{to}`, `{to10}`, `{message}`, `{sender}`, and `{apikey}` query parameters and parse XML/JSON status responses (compatible with Indian DLT gateways like Robeeta).\n* **In-Modal Send Test SMS Button:** Added direct SMS gateway test functionality inside both Self Registration and Self Service Password Settings modals.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.9_all.deb",
+  "package_name": "zclockid_1.2.9_all.deb",
   "min_version_required": "1.0.0"
 }

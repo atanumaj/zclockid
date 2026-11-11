@@ -648,3 +648,53 @@ async function saveSspprSettings(e) {
         btn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> Save SSPR Settings`;
     }
 }
+
+async function sendTestSms(prefix) {
+    const mobileInput = document.getElementById(`${prefix}-test-sms-mobile`);
+    const mobile = mobileInput ? mobileInput.value.trim() : '';
+    if (!mobile) {
+        alert('Please enter a destination mobile number (e.g. +919582889339) to send a test SMS.');
+        return;
+    }
+
+    const btn = document.getElementById(`btn-${prefix}-test-sms`);
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sending...`;
+    }
+
+    const token = localStorage.getItem('zclockid_token');
+    const payload = {
+        mobile: mobile,
+        sms_gateway_type: document.getElementById(`${prefix}-cfg-sms-type`)?.value || 'simulated',
+        sms_gateway_url: document.getElementById(`${prefix}-cfg-sms-url`)?.value.trim() || '',
+        sms_api_key: document.getElementById(`${prefix}-cfg-sms-key`)?.value.trim() || '',
+        sms_sender_id: document.getElementById(`${prefix}-cfg-sender`)?.value.trim() || 'ZCLOCK',
+        sms_template: document.getElementById(`${prefix}-cfg-sms-template`)?.value.trim() || ''
+    };
+
+    try {
+        const res = await fetch('/api/v1/self-service/test-sms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message || 'Test SMS sent successfully!');
+        } else {
+            alert(`Test SMS failed: ${data.detail || 'Unknown error'}`);
+        }
+    } catch (err) {
+        alert(`Error sending test SMS: ${err}`);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send Test SMS`;
+        }
+    }
+}
+

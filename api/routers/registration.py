@@ -12,6 +12,7 @@ import secrets
 import logging
 import requests
 import smtplib
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, List, Optional
@@ -78,15 +79,55 @@ def dispatch_sms(mobile: str, message: str, settings: dict) -> tuple[bool, str]:
         if not url:
             return False, "Custom webhook SMS gateway URL is not configured."
         try:
-            payload = {
-                "to": mobile,
-                "message": message,
-                "sender": settings.get("sms_sender_id", "ZCLOCK"),
-                "api_key": settings.get("sms_api_key", "")
+            sender = settings.get("sms_sender_id", "ZCLOCK").strip()
+            api_key = settings.get("sms_api_key", "").strip()
+            clean_digits = re.sub(r"[^\d]", "", mobile)
+            to_10 = clean_digits[-10:] if len(clean_digits) >= 10 else clean_digits
+
+            placeholders = {
+                "{to}": urllib.parse.quote(mobile, safe=""),
+                "{mobile}": urllib.parse.quote(mobile, safe=""),
+                "{to10}": urllib.parse.quote(to_10, safe=""),
+                "{to_10}": urllib.parse.quote(to_10, safe=""),
+                "{message}": urllib.parse.quote(message, safe=""),
+                "{msg}": urllib.parse.quote(message, safe=""),
+                "{sender}": urllib.parse.quote(sender, safe=""),
+                "{apikey}": urllib.parse.quote(api_key, safe=""),
+                "{api_key}": urllib.parse.quote(api_key, safe="")
             }
-            res = requests.post(url, json=payload, timeout=8)
-            log_audit("SMS_DISPATCHED", "system", mobile, "SUCCESS" if res.status_code < 300 else "ERROR", {"provider": "webhook", "status_code": res.status_code})
-            return res.status_code < 300, f"Webhook responded with HTTP {res.status_code}"
+
+            has_placeholders = any(ph in url for ph in placeholders)
+            is_get_query = has_placeholders or ("?" in url and "=" in url)
+
+            if is_get_query:
+                final_url = url
+                for ph, val in placeholders.items():
+                    if ph in final_url:
+                        final_url = final_url.replace(ph, val)
+                res = requests.get(final_url, timeout=12)
+            else:
+                payload = {
+                    "to": mobile,
+                    "message": message,
+                    "sender": sender,
+                    "api_key": api_key
+                }
+                res = requests.post(url, json=payload, timeout=12)
+
+            resp_preview = res.text.strip()[:200]
+            upper_resp = resp_preview.upper()
+            is_ok = (res.status_code < 300) and not (
+                "<STATUS>FAIL</STATUS>" in upper_resp or
+                "<STATUS>ERROR</STATUS>" in upper_resp or
+                '"STATUS":"ERROR"' in upper_resp
+            )
+            log_audit("SMS_DISPATCHED", "system", mobile, "SUCCESS" if is_ok else "ERROR", {
+                "provider": "webhook",
+                "method": "GET" if is_get_query else "POST",
+                "status_code": res.status_code,
+                "response": resp_preview
+            })
+            return is_ok, f"HTTP {res.status_code}: {resp_preview}" if resp_preview else f"Webhook responded with HTTP {res.status_code}"
         except Exception as e:
             logger.error(f"Webhook SMS failed: {e}")
             return False, str(e)

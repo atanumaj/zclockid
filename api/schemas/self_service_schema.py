@@ -41,3 +41,11 @@ class PasswordResetSettingsUpdate(BaseModel):
     sms_api_key: str = ""
     sms_sender_id: str = "ZCLOCK"
     sms_template: str = "Your ZclockID password reset verification code is {otp}. Valid for 10 minutes."
+
+class TestSmsRequest(BaseModel):
+    mobile: str = Field(..., min_length=7, max_length=25)
+    sms_gateway_type: str = "webhook"
+    sms_gateway_url: str = ""
+    sms_api_key: str = ""
+    sms_sender_id: str = "ZCLOCK"
+    sms_template: str = "OTP for ZclockID Move to Bank account activation is {otp}. Powered by I-NET SECURE LABS PRIVATE LIMITED"
