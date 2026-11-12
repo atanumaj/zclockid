@@ -8,9 +8,16 @@ import socket
 import sqlite3
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from api.core.config import DB_PATH
 from api.services.system_service import log_audit, run_cmd
+from api.services.log_retention_service import (
+    get_log_retention_settings,
+    update_log_retention_settings,
+    get_log_table_counts,
+    prune_logs_by_policy,
+)
 from api.schemas.syslog_schema import (
     SyslogConfigRequest,
     SyslogTestEventRequest
@@ -192,13 +199,16 @@ def send_syslog_test_probe(req: SyslogTestEventRequest):
 @router.get("/logs")
 def get_categorized_logs(
     category: str = Query("system", pattern="^(samba|radius|auth|audit|system)$"),
-    lines: int = Query(100, ge=10, le=500),
+    lines: int = Query(100, ge=10, le=5000),
     filter: Optional[str] = Query(None)
 ):
     """
     Retrieves live categorized system and daemon logs with real-time text filtering.
     Categories: samba (AD DC), radius (FreeRADIUS), auth (SSHD/PAM), audit (ZclockID Audit DB), system (journal).
     """
+    ret_settings = get_log_retention_settings()
+    max_allowed = max(10, min(5000, int(ret_settings.get("live_log_max_lines", 1000) or 1000)))
+    lines = min(lines, max_allowed)
     logs = []
 
     if category == "audit":
@@ -271,3 +281,59 @@ def get_categorized_logs(
         })
 
     return {"category": category, "count": len(logs), "logs": logs}
+
+
+class LogRetentionUpdateRequest(BaseModel):
+    audit_retention_days: int = Field(180, ge=0, le=3650)
+    audit_max_entries: int = Field(50000, ge=0, le=5000000)
+    audit_ui_fetch_limit: int = Field(500, ge=50, le=10000)
+    self_service_retention_days: int = Field(180, ge=0, le=3650)
+    self_service_max_entries: int = Field(10000, ge=0, le=1000000)
+    self_service_ui_fetch_limit: int = Field(500, ge=50, le=10000)
+    live_log_default_lines: int = Field(100, ge=10, le=5000)
+    live_log_max_lines: int = Field(1000, ge=50, le=5000)
+    radius_retention_days: int = Field(180, ge=0, le=3650)
+    radius_max_entries: int = Field(50000, ge=0, le=5000000)
+    radius_ui_fetch_limit: int = Field(200, ge=25, le=10000)
+    auto_prune_enabled: bool = True
+
+
+@router.get("/retention")
+def get_retention_policy():
+    """Returns configured log retention periods, query/display limits, and live table row counts."""
+    settings = get_log_retention_settings()
+    counts = get_log_table_counts()
+    return {
+        "status": "success",
+        "settings": settings,
+        "counts": counts,
+    }
+
+
+@router.put("/retention")
+def update_retention_policy(req: LogRetentionUpdateRequest):
+    """Updates log retention periods and query/display limits across all logging subsystems."""
+    payload = req.model_dump()
+    payload["auto_prune_enabled"] = 1 if req.auto_prune_enabled else 0
+    if payload["live_log_default_lines"] > payload["live_log_max_lines"]:
+        payload["live_log_default_lines"] = payload["live_log_max_lines"]
+    updated = update_log_retention_settings(payload)
+    log_audit("LOG_RETENTION_UPDATED", "admin", "log_retention_settings", "SUCCESS", payload)
+    return {
+        "status": "success",
+        "message": "Log retention & query limit policies updated successfully.",
+        "settings": updated,
+        "counts": get_log_table_counts(),
+    }
+
+
+@router.post("/retention/prune")
+def run_retention_prune_now():
+    """Immediately executes log retention cleanup according to configured age and entry limits."""
+    result = prune_logs_by_policy(force=True)
+    log_audit("LOG_RETENTION_PRUNED", "admin", "all_log_tables", "SUCCESS", result.get("deleted", {}))
+    return {
+        "status": "success",
+        "message": f"Retention cleanup completed. Removed {result.get('total_deleted', 0)} expired/excess log entries.",
+        **result,
+    }

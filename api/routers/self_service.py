@@ -517,9 +517,12 @@ def get_password_reset_logs(
     month: Optional[str] = None,
     status_filter: Optional[str] = None,
     search: Optional[str] = None,
-    limit: int = 500
+    limit: Optional[int] = None
 ):
     """Returns password reset logs with filtering by month, status, and search query."""
+    from api.services.log_retention_service import get_log_retention_settings
+    if limit is None or limit <= 0:
+        limit = int(get_log_retention_settings().get("self_service_ui_fetch_limit", 500) or 500)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()

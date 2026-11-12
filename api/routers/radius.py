@@ -466,12 +466,15 @@ def update_radius_settings(req: RadiusSettingsRequest):
     return {"status": "success", "message": "FreeRADIUS engine parameters updated."}
 
 @router.get("/accounting/sessions")
-def get_radius_accounting_sessions():
+def get_radius_accounting_sessions(limit: Optional[int] = None):
     """Returns live and recent 802.1X RADIUS accounting sessions."""
+    from api.services.log_retention_service import get_log_retention_settings
+    if limit is None or limit <= 0:
+        limit = int(get_log_retention_settings().get("radius_ui_fetch_limit", 200) or 200)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM radius_accounting ORDER BY last_update DESC LIMIT 50")
+    cursor.execute("SELECT * FROM radius_accounting ORDER BY last_update DESC LIMIT ?", (limit,))
     rows = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return {"count": len(rows), "sessions": rows}

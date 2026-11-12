@@ -537,16 +537,19 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
     return {"status": "success", "message": "Self-registration and OTP policies updated successfully."}
 
 @router.get("/registrations/requests")
-def list_registration_requests(status_filter: Optional[str] = "all"):
+def list_registration_requests(status_filter: Optional[str] = "all", limit: Optional[int] = None):
     """Lists self-registration queue entries with status filtering."""
+    from api.services.log_retention_service import get_log_retention_settings
+    if limit is None or limit <= 0:
+        limit = int(get_log_retention_settings().get("self_service_ui_fetch_limit", 500) or 500)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     if status_filter and status_filter.lower() != "all":
-        cursor.execute("SELECT id, username, email, given_name, surname, department, mobile, status, ip_address, created_at, approved_at, approved_by, notes FROM self_registrations WHERE LOWER(status) = LOWER(?) ORDER BY created_at DESC", (status_filter,))
+        cursor.execute("SELECT id, username, email, given_name, surname, department, mobile, status, ip_address, created_at, approved_at, approved_by, notes FROM self_registrations WHERE LOWER(status) = LOWER(?) ORDER BY created_at DESC LIMIT ?", (status_filter, limit))
     else:
-        cursor.execute("SELECT id, username, email, given_name, surname, department, mobile, status, ip_address, created_at, approved_at, approved_by, notes FROM self_registrations ORDER BY created_at DESC")
+        cursor.execute("SELECT id, username, email, given_name, surname, department, mobile, status, ip_address, created_at, approved_at, approved_by, notes FROM self_registrations ORDER BY created_at DESC LIMIT ?", (limit,))
 
     rows = cursor.fetchall()
     conn.close()

@@ -5,19 +5,19 @@ Codename: stable
 Architectures: amd64 all
 Components: main
 Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
-Date: Thu, 12 Nov 2026 06:57:47 UTC
+Date: Thu, 12 Nov 2026 07:08:27 UTC
 MD5Sum:
- aec40ad4d3d9b9d17f3d7600b6ff98f9 38818 main/binary-amd64/Packages
- 66625b33efd88afa4229e685d6bf66e0 4087 main/binary-amd64/Packages.gz
- aec40ad4d3d9b9d17f3d7600b6ff98f9 38818 main/binary-all/Packages
- 66625b33efd88afa4229e685d6bf66e0 4087 main/binary-all/Packages.gz
+ 25b2772bfc14c82cefb4230ab9a098d7 40071 main/binary-amd64/Packages
+ b64afc864a526529289ac07500756f8f 4192 main/binary-amd64/Packages.gz
+ 25b2772bfc14c82cefb4230ab9a098d7 40071 main/binary-all/Packages
+ b64afc864a526529289ac07500756f8f 4192 main/binary-all/Packages.gz
 SHA1:
- 1c8de8d0cb6fe4a8c2790abf4a3dd5a4cdf7c7df 38818 main/binary-amd64/Packages
- a5981b3047dbe50d704acaf7060ad946043294a4 4087 main/binary-amd64/Packages.gz
- 1c8de8d0cb6fe4a8c2790abf4a3dd5a4cdf7c7df 38818 main/binary-all/Packages
- a5981b3047dbe50d704acaf7060ad946043294a4 4087 main/binary-all/Packages.gz
+ 3dd61c536472104ffaf8d49fae5a0393ee847a03 40071 main/binary-amd64/Packages
+ 915adaf2e91e7b745349cadd7969d1a80c21a0f7 4192 main/binary-amd64/Packages.gz
+ 3dd61c536472104ffaf8d49fae5a0393ee847a03 40071 main/binary-all/Packages
+ 915adaf2e91e7b745349cadd7969d1a80c21a0f7 4192 main/binary-all/Packages.gz
 SHA256:
- b47ad5db1afe2624f608e06ea21e4f022d00664071124519aa99605d0b79a22b 38818 main/binary-amd64/Packages
- de32dd4940ba3819ecddb5975bcda1ca4a08b3aeaa54a73a3d2aa992afa7e0bb 4087 main/binary-amd64/Packages.gz
- b47ad5db1afe2624f608e06ea21e4f022d00664071124519aa99605d0b79a22b 38818 main/binary-all/Packages
- de32dd4940ba3819ecddb5975bcda1ca4a08b3aeaa54a73a3d2aa992afa7e0bb 4087 main/binary-all/Packages.gz
+ 386846ca7e7bf27a7a29823b4517d7799f0c733eb70e870817be5683cede5ee7 40071 main/binary-amd64/Packages
+ 8f0609011295b0dc412c01a567816c2c0d5ad10df6f7cf226988fd5dc5c0b5e4 4192 main/binary-amd64/Packages.gz
+ 386846ca7e7bf27a7a29823b4517d7799f0c733eb70e870817be5683cede5ee7 40071 main/binary-all/Packages
+ 8f0609011295b0dc412c01a567816c2c0d5ad10df6f7cf226988fd5dc5c0b5e4 4192 main/binary-all/Packages.gz

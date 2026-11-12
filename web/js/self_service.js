@@ -365,7 +365,7 @@ async function fetchSspprLogs() {
     const token = localStorage.getItem('zclockid_token');
 
     try {
-        const res = await fetch(`/api/v1/self-service/password/logs?limit=500&_t=${Date.now()}`, {
+        const res = await fetch(`/api/v1/self-service/password/logs?_t=${Date.now()}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();

@@ -654,21 +654,29 @@ def get_reporting_summary():
     }
 
 @router.get("/api/v1/reports/audit-events")
-def get_audit_events_report(limit: int = 50, offset: int = 0):
+def get_audit_events_report(limit: Optional[int] = None, offset: int = 0):
+    from api.services.log_retention_service import get_log_retention_settings
+    if limit is None or limit <= 0:
+        limit = int(get_log_retention_settings().get("audit_ui_fetch_limit", 500) or 500)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM audit_events")
+    total_count = int(cursor.fetchone()[0])
     cursor.execute("SELECT * FROM audit_events ORDER BY timestamp DESC LIMIT ? OFFSET ?", (limit, offset))
     rows = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    return {"count": len(rows), "events": rows}
+    return {"count": len(rows), "total_count": total_count, "limit": limit, "events": rows}
 
 @router.get("/api/v1/reports/export/csv")
-def export_audit_csv():
+def export_audit_csv(limit: Optional[int] = None):
+    from api.services.log_retention_service import get_log_retention_settings
+    if limit is None or limit <= 0:
+        limit = int(get_log_retention_settings().get("audit_ui_fetch_limit", 500) or 500)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM audit_events ORDER BY timestamp DESC LIMIT 1000")
+    cursor.execute("SELECT * FROM audit_events ORDER BY timestamp DESC LIMIT ?", (limit,))
     rows = cursor.fetchall()
     conn.close()
 

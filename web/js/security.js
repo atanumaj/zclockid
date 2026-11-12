@@ -3,13 +3,13 @@
 
         function switchLogsSubTab(subtab) {
             currentLogsSubTab = subtab;
-            const subtabs = ['live', 'compliance', 'forwarder'];
+            const subtabs = ['live', 'compliance', 'forwarder', 'retention'];
             subtabs.forEach(s => {
                 const view = document.getElementById(`logs-view-${s}`);
                 const btn = document.getElementById(`logs-subtab-btn-${s}`);
                 if (view) view.classList.add('hidden');
                 if (btn) {
-                    btn.classList.remove('bg-sky-600', 'bg-emerald-600', 'bg-indigo-600', 'text-white', 'shadow-sm');
+                    btn.classList.remove('bg-sky-600', 'bg-emerald-600', 'bg-indigo-600', 'bg-amber-600', 'text-white', 'shadow-sm');
                     btn.classList.add('bg-slate-800', 'text-slate-300');
                 }
             });
@@ -21,13 +21,16 @@
                 activeBtn.classList.remove('bg-slate-800', 'text-slate-300');
                 if (subtab === 'live') {
                     activeBtn.classList.add('bg-sky-600', 'text-white', 'shadow-sm');
-                    fetchLiveSyslog();
+                    fetchLogRetentionSettings().then(() => fetchLiveSyslog());
                 } else if (subtab === 'compliance') {
                     activeBtn.classList.add('bg-emerald-600', 'text-white', 'shadow-sm');
                     fetchAuditEvents();
                 } else if (subtab === 'forwarder') {
                     activeBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
                     fetchSyslogSettings();
+                } else if (subtab === 'retention') {
+                    activeBtn.classList.add('bg-amber-600', 'text-white', 'shadow-sm');
+                    fetchLogRetentionSettings();
                 }
             }
         }
@@ -37,6 +40,8 @@
                 fetchAuditEvents();
             } else if (currentLogsSubTab === 'forwarder') {
                 fetchSyslogSettings();
+            } else if (currentLogsSubTab === 'retention') {
+                fetchLogRetentionSettings();
             } else {
                 fetchLiveSyslog();
             }
@@ -44,11 +49,14 @@
 
         async function fetchAuditEvents() {
             try {
-                const res = await fetch(`${API_BASE}/reports/audit-events?limit=100`, { headers: getAuthHeaders() });
+                const [res] = await Promise.all([
+                    fetch(`${API_BASE}/reports/audit-events`, { headers: getAuthHeaders() }),
+                    fetchLogRetentionSettings()
+                ]);
                 const data = await res.json();
                 cachedAuditRecords = data.events || [];
                 const countBadge = document.getElementById('audit-total-count');
-                if (countBadge) countBadge.innerText = (data.count || cachedAuditRecords.length).toLocaleString();
+                if (countBadge) countBadge.innerText = (data.total_count ?? data.count ?? cachedAuditRecords.length).toLocaleString();
                 filterAuditEvents();
             } catch (err) {
                 console.error('Error fetching audit events:', err);
@@ -1352,5 +1360,125 @@
             navigator.clipboard.writeText(terminal.innerText).then(() => {
                 alert('Logs copied to clipboard.');
             });
+        }
+
+        function applyLiveLogLimitOptions(settings) {
+            const sel = document.getElementById('live-log-lines');
+            if (!sel || !settings) return;
+            const maxLines = parseInt(settings.live_log_max_lines || 1000);
+            const defLines = parseInt(settings.live_log_default_lines || 100);
+            const candidates = [50, 100, 250, 500, 1000, 2000, 5000].filter(v => v <= maxLines);
+            if (!candidates.includes(maxLines)) candidates.push(maxLines);
+            const prevVal = parseInt(sel.value || defLines);
+            sel.innerHTML = candidates.map(v => `<option value="${v}">${v.toLocaleString()} lines</option>`).join('');
+            const target = candidates.includes(prevVal) ? prevVal : (candidates.includes(defLines) ? defLines : candidates[0]);
+            sel.value = String(target);
+        }
+
+        function _formatRetentionBadge(days) {
+            const d = parseInt(days || 0);
+            if (d === 0) return 'Unlimited';
+            if (d % 30 === 0 && d >= 90) return `${d} Days (${d / 30} Mo)`;
+            return `${d} Days Active`;
+        }
+
+        async function fetchLogRetentionSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/syslog/retention`, { headers: getAuthHeaders() });
+                if (!res.ok) return;
+                const data = await res.json();
+                const s = data.settings || {};
+                const c = data.counts || {};
+
+                // Update Compliance KPI card
+                const retLbl = document.getElementById('audit-retention-label');
+                const retSub = document.getElementById('audit-retention-sublabel');
+                if (retLbl) retLbl.innerText = _formatRetentionBadge(s.audit_retention_days);
+                if (retSub) {
+                    const maxTxt = parseInt(s.audit_max_entries) === 0 ? 'Unlimited entries' : `Max ${parseInt(s.audit_max_entries).toLocaleString()} entries`;
+                    retSub.innerText = `${maxTxt} • Click to configure`;
+                }
+
+                // Update Live Log dropdown limits
+                applyLiveLogLimitOptions(s);
+
+                // Update Retention Sub-Tab Volume Cards
+                const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+                setText('ret-count-audit', (c.audit_events ?? 0).toLocaleString());
+                setText('ret-count-reg', (c.self_registrations ?? 0).toLocaleString());
+                setText('ret-count-sspr', (c.self_service_password_logs ?? 0).toLocaleString());
+                setText('ret-count-radius', (c.radius_accounting ?? 0).toLocaleString());
+                setText('ret-count-failed', (c.failed_login_attempts ?? 0).toLocaleString());
+                setText('ret-last-pruned', s.last_pruned_at > 0 ? new Date(s.last_pruned_at * 1000).toLocaleString() : 'Never');
+
+                // Populate form controls
+                const setVal = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined && val !== null) el.value = String(val); };
+                setVal('ret-audit-days', s.audit_retention_days);
+                setVal('ret-audit-max', s.audit_max_entries);
+                setVal('ret-audit-ui', s.audit_ui_fetch_limit);
+                setVal('ret-ss-days', s.self_service_retention_days);
+                setVal('ret-ss-max', s.self_service_max_entries);
+                setVal('ret-ss-ui', s.self_service_ui_fetch_limit);
+                setVal('ret-live-default', s.live_log_default_lines);
+                setVal('ret-live-max', s.live_log_max_lines);
+                setVal('ret-radius-days', s.radius_retention_days);
+                setVal('ret-radius-max', s.radius_max_entries);
+                setVal('ret-radius-ui', s.radius_ui_fetch_limit);
+
+                const autoToggle = document.getElementById('ret-auto-prune');
+                if (autoToggle) autoToggle.checked = !!s.auto_prune_enabled;
+                const autoLbl = document.getElementById('ret-auto-prune-label');
+                if (autoLbl) autoLbl.innerText = s.auto_prune_enabled ? 'Auto-Prune Hourly' : 'Auto-Prune Paused';
+            } catch (err) {
+                console.error('Failed to load log retention settings:', err);
+            }
+        }
+
+        async function handleSaveLogRetention(e) {
+            e.preventDefault();
+            const payload = {
+                audit_retention_days: parseInt(document.getElementById('ret-audit-days').value),
+                audit_max_entries: parseInt(document.getElementById('ret-audit-max').value),
+                audit_ui_fetch_limit: parseInt(document.getElementById('ret-audit-ui').value),
+                self_service_retention_days: parseInt(document.getElementById('ret-ss-days').value),
+                self_service_max_entries: parseInt(document.getElementById('ret-ss-max').value),
+                self_service_ui_fetch_limit: parseInt(document.getElementById('ret-ss-ui').value),
+                live_log_default_lines: parseInt(document.getElementById('ret-live-default').value),
+                live_log_max_lines: parseInt(document.getElementById('ret-live-max').value),
+                radius_retention_days: parseInt(document.getElementById('ret-radius-days').value),
+                radius_max_entries: parseInt(document.getElementById('ret-radius-max').value),
+                radius_ui_fetch_limit: parseInt(document.getElementById('ret-radius-ui').value),
+                auto_prune_enabled: document.getElementById('ret-auto-prune').checked
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/syslog/retention`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Failed to save retention policy');
+                alert('Log retention & query limit policies saved successfully.');
+                fetchLogRetentionSettings();
+            } catch (err) {
+                alert(`Error: ${err.message}`);
+            }
+        }
+
+        async function runLogRetentionPruneNow() {
+            if (!confirm('Run log retention cleanup now? Entries older than the configured retention period or exceeding max stored entries will be permanently deleted.')) return;
+            try {
+                const res = await fetch(`${API_BASE}/syslog/retention/prune`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Cleanup failed');
+                alert(data.message || 'Retention cleanup completed.');
+                fetchLogRetentionSettings();
+            } catch (err) {
+                alert(`Cleanup Error: ${err.message}`);
+            }
         }
 

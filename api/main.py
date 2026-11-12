@@ -32,6 +32,7 @@ from api.core.config import (
 from api.db.init_db import init_db
 from api.services.radius_service import sync_freeradius_policies
 from api.services.security_service import get_client_ip, is_ip_allowed, get_security_settings
+from api.services.log_retention_service import prune_logs_by_policy
 
 # Subsystem API Routers
 from api.routers import (
@@ -169,12 +170,17 @@ def serve_portal_asset(filename: str):
 if WEB_DIR.exists() and (WEB_DIR / "index.html").exists():
     app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="static_web")
 
-# Background thread for periodic RADIUS / AD synchronization
+# Background thread for periodic RADIUS / AD synchronization and log retention pruning
 def background_radius_drs_poller():
+    last_prune = 0.0
     while True:
         try:
             time.sleep(60)
             sync_freeradius_policies()
+            now = time.time()
+            if now - last_prune >= 3600:
+                prune_logs_by_policy(force=False)
+                last_prune = now
         except Exception:
             pass
 

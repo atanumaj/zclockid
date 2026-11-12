@@ -530,6 +530,39 @@ def init_db():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, system_rules)
 
+    # Log Retention & Query Limits Settings
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS log_retention_settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            audit_retention_days INTEGER DEFAULT 180,
+            audit_max_entries INTEGER DEFAULT 50000,
+            audit_ui_fetch_limit INTEGER DEFAULT 500,
+            self_service_retention_days INTEGER DEFAULT 180,
+            self_service_max_entries INTEGER DEFAULT 10000,
+            self_service_ui_fetch_limit INTEGER DEFAULT 500,
+            live_log_default_lines INTEGER DEFAULT 100,
+            live_log_max_lines INTEGER DEFAULT 1000,
+            radius_retention_days INTEGER DEFAULT 180,
+            radius_max_entries INTEGER DEFAULT 50000,
+            radius_ui_fetch_limit INTEGER DEFAULT 200,
+            auto_prune_enabled INTEGER DEFAULT 1,
+            last_pruned_at REAL DEFAULT 0,
+            last_pruned_summary TEXT DEFAULT '{}',
+            updated_at REAL
+        )
+    """)
+    cursor.execute("SELECT COUNT(*) FROM log_retention_settings WHERE id = 1")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO log_retention_settings (
+                id, audit_retention_days, audit_max_entries, audit_ui_fetch_limit,
+                self_service_retention_days, self_service_max_entries, self_service_ui_fetch_limit,
+                live_log_default_lines, live_log_max_lines,
+                radius_retention_days, radius_max_entries, radius_ui_fetch_limit,
+                auto_prune_enabled, last_pruned_at, last_pruned_summary, updated_at
+            ) VALUES (1, 180, 50000, 500, 180, 10000, 500, 100, 1000, 180, 50000, 200, 1, 0, '{}', ?)
+        """, (time.time(),))
+
     conn.commit()
     conn.close()
 

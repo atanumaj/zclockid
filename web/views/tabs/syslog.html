@@ -26,6 +26,9 @@
                     <button onclick="switchLogsSubTab('forwarder')" id="logs-subtab-btn-forwarder" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
                         <i class="fa-solid fa-tower-broadcast text-indigo-400 text-xs"></i> Remote Syslog Forwarder
                     </button>
+                    <button onclick="switchLogsSubTab('retention')" id="logs-subtab-btn-retention" class="px-3.5 py-1.5 rounded-lg font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-sliders text-amber-400 text-xs"></i> Log Retention &amp; Limits
+                    </button>
                 </div>
 
                 <!-- SUB-VIEW 1: LIVE LOG STREAMING -->
@@ -108,13 +111,13 @@
                             <div class="text-sm font-bold text-indigo-400 font-mono">SOC2 • ISO 27001</div>
                             <div class="text-[11px] text-slate-500 mt-1">HIPAA & GDPR Ready</div>
                         </div>
-                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+                        <div onclick="switchLogsSubTab('retention')" class="bg-slate-900 border border-slate-800 hover:border-amber-500/40 rounded-xl p-4 cursor-pointer transition" title="Click to configure log retention & limits">
                             <div class="flex items-center justify-between text-slate-400 text-xs font-medium mb-1">
                                 <span>Retention Policy</span>
                                 <i class="fa-solid fa-clock-rotate-left text-amber-400"></i>
                             </div>
-                            <div class="text-lg font-bold text-amber-400 font-mono">180 Days Active</div>
-                            <div class="text-[11px] text-slate-500 mt-1">SIEM Forwarding Auto-Sync</div>
+                            <div class="text-lg font-bold text-amber-400 font-mono" id="audit-retention-label">180 Days Active</div>
+                            <div class="text-[11px] text-slate-500 mt-1" id="audit-retention-sublabel">Click to configure limits</div>
                         </div>
                     </div>
 
@@ -240,6 +243,214 @@
                                 </button>
                                 <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-sky-600/30 flex items-center gap-1.5">
                                     <i class="fa-solid fa-floppy-disk"></i> Save Forwarder Settings
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- SUB-VIEW 4: LOG RETENTION & QUERY LIMITS -->
+                <div id="logs-view-retention" class="space-y-6 hidden">
+                    <!-- Live Table Volume Summary -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+                            <div class="text-[11px] text-slate-400">Audit Events</div>
+                            <div class="text-lg font-bold text-emerald-400 font-mono mt-0.5" id="ret-count-audit">--</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+                            <div class="text-[11px] text-slate-400">Self-Registrations</div>
+                            <div class="text-lg font-bold text-sky-400 font-mono mt-0.5" id="ret-count-reg">--</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+                            <div class="text-[11px] text-slate-400">SSPR Logs</div>
+                            <div class="text-lg font-bold text-indigo-400 font-mono mt-0.5" id="ret-count-sspr">--</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+                            <div class="text-[11px] text-slate-400">RADIUS Sessions</div>
+                            <div class="text-lg font-bold text-cyan-400 font-mono mt-0.5" id="ret-count-radius">--</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+                            <div class="text-[11px] text-slate-400">Failed Logins</div>
+                            <div class="text-lg font-bold text-rose-400 font-mono mt-0.5" id="ret-count-failed">--</div>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-3.5">
+                            <div class="text-[11px] text-slate-400">Last Auto-Pruned</div>
+                            <div class="text-xs font-semibold text-amber-400 font-mono mt-1.5" id="ret-last-pruned">Never</div>
+                        </div>
+                    </div>
+
+                    <!-- Retention & Query Limits Form -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-5">
+                            <div class="flex items-center gap-2.5">
+                                <i class="fa-solid fa-sliders text-amber-400 text-lg"></i>
+                                <div>
+                                    <h3 class="font-bold text-sm text-white">Log Retention &amp; Query Limits Policy</h3>
+                                    <p class="text-xs text-slate-400">Configure how long logs are retained (e.g. 6 months, 12 months, unlimited), maximum stored entries, and UI/export fetch limits across all subsystems.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="ret-auto-prune" checked class="sr-only peer">
+                                    <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                                </label>
+                                <span class="text-xs font-mono text-slate-300" id="ret-auto-prune-label">Auto-Prune Hourly</span>
+                            </div>
+                        </div>
+
+                        <form onsubmit="handleSaveLogRetention(event)" class="space-y-5 text-xs">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <!-- Compliance & Audit Trail -->
+                                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                                    <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-wider">
+                                        <i class="fa-solid fa-file-shield"></i> Compliance &amp; Audit Trail
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Retention Period</label>
+                                            <select id="ret-audit-days" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="90">3 Months (90d)</option>
+                                                <option value="180">6 Months (180d)</option>
+                                                <option value="365">12 Months (365d)</option>
+                                                <option value="730">24 Months (730d)</option>
+                                                <option value="0">Unlimited</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Max Stored Entries</label>
+                                            <select id="ret-audit-max" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="10000">10,000</option>
+                                                <option value="50000">50,000</option>
+                                                <option value="100000">100,000</option>
+                                                <option value="500000">500,000</option>
+                                                <option value="0">Unlimited</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">UI &amp; CSV Limit</label>
+                                            <select id="ret-audit-ui" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="100">100 rows</option>
+                                                <option value="250">250 rows</option>
+                                                <option value="500">500 rows</option>
+                                                <option value="1000">1,000 rows</option>
+                                                <option value="5000">5,000 rows</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Self-Service Logs -->
+                                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                                    <div class="flex items-center gap-2 text-sky-400 font-bold text-xs uppercase tracking-wider">
+                                        <i class="fa-solid fa-user-check"></i> Self-Service (Registration &amp; SSPR)
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Retention Period</label>
+                                            <select id="ret-ss-days" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="90">3 Months (90d)</option>
+                                                <option value="180">6 Months (180d)</option>
+                                                <option value="365">12 Months (365d)</option>
+                                                <option value="730">24 Months (730d)</option>
+                                                <option value="0">Unlimited</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Max Stored Entries</label>
+                                            <select id="ret-ss-max" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="5000">5,000</option>
+                                                <option value="10000">10,000</option>
+                                                <option value="50000">50,000</option>
+                                                <option value="100000">100,000</option>
+                                                <option value="0">Unlimited</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">UI Table Limit</label>
+                                            <select id="ret-ss-ui" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="100">100 rows</option>
+                                                <option value="250">250 rows</option>
+                                                <option value="500">500 rows</option>
+                                                <option value="1000">1,000 rows</option>
+                                                <option value="5000">5,000 rows</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Live Log Streaming -->
+                                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                                    <div class="flex items-center gap-2 text-indigo-400 font-bold text-xs uppercase tracking-wider">
+                                        <i class="fa-solid fa-terminal"></i> Live Log Streaming
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Default Lines Loaded</label>
+                                            <select id="ret-live-default" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="50">50 lines</option>
+                                                <option value="100">100 lines</option>
+                                                <option value="250">250 lines</option>
+                                                <option value="500">500 lines</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Max Lines Allowed</label>
+                                            <select id="ret-live-max" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="500">500 lines</option>
+                                                <option value="1000">1,000 lines</option>
+                                                <option value="2000">2,000 lines</option>
+                                                <option value="5000">5,000 lines</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- RADIUS Accounting & Sessions -->
+                                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                                    <div class="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-wider">
+                                        <i class="fa-solid fa-wifi"></i> RADIUS Accounting &amp; Reporting
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Retention Period</label>
+                                            <select id="ret-radius-days" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="90">3 Months (90d)</option>
+                                                <option value="180">6 Months (180d)</option>
+                                                <option value="365">12 Months (365d)</option>
+                                                <option value="730">24 Months (730d)</option>
+                                                <option value="0">Unlimited</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">Max Stored Entries</label>
+                                            <select id="ret-radius-max" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="10000">10,000</option>
+                                                <option value="50000">50,000</option>
+                                                <option value="100000">100,000</option>
+                                                <option value="500000">500,000</option>
+                                                <option value="0">Unlimited</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-slate-400 mb-1">UI Sessions Limit</label>
+                                            <select id="ret-radius-ui" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-white">
+                                                <option value="50">50 sessions</option>
+                                                <option value="100">100 sessions</option>
+                                                <option value="200">200 sessions</option>
+                                                <option value="500">500 sessions</option>
+                                                <option value="1000">1,000 sessions</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+                                <button type="button" onclick="runLogRetentionPruneNow()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-semibold rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                                    <i class="fa-solid fa-broom"></i> Run Retention Cleanup Now
+                                </button>
+                                <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg transition shadow-lg shadow-amber-600/20 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-floppy-disk"></i> Save Retention Policy
                                 </button>
                             </div>
                         </form>

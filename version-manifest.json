@@ -1,12 +1,12 @@
 {
-  "version": "1.3.1",
-  "name": "ZclockID Enterprise v1.3.1",
+  "version": "1.3.2",
+  "name": "ZclockID Enterprise v1.3.2",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-12T07:00:00Z",
-  "summary": "Preserve Historical Self-Registration Logs & Asynchronous Post-OTP Welcome Notifications",
-  "notes": "### What's Changed in v1.3.1:\n* **Preserve Approved Registration History:** Fixed `submit_self_registration` so new registrations sharing a mobile number only clean up uncompleted `PENDING_OTP` attempts instead of deleting prior `VERIFIED_AUTO_PROVISIONED` or `APPROVED` log entries.\n* **Faster OTP Provisioning Response:** Moved post-activation welcome SMS and SMTP email dispatches in `/api/v1/public/register/verify-otp` to FastAPI `BackgroundTasks` so the portal returns immediately once Active Directory provisioning completes.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.3.1_all.deb",
-  "package_name": "zclockid_1.3.1_all.deb",
+  "release_type": "minor",
+  "published_at": "2026-11-12T07:15:00Z",
+  "summary": "Configurable Log Retention & Query Limits across Compliance, Self-Service, Live Logs, and RADIUS Reporting",
+  "notes": "### What's Changed in v1.3.2:\n* **Log Retention & Query Limits Policy:** Added `log_retention_settings` table and a dedicated **Log Retention & Limits** sub-tab under **Compliance & Live Logs**.\n* **Configurable Time & Entry Limits:** Configure retention period (3, 6, 12, 24 months, or Unlimited), maximum stored entries, and UI/CSV fetch limits independently for **Compliance & Audit Trail**, **Self-Service (Registration & SSPR)**, **Live Log Streaming**, and **RADIUS Accounting**.\n* **Automated Hourly Pruning & On-Demand Cleanup:** Added background hourly retention enforcement and a manual **Run Retention Cleanup Now** trigger via `POST /api/v1/syslog/retention/prune`.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.3.2_all.deb",
+  "package_name": "zclockid_1.3.2_all.deb",
   "min_version_required": "1.0.0"
 }
