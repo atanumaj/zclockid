@@ -4,7 +4,7 @@ Handles self-service user onboarding, mobile OTP dispatch and verification, orga
 and administrator approval queue.
 """
 
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, status, Request, BackgroundTasks
 import sqlite3
 import time
 import re
@@ -278,7 +278,7 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM self_registrations WHERE username = ? OR mobile = ?", (clean_user, clean_mobile))
+    cursor.execute("DELETE FROM self_registrations WHERE username = ? OR (mobile = ? AND status = 'PENDING_OTP')", (clean_user, clean_mobile))
 
     if require_otp:
         otp = f"{secrets.randbelow(900000) + 100000}"
@@ -337,7 +337,7 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
         }
 
 @router.post("/public/register/verify-otp")
-def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest):
+def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_tasks: BackgroundTasks):
     """Verifies mobile OTP code. If valid, automatically provisions and activates user in Samba Active Directory."""
     settings = get_self_registration_settings()
     conn = sqlite3.connect(DB_PATH)
@@ -404,8 +404,14 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest):
     conn.close()
 
     welcome_sms = f"Welcome to {domain}! Your corporate domain account '{username}' has been verified and activated. You may now log in to Windows, Wi-Fi, and VPN."
-    dispatch_sms(mobile, welcome_sms, settings)
-    dispatch_email(email, f"Welcome to {domain} - Account Activated", f"Hello {given_name},\n\nYour domain account '{username}' has been successfully verified via mobile OTP and created in Active Directory under primary domain '{domain}'.\n\nRegards,\nIdentity & Access Team", settings)
+    background_tasks.add_task(dispatch_sms, mobile, welcome_sms, settings)
+    background_tasks.add_task(
+        dispatch_email,
+        email,
+        f"Welcome to {domain} - Account Activated",
+        f"Hello {given_name},\n\nYour domain account '{username}' has been successfully verified via mobile OTP and created in Active Directory under primary domain '{domain}'.\n\nRegards,\nIdentity & Access Team",
+        settings,
+    )
 
     log_audit("USER_SELF_REGISTERED_AUTO_APPROVED", username, "active_directory", "SUCCESS", {"mobile": mobile, "email": email, "domain": domain})
 
