@@ -305,3 +305,16 @@ All API endpoints (except `/api/v1/auth/login` and `/api/v1/status/health`) requ
 * `POST /api/v1/self-service/portal-assets/upload`: Upload logo/image/CSS asset (`.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`, `.ico`, `.css`, max 5 MB) served publicly at `GET /portal-assets/{filename}`.
 * `DELETE /api/v1/self-service/portal-assets/{filename}`: Delete an uploaded portal asset.
 
+---
+
+## 14. Compliance, Live Logs & Log Retention Policy
+
+* `GET /api/v1/syslog/logs`: Stream live categorized logs (`category`: `samba | radius | auth | audit | system`, `lines`: `10..live_log_max_lines`, `filter`).
+* `GET /api/v1/syslog/retention`: Retrieve configured retention periods, max stored entry caps, UI/export fetch limits, and live row counts across `audit_events`, `self_registrations`, `self_service_password_logs`, `radius_accounting`, and `failed_login_attempts`.
+* `PUT /api/v1/syslog/retention`: Update retention days (`0` = Unlimited, `90`/`180`/`365`/`730`), max stored entries (`0` = Unlimited), UI/CSV fetch limits, `live_log_default_lines`, `live_log_max_lines`, and `auto_prune_enabled`.
+* `POST /api/v1/syslog/retention/prune`: Immediately enforce configured retention age and max-entry caps across all log tables and return deleted row counts.
+* `GET /api/v1/reports/audit-events` & `GET /api/v1/reports/export/csv`: Query or export `audit_events` (defaults to configured `audit_ui_fetch_limit` when `limit` is omitted).
+* `GET /api/v1/radius/accounting/sessions`: Query RADIUS accounting sessions (defaults to configured `radius_ui_fetch_limit` when `limit` is omitted).
+* `GET /api/v1/registrations/requests` & `GET /api/v1/self-service/password/logs`: Query Self-Registration and SSPR logs (default to configured `self_service_ui_fetch_limit` when `limit` is omitted).
+
+

@@ -403,6 +403,14 @@ Organizations can customize the look, corporate logo, styling, and instructional
 
 ## 11. Appliance Operations, Maintenance & Troubleshooting
 
+### Log Retention, Query Limits & Automated Pruning
+Navigate to **Compliance & Live Logs → Log Retention & Limits** (or click the **Retention Policy** KPI card in **Compliance & Audit Trail**) to configure how long logs are retained and how many rows are loaded in tables and exports:
+* **Compliance & Audit Trail (`audit_events` & `failed_login_attempts`):** Set retention period (**3, 6, 12, 24 Months, or Unlimited**), maximum stored entries (`10,000`–`500,000` or **Unlimited**), and UI/CSV fetch limit (`100`–`5,000` rows).
+* **Self-Service Logs (`self_registrations` & `self_service_password_logs`):** Set retention period, max stored entries, and UI table fetch limit. Active `PENDING_APPROVAL` registration requests are preserved during pruning.
+* **Live Log Streaming:** Configure default lines loaded (`50`–`500`) and maximum lines allowed (`500`–`5,000`) for Samba AD, FreeRADIUS, Auth/SSH, Audit DB, and System Journal viewers.
+* **RADIUS Accounting & Reporting:** Set retention period, max stored entries, and UI sessions fetch limit (`50`–`1,000` sessions).
+* **Automated & Manual Cleanup:** Enable **Auto-Prune Hourly** to enforce retention policies automatically in the background, or click **Run Retention Cleanup Now** for immediate pruning.
+
 ### Service Management Commands
 To inspect or restart core ZclockID services from the terminal:
 

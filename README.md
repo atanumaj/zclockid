@@ -77,6 +77,17 @@ zclockid/
 
 ---
 
+## Licensing & Tiers
+
+| Tier | User Limit | Features & Support | How to Obtain |
+| :--- | :--- | :--- | :--- |
+| **Free Community Tier** | Up to **200** Active Directory users | Full core appliance features (Samba 4 AD DC, BIND9 DLZ/DoH, FreeRADIUS 802.1X, Self Services, Compliance & Live Logs, Configurable Log Retention) | Included out-of-the-box (no license file required) |
+| **Enterprise / Higher Tiers** | **200+** Active Directory users | Expanded user capacity via signed `zclockid.lic` license file *(structured pricing tiers coming soon)* | Contact **[atanu2020@gmail.com](mailto:atanu2020@gmail.com)** |
+
+Upload and manage your `zclockid.lic` file in the Web Console under **Security & Management → License**.
+
+---
+
 ## Recommended System Specifications
 
 | Component | Minimum Specification | Recommended Production |
