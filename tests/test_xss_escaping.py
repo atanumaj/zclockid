@@ -1,11 +1,12 @@
 """
-Tests for v1.3.7 XSS escaping, Content Security Policy headers, and SSPR fixes.
+Tests for v1.3.8 XSS escaping, interim CSP headers, action delegation uniqueness, and SSPR fixes.
 """
 import os
 import re
 import sqlite3
 import subprocess
 import time
+from collections import Counter
 from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
@@ -59,8 +60,28 @@ def test_escape_html_implementation_in_core_js():
     assert "&#96;" in content
 
 
+def test_no_duplicate_actions_in_core_js_click_handler():
+    """Verify that every data-action handler branch in core.js appears at most once, and control-service reads data-op."""
+    core_js_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../web/js/core.js"))
+    with open(core_js_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # Find all action === '...' occurrences
+    action_matches = re.findall(r"action === ['\"]([^'\"]+)['\"]", content)
+    counts = Counter(action_matches)
+    duplicates = {action: count for action, count in counts.items() if count > 1}
+
+    assert not duplicates, f"Duplicate data-action handler branches found in core.js: {duplicates}"
+
+    # Verify control-service reads data-op, to match dashboard.js
+    match = re.search(r"action === ['\"]control-service['\"][\s\S]*?window\.controlService\(([^)]+)\)", content)
+    assert match, "control-service action branch not found in core.js"
+    args = match.group(1)
+    assert "btn.dataset.service" in args and "btn.dataset.op" in args, f"control-service must read btn.dataset.op, found: {args}"
+
+
 def test_nginx_csp_and_security_headers():
-    """Verify Nginx configuration templates contain the required CSP, nosniff, and referrer policy."""
+    """Verify Nginx configuration templates contain the required interim CSP policy and security headers."""
     conf_paths = [
         os.path.abspath(os.path.join(os.path.dirname(__file__), "../config-templates/nginx/zclockid.conf")),
         os.path.abspath(os.path.join(os.path.dirname(__file__), "../config/nginx/zclockid.conf"))
@@ -73,16 +94,21 @@ def test_nginx_csp_and_security_headers():
 
         assert "Content-Security-Policy" in conf
         assert "default-src 'self'" in conf
-        assert "script-src 'self' https://cdn.tailwindcss.com https://cdn.jsdelivr.net" in conf
+        assert "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net" in conf
+        assert "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com" in conf
+        assert "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com" in conf
+        assert "img-src 'self' data:" in conf
+        assert "connect-src 'self'" in conf
         assert "object-src 'none'" in conf
         assert "frame-ancestors 'none'" in conf
         assert "base-uri 'self'" in conf
+        assert "form-action 'self'" in conf
         assert 'add_header X-Content-Type-Options "nosniff"' in conf or 'add_header X-Content-Type-Options nosniff' in conf
         assert 'add_header Referrer-Policy "same-origin"' in conf or 'add_header Referrer-Policy same-origin' in conf
 
 
-def test_portal_custom_html_csp_sandbox(tmp_path, monkeypatch):
-    """Serve custom portal HTML uploads with Content-Security-Policy: sandbox allow-forms allow-scripts."""
+def test_portal_custom_html_csp_sandbox_and_headers(tmp_path, monkeypatch):
+    """Serve custom portal HTML with sandbox, and built-in portal with interim CSP + X-Frame-Options: DENY."""
     db_file, _, orig = _setup_test_environment(tmp_path)
     try:
         portal_dir = tmp_path / "portals"
@@ -103,9 +129,10 @@ def test_portal_custom_html_csp_sandbox(tmp_path, monkeypatch):
         resp = client.get("/register.html")
         assert resp.status_code == 200
         assert resp.headers.get("content-security-policy") == "sandbox allow-forms allow-scripts"
+        assert resp.headers.get("x-frame-options") == "DENY"
         assert "Custom Register Page" in resp.text
 
-        # Disable use_custom_html: should fall back to built-in template without sandbox CSP
+        # Disable use_custom_html: should fall back to built-in template with interim CSP policy and X-Frame-Options: DENY
         conn = sqlite3.connect(db_file)
         conn.execute("UPDATE self_registration_settings SET use_custom_html = 0 WHERE id = 1")
         conn.commit()
@@ -113,7 +140,18 @@ def test_portal_custom_html_csp_sandbox(tmp_path, monkeypatch):
 
         resp_default = client.get("/register.html")
         assert resp_default.status_code == 200
-        assert "content-security-policy" not in resp_default.headers or resp_default.headers.get("content-security-policy") != "sandbox allow-forms allow-scripts"
+        csp_header = resp_default.headers.get("content-security-policy", "")
+        assert "default-src 'self'" in csp_header
+        assert "script-src 'self' 'unsafe-inline'" in csp_header
+        assert resp_default.headers.get("x-frame-options") == "DENY"
+        assert resp_default.headers.get("x-content-type-options") == "nosniff"
+        assert resp_default.headers.get("referrer-policy") == "same-origin"
+
+        # Check /password-reset.html as well
+        resp_pwd = client.get("/password-reset.html")
+        assert resp_pwd.status_code == 200
+        assert resp_pwd.headers.get("x-frame-options") == "DENY"
+        assert "script-src 'self' 'unsafe-inline'" in resp_pwd.headers.get("content-security-policy", "")
     finally:
         _restore_environment(orig)
 
@@ -145,7 +183,7 @@ def test_sspr_no_early_privilege_check_on_verify(tmp_path, monkeypatch):
         # Mock is_privileged_account to return True for Administrator
         monkeypatch.setattr(ss_mod, "is_privileged_account", lambda u, **kw: u.lower() == "administrator")
 
-        # Send wrong OTP: should fail with Invalid or expired code (and failed_attempts incremented), NOT 403
+        # Send wrong OTP: should fail with Invalid verification code entered, NOT 403
         payload = {
             "reset_id": reset_id,
             "username": target_user,

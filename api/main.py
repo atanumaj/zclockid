@@ -145,9 +145,18 @@ def _serve_portal_html(table_name: str, filename: str):
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Portal template '{filename}' not found.")
 
-    headers = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
-    if use_custom:
-        headers["Content-Security-Policy"] = "sandbox allow-forms allow-scripts"
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "same-origin",
+        "X-Frame-Options": "DENY",
+        "Content-Security-Policy": (
+            "sandbox allow-forms allow-scripts" if use_custom else
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        )
+    }
 
     return FileResponse(
         path=str(target),

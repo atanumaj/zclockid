@@ -47,7 +47,14 @@
         })();
 
         // ==================== AUTHENTICATION GUARD & CLIENT SECURITY ====================
-        const initialAuthToken = localStorage.getItem('zclockid_token');
+        let initialAuthToken = localStorage.getItem('zclockid_token');
+        const urlParams = new URLSearchParams(window.location.search);
+        if (!initialAuthToken && urlParams.get('token')) {
+            initialAuthToken = urlParams.get('token');
+            try {
+                localStorage.setItem('zclockid_token', initialAuthToken);
+            } catch (e) {}
+        }
         if (!initialAuthToken) {
             fetch('/api/v1/setup/status')
                 .then(r => r.json())
@@ -576,38 +583,6 @@
                 const page = parseInt(btn.dataset.page, 10);
                 if (typeof window[fnName] === 'function') {
                     window[fnName](page);
-                }
-            } else if (action === 'control-service') {
-                if (typeof window.controlService === 'function') {
-                    window.controlService(btn.dataset.service, btn.dataset.control);
-                }
-            } else if (action === 'service-modal') {
-                if (typeof window.openServiceControlModal === 'function') {
-                    window.openServiceControlModal(btn.dataset.service);
-                }
-            } else if (action === 'open-log-viewer') {
-                if (typeof window.openLogViewer === 'function') {
-                    window.openLogViewer(btn.dataset.service, btn.dataset.title);
-                }
-            } else if (action === 'delete-domain-forwarder') {
-                if (typeof window.deleteDomainForwarder === 'function') {
-                    window.deleteDomainForwarder(btn.dataset.domain);
-                }
-            } else if (action === 'delete-host-override') {
-                if (typeof window.deleteHostOverride === 'function') {
-                    window.deleteHostOverride(btn.dataset.fqdn, btn.dataset.type);
-                }
-            } else if (action === 'edit-dns-record') {
-                if (typeof window.openEditDnsModal === 'function') {
-                    window.openEditDnsModal(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data, parseInt(btn.dataset.ttl || '900', 10));
-                }
-            } else if (action === 'delete-dns-record') {
-                if (typeof window.deleteDnsRecord === 'function') {
-                    window.deleteDnsRecord(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data);
-                }
-            } else if (action === 'delete-upn-suffix') {
-                if (typeof window.deleteUpnSuffix === 'function') {
-                    window.deleteUpnSuffix(btn.dataset.suffix);
                 }
             } else if (action === 'download-backup') {
                 if (typeof window.downloadBackup === 'function') {

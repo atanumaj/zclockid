@@ -1,7 +1,13 @@
         // Initialize dashboard and telemetry polling
         document.addEventListener('DOMContentLoaded', async () => {
-            // 1. Asynchronously load modals and default active tab (dashboard)
-            await Promise.all([loadModals(), ensureTabLoaded('dashboard')]);
+            const urlParams = new URLSearchParams(window.location.search);
+            const targetTab = urlParams.get('tab') || (window.location.hash || '').replace('#', '') || 'dashboard';
+
+            // 1. Asynchronously load modals and active tab
+            await Promise.all([loadModals(), ensureTabLoaded(targetTab)]);
+            if (targetTab !== 'dashboard' && typeof showTab === 'function') {
+                showTab(targetTab);
+            }
 
             // 2. Initialize application state, navigation, and telemetry pollers
             initSessionInfo();
