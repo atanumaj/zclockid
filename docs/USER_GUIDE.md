@@ -455,6 +455,6 @@ Active Directory backups must preserve both the directory database and the Sysvo
    ```
 
 ### Diagnostic REST Endpoints
-* **Interactive API Documentation:** `https://<Appliance-IP>/docs`
+* **REST API Documentation:** See [API Specification](API_DOCUMENTATION.md)
 * **Raw Configuration Inspector:** Available directly in the Web UI under **FreeRADIUS -> Raw Config Viewer**, allowing you to inspect `/etc/freeradius/3.0/users`, `clients.conf`, and `mschap` live.
 

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+requests
+cryptography
+dnspython
+python-multipart
+httpx
+pytest

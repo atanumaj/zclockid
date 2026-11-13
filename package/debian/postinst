@@ -143,7 +143,7 @@ EOFBIND
         echo "Web Management Console: https://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<server-ip>')/"
         echo "First-Time Setup:       https://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<server-ip>')/setup.html"
         echo "Self-Registration:      https://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<server-ip>')/register.html"
-        echo "REST API Docs:          http://127.0.0.1:8000/docs"
+        echo "Password Reset Portal:  https://$(hostname -I 2>/dev/null | awk '{print $1}' || echo '<server-ip>')/password-reset.html"
         echo "================================================================="
         echo ""
         ;;

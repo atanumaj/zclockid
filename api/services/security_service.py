@@ -60,7 +60,7 @@ def is_ip_allowed(client_ip: str, allowed_subnets_str: str) -> bool:
     """Checks if a client IP is allowed within configured subnets."""
     if not client_ip:
         return False
-    if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
+    if client_ip in ("127.0.0.1", "::1", "localhost"):
         return True
     if not allowed_subnets_str or not allowed_subnets_str.strip():
         return True

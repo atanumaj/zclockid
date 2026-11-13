@@ -19,7 +19,7 @@ After installation completes, navigate to:
 * **Web Management Console:** `https://<server-ip>/`
 * **User Self-Registration:** `https://<server-ip>/register.html`
 * **Self-Service Password Portal:** `https://<server-ip>/password-reset.html`
-* **REST API Documentation:** `http://<server-ip>:8000/docs`
+* **REST API Documentation:** See [API Specification](docs/API_DOCUMENTATION.md)
 
 For complete details and uninstallation instructions, see the [Installation Guide](docs/INSTALLATION.md).
 
@@ -108,9 +108,8 @@ Upload and manage your `zclockid.lic` file in the Web Console under **Security &
 cd zclockid
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r api/requirements.txt
-uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
-Access the interactive Swagger API documentation at `http://localhost:8000/docs`.
 
 ### 2. Test the Sysvol Self-Healing Daemon
 ```bash

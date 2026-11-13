@@ -132,7 +132,7 @@ echo -e "${GREEN}===============================================================
 echo -e "Web Management Console: ${CYAN}https://${PRIMARY_IP}/${NC}"
 echo -e "First-Time Setup:       ${CYAN}https://${PRIMARY_IP}/setup.html${NC}"
 echo -e "User Self-Registration: ${CYAN}https://${PRIMARY_IP}/register.html${NC}"
-echo -e "REST API Docs (Swagger):${BLUE}http://${PRIMARY_IP}:8000/docs${NC}"
+echo -e "Self-Service Password:  ${CYAN}https://${PRIMARY_IP}/password-reset.html${NC}"
 echo -e "================================================================="
 echo -e "Next Steps:"
 echo -e "1. Open ${CYAN}https://${PRIMARY_IP}/setup.html${NC} to provision your Active Directory Realm"

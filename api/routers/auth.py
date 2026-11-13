@@ -63,6 +63,14 @@ def is_public_path(path: str) -> bool:
     return False
 
 def _requires_fulladmin(path: str, method: str) -> bool:
+    # Readonly and higher roles can access system status, 24h auth stats, and services list
+    if method == "GET" and path in (
+        "/api/v1/system/status",
+        "/api/v1/system/auth-stats/24h",
+        "/api/v1/services",
+    ):
+        return False
+
     # Fulladmin subsystems: system, backups, updates, rbac, api_keys, security, license, certificates
     fulladmin_prefixes = (
         "/api/v1/system",
@@ -166,7 +174,11 @@ def require_role(*roles: str):
         if _requires_fulladmin(path, method):
             required_level = max(required_level, ROLE_HIERARCHY["fulladmin"])
         # Mutating endpoints (POST, PUT, DELETE) must require operator or higher
-        elif method in ("POST", "PUT", "DELETE", "PATCH") and path != "/api/v1/auth/logout":
+        # Exception: logout and change-password may be invoked by any authenticated user
+        elif method in ("POST", "PUT", "DELETE", "PATCH") and path not in (
+            "/api/v1/auth/logout",
+            "/api/v1/auth/change-password",
+        ):
             required_level = max(required_level, ROLE_HIERARCHY["operator"])
 
         if user_level < required_level:
