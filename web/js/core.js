@@ -50,13 +50,45 @@
                 });
         }
 
-        // Global fetch interceptor to automatically catch 401 Unauthorized / expired sessions
+        // Global fetch interceptor to automatically attach Auth Bearer & catch 401 Unauthorized
         const originalFetch = window.fetch;
-        window.fetch = async function(...args) {
-            const response = await originalFetch.apply(this, args);
+        window.fetch = async function(resource, init) {
+            let options = init ? { ...init } : {};
+            const token = localStorage.getItem('zclockid_token');
+            const urlStr = typeof resource === 'string' ? resource : (resource?.url || '');
+
+            const isLocal = !urlStr.startsWith('http://') && !urlStr.startsWith('https://') || 
+                            (typeof window !== 'undefined' && window.location && urlStr.startsWith(window.location.origin)) ||
+                            urlStr.startsWith('/api/');
+
+            if (token && isLocal) {
+                if (resource instanceof Request) {
+                    try {
+                        if (!resource.headers.has('Authorization')) {
+                            resource.headers.set('Authorization', `Bearer ${token}`);
+                        }
+                    } catch (e) {}
+                } else if (options.headers instanceof Headers) {
+                    if (!options.headers.has('Authorization')) {
+                        options.headers.set('Authorization', `Bearer ${token}`);
+                    }
+                } else if (Array.isArray(options.headers)) {
+                    const hasAuth = options.headers.some(([k]) => k.toLowerCase() === 'authorization');
+                    if (!hasAuth) {
+                        options.headers.push(['Authorization', `Bearer ${token}`]);
+                    }
+                } else {
+                    options.headers = options.headers ? { ...options.headers } : {};
+                    const hasAuth = Object.keys(options.headers).some(k => k.toLowerCase() === 'authorization');
+                    if (!hasAuth) {
+                        options.headers['Authorization'] = `Bearer ${token}`;
+                    }
+                }
+            }
+
+            const response = await originalFetch.call(this, resource, options);
             if (response.status === 401) {
-                const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
-                if (!url.includes('/auth/login')) {
+                if (!urlStr.includes('/auth/login') && !urlStr.includes('/setup/status') && !urlStr.includes('/self-service/password/config') && !urlStr.includes('/public/register/')) {
                     console.warn("Session token expired or invalid (HTTP 401). Redirecting to login.");
                     localStorage.removeItem('zclockid_token');
                     localStorage.removeItem('zclockid_user');
