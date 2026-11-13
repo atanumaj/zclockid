@@ -651,11 +651,6 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
     max_daily_ip = int(settings.get("max_daily_attempts_per_ip", 50) or 50)
     check_and_record_sspr_attempt(target_user, client_ip, "verify-and-reset", max_daily_user, max_daily_ip)
 
-    # Check if target account is privileged
-    if is_privileged_account(target_user):
-        conn.close()
-        raise HTTPException(status_code=403, detail="Self-service password reset is not permitted for privileged accounts.")
-
     current_status = log_entry["status"]
     failed_attempts = int(log_entry["failed_attempts"] or 0)
 
@@ -698,6 +693,11 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
     if notes.startswith("[INELIGIBLE]"):
         conn.close()
         raise HTTPException(status_code=400, detail="Invalid verification code entered. Please try again.")
+
+    # Check if target account is privileged (post-OTP validation)
+    if is_privileged_account(target_user):
+        conn.close()
+        raise HTTPException(status_code=403, detail="Self-service password reset is not permitted for privileged accounts.")
 
     # Look up user in AD to resolve canonical username and re-verify privileges
     user_info = lookup_ad_user(target_user)

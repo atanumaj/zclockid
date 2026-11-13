@@ -260,7 +260,7 @@ async function submitLicenseUpload() {
         if (res.ok) {
             if (feedback) {
                 feedback.className = 'p-3 rounded-lg text-xs border bg-emerald-950/60 border-emerald-800 text-emerald-300 flex items-center gap-2';
-                feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> ${data.message || 'License activated successfully!'}`;
+                feedback.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> ${escapeHtml(data.message || 'License activated successfully!')}`;
                 feedback.classList.remove('hidden');
             }
             clearSelectedLicenseFile();
@@ -268,14 +268,14 @@ async function submitLicenseUpload() {
         } else {
             if (feedback) {
                 feedback.className = 'p-3 rounded-lg text-xs border bg-rose-950/60 border-rose-800 text-rose-300 flex items-center gap-2';
-                feedback.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> ${data.detail || 'Failed to activate license.'}`;
+                feedback.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> ${escapeHtml(data.detail || 'Failed to activate license.')}`;
                 feedback.classList.remove('hidden');
             }
         }
     } catch (err) {
         if (feedback) {
             feedback.className = 'p-3 rounded-lg text-xs border bg-rose-950/60 border-rose-800 text-rose-300 flex items-center gap-2';
-            feedback.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Upload error: ${err.message}`;
+            feedback.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> Upload error: ${escapeHtml(err.message)}`;
             feedback.classList.remove('hidden');
         }
     } finally {

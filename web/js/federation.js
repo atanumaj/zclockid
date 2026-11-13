@@ -103,17 +103,17 @@
                     resultDiv.classList.remove('hidden', 'bg-rose-950/40', 'border-rose-800/40', 'text-rose-300', 'bg-emerald-950/40', 'border-emerald-800/40', 'text-emerald-300');
                     if (res.ok) {
                         resultDiv.classList.add('bg-emerald-950/40', 'border-emerald-800/40', 'text-emerald-300');
-                        resultDiv.innerHTML = `<i class="fa-solid fa-check-circle mr-1"></i> ${data.message}`;
+                        resultDiv.innerHTML = `<i class="fa-solid fa-check-circle mr-1"></i> ${escapeHtml(data.message)}`;
                     } else {
                         resultDiv.classList.add('bg-rose-950/40', 'border-rose-800/40', 'text-rose-300');
-                        resultDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Error: ${data.detail || 'Probe failed'}`;
+                        resultDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Error: ${escapeHtml(data.detail || 'Probe failed')}`;
                     }
                 }
             } catch (err) {
                 if (resultDiv) {
                     resultDiv.classList.remove('hidden');
                     resultDiv.className = 'p-3 rounded-lg border text-xs font-mono bg-rose-950/40 border-rose-800/40 text-rose-300';
-                    resultDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Probe Error: ${err.message}`;
+                    resultDiv.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Probe Error: ${escapeHtml(err.message)}`;
                 }
             } finally {
                 if (btn) btn.disabled = false;

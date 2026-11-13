@@ -136,7 +136,7 @@ async function fetchRegistrations(filter = 'all') {
             renderRegistrationsTable();
         }
     } catch (err) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center text-rose-400">Failed to load registration queue: ${err}</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center text-rose-400">Failed to load registration queue: ${escapeHtml(String(err))}</td></tr>`;
     }
 }
 
@@ -207,30 +207,36 @@ function renderRegistrationsTable() {
         } else if (r.status === 'REJECTED') {
             statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-300 border border-rose-800">REJECTED</span>';
         } else {
-            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">${r.status}</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">${escapeHtml(r.status)}</span>`;
         }
 
-        const dateStr = r.created_at ? new Date(r.created_at * 1000).toLocaleString() : '-';
+        const dateStr = r.created_at ? escapeHtml(new Date(r.created_at * 1000).toLocaleString()) : '-';
+        const safeUsername = escapeHtml(r.username);
+        const safeGivenName = escapeHtml(r.given_name || '');
+        const safeSurname = escapeHtml(r.surname || '');
+        const safeMobile = escapeHtml(r.mobile || '-');
+        const safeEmail = escapeHtml(r.email || '-');
+        const safeDept = escapeHtml(r.department || '-');
 
         let actionButtons = '';
         if (r.status === 'PENDING_APPROVAL') {
             actionButtons = `
-                <button onclick="approveRegistration(${r.id}, '${r.username}')" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-semibold text-[11px] transition mr-1" title="Approve & Provision into AD">
+                <button data-action="approve-registration" data-id="${r.id}" data-username="${safeUsername}" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-semibold text-[11px] transition mr-1" title="Approve & Provision into AD">
                     <i class="fa-solid fa-check"></i> Approve
                 </button>
-                <button onclick="rejectRegistration(${r.id}, '${r.username}')" class="px-2 py-1 rounded bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-sans text-[11px] transition mr-1" title="Reject Request">
+                <button data-action="reject-registration" data-id="${r.id}" data-username="${safeUsername}" class="px-2 py-1 rounded bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-sans text-[11px] transition mr-1" title="Reject Request">
                     <i class="fa-solid fa-xmark"></i> Reject
                 </button>
             `;
         } else if (r.status === 'VERIFIED_AUTO_PROVISIONED' || r.status === 'APPROVED') {
             actionButtons = `
-                <button onclick="openChangeUpnModal('${r.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] transition mr-1" title="Change UserPrincipalName (UPN)">
+                <button data-action="change-reg-upn" data-username="${safeUsername}" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] transition mr-1" title="Change UserPrincipalName (UPN)">
                     <i class="fa-solid fa-at"></i> UPN
                 </button>
             `;
         }
         actionButtons += `
-            <button onclick="deleteRegistration(${r.id}, '${r.username}')" class="text-slate-500 hover:text-rose-400 transition ml-1" title="Delete Log Entry">
+            <button data-action="delete-registration" data-id="${r.id}" data-username="${safeUsername}" class="text-slate-500 hover:text-rose-400 transition ml-1" title="Delete Log Entry">
                 <i class="fa-solid fa-trash-can"></i>
             </button>
         `;
@@ -238,12 +244,12 @@ function renderRegistrationsTable() {
         return `
             <tr class="hover:bg-slate-800/30">
                 <td class="px-4 py-3">
-                    <div class="font-bold text-white">${r.username}</div>
-                    <div class="text-[10px] text-slate-400">${r.given_name || ''} ${r.surname || ''}</div>
+                    <div class="font-bold text-white">${safeUsername}</div>
+                    <div class="text-[10px] text-slate-400">${safeGivenName} ${safeSurname}</div>
                 </td>
-                <td class="px-4 py-3 text-cyan-300 font-mono text-xs">${r.mobile || '-'}</td>
-                <td class="px-4 py-3 text-slate-300 font-sans">${r.email || '-'}</td>
-                <td class="px-4 py-3 text-slate-400 font-sans">${r.department || '-'}</td>
+                <td class="px-4 py-3 text-cyan-300 font-mono text-xs">${safeMobile}</td>
+                <td class="px-4 py-3 text-slate-300 font-sans">${safeEmail}</td>
+                <td class="px-4 py-3 text-slate-400 font-sans">${safeDept}</td>
                 <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
                 <td class="px-4 py-3 text-slate-500 font-mono text-[10px]">${dateStr}</td>
                 <td class="px-4 py-3 text-right whitespace-nowrap">${actionButtons}</td>
@@ -393,7 +399,7 @@ async function fetchSspprLogs() {
             renderSspprTable();
         }
     } catch (err) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center text-rose-400">Failed to load SSPR activity logs: ${err}</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center text-rose-400">Failed to load SSPR activity logs: ${escapeHtml(String(err))}</td></tr>`;
     }
 }
 
@@ -463,7 +469,7 @@ function renderSspprTable() {
         } else if (l.method === 'SMS_OTP') {
             methodBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono"><i class="fa-solid fa-mobile-screen text-[9px] mr-1"></i>SMS OTP</span>';
         } else {
-            methodBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-mono">${l.method}</span>`;
+            methodBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400 font-mono">${escapeHtml(l.method)}</span>`;
         }
 
         let statusBadge = '';
@@ -476,20 +482,25 @@ function renderSspprTable() {
         } else if (l.status === 'EXPIRED') {
             statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-950 text-amber-300 border border-amber-800"><i class="fa-solid fa-clock text-[9px] mr-1"></i>EXPIRED</span>';
         } else {
-            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">${l.status}</span>`;
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">${escapeHtml(l.status)}</span>`;
         }
 
-        const dateStr = l.created_at ? new Date(l.created_at * 1000).toLocaleString() : '-';
+        const dateStr = l.created_at ? escapeHtml(new Date(l.created_at * 1000).toLocaleString()) : '-';
+        const safeUsername = escapeHtml(l.username);
+        const safeRecipient = escapeHtml(l.recipient || '-');
+        const safeIp = escapeHtml(l.ip_address || '-');
+        const safeNotes = escapeHtml(l.notes || '-');
+        const rawNotesAttr = escapeHtml(l.notes || '');
 
         return `
             <tr class="hover:bg-slate-800/30">
                 <td class="px-4 py-3 text-slate-400 font-mono whitespace-nowrap text-[10px]">${dateStr}</td>
-                <td class="px-4 py-3 font-bold text-white font-mono">${l.username}</td>
+                <td class="px-4 py-3 font-bold text-white font-mono">${safeUsername}</td>
                 <td class="px-4 py-3 whitespace-nowrap">${methodBadge}</td>
-                <td class="px-4 py-3 font-mono text-slate-300">${l.recipient || '-'}</td>
+                <td class="px-4 py-3 font-mono text-slate-300">${safeRecipient}</td>
                 <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
-                <td class="px-4 py-3 text-cyan-300 font-mono text-xs">${l.ip_address || '-'}</td>
-                <td class="px-4 py-3 text-slate-400 font-sans max-w-xs truncate" title="${l.notes || ''}">${l.notes || '-'}</td>
+                <td class="px-4 py-3 text-cyan-300 font-mono text-xs">${safeIp}</td>
+                <td class="px-4 py-3 text-slate-400 font-sans max-w-xs truncate" title="${rawNotesAttr}">${safeNotes}</td>
             </tr>
         `;
     }).join('');
@@ -763,20 +774,21 @@ function renderPortalAssetsList(prefix, portalType, assets) {
 
     container.innerHTML = assets.map(a => {
         const kb = (a.size / 1024).toFixed(1);
-        const safeName = a.filename.replace(/'/g, "\\'");
-        const safeUrl = a.url.replace(/'/g, "\\'");
+        const safeName = escapeHtml(a.filename);
+        const safeUrl = escapeHtml(a.url);
+        const safePortalType = escapeHtml(portalType);
         return `
             <div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-slate-950 border border-slate-800/80">
                 <div class="flex items-center gap-2 truncate">
                     <i class="fa-regular fa-file-image text-cyan-400 text-xs"></i>
-                    <span class="font-mono text-slate-200 truncate">${a.filename}</span>
+                    <span class="font-mono text-slate-200 truncate">${safeName}</span>
                     <span class="text-[10px] text-slate-500">(${kb} KB)</span>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
-                    <button type="button" onclick="copyPortalAssetUrl('${safeUrl}')" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-mono" title="Copy URL to use in HTML">
+                    <button type="button" data-action="copy-portal-asset" data-url="${safeUrl}" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 text-[10px] font-mono" title="Copy URL to use in HTML">
                         Copy Path
                     </button>
-                    <button type="button" onclick="deletePortalAsset('${safeName}', '${portalType}')" class="text-slate-500 hover:text-rose-400 px-1" title="Delete Asset">
+                    <button type="button" data-action="delete-portal-asset" data-name="${safeName}" data-type="${safePortalType}" class="text-slate-500 hover:text-rose-400 px-1" title="Delete Asset">
                         <i class="fa-solid fa-trash-can text-[10px]"></i>
                     </button>
                 </div>

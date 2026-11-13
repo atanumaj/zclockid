@@ -1,3 +1,16 @@
+        // ==================== HTML ESCAPING FOR XSS DEFENSE ====================
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/`/g, '&#96;');
+        }
+        window.escapeHtml = escapeHtml;
+
         // ==================== THEME CONTROLLER (DARK / SOFT LIGHT) ====================
         function setAppTheme(theme) {
             const isLight = theme === 'light';
@@ -546,10 +559,223 @@
                 }
                 const isActive = (p === currentPage);
                 if (isActive) {
-                    return `<button type="button" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-bold text-xs shadow-sm shadow-indigo-600/40 select-none">${p}</button>`;
+                    return `<button type="button" class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-bold text-xs shadow-sm shadow-indigo-600/40 select-none">${escapeHtml(p)}</button>`;
                 } else {
-                    return `<button type="button" onclick="${goToPageFnName}(${p})" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition">${p}</button>`;
+                    return `<button type="button" data-action="go-to-page" data-page="${escapeHtml(p)}" data-page-fn="${escapeHtml(goToPageFnName)}" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition">${escapeHtml(p)}</button>`;
                 }
             }).join('');
         }
+
+        // ==================== GLOBAL EVENT DELEGATION FOR DATA-ACTION BUTTONS ====================
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            if (action === 'go-to-page') {
+                const fnName = btn.dataset.pageFn;
+                const page = parseInt(btn.dataset.page, 10);
+                if (typeof window[fnName] === 'function') {
+                    window[fnName](page);
+                }
+            } else if (action === 'control-service') {
+                if (typeof window.controlService === 'function') {
+                    window.controlService(btn.dataset.service, btn.dataset.control);
+                }
+            } else if (action === 'service-modal') {
+                if (typeof window.openServiceControlModal === 'function') {
+                    window.openServiceControlModal(btn.dataset.service);
+                }
+            } else if (action === 'open-log-viewer') {
+                if (typeof window.openLogViewer === 'function') {
+                    window.openLogViewer(btn.dataset.service, btn.dataset.title);
+                }
+            } else if (action === 'delete-domain-forwarder') {
+                if (typeof window.deleteDomainForwarder === 'function') {
+                    window.deleteDomainForwarder(btn.dataset.domain);
+                }
+            } else if (action === 'delete-host-override') {
+                if (typeof window.deleteHostOverride === 'function') {
+                    window.deleteHostOverride(btn.dataset.fqdn, btn.dataset.type);
+                }
+            } else if (action === 'edit-dns-record') {
+                if (typeof window.openEditDnsModal === 'function') {
+                    window.openEditDnsModal(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data, parseInt(btn.dataset.ttl || '900', 10));
+                }
+            } else if (action === 'delete-dns-record') {
+                if (typeof window.deleteDnsRecord === 'function') {
+                    window.deleteDnsRecord(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data);
+                }
+            } else if (action === 'delete-upn-suffix') {
+                if (typeof window.deleteUpnSuffix === 'function') {
+                    window.deleteUpnSuffix(btn.dataset.suffix);
+                }
+            } else if (action === 'download-backup') {
+                if (typeof window.downloadBackup === 'function') {
+                    window.downloadBackup(btn.dataset.filename);
+                }
+            } else if (action === 'inspect-backup') {
+                if (typeof window.inspectBackup === 'function') {
+                    window.inspectBackup(btn.dataset.filename);
+                }
+            } else if (action === 'confirm-restore-backup') {
+                if (typeof window.confirmRestoreBackup === 'function') {
+                    window.confirmRestoreBackup(btn.dataset.filename);
+                }
+            } else if (action === 'delete-backup') {
+                if (typeof window.deleteBackup === 'function') {
+                    window.deleteBackup(btn.dataset.filename);
+                }
+            } else if (action === 'remove-reg-dept') {
+                if (typeof window.removeRegistrationDepartment === 'function') {
+                    window.removeRegistrationDepartment(btn.dataset.dept);
+                }
+            } else if (action === 'approve-registration') {
+                if (typeof window.approveRegistration === 'function') {
+                    window.approveRegistration(parseInt(btn.dataset.id, 10), btn.dataset.username);
+                }
+            } else if (action === 'reject-registration') {
+                if (typeof window.rejectRegistration === 'function') {
+                    window.rejectRegistration(parseInt(btn.dataset.id, 10), btn.dataset.username);
+                }
+            } else if (action === 'change-reg-upn') {
+                if (typeof window.openChangeUpnModal === 'function') {
+                    window.openChangeUpnModal(btn.dataset.username);
+                }
+            } else if (action === 'delete-registration') {
+                if (typeof window.deleteRegistration === 'function') {
+                    window.deleteRegistration(parseInt(btn.dataset.id, 10), btn.dataset.username);
+                }
+            } else if (action === 'toggle-radius-secret') {
+                if (typeof window.toggleSecretDisplay === 'function') {
+                    window.toggleSecretDisplay(parseInt(btn.dataset.idx, 10), btn.dataset.secret);
+                }
+            } else if (action === 'copy-radius-secret') {
+                if (typeof window.copyToClipboard === 'function') {
+                    window.copyToClipboard(btn.dataset.secret);
+                }
+            } else if (action === 'delete-radius-client') {
+                if (typeof window.deleteRadiusClient === 'function') {
+                    window.deleteRadiusClient(btn.dataset.name);
+                }
+            } else if (action === 'disconnect-radius-session') {
+                if (typeof window.disconnectSession === 'function') {
+                    window.disconnectSession(btn.dataset.sessionId);
+                }
+            } else if (action === 'edit-bandwidth-profile') {
+                if (typeof window.openEditBandwidthModal === 'function') {
+                    window.openEditBandwidthModal(parseInt(btn.dataset.id, 10));
+                }
+            } else if (action === 'delete-bandwidth-profile') {
+                if (typeof window.deleteBandwidthProfile === 'function') {
+                    window.deleteBandwidthProfile(parseInt(btn.dataset.id, 10), btn.dataset.name);
+                }
+            } else if (action === 'delete-mab-device') {
+                if (typeof window.deleteMabDevice === 'function') {
+                    window.deleteMabDevice(parseInt(btn.dataset.id, 10));
+                }
+            } else if (action === 'delete-custom-attr') {
+                if (typeof window.deleteCustomAttr === 'function') {
+                    window.deleteCustomAttr(parseInt(btn.dataset.id, 10));
+                }
+            } else if (action === 'delete-rbac-mapping') {
+                if (typeof window.deleteRbacMapping === 'function') {
+                    window.deleteRbacMapping(parseInt(btn.dataset.id, 10), btn.dataset.principal);
+                }
+            } else if (action === 'terminate-session') {
+                if (typeof window.terminateSession === 'function') {
+                    window.terminateSession(btn.dataset.token);
+                }
+            } else if (action === 'toggle-fw-rule') {
+                if (typeof window.toggleFwRuleState === 'function') {
+                    window.toggleFwRuleState(parseInt(btn.dataset.id, 10), btn.dataset.enable === 'true');
+                }
+            } else if (action === 'edit-fw-rule') {
+                if (typeof window.editFirewallRule === 'function') {
+                    window.editFirewallRule(parseInt(btn.dataset.id, 10));
+                }
+            } else if (action === 'delete-fw-rule') {
+                if (typeof window.deleteFirewallRule === 'function') {
+                    window.deleteFirewallRule(parseInt(btn.dataset.id, 10));
+                }
+            } else if (action === 'revoke-api-key') {
+                if (typeof window.revokeApiKey === 'function') {
+                    window.revokeApiKey(parseInt(btn.dataset.id, 10), btn.dataset.name);
+                }
+            } else if (action === 'copy-portal-asset') {
+                if (typeof window.copyPortalAssetUrl === 'function') {
+                    window.copyPortalAssetUrl(btn.dataset.url);
+                }
+            } else if (action === 'delete-portal-asset') {
+                if (typeof window.deletePortalAsset === 'function') {
+                    window.deletePortalAsset(btn.dataset.name, btn.dataset.type);
+                }
+            } else if (action === 'delete-sysvol-partner') {
+                if (typeof window.deleteSysvolPartner === 'function') {
+                    window.deleteSysvolPartner(btn.dataset.ip);
+                }
+            } else if (action === 'edit-user') {
+                if (typeof window.openEditUserModal === 'function') {
+                    window.openEditUserModal(btn.dataset.username);
+                }
+            } else if (action === 'delete-user') {
+                if (typeof window.deleteUser === 'function') {
+                    window.deleteUser(btn.dataset.username);
+                }
+            } else if (action === 'edit-group') {
+                if (typeof window.openEditGroupModal === 'function') {
+                    window.openEditGroupModal(btn.dataset.group);
+                }
+            } else if (action === 'delete-group') {
+                if (typeof window.deleteGroup === 'function') {
+                    window.deleteGroup(btn.dataset.group);
+                }
+            } else if (action === 'delete-computer') {
+                if (typeof window.deleteComputer === 'function') {
+                    window.deleteComputer(btn.dataset.computer);
+                }
+            } else if (action === 'control-service') {
+                if (typeof window.controlService === 'function') {
+                    window.controlService(btn.dataset.service, btn.dataset.op);
+                }
+            } else if (action === 'open-service-modal') {
+                if (typeof window.openServiceControlModal === 'function') {
+                    window.openServiceControlModal(btn.dataset.service);
+                }
+            } else if (action === 'open-log-viewer') {
+                if (typeof window.openLogViewer === 'function') {
+                    window.openLogViewer(btn.dataset.service, btn.dataset.title);
+                }
+            } else if (action === 'delete-forwarder') {
+                if (typeof window.deleteDomainForwarder === 'function') {
+                    window.deleteDomainForwarder(btn.dataset.domain);
+                }
+            } else if (action === 'delete-override') {
+                if (typeof window.deleteHostOverride === 'function') {
+                    window.deleteHostOverride(btn.dataset.fqdn, btn.dataset.type);
+                }
+            } else if (action === 'edit-dns-record') {
+                if (typeof window.openEditDnsModal === 'function') {
+                    window.openEditDnsModal(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data, parseInt(btn.dataset.ttl, 10));
+                }
+            } else if (action === 'delete-dns-record') {
+                if (typeof window.deleteDnsRecord === 'function') {
+                    window.deleteDnsRecord(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data);
+                }
+            } else if (action === 'delete-upn-suffix') {
+                if (typeof window.deleteUpnSuffix === 'function') {
+                    window.deleteUpnSuffix(btn.dataset.suffix);
+                }
+            } else if (action === 'copy-doh-ip') {
+                const url = `https://${window.location.hostname}/dns-query`;
+                if (typeof window.copyToClipboard === 'function') {
+                    window.copyToClipboard(url, 'IP DoH URL copied!');
+                }
+            } else if (action === 'copy-doh-fqdn') {
+                const el = document.getElementById('doh-display-fqdn') || document.getElementById('doh-guide-fqdn-url');
+                const url = el?.textContent?.trim() || `https://${window.location.hostname}/dns-query`;
+                if (typeof window.copyToClipboard === 'function') {
+                    window.copyToClipboard(url, 'FQDN DoH URL copied!');
+                }
+            }
+        });
 

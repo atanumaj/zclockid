@@ -69,7 +69,7 @@
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <div class="flex justify-between items-center">
                                 <span class="text-slate-500 text-[10px] uppercase font-sans">Appliance IP DoH URL</span>
-                                <button onclick="copyToClipboard(`https://${window.location.hostname}/dns-query`, 'IP DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
+                                <button data-action="copy-doh-ip" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
                                     <i class="fa-regular fa-copy"></i>
                                 </button>
                             </div>
@@ -80,7 +80,7 @@
                         <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-1">
                             <div class="flex justify-between items-center">
                                 <span class="text-slate-500 text-[10px] uppercase font-sans">Domain FQDN DoH URL</span>
-                                <button onclick="copyToClipboard(document.getElementById('doh-display-fqdn')?.innerText || `https://${window.location.hostname}/dns-query`, 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
+                                <button data-action="copy-doh-fqdn" class="text-slate-400 hover:text-white transition text-xs" title="Copy to clipboard">
                                     <i class="fa-regular fa-copy"></i>
                                 </button>
                             </div>

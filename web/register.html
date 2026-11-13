@@ -234,6 +234,17 @@
     </div>
 
     <script>
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/`/g, '&#96;');
+        }
+
         let currentRegId = null;
         let resendTimer = null;
         let resendSeconds = 60;
@@ -247,12 +258,12 @@
                 if (res.ok) {
                     publicConfig = data;
                     const domainVal = data.default_domain || data.primary_realm || window.location.hostname;
-                    document.getElementById('reg-primary-domain').innerText = domainVal;
+                    document.getElementById('reg-primary-domain').textContent = domainVal;
                     
                     // Dynamically populate department dropdown configured by administrator
                     const deptSelect = document.getElementById('department');
                     if (deptSelect && data.departments && Array.isArray(data.departments) && data.departments.length > 0) {
-                        deptSelect.innerHTML = data.departments.map(d => `<option value="${d}">${d}</option>`).join('');
+                        deptSelect.innerHTML = data.departments.map(d => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join('');
                     }
 
                     if (!data.enabled) {
@@ -261,7 +272,7 @@
                     }
                 }
             } catch (err) {
-                document.getElementById('reg-primary-domain').innerText = window.location.hostname;
+                document.getElementById('reg-primary-domain').textContent = window.location.hostname;
             }
         });
 
@@ -303,10 +314,10 @@
                 const label = el.getAttribute('data-label');
                 if (valid) {
                     el.className = 'text-emerald-400 flex items-center gap-1 font-medium';
-                    el.innerHTML = `<i class="fa-solid fa-circle-check text-[10px]"></i> ${label}`;
+                    el.innerHTML = `<i class="fa-solid fa-circle-check text-[10px]"></i> ${escapeHtml(label)}`;
                 } else {
                     el.className = 'text-slate-500 flex items-center gap-1';
-                    el.innerHTML = `<i class="fa-regular fa-circle text-[10px]"></i> ${label}`;
+                    el.innerHTML = `<i class="fa-regular fa-circle text-[10px]"></i> ${escapeHtml(label)}`;
                 }
             };
 
@@ -331,7 +342,7 @@
             } else if (type === 'warning') {
                 box.classList.add('bg-amber-950/40', 'border-amber-800', 'text-amber-300');
             }
-            box.innerHTML = msg;
+            box.textContent = msg;
         }
 
         function hideStatus() {
@@ -387,26 +398,26 @@
                     if (data.status === 'otp_required') {
                         // Transition to Step 2: OTP Verification
                         currentRegId = data.registration_id;
-                        document.getElementById('otp-mobile-display').innerText = data.mobile_masked || payload.mobile;
+                        document.getElementById('otp-mobile-display').textContent = data.mobile_masked || payload.mobile;
 
                         document.getElementById('step-details').classList.add('hidden');
                         document.getElementById('step-otp').classList.remove('hidden');
                         startResendCountdown();
-                        showStatus('success', `<i class="fa-solid fa-check mr-1.5"></i> ${data.message}`);
+                        showStatus('success', `<i class="fa-solid fa-check mr-1.5"></i> ${escapeHtml(data.message)}`);
                     } else if (data.status === 'pending_approval') {
                         // OTP verification was disabled by admin; user is pending admin approval
                         document.getElementById('step-details').classList.add('hidden');
                         showStatus('warning', `
                             <div class="space-y-1">
                                 <div class="font-bold text-amber-200"><i class="fa-solid fa-clock mr-1.5"></i> Registration Received - Pending Administrator Approval</div>
-                                <p class="text-slate-300">${data.message}</p>
-                                <p class="text-[11px] text-slate-400">Reference ID: <strong>#${data.registration_id}</strong> | An SMS and Email notification will be sent upon activation.</p>
+                                <p class="text-slate-300">${escapeHtml(data.message)}</p>
+                                <p class="text-[11px] text-slate-400">Reference ID: <strong>#${escapeHtml(data.registration_id)}</strong> | An SMS and Email notification will be sent upon activation.</p>
                             </div>
                         `);
                     }
                 } else {
                     const errorDetail = (data && data.detail) ? data.detail : `Registration failed with status ${res.status}.`;
-                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${errorDetail}`);
+                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${escapeHtml(errorDetail)}`);
                 }
             } catch (err) {
                 showStatus('error', '<i class="fa-solid fa-circle-xmark mr-1.5"></i> Network error: could not connect to ZclockID API.');
@@ -442,11 +453,11 @@
                     // Step 3: Success Screen
                     document.getElementById('step-otp').classList.add('hidden');
                     document.getElementById('step-success').classList.remove('hidden');
-                    document.getElementById('succ-username').innerText = data.username;
-                    document.getElementById('succ-upn').innerText = data.domain ? `${data.username}@${data.domain}` : data.username;
-                    showStatus('success', `<i class="fa-solid fa-circle-check mr-1.5"></i> ${data.message}`);
+                    document.getElementById('succ-username').textContent = data.username;
+                    document.getElementById('succ-upn').textContent = data.domain ? `${data.username}@${data.domain}` : data.username;
+                    showStatus('success', `<i class="fa-solid fa-circle-check mr-1.5"></i> ${escapeHtml(data.message)}`);
                 } else {
-                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.detail || 'Verification failed. Please check OTP code.'}`);
+                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${escapeHtml(data.detail || 'Verification failed. Please check OTP code.')}`);
                 }
             } catch (err) {
                 showStatus('error', '<i class="fa-solid fa-circle-xmark mr-1.5"></i> Network error during verification.');
@@ -466,7 +477,7 @@
             if (resendTimer) clearInterval(resendTimer);
             resendTimer = setInterval(() => {
                 resendSeconds--;
-                countdownEl.innerText = resendSeconds;
+                countdownEl.textContent = resendSeconds;
                 if (resendSeconds <= 0) {
                     clearInterval(resendTimer);
                     resendBtn.disabled = false;
@@ -490,10 +501,10 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    showStatus('success', `<i class="fa-solid fa-check mr-1.5"></i> ${data.message}`);
+                    showStatus('success', `<i class="fa-solid fa-check mr-1.5"></i> ${escapeHtml(data.message)}`);
                     startResendCountdown();
                 } else {
-                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${data.detail}`);
+                    showStatus('error', `<i class="fa-solid fa-circle-xmark mr-1.5"></i> ${escapeHtml(data.detail || 'Failed to resend code')}`);
                 }
             } catch (err) {
                 showStatus('error', 'Failed to resend OTP.');

@@ -323,23 +323,35 @@ def test_administrator_and_privileged_accounts_refused():
             assert res_admin_change.status_code == 403, f"Expected 403 for Administrator, got {res_admin_change.status_code}"
             assert "privileged" in res_admin_change.json().get("detail", "").lower()
 
-            # 3. verify-and-reset refuses Administrator with 403
+            # 3. verify-and-reset with wrong code returns 400 (no early privilege leak)
             conn = sqlite3.connect(db_file)
             cursor = conn.cursor()
+            real_admin_otp = "123456"
+            admin_otp_hash = hash_otp(real_admin_otp)
             cursor.execute("""
                 INSERT INTO self_service_password_logs (
                     username, method, recipient, otp_code, otp_expires_at, status,
                     ip_address, user_agent, created_at, failed_attempts
-                ) VALUES ('Administrator', 'EMAIL_OTP', 'admin@corp.local', 'dummyhash', ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
-            """, (time.time() + 600, time.time()))
+                ) VALUES ('Administrator', 'EMAIL_OTP', 'admin@corp.local', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
+            """, (admin_otp_hash, time.time() + 600, time.time()))
             admin_reset_id = cursor.lastrowid
             conn.commit()
             conn.close()
 
+            # Wrong code -> 400 (not 403)
+            res_wrong = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                "username": "Administrator",
+                "reset_id": admin_reset_id,
+                "otp_code": "000000",
+                "new_password": "NewValidPassword123!"
+            })
+            assert res_wrong.status_code == 400, f"Expected 400 for wrong OTP on privileged account, got {res_wrong.status_code}"
+
+            # Valid code -> post-verification privilege check triggers 403
             res_admin_reset = client.post("/api/v1/self-service/password/verify-and-reset", json={
                 "username": "Administrator",
                 "reset_id": admin_reset_id,
-                "otp_code": "123456",
+                "otp_code": real_admin_otp,
                 "new_password": "NewValidPassword123!"
             })
             assert res_admin_reset.status_code == 403, f"Expected 403 for Administrator verify-and-reset, got {res_admin_reset.status_code}"
@@ -899,6 +911,29 @@ def test_registration_failed_attempts_carryover_and_rate_limit():
                 })
                 assert res_resub.status_code == 400
                 assert "locked" in res_resub.json()["detail"].lower()
+
+                # 3. Test that old locked registrations (> 24 hours ago) are NOT carried over
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO self_registrations (
+                        username, email, given_name, surname, department, mobile,
+                        password_hash, status, failed_attempts, created_at
+                    ) VALUES ('olduser', 'old@test.local', 'Old', 'User', 'IT', '+15550002222',
+                              'hash', 'LOCKED', 5, ?)
+                """, (time.time() - 90000,))
+                conn.commit()
+                conn.close()
+
+                res_old = client.post("/api/v1/public/register/initiate", json={
+                    "username": "olduser",
+                    "password": "Password123!",
+                    "given_name": "Old",
+                    "surname": "User",
+                    "email": "old2@test.local",
+                    "mobile": "+15550002222"
+                })
+                assert res_old.status_code == 200, f"Expected 200 for registration with >24h old record, got {res_old.status_code}"
 
             finally:
                 reg_mod.run_cmd = orig_cmd

@@ -144,10 +144,15 @@ def _serve_portal_html(table_name: str, filename: str):
     target = custom_file if use_custom else (WEB_DIR / filename)
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"Portal template '{filename}' not found.")
+
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+    if use_custom:
+        headers["Content-Security-Policy"] = "sandbox allow-forms allow-scripts"
+
     return FileResponse(
         path=str(target),
         media_type="text/html",
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+        headers=headers
     )
 
 @app.get("/register.html")

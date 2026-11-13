@@ -98,29 +98,35 @@
                 const data = await res.json();
                 const tbody = document.getElementById('radius-table-body');
                 if (data.clients && data.clients.length > 0) {
-                    tbody.innerHTML = data.clients.map((c, idx) => `
-                        <tr class="hover:bg-slate-800/30">
-                            <td class="px-4 py-2.5 font-bold text-white">${c.name}</td>
-                            <td class="px-4 py-2.5 text-cyan-400 font-semibold">${c.ipaddr}</td>
-                            <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 uppercase">${c.nas_type || 'other'}</span></td>
-                            <td class="px-4 py-2.5">
-                                <div class="flex items-center gap-2">
-                                    <span id="secret-disp-${idx}" class="text-slate-400">••••••••••••••••</span>
-                                    <button onclick="toggleSecretDisplay(${idx}, '${c.secret}')" class="text-slate-500 hover:text-amber-400" title="Toggle Visibility">
-                                        <i class="fa-solid fa-eye text-xs"></i>
+                    tbody.innerHTML = data.clients.map((c, idx) => {
+                        const safeName = escapeHtml(c.name);
+                        const safeIp = escapeHtml(c.ipaddr);
+                        const safeType = escapeHtml(c.nas_type || 'other');
+                        const safeSecret = escapeHtml(c.secret || '');
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5 font-bold text-white">${safeName}</td>
+                                <td class="px-4 py-2.5 text-cyan-400 font-semibold">${safeIp}</td>
+                                <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 uppercase">${safeType}</span></td>
+                                <td class="px-4 py-2.5">
+                                    <div class="flex items-center gap-2">
+                                        <span id="secret-disp-${idx}" class="text-slate-400">••••••••••••••••</span>
+                                        <button data-action="toggle-radius-secret" data-idx="${idx}" data-secret="${safeSecret}" class="text-slate-500 hover:text-amber-400" title="Toggle Visibility">
+                                            <i class="fa-solid fa-eye text-xs"></i>
+                                        </button>
+                                        <button data-action="copy-radius-secret" data-secret="${safeSecret}" class="text-slate-500 hover:text-white" title="Copy Secret">
+                                            <i class="fa-solid fa-copy text-xs"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <button data-action="delete-radius-client" data-name="${safeName}" class="text-slate-500 hover:text-rose-400 transition" title="Delete Client">
+                                        <i class="fa-solid fa-trash-can"></i>
                                     </button>
-                                    <button onclick="copyToClipboard('${c.secret}')" class="text-slate-500 hover:text-white" title="Copy Secret">
-                                        <i class="fa-solid fa-copy text-xs"></i>
-                                    </button>
-                                </div>
-                            </td>
-                            <td class="px-4 py-2.5 text-right">
-                                <button onclick="deleteRadiusClient('${c.name}')" class="text-slate-500 hover:text-rose-400 transition" title="Delete Client">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('');
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
                 } else {
                     tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center font-sans text-slate-500">No NAS clients configured.</td></tr>`;
                 }
@@ -209,22 +215,28 @@
                         const durH = Math.floor(s.acct_session_time / 3600);
                         const durM = Math.floor((s.acct_session_time % 3600) / 60);
                         const durS = s.acct_session_time % 60;
-                        const durStr = `${durH}h ${durM}m ${durS}s`;
+                        const durStr = escapeHtml(`${durH}h ${durM}m ${durS}s`);
+                        const safeUser = escapeHtml(s.username);
+                        const safeNas = escapeHtml(s.nas_name || s.nas_ip);
+                        const safeCalling = escapeHtml(s.calling_station_id || '-');
+                        const safeFramed = escapeHtml(s.framed_ip || '-');
+                        const safeStatus = escapeHtml(s.acct_status_type);
+                        const safeSessionId = escapeHtml(s.session_id || '');
 
                         return `
                             <tr class="hover:bg-slate-800/30">
-                                <td class="px-4 py-2.5 font-bold text-white">${s.username}</td>
-                                <td class="px-4 py-2.5 text-slate-300">${s.nas_name || s.nas_ip}</td>
-                                <td class="px-4 py-2.5 text-indigo-400 font-semibold">${s.calling_station_id || '-'}</td>
-                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${s.framed_ip || '-'}</td>
+                                <td class="px-4 py-2.5 font-bold text-white">${safeUser}</td>
+                                <td class="px-4 py-2.5 text-slate-300">${safeNas}</td>
+                                <td class="px-4 py-2.5 text-indigo-400 font-semibold">${safeCalling}</td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${safeFramed}</td>
                                 <td class="px-4 py-2.5 text-slate-400">${durStr}</td>
                                 <td class="px-4 py-2.5 text-slate-300">▲ ${inMb} MB / ▼ ${outMb} MB</td>
                                 <td class="px-4 py-2.5">
-                                    <span class="px-2 py-0.5 rounded text-[10px] ${s.acct_status_type === 'Active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${s.acct_status_type}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] ${s.acct_status_type === 'Active' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-slate-800 text-slate-400'}">${safeStatus}</span>
                                 </td>
                                 <td class="px-4 py-2.5 text-right">
                                     ${s.acct_status_type === 'Active' ? `
-                                        <button onclick="disconnectSession('${s.session_id}')" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/60 text-rose-400 border border-rose-800/60 rounded text-[10px] transition" title="Disconnect Session">
+                                        <button data-action="disconnect-radius-session" data-session-id="${safeSessionId}" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/60 text-rose-400 border border-rose-800/60 rounded text-[10px] transition" title="Disconnect Session">
                                             <i class="fa-solid fa-power-off mr-1"></i> Disconnect
                                         </button>
                                     ` : '<span class="text-slate-600">-</span>'}
@@ -310,39 +322,42 @@
                 const tbody = document.getElementById('radius-bandwidth-table-body');
                 if (data.profiles && data.profiles.length > 0) {
                     tbody.innerHTML = data.profiles.map(p => {
-                        const sessStr = p.session_timeout_mins > 0 ? `${p.session_timeout_mins}m` : 'Unlimited';
-                        const idleStr = p.idle_timeout_mins > 0 ? `${p.idle_timeout_mins}m` : 'None';
-                        const quotaStr = p.daily_quota_mb > 0 ? `${p.daily_quota_mb} MB` : 'Unlimited';
+                        const sessStr = p.session_timeout_mins > 0 ? `${escapeHtml(p.session_timeout_mins)}m` : 'Unlimited';
+                        const idleStr = p.idle_timeout_mins > 0 ? `${escapeHtml(p.idle_timeout_mins)}m` : 'None';
+                        const quotaStr = p.daily_quota_mb > 0 ? `${escapeHtml(p.daily_quota_mb)} MB` : 'Unlimited';
                         const targetBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-cyan-300 font-sans border border-slate-700/60 font-medium">Policy Object</span>';
 
                         const downStr = p.download_mbps > 0 
-                            ? `▼ ${p.download_mbps} Mbps` 
+                            ? `▼ ${escapeHtml(p.download_mbps)} Mbps` 
                             : '<span class="text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-infinity"></i> Unlimited</span>';
                         const upStr = p.upload_mbps > 0 
-                            ? `▲ ${p.upload_mbps} Mbps` 
+                            ? `▲ ${escapeHtml(p.upload_mbps)} Mbps` 
                             : '<span class="text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-infinity"></i> Unlimited</span>';
 
                         let attrDisplay = '';
                         if (p.download_mbps <= 0 && p.upload_mbps <= 0) {
                             attrDisplay = '<div class="text-[10px] text-emerald-400 font-mono flex items-center gap-1"><i class="fa-solid fa-bolt"></i> Uncapped Wire Speed (No Limits)</div>';
                         } else {
-                            const wDown = p.download_mbps > 0 ? `▼${p.download_mbps}M` : 'Unlimited';
-                            const wUp = p.upload_mbps > 0 ? `▲${p.upload_mbps}M` : 'Unlimited';
-                            const mkDown = p.download_mbps > 0 ? `${p.download_mbps}M` : '0';
-                            const mkUp = p.upload_mbps > 0 ? `${p.upload_mbps}M` : '0';
+                            const wDown = p.download_mbps > 0 ? `▼${escapeHtml(p.download_mbps)}M` : 'Unlimited';
+                            const wUp = p.upload_mbps > 0 ? `▲${escapeHtml(p.upload_mbps)}M` : 'Unlimited';
+                            const mkDown = p.download_mbps > 0 ? `${escapeHtml(p.download_mbps)}M` : '0';
+                            const mkUp = p.upload_mbps > 0 ? `${escapeHtml(p.upload_mbps)}M` : '0';
                             attrDisplay = `
                                 <div>WISPr: <span class="text-slate-400">${wDown} / ${wUp}</span></div>
                                 <div>MikroTik: <span class="text-cyan-400 font-bold">"${mkUp}/${mkDown}"</span></div>
                             `;
                         }
 
+                        const safeName = escapeHtml(p.name);
+                        const safeDesc = escapeHtml(p.description || '-');
+
                         return `
                             <tr class="hover:bg-slate-800/30">
                                 <td class="px-4 py-2.5">
                                     <div class="font-bold text-white flex items-center gap-2">
-                                        <i class="fa-solid fa-gauge text-cyan-400"></i> ${p.name}
+                                        <i class="fa-solid fa-gauge text-cyan-400"></i> ${safeName}
                                     </div>
-                                    <div class="text-[10px] text-slate-400">${p.description || '-'}</div>
+                                    <div class="text-[10px] text-slate-400">${safeDesc}</div>
                                 </td>
                                 <td class="px-4 py-2.5 text-cyan-300 font-mono font-bold">${downStr}</td>
                                 <td class="px-4 py-2.5 text-amber-300 font-mono font-bold">${upStr}</td>
@@ -355,10 +370,10 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                                    <button onclick="openEditBandwidthModal(${p.id})" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Bandwidth Profile">
+                                    <button data-action="edit-bandwidth-profile" data-id="${p.id}" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Bandwidth Profile">
                                         <i class="fa-solid fa-pen-to-square"></i> Edit
                                     </button>
-                                    <button onclick="deleteBandwidthProfile(${p.id}, '${p.name}')" class="text-slate-500 hover:text-rose-400 p-1 transition" title="Delete Profile">
+                                    <button data-action="delete-bandwidth-profile" data-id="${p.id}" data-name="${safeName}" class="text-slate-500 hover:text-rose-400 p-1 transition" title="Delete Profile">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 </td>
@@ -398,7 +413,7 @@
             if (!p) return alert(`Bandwidth profile ID ${id} not found.`);
 
             document.getElementById('rad-bw-id-input').value = p.id;
-            document.getElementById('rad-bw-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-cyan-400"></i> Edit Bandwidth Profile: <span class="text-white">${p.name}</span>`;
+            document.getElementById('rad-bw-modal-title').innerHTML = `<i class="fa-solid fa-pen-to-square text-cyan-400"></i> Edit Bandwidth Profile: <span class="text-white">${escapeHtml(p.name)}</span>`;
             const btn = document.getElementById('btn-save-bw-profile');
             if (btn) btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Update Bandwidth Tier';
             document.getElementById('rad-bw-name-input').value = p.name || '';
@@ -519,20 +534,27 @@
                 const data = await res.json();
                 const tbody = document.getElementById('radius-mab-table-body');
                 if (data.devices && data.devices.length > 0) {
-                    tbody.innerHTML = data.devices.map(d => `
-                        <tr class="hover:bg-slate-800/30">
-                            <td class="px-4 py-2.5 font-bold text-indigo-400 font-mono">${d.mac_address}</td>
-                            <td class="px-4 py-2.5 text-white font-semibold">${d.device_name}</td>
-                            <td class="px-4 py-2.5 text-cyan-400 font-mono font-bold">VLAN ${d.vlan_id}</td>
-                            <td class="px-4 py-2.5 text-slate-300 font-mono">${d.static_ip || '-'}</td>
-                            <td class="px-4 py-2.5 text-slate-400">${d.description || '-'}</td>
-                            <td class="px-4 py-2.5 text-right">
-                                <button onclick="deleteMabDevice(${d.id})" class="text-slate-500 hover:text-rose-400 transition" title="Delete Device">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('');
+                    tbody.innerHTML = data.devices.map(d => {
+                        const safeMac = escapeHtml(d.mac_address);
+                        const safeName = escapeHtml(d.device_name);
+                        const safeVlan = escapeHtml(d.vlan_id);
+                        const safeIp = escapeHtml(d.static_ip || '-');
+                        const safeDesc = escapeHtml(d.description || '-');
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5 font-bold text-indigo-400 font-mono">${safeMac}</td>
+                                <td class="px-4 py-2.5 text-white font-semibold">${safeName}</td>
+                                <td class="px-4 py-2.5 text-cyan-400 font-mono font-bold">VLAN ${safeVlan}</td>
+                                <td class="px-4 py-2.5 text-slate-300 font-mono">${safeIp}</td>
+                                <td class="px-4 py-2.5 text-slate-400">${safeDesc}</td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <button data-action="delete-mab-device" data-id="${d.id}" class="text-slate-500 hover:text-rose-400 transition" title="Delete Device">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
                 } else {
                     tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No MAB bypass devices configured.</td></tr>`;
                 }
@@ -600,23 +622,31 @@
                 const data = await res.json();
                 const tbody = document.getElementById('radius-custom-table-body');
                 if (data.attributes && data.attributes.length > 0) {
-                    tbody.innerHTML = data.attributes.map(a => `
-                        <tr class="hover:bg-slate-800/30">
-                            <td class="px-4 py-2.5">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-800 text-slate-300">${a.target_type}</span>
-                            </td>
-                            <td class="px-4 py-2.5 font-bold text-white font-mono">${a.target_name || 'ALL'}</td>
-                            <td class="px-4 py-2.5 text-amber-400 font-mono font-semibold">${a.attribute_name}</td>
-                            <td class="px-4 py-2.5 text-slate-400 font-mono">${a.operator || '='}</td>
-                            <td class="px-4 py-2.5 text-cyan-300 font-mono">${a.attribute_value}</td>
-                            <td class="px-4 py-2.5 text-slate-400">${a.description || '-'}</td>
-                            <td class="px-4 py-2.5 text-right">
-                                <button onclick="deleteCustomAttr(${a.id})" class="text-slate-500 hover:text-rose-400 transition" title="Delete Attribute">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('');
+                    tbody.innerHTML = data.attributes.map(a => {
+                        const safeTargetType = escapeHtml(a.target_type);
+                        const safeTargetName = escapeHtml(a.target_name || 'ALL');
+                        const safeAttrName = escapeHtml(a.attribute_name);
+                        const safeOp = escapeHtml(a.operator || '=');
+                        const safeAttrVal = escapeHtml(a.attribute_value);
+                        const safeDesc = escapeHtml(a.description || '-');
+                        return `
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="px-4 py-2.5">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-slate-800 text-slate-300">${safeTargetType}</span>
+                                </td>
+                                <td class="px-4 py-2.5 font-bold text-white font-mono">${safeTargetName}</td>
+                                <td class="px-4 py-2.5 text-amber-400 font-mono font-semibold">${safeAttrName}</td>
+                                <td class="px-4 py-2.5 text-slate-400 font-mono">${safeOp}</td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-mono">${safeAttrVal}</td>
+                                <td class="px-4 py-2.5 text-slate-400">${safeDesc}</td>
+                                <td class="px-4 py-2.5 text-right">
+                                    <button data-action="delete-custom-attr" data-id="${a.id}" class="text-slate-500 hover:text-rose-400 transition" title="Delete Attribute">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
                 } else {
                     tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center font-sans text-slate-500">No custom vendor attributes configured.</td></tr>`;
                 }

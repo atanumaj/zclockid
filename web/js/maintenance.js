@@ -22,7 +22,7 @@
 
                 renderBackupsTable(currentBackups);
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to load backups: ${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to load backups: ${escapeHtml(String(err))}</td></tr>`;
             }
         }
 
@@ -35,39 +35,45 @@
 
             tbody.innerHTML = backups.map(b => {
                 const isFull = b.backup_type === 'full';
-                const createdDate = b.created_at ? new Date(b.created_at).toLocaleString() : '-';
+                const createdDate = b.created_at ? escapeHtml(new Date(b.created_at).toLocaleString()) : '-';
+                const safeFilename = escapeHtml(b.filename);
+                const safeDesc = escapeHtml(b.description || 'Appliance backup');
+                const safeSize = escapeHtml(b.size_human);
+                const safeRealm = escapeHtml(b.realm);
+                const safeHost = escapeHtml(b.hostname);
+
                 return `
                     <tr class="hover:bg-slate-800/30">
                         <td class="px-4 py-3">
                             <div class="font-bold text-white flex items-center gap-2">
                                 <i class="fa-solid fa-file-zipper ${isFull ? 'text-amber-400' : 'text-emerald-400'}"></i>
-                                <span>${b.filename}</span>
+                                <span>${safeFilename}</span>
                             </div>
-                            <span class="text-[10px] text-slate-400 font-sans block pt-0.5">${b.description || 'Appliance backup'}</span>
+                            <span class="text-[10px] text-slate-400 font-sans block pt-0.5">${safeDesc}</span>
                         </td>
                         <td class="px-4 py-3">
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isFull ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-emerald-950 text-emerald-300 border border-emerald-800'}">
                                 ${isFull ? 'FULL DISASTER RECOVERY' : 'CONFIGURATION ONLY'}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-cyan-300 font-semibold">${b.size_human}</td>
+                        <td class="px-4 py-3 text-cyan-300 font-semibold">${safeSize}</td>
                         <td class="px-4 py-3 text-slate-300 text-[11px]">${createdDate}</td>
                         <td class="px-4 py-3 text-slate-400">
-                            <div class="text-white font-semibold">${b.realm}</div>
-                            <div class="text-[10px] text-slate-500">${b.hostname}</div>
+                            <div class="text-white font-semibold">${safeRealm}</div>
+                            <div class="text-[10px] text-slate-500">${safeHost}</div>
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="flex items-center justify-end gap-2">
-                                <button onclick="downloadBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition" title="Download to PC">
+                                <button data-action="download-backup" data-filename="${safeFilename}" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition" title="Download to PC">
                                     <i class="fa-solid fa-download"></i>
                                 </button>
-                                <button onclick="inspectBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded text-xs transition" title="Inspect Manifest">
+                                <button data-action="inspect-backup" data-filename="${safeFilename}" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded text-xs transition" title="Inspect Manifest">
                                     <i class="fa-solid fa-magnifying-glass"></i>
                                 </button>
-                                <button onclick="confirmRestoreBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-rose-900/60 text-amber-400 hover:text-white rounded text-xs transition" title="Restore this Backup">
+                                <button data-action="confirm-restore-backup" data-filename="${safeFilename}" class="p-1.5 bg-slate-800 hover:bg-rose-900/60 text-amber-400 hover:text-white rounded text-xs transition" title="Restore this Backup">
                                     <i class="fa-solid fa-rotate-left"></i>
                                 </button>
-                                <button onclick="deleteBackup('${b.filename}')" class="p-1.5 bg-slate-800 hover:bg-rose-800 text-slate-400 hover:text-white rounded text-xs transition" title="Delete Archive">
+                                <button data-action="delete-backup" data-filename="${safeFilename}" class="p-1.5 bg-slate-800 hover:bg-rose-800 text-slate-400 hover:text-white rounded text-xs transition" title="Delete Archive">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </div>
@@ -181,26 +187,26 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || 'Inspection failed');
 
-                document.getElementById('inspect-modal-title').innerText = `Manifest: ${filename}`;
+                document.getElementById('inspect-modal-title').textContent = `Manifest: ${filename}`;
                 const m = data.manifest || {};
                 const grid = document.getElementById('inspect-meta-grid');
                 grid.innerHTML = `
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                        <div><span class="text-slate-500 text-[10px] block">TYPE</span><span class="font-bold text-emerald-400 uppercase">${m.backup_type || 'Unknown'}</span></div>
-                        <div><span class="text-slate-500 text-[10px] block">REALM</span><span class="font-bold text-white">${m.realm || 'Unknown'}</span></div>
-                        <div><span class="text-slate-500 text-[10px] block">HOSTNAME</span><span class="font-bold text-cyan-300">${m.hostname || 'Unknown'}</span></div>
-                        <div><span class="text-slate-500 text-[10px] block">VERSION</span><span class="font-bold text-indigo-300">${m.appliance_version || '1.1.0'}</span></div>
+                        <div><span class="text-slate-500 text-[10px] block">TYPE</span><span class="font-bold text-emerald-400 uppercase">${escapeHtml(m.backup_type || 'Unknown')}</span></div>
+                        <div><span class="text-slate-500 text-[10px] block">REALM</span><span class="font-bold text-white">${escapeHtml(m.realm || 'Unknown')}</span></div>
+                        <div><span class="text-slate-500 text-[10px] block">HOSTNAME</span><span class="font-bold text-cyan-300">${escapeHtml(m.hostname || 'Unknown')}</span></div>
+                        <div><span class="text-slate-500 text-[10px] block">VERSION</span><span class="font-bold text-indigo-300">${escapeHtml(m.appliance_version || '1.1.0')}</span></div>
                     </div>
                 `;
 
-                document.getElementById('inspect-modal-json').innerText = JSON.stringify(m, null, 2);
+                document.getElementById('inspect-modal-json').textContent = JSON.stringify(m, null, 2);
 
                 const cBox = document.getElementById('inspect-modal-contents');
                 if (data.contents && data.contents.length > 0) {
                     cBox.innerHTML = data.contents.map(c => `
                         <div class="flex items-center justify-between py-0.5 border-b border-slate-900">
-                            <span class="${c.is_dir ? 'text-indigo-300 font-bold' : 'text-slate-300'}">${c.name}</span>
-                            <span class="text-slate-500 text-[10px]">${c.is_dir ? 'DIR' : `${(c.size/1024).toFixed(1)} KB`}</span>
+                            <span class="${c.is_dir ? 'text-indigo-300 font-bold' : 'text-slate-300'}">${escapeHtml(c.name)}</span>
+                            <span class="text-slate-500 text-[10px]">${c.is_dir ? 'DIR' : `${escapeHtml((c.size/1024).toFixed(1))} KB`}</span>
                         </div>
                     `).join('');
                 } else {
@@ -404,14 +410,17 @@
                 container.innerHTML = '<span class="text-slate-500 text-[11px] italic p-1">No departments configured. Default "General" will be used.</span>';
                 return;
             }
-            container.innerHTML = currentRegDepartments.map(d => `
-                <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-sans flex items-center gap-1.5 shadow-sm">
-                    <i class="fa-solid fa-briefcase text-[9px] text-indigo-400"></i> ${d}
-                    <button type="button" onclick="removeRegistrationDepartment('${d.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400 transition ml-0.5" title="Remove ${d}">
-                        <i class="fa-solid fa-xmark text-[10px]"></i>
-                    </button>
-                </span>
-            `).join('');
+            container.innerHTML = currentRegDepartments.map(d => {
+                const safeD = escapeHtml(d);
+                return `
+                    <span class="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-200 text-[11px] font-sans flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-briefcase text-[9px] text-indigo-400"></i> ${safeD}
+                        <button type="button" data-action="remove-reg-dept" data-dept="${safeD}" class="text-slate-400 hover:text-rose-400 transition ml-0.5" title="Remove ${safeD}">
+                            <i class="fa-solid fa-xmark text-[10px]"></i>
+                        </button>
+                    </span>
+                `;
+            }).join('');
         }
 
         function addRegistrationDepartment() {
@@ -548,7 +557,7 @@
                     document.getElementById('reg-stat-auto').innerText = autoCount;
 
                     if (data.requests.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500 font-sans">No registration requests found matching filter '${filter}'.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-slate-500 font-sans">No registration requests found matching filter '${escapeHtml(filter)}'.</td></tr>`;
                         return;
                     }
 
@@ -565,30 +574,36 @@
                         } else if (r.status === 'REJECTED') {
                             statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-300 border border-rose-800">REJECTED</span>';
                         } else {
-                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">${r.status}</span>`;
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-400">${escapeHtml(r.status)}</span>`;
                         }
 
-                        const dateStr = r.created_at ? new Date(r.created_at * 1000).toLocaleString() : '-';
+                        const dateStr = r.created_at ? escapeHtml(new Date(r.created_at * 1000).toLocaleString()) : '-';
+                        const safeUsername = escapeHtml(r.username);
+                        const safeGivenName = escapeHtml(r.given_name || '');
+                        const safeSurname = escapeHtml(r.surname || '');
+                        const safeMobile = escapeHtml(r.mobile || '-');
+                        const safeEmail = escapeHtml(r.email || '-');
+                        const safeDept = escapeHtml(r.department || '-');
 
                         let actionButtons = '';
                         if (r.status === 'PENDING_APPROVAL') {
                             actionButtons = `
-                                <button onclick="approveRegistration(${r.id}, '${r.username}')" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-semibold text-[11px] transition mr-1" title="Approve & Provision into AD">
+                                <button data-action="approve-registration" data-id="${r.id}" data-username="${safeUsername}" class="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-semibold text-[11px] transition mr-1" title="Approve & Provision into AD">
                                     <i class="fa-solid fa-check"></i> Approve
                                 </button>
-                                <button onclick="rejectRegistration(${r.id}, '${r.username}')" class="px-2 py-1 rounded bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-sans text-[11px] transition mr-1" title="Reject Request">
+                                <button data-action="reject-registration" data-id="${r.id}" data-username="${safeUsername}" class="px-2 py-1 rounded bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/30 font-sans text-[11px] transition mr-1" title="Reject Request">
                                     <i class="fa-solid fa-xmark"></i> Reject
                                 </button>
                             `;
                         } else if (r.status === 'VERIFIED_AUTO_PROVISIONED' || r.status === 'APPROVED') {
                             actionButtons = `
-                                <button onclick="openChangeUpnModal('${r.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] transition mr-1" title="Change UserPrincipalName (UPN)">
+                                <button data-action="change-reg-upn" data-username="${safeUsername}" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 text-[10px] transition mr-1" title="Change UserPrincipalName (UPN)">
                                     <i class="fa-solid fa-at"></i> UPN
                                 </button>
                             `;
                         }
                         actionButtons += `
-                            <button onclick="deleteRegistration(${r.id}, '${r.username}')" class="text-slate-500 hover:text-rose-400 transition ml-1" title="Delete Log Entry">
+                            <button data-action="delete-registration" data-id="${r.id}" data-username="${safeUsername}" class="text-slate-500 hover:text-rose-400 transition ml-1" title="Delete Log Entry">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         `;
@@ -596,12 +611,12 @@
                         return `
                             <tr class="hover:bg-slate-800/30">
                                 <td class="px-4 py-3">
-                                    <div class="font-bold text-white">${r.username}</div>
-                                    <div class="text-[10px] text-slate-400">${r.given_name || ''} ${r.surname || ''}</div>
+                                    <div class="font-bold text-white">${safeUsername}</div>
+                                    <div class="text-[10px] text-slate-400">${safeGivenName} ${safeSurname}</div>
                                 </td>
-                                <td class="px-4 py-3 text-cyan-300 font-mono text-xs">${r.mobile || '-'}</td>
-                                <td class="px-4 py-3 text-slate-300 font-sans">${r.email || '-'}</td>
-                                <td class="px-4 py-3 text-slate-400 font-sans">${r.department || '-'}</td>
+                                <td class="px-4 py-3 text-cyan-300 font-mono text-xs">${safeMobile}</td>
+                                <td class="px-4 py-3 text-slate-300 font-sans">${safeEmail}</td>
+                                <td class="px-4 py-3 text-slate-400 font-sans">${safeDept}</td>
                                 <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
                                 <td class="px-4 py-3 text-slate-500 font-mono text-[10px]">${dateStr}</td>
                                 <td class="px-4 py-3 text-right whitespace-nowrap">${actionButtons}</td>
@@ -610,7 +625,7 @@
                     }).join('');
                 }
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center text-rose-400">Failed to load registration queue: ${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-4 text-center text-rose-400">Failed to load registration queue: ${escapeHtml(String(err))}</td></tr>`;
             }
         }
 
@@ -917,20 +932,26 @@
                     catBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Identity & DNS</span>`;
                 }
 
+                const safeSuite = escapeHtml(pkg.suite || 'updates');
                 let secBadge = pkg.is_security
                     ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-600 text-white flex items-center gap-1 w-max"><i class="fa-solid fa-shield-virus text-[9px]"></i> SECURITY</span>`
-                    : `<span class="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-800/80">${pkg.suite || 'updates'}</span>`;
+                    : `<span class="px-2 py-0.5 rounded text-[10px] font-mono text-slate-400 bg-slate-800/80">${safeSuite}</span>`;
+
+                const safePkgName = escapeHtml(pkg.name);
+                const safeCurrentVer = escapeHtml(pkg.current_version);
+                const safeCandidateVer = escapeHtml(pkg.candidate_version);
+                const safeArch = escapeHtml(pkg.arch);
 
                 html += `
                     <tr class="hover:bg-slate-800/30 transition">
                         <td class="py-2.5 px-4 font-bold text-white flex items-center gap-2">
                             <i class="fa-solid fa-cube text-slate-500 text-xs"></i>
-                            <span>${pkg.name}</span>
+                            <span>${safePkgName}</span>
                         </td>
                         <td class="py-2.5 px-4">${catBadge}</td>
-                        <td class="py-2.5 px-4 text-slate-400">${pkg.current_version}</td>
-                        <td class="py-2.5 px-4 text-emerald-400 font-bold">${pkg.candidate_version}</td>
-                        <td class="py-2.5 px-4 text-slate-500 text-[11px]">${pkg.arch}</td>
+                        <td class="py-2.5 px-4 text-slate-400">${safeCurrentVer}</td>
+                        <td class="py-2.5 px-4 text-emerald-400 font-bold">${safeCandidateVer}</td>
+                        <td class="py-2.5 px-4 text-slate-500 text-[11px]">${safeArch}</td>
                         <td class="py-2.5 px-4">${secBadge}</td>
                     </tr>
                 `;
@@ -1195,7 +1216,7 @@
                 if (lastCheckedEl) lastCheckedEl.innerText = new Date().toLocaleString();
             } catch (err) {
                 if (statusPill) {
-                    statusPill.innerText = 'CHECK FAILED';
+                    statusPill.textContent = 'CHECK FAILED';
                     statusPill.className = 'px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950 text-rose-400 border border-rose-800';
                 }
                 if (resultCard) {
@@ -1204,7 +1225,7 @@
                             <i class="fa-solid fa-triangle-exclamation text-rose-400 text-lg"></i>
                             <div class="text-xs">
                                 <div class="font-semibold text-rose-200">Update Check Error</div>
-                                <div class="text-[11px] text-slate-400">${err}</div>
+                                <div class="text-[11px] text-slate-400">${escapeHtml(String(err))}</div>
                             </div>
                         </div>
                     `;
@@ -1227,9 +1248,12 @@
             const dashBadge = document.getElementById('dash-update-available-badge');
             const dashSummary = document.getElementById('dash-update-summary');
 
+            const safeLatestVer = escapeHtml(data.latest_version);
+            const safeReleaseName = escapeHtml(data.release_name || `ZclockID v${data.latest_version}`);
+
             if (navBadge) navBadge.classList.remove('hidden');
             if (dashBadge) dashBadge.classList.remove('hidden');
-            if (dashSummary) dashSummary.innerText = `New version v${data.latest_version} is available for installation!`;
+            if (dashSummary) dashSummary.textContent = `New version v${data.latest_version} is available for installation!`;
 
             const relType = (data.release_type || 'patch').toLowerCase();
             let typeBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Patch</span>`;
@@ -1249,11 +1273,11 @@
                             <div>
                                 <div class="flex items-center gap-2">
                                     <span class="font-bold text-white text-sm">New Release Available!</span>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-600 text-white font-bold">v${data.latest_version}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-violet-600 text-white font-bold">v${safeLatestVer}</span>
                                     ${typeBadge}
                                 </div>
-                                <div class="text-xs text-slate-300 mt-1">${data.release_name || `ZclockID v${data.latest_version}`}</div>
-                                <div class="text-[10px] text-slate-500 mt-0.5">Published: ${data.published_at ? new Date(data.published_at).toLocaleDateString() : 'Recent'}</div>
+                                <div class="text-xs text-slate-300 mt-1">${safeReleaseName}</div>
+                                <div class="text-[10px] text-slate-500 mt-0.5">Published: ${data.published_at ? escapeHtml(new Date(data.published_at).toLocaleDateString()) : 'Recent'}</div>
                             </div>
                         </div>
                     </div>
@@ -1262,18 +1286,18 @@
 
             if (data.release_notes && notesContainer && notesBody) {
                 notesContainer.classList.remove('hidden');
-                notesBody.innerText = data.release_notes;
+                notesBody.textContent = data.release_notes;
                 if (data.published_at) {
                     const dt = document.getElementById('release-date-badge');
-                    if (dt) dt.innerText = new Date(data.published_at).toLocaleString();
+                    if (dt) dt.textContent = new Date(data.published_at).toLocaleString();
                 }
             }
 
             if (actionContainer) actionContainer.classList.remove('hidden');
-            if (targetPkgName) targetPkgName.innerText = `zclockid_${data.latest_version}_all.deb`;
+            if (targetPkgName) targetPkgName.textContent = `zclockid_${data.latest_version}_all.deb`;
             if (targetPkgSize && data.asset_size) {
                 const kb = Math.round(data.asset_size / 1024);
-                targetPkgSize.innerText = `${kb} KB`;
+                targetPkgSize.textContent = `${kb} KB`;
             }
         }
 
@@ -1289,6 +1313,8 @@
             if (notesContainer) notesContainer.classList.add('hidden');
             if (actionContainer) actionContainer.classList.add('hidden');
 
+            const safeCurVer = escapeHtml(data.current_version);
+
             if (resultCard) {
                 resultCard.innerHTML = `
                     <div class="flex items-center gap-3 text-emerald-400">
@@ -1297,7 +1323,7 @@
                         </div>
                         <div class="text-xs">
                             <div class="font-bold text-white">Appliance is Up to Date</div>
-                            <div class="text-[11px] text-slate-400">Current version <span class="font-mono text-emerald-400 font-semibold">v${data.current_version}</span> is the latest release published on this channel.</div>
+                            <div class="text-[11px] text-slate-400">Current version <span class="font-mono text-emerald-400 font-semibold">v${safeCurVer}</span> is the latest release published on this channel.</div>
                         </div>
                     </div>
                 `;
@@ -1312,13 +1338,15 @@
             if (notesContainer) notesContainer.classList.add('hidden');
             if (actionContainer) actionContainer.classList.add('hidden');
 
+            const safeMsg = escapeHtml(data.message || 'The specified GitHub repository has no release assets tagged yet.');
+
             if (resultCard) {
                 resultCard.innerHTML = `
                     <div class="flex items-center gap-3 text-slate-400">
                         <i class="fa-solid fa-box-open text-slate-500 text-xl shrink-0"></i>
                         <div class="text-xs">
                             <div class="font-semibold text-slate-200">No Releases Published Yet</div>
-                            <div class="text-[11px] text-slate-400">${data.message || 'The specified GitHub repository has no release assets tagged yet.'}</div>
+                            <div class="text-[11px] text-slate-400">${safeMsg}</div>
                             <div class="text-[10px] text-cyan-400 mt-1"><i class="fa-solid fa-arrow-down"></i> You can upload a .deb package directly using the manual upload form below.</div>
                         </div>
                     </div>
@@ -1334,15 +1362,20 @@
             if (notesContainer) notesContainer.classList.add('hidden');
             if (actionContainer) actionContainer.classList.add('hidden');
 
+            const safeMsg = escapeHtml(data.message || 'Could not connect to release server.');
+
             if (resultCard) {
                 resultCard.innerHTML = `
                     <div class="flex items-center gap-3 text-amber-400">
                         <i class="fa-solid fa-triangle-exclamation text-amber-400 text-xl shrink-0"></i>
                         <div class="text-xs">
                             <div class="font-semibold text-slate-200">Update Channel Notice</div>
-                            <div class="text-[11px] text-slate-400">${data.message || 'Could not connect to release server.'}</div>
+                            <div class="text-[11px] text-slate-400">${safeMsg}</div>
                             <div class="text-[10px] text-cyan-400 mt-1">Appliance is ready for offline updates via direct .deb file upload below.</div>
                         </div>
+                    </div>
+                `;
+            }
                     </div>
                 `;
             }

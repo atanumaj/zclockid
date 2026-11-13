@@ -61,7 +61,7 @@
             } catch (err) {
                 console.error('Error fetching audit events:', err);
                 const tbody = document.getElementById('audit-table-body');
-                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-rose-400">Failed to load audit records: ${err.message}</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-rose-400">Failed to load audit records: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
 
@@ -87,7 +87,7 @@
             if (filtered.length > 0) {
                 tbody.innerHTML = filtered.map(e => {
                     const d = new Date(e.timestamp * 1000);
-                    const dateStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString();
+                    const dateStr = escapeHtml(d.toLocaleDateString() + ' ' + d.toLocaleTimeString());
                     let detailsFormatted = e.details || '-';
                     try {
                         const parsed = JSON.parse(e.details);
@@ -96,14 +96,21 @@
                         }
                     } catch (_) {}
 
+                    const safeType = escapeHtml(e.event_type);
+                    const safeActor = escapeHtml(e.actor || 'system');
+                    const safeTarget = escapeHtml(e.target);
+                    const safeStatus = escapeHtml(e.status);
+                    const safeDetails = escapeHtml(detailsFormatted);
+                    const rawDetailsAttr = escapeHtml(e.details || '');
+
                     return `
                         <tr class="hover:bg-slate-800/30 transition">
                             <td class="px-4 py-2.5 text-slate-400 whitespace-nowrap">${dateStr}</td>
-                            <td class="px-4 py-2.5 font-bold text-white">${e.event_type}</td>
-                            <td class="px-4 py-2.5 text-indigo-400 font-semibold">${e.actor || 'system'}</td>
-                            <td class="px-4 py-2.5 text-cyan-300 font-semibold">${e.target}</td>
-                            <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${e.status === 'SUCCESS' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">${e.status}</span></td>
-                            <td class="px-4 py-2.5 text-slate-400 max-w-xs truncate font-mono text-[10px]" title="${(e.details || '').replace(/"/g, '&quot;')}">${detailsFormatted}</td>
+                            <td class="px-4 py-2.5 font-bold text-white">${safeType}</td>
+                            <td class="px-4 py-2.5 text-indigo-400 font-semibold">${safeActor}</td>
+                            <td class="px-4 py-2.5 text-cyan-300 font-semibold">${safeTarget}</td>
+                            <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${e.status === 'SUCCESS' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}">${safeStatus}</span></td>
+                            <td class="px-4 py-2.5 text-slate-400 max-w-xs truncate font-mono text-[10px]" title="${rawDetailsAttr}">${safeDetails}</td>
                         </tr>
                     `;
                 }).join('');
@@ -143,23 +150,26 @@
                     else if (m.role === 'operator') roleColor = 'text-indigo-400 bg-indigo-950 border-indigo-800';
                     else if (m.role === 'report') roleColor = 'text-cyan-400 bg-cyan-950 border-cyan-800';
 
-                    const roleBadge = `<span class="px-2 py-0.5 text-[10px] rounded border font-mono font-bold ${roleColor}">${m.role}</span>`;
-                    const dateStr = m.created_at ? new Date(m.created_at * 1000).toLocaleDateString() : '--';
+                    const safeRole = escapeHtml(m.role);
+                    const safeName = escapeHtml(m.principal_name);
+                    const safeDesc = escapeHtml(m.description || '--');
+                    const roleBadge = `<span class="px-2 py-0.5 text-[10px] rounded border font-mono font-bold ${roleColor}">${safeRole}</span>`;
+                    const dateStr = m.created_at ? escapeHtml(new Date(m.created_at * 1000).toLocaleDateString()) : '--';
                     const isProtected = (m.principal_name === 'Domain Admins' && m.principal_type === 'group');
 
                     return `
                         <tr class="hover:bg-slate-800/30 transition">
                             <td class="py-3 px-4">${typeBadge}</td>
                             <td class="py-3 px-4 font-mono font-bold text-white flex items-center gap-2">
-                                ${m.principal_name}
+                                ${safeName}
                                 ${isProtected ? '<span class="text-[10px] text-amber-400" title="Protected core group mapping"><i class="fa-solid fa-lock"></i></span>' : ''}
                             </td>
                             <td class="py-3 px-4">${roleBadge}</td>
-                            <td class="py-3 px-4 text-slate-400 text-xs">${m.description || '--'}</td>
+                            <td class="py-3 px-4 text-slate-400 text-xs">${safeDesc}</td>
                             <td class="py-3 px-4 text-slate-500 font-mono text-[11px]">${dateStr}</td>
                             <td class="py-3 px-4 text-right">
                                 ${isProtected ? '<span class="text-[11px] text-slate-600 font-mono">LOCKED</span>' : `
-                                    <button onclick="deleteRbacMapping(${m.id}, '${m.principal_name}')" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded transition text-xs">
+                                    <button data-action="delete-rbac-mapping" data-id="${m.id}" data-principal="${safeName}" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded transition text-xs">
                                         <i class="fa-solid fa-trash-can mr-1"></i> Delete
                                     </button>
                                 `}
@@ -168,7 +178,7 @@
                     `;
                 }).join('');
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-rose-400 font-mono">Error: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-rose-400 font-mono">Error: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
 
@@ -203,17 +213,25 @@
             if (!select) return;
 
             if (type === 'group') {
-                if (label) label.innerText = 'Select Active Directory Security Group';
-                if (hint) hint.innerText = 'Security groups discovered live from Active Directory (sam.ldb).';
+                if (label) label.textContent = 'Select Active Directory Security Group';
+                if (hint) hint.textContent = 'Security groups discovered live from Active Directory (sam.ldb).';
                 const list = adPrincipalsCache.groups || [];
                 select.innerHTML = '<option value="">-- Select Active Directory Group --</option>' +
-                    list.map(g => `<option value="${g.name}" ${g.name === selectedValue ? 'selected' : ''}>${g.name}${g.description ? ' — ' + g.description : ''}</option>`).join('');
+                    list.map(g => {
+                        const safeGName = escapeHtml(g.name);
+                        const safeGDesc = g.description ? ' — ' + escapeHtml(g.description) : '';
+                        return `<option value="${safeGName}" ${g.name === selectedValue ? 'selected' : ''}>${safeGName}${safeGDesc}</option>`;
+                    }).join('');
             } else {
-                if (label) label.innerText = 'Select Active Directory User Account';
-                if (hint) hint.innerText = 'User accounts discovered live from Active Directory (sam.ldb).';
+                if (label) label.textContent = 'Select Active Directory User Account';
+                if (hint) hint.textContent = 'User accounts discovered live from Active Directory (sam.ldb).';
                 const list = adPrincipalsCache.users || [];
                 select.innerHTML = '<option value="">-- Select Active Directory User --</option>' +
-                    list.map(u => `<option value="${u.name}" ${u.name === selectedValue ? 'selected' : ''}>${u.name}${u.display_name ? ' — ' + u.display_name : ''}</option>`).join('');
+                    list.map(u => {
+                        const safeUName = escapeHtml(u.name);
+                        const safeUDisp = u.display_name ? ' — ' + escapeHtml(u.display_name) : '';
+                        return `<option value="${safeUName}" ${u.name === selectedValue ? 'selected' : ''}>${safeUName}${safeUDisp}</option>`;
+                    }).join('');
             }
         }
 
@@ -540,26 +558,32 @@
                 }
 
                 tbody.innerHTML = sessions.map(s => {
-                    const loggedInStr = new Date(s.created_at * 1000).toLocaleString();
-                    const lastActiveStr = new Date(s.last_active * 1000).toLocaleTimeString();
+                    const loggedInStr = escapeHtml(new Date(s.created_at * 1000).toLocaleString());
+                    const lastActiveStr = escapeHtml(new Date(s.last_active * 1000).toLocaleTimeString());
+                    const safeUser = escapeHtml(s.username);
+                    const safeRole = escapeHtml(s.role);
+                    const safeIp = escapeHtml(s.ip_address);
+                    const safeUa = escapeHtml(s.user_agent || 'Unknown');
+                    const safeToken = escapeHtml(s.token_prefix);
+
                     const statusBadge = s.is_current
                         ? '<span class="px-2 py-0.5 text-[10px] rounded bg-emerald-950 border border-emerald-800 text-emerald-400 font-mono font-bold"><i class="fa-solid fa-circle mr-1 text-[8px] animate-pulse"></i> CURRENT SESSION</span>'
                         : '<span class="px-2 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono">ACTIVE</span>';
 
                     const actionBtn = s.is_current
                         ? '<span class="text-[11px] text-slate-600 font-mono italic">Current User</span>'
-                        : `<button onclick="terminateSession('${s.token_prefix}')" class="px-2 py-1 bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-[11px] transition flex items-center gap-1 ml-auto"><i class="fa-solid fa-power-off"></i> Revoke</button>`;
+                        : `<button data-action="terminate-session" data-token="${safeToken}" class="px-2 py-1 bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-[11px] transition flex items-center gap-1 ml-auto"><i class="fa-solid fa-power-off"></i> Revoke</button>`;
 
                     let userBadge = s.username === 'admin'
-                        ? `<span class="font-bold text-white">${s.username}</span> <span class="px-1.5 py-0.2 text-[9px] rounded bg-amber-950/80 text-amber-400 border border-amber-800/40 ml-1 font-mono">BREAK-GLASS</span>`
-                        : `<span class="font-bold text-white">${s.username}</span>`;
+                        ? `<span class="font-bold text-white">${safeUser}</span> <span class="px-1.5 py-0.2 text-[9px] rounded bg-amber-950/80 text-amber-400 border border-amber-800/40 ml-1 font-mono">BREAK-GLASS</span>`
+                        : `<span class="font-bold text-white">${safeUser}</span>`;
 
                     return `
                         <tr class="hover:bg-slate-800/30 transition">
                             <td class="py-3 px-4">${userBadge}</td>
-                            <td class="py-3 px-4 font-mono text-indigo-400 font-semibold">${s.role}</td>
-                            <td class="py-3 px-4 font-mono text-slate-300">${s.ip_address}</td>
-                            <td class="py-3 px-4 text-slate-400 max-w-xs truncate" title="${s.user_agent}">${s.user_agent || 'Unknown'}</td>
+                            <td class="py-3 px-4 font-mono text-indigo-400 font-semibold">${safeRole}</td>
+                            <td class="py-3 px-4 font-mono text-slate-300">${safeIp}</td>
+                            <td class="py-3 px-4 text-slate-400 max-w-xs truncate" title="${safeUa}">${safeUa}</td>
                             <td class="py-3 px-4 text-slate-400 whitespace-nowrap">${loggedInStr}</td>
                             <td class="py-3 px-4 text-slate-400 whitespace-nowrap">${lastActiveStr}</td>
                             <td class="py-3 px-4">${statusBadge}</td>
@@ -568,7 +592,7 @@
                     `;
                 }).join('');
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-rose-400">Error loading sessions: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-rose-400">Error loading sessions: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
 
@@ -661,10 +685,10 @@
                 // KPIs
                 const kpiCount = document.getElementById('fw-rules-kpi-count');
                 if (kpiCount) {
-                    kpiCount.innerHTML = `<i class="fa-solid fa-list-check"></i> ${data.total_rules_count || 0} Rules (${data.active_rules_count || 0} Active)`;
+                    kpiCount.innerHTML = `<i class="fa-solid fa-list-check"></i> ${escapeHtml(data.total_rules_count || 0)} Rules (${escapeHtml(data.active_rules_count || 0)} Active)`;
                 }
                 const badgeCount = document.getElementById('fw-rules-badge-count');
-                if (badgeCount) badgeCount.innerText = data.total_rules_count || 0;
+                if (badgeCount) badgeCount.textContent = data.total_rules_count || 0;
 
                 cachedFirewallRules = data.rules || [];
                 const searchVal = document.getElementById('fw-search-input')?.value || '';
@@ -714,14 +738,14 @@
                     : `<span class="px-2 py-0.5 text-[10px] font-bold rounded bg-rose-950/80 border border-rose-800/60 text-rose-400 font-mono"><i class="fa-solid fa-ban mr-1"></i>DENY</span>`;
 
                 const stateBadge = r.is_enabled
-                    ? `<button onclick="toggleFwRuleState(${r.id}, false)" title="Click to disable rule" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 border border-emerald-800 text-emerald-400 hover:bg-emerald-900/60 transition"><i class="fa-solid fa-power-off mr-1"></i>ENABLED</button>`
-                    : `<button onclick="toggleFwRuleState(${r.id}, true)" title="Click to enable rule" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-400 hover:bg-slate-700 transition"><i class="fa-solid fa-pause mr-1"></i>DISABLED</button>`;
+                    ? `<button data-action="toggle-fw-rule" data-id="${r.id}" data-enable="false" title="Click to disable rule" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 border border-emerald-800 text-emerald-400 hover:bg-emerald-900/60 transition"><i class="fa-solid fa-power-off mr-1"></i>ENABLED</button>`
+                    : `<button data-action="toggle-fw-rule" data-id="${r.id}" data-enable="true" title="Click to enable rule" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-400 hover:bg-slate-700 transition"><i class="fa-solid fa-pause mr-1"></i>DISABLED</button>`;
 
-                const protoBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${r.protocol}</span>`;
-                const portDisplay = `<span class="font-bold text-white font-mono">${r.port}</span>`;
+                const protoBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono">${escapeHtml(r.protocol)}</span>`;
+                const portDisplay = `<span class="font-bold text-white font-mono">${escapeHtml(r.port)}</span>`;
                 const sourceDisplay = r.source === 'Any'
                     ? `<span class="text-slate-400">Any (0.0.0.0/0)</span>`
-                    : `<span class="text-amber-400 font-mono">${escapeFwText(r.source)}</span>`;
+                    : `<span class="text-amber-400 font-mono">${escapeHtml(r.source)}</span>`;
 
                 return `
                     <tr class="hover:bg-slate-800/30 transition">
@@ -729,14 +753,14 @@
                         <td class="py-3 px-3">${protoBadge}</td>
                         <td class="py-3 px-3">${portDisplay}</td>
                         <td class="py-3 px-3">${sourceDisplay}</td>
-                        <td class="py-3 px-3 text-slate-300 font-sans text-xs">${r.comment ? escapeFwText(r.comment) : '<span class="text-slate-500 italic">No description</span>'}</td>
+                        <td class="py-3 px-3 text-slate-300 font-sans text-xs">${r.comment ? escapeHtml(r.comment) : '<span class="text-slate-500 italic">No description</span>'}</td>
                         <td class="py-3 px-3">${stateBadge}</td>
                         <td class="py-3 px-3 text-right">
                             <div class="flex items-center justify-end gap-1.5">
-                                <button onclick="editFirewallRule(${r.id})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Rule">
+                                <button data-action="edit-fw-rule" data-id="${r.id}" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Rule">
                                     <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Edit
                                 </button>
-                                <button onclick="deleteFirewallRule(${r.id})" class="px-2.5 py-1 bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-xs transition flex items-center gap-1" title="Delete Rule">
+                                <button data-action="delete-fw-rule" data-id="${r.id}" class="px-2.5 py-1 bg-rose-950/70 hover:bg-rose-900 border border-rose-800 text-rose-300 rounded text-xs transition flex items-center gap-1" title="Delete Rule">
                                     <i class="fa-solid fa-trash-can"></i> Delete
                                 </button>
                             </div>
@@ -928,7 +952,7 @@
                 if (!res.ok) throw new Error('Failed to load API keys');
                 const keys = await res.json();
 
-                document.getElementById('api-keys-count-pill').innerText = `${keys.length} keys`;
+                document.getElementById('api-keys-count-pill').textContent = `${keys.length} keys`;
 
                 if (keys.length === 0) {
                     tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-500">No API keys issued. Click "Generate New Key" to create a programmatic token.</td></tr>';
@@ -941,22 +965,25 @@
                         if (s === 'admin:all') color = 'bg-yellow-950 text-yellow-400 border-yellow-800';
                         else if (s.includes('manage')) color = 'bg-indigo-950 text-indigo-400 border-indigo-800';
                         else if (s.includes('read')) color = 'bg-emerald-950 text-emerald-400 border-emerald-800';
-                        return `<span class="px-1.5 py-0.5 text-[9px] rounded border font-mono ${color}">${s}</span>`;
+                        return `<span class="px-1.5 py-0.5 text-[9px] rounded border font-mono ${color}">${escapeHtml(s)}</span>`;
                     }).join(' ');
 
-                    const expiryStr = k.expires_at ? new Date(k.expires_at * 1000).toLocaleDateString() : 'Never';
-                    const lastUsedStr = k.last_used_at ? new Date(k.last_used_at * 1000).toLocaleString() : 'Never';
+                    const expiryStr = k.expires_at ? escapeHtml(new Date(k.expires_at * 1000).toLocaleDateString()) : 'Never';
+                    const lastUsedStr = k.last_used_at ? escapeHtml(new Date(k.last_used_at * 1000).toLocaleString()) : 'Never';
+                    const safeName = escapeHtml(k.name);
+                    const safeKeyPrefix = escapeHtml(k.key_prefix);
+                    const safeCidr = escapeHtml(k.cidr_whitelist || '');
 
                     return `
                         <tr class="hover:bg-slate-800/30 transition">
-                            <td class="py-3 px-4 font-semibold text-white">${k.name}</td>
-                            <td class="py-3 px-4 font-mono text-yellow-400 font-bold">${k.key_prefix}</td>
+                            <td class="py-3 px-4 font-semibold text-white">${safeName}</td>
+                            <td class="py-3 px-4 font-mono text-yellow-400 font-bold">${safeKeyPrefix}</td>
                             <td class="py-3 px-4"><div class="flex flex-wrap gap-1">${scopesBadges}</div></td>
-                            <td class="py-3 px-4 font-mono text-slate-400">${k.cidr_whitelist}</td>
+                            <td class="py-3 px-4 font-mono text-slate-400">${safeCidr}</td>
                             <td class="py-3 px-4 font-mono text-slate-400">${expiryStr}</td>
                             <td class="py-3 px-4 font-mono text-slate-500 text-[11px]">${lastUsedStr}</td>
                             <td class="py-3 px-4 text-right">
-                                <button onclick="revokeApiKey(${k.id}, '${k.name}')" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded transition text-xs">
+                                <button data-action="revoke-api-key" data-id="${k.id}" data-name="${safeName}" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 hover:bg-rose-950/30 rounded transition text-xs">
                                     <i class="fa-solid fa-ban mr-1"></i> Revoke
                                 </button>
                             </td>
@@ -964,7 +991,7 @@
                     `;
                 }).join('');
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-rose-400 font-mono">Error: ${err.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-rose-400 font-mono">Error: ${escapeHtml(err.message)}</td></tr>`;
             }
         }
 
@@ -1085,7 +1112,7 @@
                 const sansBox = document.getElementById('cert-sans-container');
                 if (cert.san_list && cert.san_list.length > 0) {
                     sansBox.innerHTML = cert.san_list.map(s => `
-                        <span class="px-2 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-teal-300 font-mono">${s}</span>
+                        <span class="px-2 py-0.5 text-[10px] rounded bg-slate-800 border border-slate-700 text-teal-300 font-mono">${escapeHtml(s)}</span>
                     `).join('');
                 } else {
                     sansBox.innerHTML = '<span class="text-slate-500 text-[11px]">No SANs found</span>';
@@ -1320,7 +1347,7 @@
                 const logs = data.logs || [];
 
                 if (logs.length === 0) {
-                    terminal.innerHTML = `<div class="text-slate-500 text-center py-8">No log entries found for [${currentLogCategory}]${filter ? ' matching filter' : ''}.</div>`;
+                    terminal.innerHTML = `<div class="text-slate-500 text-center py-8">No log entries found for [${escapeHtml(currentLogCategory)}]${filter ? ' matching filter' : ''}.</div>`;
                     return;
                 }
 
@@ -1337,15 +1364,15 @@
 
                     return `
                         <div class="flex items-start gap-2 py-0.5 hover:bg-slate-900/50 rounded px-1">
-                            <span class="text-slate-500 shrink-0 text-[11px]">${l.timestamp}</span>
-                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold border ${levelBg} ${levelColor}">${l.level}</span>
-                            <span class="text-slate-300 break-all">${l.message}</span>
+                            <span class="text-slate-500 shrink-0 text-[11px]">${escapeHtml(l.timestamp)}</span>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] font-bold border ${levelBg} ${levelColor}">${escapeHtml(l.level)}</span>
+                            <span class="text-slate-300 break-all">${escapeHtml(l.message)}</span>
                         </div>
                     `;
                 }).join('');
                 terminal.scrollTop = terminal.scrollHeight;
             } catch (err) {
-                terminal.innerHTML = `<div class="text-rose-400 text-center py-6 font-mono">Error: ${err.message}</div>`;
+                terminal.innerHTML = `<div class="text-rose-400 text-center py-6 font-mono">Error: ${escapeHtml(err.message)}</div>`;
             }
         }
 
@@ -1370,7 +1397,7 @@
             const candidates = [50, 100, 250, 500, 1000, 2000, 5000].filter(v => v <= maxLines);
             if (!candidates.includes(maxLines)) candidates.push(maxLines);
             const prevVal = parseInt(sel.value || defLines);
-            sel.innerHTML = candidates.map(v => `<option value="${v}">${v.toLocaleString()} lines</option>`).join('');
+            sel.innerHTML = candidates.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v.toLocaleString())} lines</option>`).join('');
             const target = candidates.includes(prevVal) ? prevVal : (candidates.includes(defLines) ? defLines : candidates[0]);
             sel.value = String(target);
         }

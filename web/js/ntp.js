@@ -39,11 +39,11 @@
                             return `
                                 <tr class="hover:bg-slate-800/30">
                                     <td class="px-3 py-2">${stateBadge}</td>
-                                    <td class="px-3 py-2 font-bold text-white">${s.address}</td>
-                                    <td class="px-3 py-2 text-cyan-300">Stratum ${s.stratum}</td>
-                                    <td class="px-3 py-2 text-slate-400">${s.reach}</td>
-                                    <td class="px-3 py-2 text-amber-300">${s.offset}s</td>
-                                    <td class="px-3 py-2 text-slate-500">${s.last_rx}</td>
+                                    <td class="px-3 py-2 font-bold text-white">${escapeHtml(s.address)}</td>
+                                    <td class="px-3 py-2 text-cyan-300">Stratum ${escapeHtml(s.stratum)}</td>
+                                    <td class="px-3 py-2 text-slate-400">${escapeHtml(s.reach)}</td>
+                                    <td class="px-3 py-2 text-amber-300">${escapeHtml(s.offset)}s</td>
+                                    <td class="px-3 py-2 text-slate-500">${escapeHtml(s.last_rx)}</td>
                                 </tr>
                             `;
                         }).join('');

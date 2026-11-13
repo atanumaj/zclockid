@@ -349,11 +349,12 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Carry failed_attempts over when the same username or mobile resubmits
+    # Carry failed_attempts over when the same username or mobile resubmits (last 24 hours only)
+    cutoff_24h = time.time() - 86400
     cursor.execute("""
         SELECT MAX(failed_attempts), status FROM self_registrations 
-        WHERE username = ? OR mobile = ?
-    """, (clean_user, clean_mobile))
+        WHERE (username = ? OR mobile = ?) AND created_at > ?
+    """, (clean_user, clean_mobile, cutoff_24h))
     prev_row = cursor.fetchone()
     carried_failed = int(prev_row[0] or 0) if prev_row and prev_row[0] is not None else 0
 

@@ -19,22 +19,27 @@
                 if (data.partners && data.partners.length > 0) {
                     tbody.innerHTML = data.partners.map(p => {
                         const d = p.last_sync ? new Date(p.last_sync * 1000).toLocaleTimeString() : 'Never';
+                        const safeName = escapeHtml(p.name);
+                        const safeIp = escapeHtml(p.ip_address);
+                        const safeStatus = escapeHtml(p.status);
+                        const safeD = escapeHtml(d);
+                        const safeFilesCount = escapeHtml(p.files_count);
                         return `
                             <tr class="hover:bg-slate-800/30">
                                 <td class="px-4 py-2.5 font-bold text-white flex items-center gap-2">
-                                    <i class="fa-solid fa-server text-indigo-400"></i> ${p.name}
+                                    <i class="fa-solid fa-server text-indigo-400"></i> ${safeName}
                                 </td>
-                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${p.ip_address}</td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${safeIp}</td>
                                 <td class="px-4 py-2.5">
-                                    <span class="px-2 py-0.5 rounded text-[10px] ${p.status === 'IN_SYNC' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}">${p.status}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] ${p.status === 'IN_SYNC' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}">${safeStatus}</span>
                                 </td>
-                                <td class="px-4 py-2.5 text-slate-400">${d}</td>
-                                <td class="px-4 py-2.5 text-slate-300 font-bold">${p.files_count} items</td>
+                                <td class="px-4 py-2.5 text-slate-400">${safeD}</td>
+                                <td class="px-4 py-2.5 text-slate-300 font-bold">${safeFilesCount} items</td>
                                 <td class="px-4 py-2.5 text-right space-x-2">
                                     <button onclick="triggerSysvolSyncNow()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition" title="Sync Peer">
                                         <i class="fa-solid fa-rotate mr-1"></i> Sync
                                     </button>
-                                    <button onclick="deleteSysvolPartner('${p.ip_address}')" class="text-slate-500 hover:text-rose-400 transition" title="Remove Peer">
+                                    <button data-action="delete-sysvol-partner" data-ip="${safeIp}" class="text-slate-500 hover:text-rose-400 transition" title="Remove Peer">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 </td>
@@ -45,7 +50,7 @@
                     tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center font-sans text-slate-500">No partner DCs configured. Standalone primary DC.</td></tr>`;
                 }
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to load partners: ${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to load partners: ${escapeHtml(String(err))}</td></tr>`;
             }
         }
 

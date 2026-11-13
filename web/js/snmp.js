@@ -11,7 +11,7 @@
                     const badge = document.getElementById('snmp-status-badge');
                     if (data.service_active) {
                         badge.className = 'inline-flex items-center gap-1 text-emerald-400 text-xs font-semibold';
-                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> ACTIVE (UDP ${data.listening_port})`;
+                        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> ACTIVE (UDP ${escapeHtml(data.listening_port)})`;
                     } else {
                         badge.className = 'inline-flex items-center gap-1 text-rose-400 text-xs font-semibold';
                         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> STOPPED`;

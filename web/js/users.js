@@ -85,9 +85,9 @@
                 }
                 const isActive = (p === currentPage);
                 if (isActive) {
-                    return `<button class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-bold text-xs shadow-sm shadow-indigo-600/40 select-none">${p}</button>`;
+                    return `<button class="px-2.5 py-1 rounded-md bg-indigo-600 text-white font-bold text-xs shadow-sm shadow-indigo-600/40 select-none">${escapeHtml(p)}</button>`;
                 } else {
-                    return `<button onclick="${goToPageFnName}(${p})" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition">${p}</button>`;
+                    return `<button data-action="go-to-page" data-page-fn="${escapeHtml(goToPageFnName)}" data-page="${escapeHtml(p)}" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition">${escapeHtml(p)}</button>`;
                 }
             }).join('');
         }
@@ -262,15 +262,18 @@
 
             if (pageItems.length > 0) {
                 tbody.innerHTML = pageItems.map(u => {
-                    const nameDisplay = u.name || u.username;
+                    const nameDisplay = escapeHtml(u.name || u.username);
+                    const safeUsername = escapeHtml(u.username);
                     const contactDetails = [];
-                    if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${u.email}</span>`);
-                    if (u.mobile) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-phone text-slate-500 mr-1"></i>${u.mobile}</span>`);
+                    if (u.email) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-envelope text-slate-500 mr-1"></i>${escapeHtml(u.email)}</span>`);
+                    if (u.mobile) contactDetails.push(`<span class="font-mono text-[10px] text-slate-400"><i class="fa-solid fa-phone text-slate-500 mr-1"></i>${escapeHtml(u.mobile)}</span>`);
                     
                     // 1. Explicit User Bandwidth Override
                     let userBwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> None</span>';
                     if (u.bandwidth_profile_name) {
-                        userBwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="Explicit User Override (takes precedence) - WISPr/MikroTik: ${u.bandwidth_rate || ''}"><i class="fa-solid fa-user-shield text-cyan-400"></i> ${u.bandwidth_profile_name} (${u.bandwidth_rate || ''})</span>`;
+                        const safeBwName = escapeHtml(u.bandwidth_profile_name);
+                        const safeBwRate = escapeHtml(u.bandwidth_rate || '');
+                        userBwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="Explicit User Override (takes precedence) - WISPr/MikroTik: ${safeBwRate}"><i class="fa-solid fa-user-shield text-cyan-400"></i> ${safeBwName} (${safeBwRate})</span>`;
                     }
 
                     // 2. Inherited Group Bandwidth Policy
@@ -305,13 +308,16 @@
                     }
 
                     if (bestGroup) {
+                        const safeBestGroupName = escapeHtml(bestGroup.group_name);
+                        const safeBestBwName = escapeHtml(bestGroup.bandwidth_profile_name);
+                        const safeBestBwRate = escapeHtml(bestGroup.bandwidth_rate || '');
                         groupBwBadge = `
                             <div>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800 flex items-center gap-1 w-max" title="Inherited from group ${bestGroup.group_name}${u.bandwidth_profile_name ? ' (User override active)' : ''}">
-                                    <i class="fa-solid fa-users text-indigo-400"></i> ${bestGroup.bandwidth_profile_name} (${bestGroup.bandwidth_rate || ''})
+                                <span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-indigo-950 text-indigo-300 border border-indigo-800 flex items-center gap-1 w-max" title="Inherited from group ${safeBestGroupName}${u.bandwidth_profile_name ? ' (User override active)' : ''}">
+                                    <i class="fa-solid fa-users text-indigo-400"></i> ${safeBestBwName} (${safeBestBwRate})
                                 </span>
                                 <div class="text-[9px] text-slate-400 font-mono mt-0.5 flex items-center gap-1">
-                                    <span class="text-slate-500">via</span> ${bestGroup.group_name}
+                                    <span class="text-slate-500">via</span> ${safeBestGroupName}
                                 </div>
                             </div>
                         `;
@@ -322,22 +328,23 @@
                         : '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-950 text-rose-400 border border-rose-800">DISABLED</span>';
 
                     const isBuiltin = u.is_built_in;
-                    const isSystemAccount = u.is_system_hidden || ['krbtgt', 'guest', 'dns-zclockid'].includes(u.username.toLowerCase()) || u.username.toLowerCase().startsWith('dns-');
+                    const safeUpn = escapeHtml(u.user_principal_name || '');
+                    const safeDept = escapeHtml(u.department || '-');
 
                     return `
                         <tr class="hover:bg-slate-800/30">
                             <td class="px-4 py-2.5">
                                 <div class="font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                    <i class="fa-solid fa-user ${isBuiltin ? 'text-amber-400' : 'text-emerald-400'} text-[10px]"></i> ${u.username}
+                                    <i class="fa-solid fa-user ${isBuiltin ? 'text-amber-400' : 'text-emerald-400'} text-[10px]"></i> ${safeUsername}
                                     ${u.username.toLowerCase() === 'administrator' 
                                         ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/80 uppercase font-mono font-bold">Domain Admin</span>' 
                                         : (isBuiltin ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 uppercase font-mono">System Account</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Domain User</span>')}
                                     ${u.is_self_registered ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-mono font-semibold flex items-center gap-1" title="Account created via User Self-Registration Portal"><i class="fa-solid fa-id-badge text-cyan-400"></i> Self-Registered</span>' : ''}
                                 </div>
-                                <div class="text-[10px] text-indigo-400 font-mono">${u.user_principal_name || ''}</div>
+                                <div class="text-[10px] text-indigo-400 font-mono">${safeUpn}</div>
                                 ${(u.groups && u.groups.length > 0) ? `
                                     <div class="flex flex-wrap gap-1 mt-1">
-                                        ${u.groups.map(g => `<span class="px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 text-[9px] font-mono flex items-center gap-1"><i class="fa-solid fa-users text-[8px] opacity-70"></i>${g}</span>`).join('')}
+                                        ${u.groups.map(g => `<span class="px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-300 border border-indigo-800/60 text-[9px] font-mono flex items-center gap-1"><i class="fa-solid fa-users text-[8px] opacity-70"></i>${escapeHtml(g)}</span>`).join('')}
                                     </div>
                                 ` : ''}
                             </td>
@@ -346,17 +353,17 @@
                                 <div class="flex flex-col gap-0.5 mt-0.5">${contactDetails.join('')}</div>
                             </td>
                             <td class="px-4 py-2.5">
-                                ${isBuiltin ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : `<span class="text-slate-300 font-sans">${u.department || '-'}</span>`}
+                                ${isBuiltin ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : `<span class="text-slate-300 font-sans">${safeDept}</span>`}
                             </td>
                             <td class="px-4 py-2.5">${userBwBadge}</td>
                             <td class="px-4 py-2.5">${groupBwBadge}</td>
                             <td class="px-4 py-2.5">${statusBadge}</td>
                             <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                                <button onclick="openEditUserModal('${u.username}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit User Account, Credentials & Bandwidth">
+                                <button data-action="edit-user" data-username="${safeUsername}" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit User Account, Credentials & Bandwidth">
                                     <i class="fa-solid fa-user-pen"></i> Edit
                                 </button>
                                 ${!isBuiltin ? `
-                                    <button onclick="deleteUser('${u.username}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete User">
+                                    <button data-action="delete-user" data-username="${safeUsername}" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete User">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 ` : '<span class="text-slate-600 font-sans italic text-[10px] ml-1">Built-in</span>'}
@@ -403,8 +410,11 @@
 
             container.innerHTML = sorted.map(g => {
                 const isChecked = selectedNormalized.includes(g.group_name.toLowerCase());
+                const safeGroupName = escapeHtml(g.group_name);
+                const safeBwName = escapeHtml(g.bandwidth_profile_name || '');
+                const safeContainerId = escapeHtml(containerId);
                 const bwTag = g.bandwidth_profile_name ? 
-                    `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1"><i class="fa-solid fa-gauge-high text-[8px]"></i> ${g.bandwidth_profile_name}</span>` : '';
+                    `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1"><i class="fa-solid fa-gauge-high text-[8px]"></i> ${safeBwName}</span>` : '';
                 const builtinTag = g.is_built_in ?
                     `<span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Built-in</span>` :
                     `<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Security</span>`;
@@ -412,8 +422,8 @@
                 return `
                     <label class="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/70 cursor-pointer border border-transparent hover:border-slate-700 transition">
                         <div class="flex items-center gap-2">
-                            <input type="checkbox" name="${containerId}-chk" value="${g.group_name}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500">
-                            <span class="font-medium text-slate-200">${g.group_name}</span>
+                            <input type="checkbox" name="${safeContainerId}-chk" value="${safeGroupName}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500">
+                            <span class="font-medium text-slate-200">${safeGroupName}</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             ${bwTag}
@@ -741,39 +751,44 @@
                 tbody.innerHTML = pageItems.map(g => {
                     let bwBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-sans text-slate-500 bg-slate-950 border border-slate-800 flex items-center gap-1 w-max"><i class="fa-solid fa-minus text-slate-600"></i> None</span>';
                     if (g.bandwidth_profile_name) {
-                        bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${g.bandwidth_rate || ''}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${g.bandwidth_profile_name} (${g.bandwidth_rate || ''})</span>`;
+                        const safeBwName = escapeHtml(g.bandwidth_profile_name);
+                        const safeBwRate = escapeHtml(g.bandwidth_rate || '');
+                        bwBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1 w-max" title="WISPr/MikroTik: ${safeBwRate}"><i class="fa-solid fa-gauge-high text-cyan-400"></i> ${safeBwName} (${safeBwRate})</span>`;
                     }
 
                     const isBuiltin = g.is_built_in;
                     const memberCount = g.member_count !== undefined ? g.member_count : (g.members ? g.members.length : 0);
+                    const safeGroupName = escapeHtml(g.group_name);
+                    const safeDnPart = escapeHtml(g.dn ? g.dn.split(',')[1] || '' : '');
+                    const safeDesc = g.description ? escapeHtml(g.description) : '<span class="text-slate-600 italic">No description</span>';
 
                     return `
                         <tr class="hover:bg-slate-800/30">
                             <td class="px-4 py-2.5">
                                 <div class="font-bold text-white flex items-center gap-1.5 flex-wrap">
-                                    <i class="fa-solid fa-users text-indigo-400 text-[10px]"></i> ${g.group_name}
+                                    <i class="fa-solid fa-users text-indigo-400 text-[10px]"></i> ${safeGroupName}
                                     ${isBuiltin ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950/70 text-amber-400 border border-amber-800/80 uppercase font-mono font-bold">Built-in Group</span>' : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-950/70 text-indigo-300 border border-indigo-800/80 uppercase font-mono">Custom Group</span>'}
                                 </div>
-                                <div class="text-[10px] text-slate-500 font-mono">${g.dn ? g.dn.split(',')[1] || '' : ''}</div>
+                                <div class="text-[10px] text-slate-500 font-mono">${safeDnPart}</div>
                             </td>
                             <td class="px-4 py-2.5">
                                 ${isBuiltin ? '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-amber-400 border border-slate-700 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-amber-400"></i> Built-in</span>' : '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono flex items-center gap-1 w-max"><i class="fa-solid fa-users text-indigo-400"></i> Custom Group</span>'}
                             </td>
                             <td class="px-4 py-2.5 text-slate-300 font-sans text-xs">
-                                ${g.description || '<span class="text-slate-600 italic">No description</span>'}
+                                ${safeDesc}
                             </td>
                             <td class="px-4 py-2.5">
                                 <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-950 border border-slate-800 text-slate-300">
-                                    <i class="fa-solid fa-user-group text-slate-500 mr-1"></i>${memberCount} members
+                                    <i class="fa-solid fa-user-group text-slate-500 mr-1"></i>${escapeHtml(memberCount)} members
                                 </span>
                             </td>
                             <td class="px-4 py-2.5">${bwBadge}</td>
                             <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                                <button onclick="openEditGroupModal('${g.group_name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Group Policy & Bandwidth Tier">
+                                <button data-action="edit-group" data-group="${safeGroupName}" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 font-sans font-semibold text-[10px] transition mr-1" title="Edit Group Policy & Bandwidth Tier">
                                     <i class="fa-solid fa-pen"></i> Edit Policy
                                 </button>
                                 ${!isBuiltin ? `
-                                    <button onclick="deleteGroup('${g.group_name}')" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete Security Group">
+                                    <button data-action="delete-group" data-group="${safeGroupName}" class="text-slate-500 hover:text-rose-400 ml-1 p-1 transition" title="Delete Security Group">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 ` : '<span class="px-1.5 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[9px] inline-flex items-center gap-1 ml-1" title="Protected System Group (Cannot Delete)"><i class="fa-solid fa-lock text-slate-600"></i> Locked</span>'}
@@ -1073,26 +1088,34 @@
                         ? '<span class="px-2 py-0.5 rounded text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-800 font-mono font-bold flex items-center gap-1 w-max"><i class="fa-solid fa-shield text-indigo-400"></i> Domain Controller</span>'
                         : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700 font-mono flex items-center gap-1 w-max"><i class="fa-solid fa-desktop text-slate-400"></i> Domain Workstation</span>';
 
+                    const safeName = escapeHtml(c.name);
+                    const safeDn = escapeHtml(c.dn || '');
+                    const safeDnPart = escapeHtml(c.dn ? c.dn.split(',')[1] || '' : '');
+                    const safeDnsHost = escapeHtml(c.dns_hostname || '-');
+                    const safeOs = escapeHtml(c.operating_system || '-');
+                    const safeOsVer = escapeHtml(c.os_version || '-');
+                    const safeCreatedAt = escapeHtml(c.created_at || '-');
+
                     return `
                         <tr class="hover:bg-slate-800/30">
                             <td class="px-4 py-2.5">
                                 <div class="font-bold text-white flex items-center gap-1.5 font-mono">
-                                    <i class="fa-solid ${icon} text-[11px]"></i> ${c.name}
+                                    <i class="fa-solid ${icon} text-[11px]"></i> ${safeName}
                                 </div>
-                                <div class="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title="${c.dn}">${c.dn ? c.dn.split(',')[1] || '' : ''}</div>
+                                <div class="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title="${safeDn}">${safeDnPart}</div>
                             </td>
                             <td class="px-4 py-2.5 font-mono text-cyan-300 text-xs">
-                                ${c.dns_hostname || '-'}
+                                ${safeDnsHost}
                             </td>
                             <td class="px-4 py-2.5">
-                                <div class="font-semibold text-slate-200">${c.operating_system}</div>
-                                <div class="text-[10px] text-slate-400 font-mono">Version: ${c.os_version}</div>
+                                <div class="font-semibold text-slate-200">${safeOs}</div>
+                                <div class="text-[10px] text-slate-400 font-mono">Version: ${safeOsVer}</div>
                             </td>
                             <td class="px-4 py-2.5">${roleBadge}</td>
-                            <td class="px-4 py-2.5 text-slate-400 font-mono text-[11px]">${c.created_at || '-'}</td>
+                            <td class="px-4 py-2.5 text-slate-400 font-mono text-[11px]">${safeCreatedAt}</td>
                             <td class="px-4 py-2.5 text-right whitespace-nowrap">
                                 ${!c.is_dc ? `
-                                    <button onclick="deleteComputer('${c.name}')" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 text-xs transition" title="Disjoin / Remove Computer Account">
+                                    <button data-action="delete-computer" data-computer="${safeName}" class="px-2 py-1 rounded bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 text-xs transition" title="Disjoin / Remove Computer Account">
                                         <i class="fa-solid fa-trash-can mr-1"></i> Remove
                                     </button>
                                 ` : '<span class="px-2 py-0.5 rounded bg-slate-950 text-slate-500 border border-slate-800 font-mono text-[10px] flex items-center gap-1 w-max ml-auto"><i class="fa-solid fa-lock text-slate-600"></i> Primary DC</span>'}

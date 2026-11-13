@@ -6,11 +6,11 @@
                 const container = document.getElementById('forwarders-list-display');
                 if (container && data.forwarders) {
                     container.innerHTML = data.forwarders.map(ip => `
-                        <span class="px-2.5 py-1 bg-slate-800 text-cyan-300 rounded-lg text-xs border border-cyan-800/40">${ip}</span>
+                        <span class="px-2.5 py-1 bg-slate-800 text-cyan-300 rounded-lg text-xs border border-cyan-800/40">${escapeHtml(ip)}</span>
                     `).join('');
                 }
                 const policyEl = document.getElementById('forward-policy-val');
-                if (policyEl) policyEl.innerText = data.policy === 'only' ? 'Forward Only' : 'Forward First (Fallback to Root)';
+                if (policyEl) policyEl.textContent = data.policy === 'only' ? 'Forward Only' : 'Forward First (Fallback to Root)';
             } catch (err) {
                 console.error('Error fetching DNS forwarders:', err);
             }
@@ -35,7 +35,7 @@
         function renderDomainForwardersTable(list) {
             const tbody = document.getElementById('domain-forwarders-tbody');
             const countBadge = document.getElementById('domain-forwarders-count');
-            if (countBadge) countBadge.innerText = `${list.length} Domain${list.length === 1 ? '' : 's'}`;
+            if (countBadge) countBadge.textContent = `${list.length} Domain${list.length === 1 ? '' : 's'}`;
             if (!tbody) return;
 
             if (!list || list.length === 0) {
@@ -44,19 +44,20 @@
             }
 
             tbody.innerHTML = list.map(item => {
-                const safeDomain = encodeURIComponent(item.domain || '');
                 const fwdsDisplay = (item.forwarders || []).join(', ');
+                const safeDomain = escapeHtml(item.domain || '');
+                const safeFwds = escapeHtml(fwdsDisplay);
                 const policyBadge = item.policy === 'only'
                     ? '<span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-semibold">Only</span>'
                     : '<span class="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 border border-slate-700 font-semibold">First</span>';
 
                 return `
                     <tr class="hover:bg-slate-900/60 transition">
-                        <td class="px-3 py-2 text-white font-bold">${item.domain}</td>
-                        <td class="px-3 py-2 text-emerald-400 truncate max-w-[140px]" title="${fwdsDisplay}">${fwdsDisplay}</td>
+                        <td class="px-3 py-2 text-white font-bold">${safeDomain}</td>
+                        <td class="px-3 py-2 text-emerald-400 truncate max-w-[140px]" title="${safeFwds}">${safeFwds}</td>
                         <td class="px-3 py-2">${policyBadge}</td>
                         <td class="px-3 py-2 text-right">
-                            <button onclick="deleteDomainForwarder('${safeDomain}')" class="px-2 py-0.5 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 rounded text-[10px] transition border border-slate-700 hover:border-rose-800" title="Delete Domain Forwarder">
+                            <button data-action="delete-forwarder" data-domain="${safeDomain}" class="px-2 py-0.5 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 rounded text-[10px] transition border border-slate-700 hover:border-rose-800" title="Delete Domain Forwarder">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         </td>
@@ -68,7 +69,7 @@
         function renderHostOverridesTable(list) {
             const tbody = document.getElementById('host-overrides-tbody');
             const countBadge = document.getElementById('host-overrides-count');
-            if (countBadge) countBadge.innerText = `${list.length} Host${list.length === 1 ? '' : 's'}`;
+            if (countBadge) countBadge.textContent = `${list.length} Host${list.length === 1 ? '' : 's'}`;
             if (!tbody) return;
 
             if (!list || list.length === 0) {
@@ -77,8 +78,9 @@
             }
 
             tbody.innerHTML = list.map(item => {
-                const safeFqdn = encodeURIComponent(item.fqdn || '');
-                const safeType = encodeURIComponent(item.record_type || 'A');
+                const safeFqdn = escapeHtml(item.fqdn || '');
+                const safeType = escapeHtml(item.record_type || 'A');
+                const safeTarget = escapeHtml(item.target || '');
                 let typeBadge = 'bg-indigo-950/80 text-indigo-400 border-indigo-800/60';
                 if (item.record_type === 'CNAME') typeBadge = 'bg-amber-950/80 text-amber-400 border-amber-800/60';
                 else if (item.record_type === 'AAAA') typeBadge = 'bg-teal-950/80 text-teal-400 border-teal-800/60';
@@ -86,13 +88,13 @@
 
                 return `
                     <tr class="hover:bg-slate-900/60 transition">
-                        <td class="px-3 py-2 text-white font-bold truncate max-w-[120px]" title="${item.fqdn}">${item.fqdn}</td>
+                        <td class="px-3 py-2 text-white font-bold truncate max-w-[120px]" title="${safeFqdn}">${safeFqdn}</td>
                         <td class="px-3 py-2">
-                            <span class="px-1.5 py-0.5 rounded text-[9px] border font-bold ${typeBadge}">${item.record_type || 'A'}</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] border font-bold ${typeBadge}">${safeType}</span>
                         </td>
-                        <td class="px-3 py-2 text-cyan-300 truncate max-w-[130px]" title="${item.target}">${item.target}</td>
+                        <td class="px-3 py-2 text-cyan-300 truncate max-w-[130px]" title="${safeTarget}">${safeTarget}</td>
                         <td class="px-3 py-2 text-right">
-                            <button onclick="deleteHostOverride('${safeFqdn}', '${safeType}')" class="px-2 py-0.5 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 rounded text-[10px] transition border border-slate-700 hover:border-rose-800" title="Delete Host Override">
+                            <button data-action="delete-override" data-fqdn="${safeFqdn}" data-type="${safeType}" class="px-2 py-0.5 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 rounded text-[10px] transition border border-slate-700 hover:border-rose-800" title="Delete Host Override">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         </td>
@@ -352,7 +354,7 @@
                 const data = await res.json();
                 const sel = document.getElementById('dns-zone-select');
                 if (sel && data.zones) {
-                    sel.innerHTML = data.zones.map(z => `<option value="${z}">${z}</option>`).join('');
+                    sel.innerHTML = data.zones.map(z => `<option value="${escapeHtml(z)}">${escapeHtml(z)}</option>`).join('');
                 }
             } catch (err) {
                 console.error('Error fetching DNS zones:', err);
@@ -375,7 +377,7 @@
                     renderDnsTable(currentDnsRecords);
                 }
             } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to query records: ${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-4 text-center text-rose-400">Failed to query records: ${escapeHtml(String(err))}</td></tr>`;
             }
         }
 
@@ -396,7 +398,7 @@
             const tbody = document.getElementById('dns-table-body');
             const countBadge = document.getElementById('dns-record-count-badge');
             if (countBadge) {
-                countBadge.innerText = `${records.length} Record${records.length === 1 ? '' : 's'}`;
+                countBadge.textContent = `${records.length} Record${records.length === 1 ? '' : 's'}`;
             }
 
             if (!records || records.length === 0) {
@@ -423,18 +425,18 @@
                 if (ttlVal >= 86400 && ttlVal % 86400 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/86400}d)`;
                 else if (ttlVal >= 3600 && ttlVal % 3600 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/3600}h)`;
                 else if (ttlVal >= 60 && ttlVal % 60 === 0) ttlDisplay = `${ttlVal}s (${ttlVal/60}m)`;
-                const ttlBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-950 border border-slate-800 text-slate-300 font-mono">${ttlDisplay}</span>`;
+                const ttlBadge = `<span class="px-2 py-0.5 rounded text-[10px] bg-slate-950 border border-slate-800 text-slate-300 font-mono">${escapeHtml(ttlDisplay)}</span>`;
 
                 // Scope badge
                 const scopeBadge = isProtected
                     ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950/70 border border-amber-800/60 text-amber-300 font-semibold inline-flex items-center gap-1.5"><i class="fa-solid fa-shield text-[9px] text-amber-400"></i> Default Service</span>`
                     : `<span class="px-2 py-0.5 rounded text-[10px] font-mono bg-sky-950/70 border border-sky-800/60 text-sky-400 font-semibold inline-flex items-center gap-1.5"><i class="fa-solid fa-cube text-[9px]"></i> Custom</span>`;
 
-                // Safe escaping for strings passed to JS functions
-                const safeZone = encodeURIComponent(r.zone || '');
-                const safeName = encodeURIComponent(r.name || '');
-                const safeType = encodeURIComponent(r.type || '');
-                const safeData = encodeURIComponent(r.data || '');
+                const safeZone = escapeHtml(r.zone || '');
+                const safeName = escapeHtml(r.name || '');
+                const safeType = escapeHtml(r.type || '');
+                const safeData = escapeHtml(r.data || '');
+                const safeTtl = escapeHtml(r.ttl || 900);
 
                 // Action buttons: Protected records NEVER have delete! Custom records have BOTH Edit and Delete.
                 let actionHtml = '';
@@ -449,10 +451,10 @@
                 } else {
                     actionHtml = `
                         <div class="flex items-center justify-end gap-2">
-                            <button onclick="openEditDnsModal('${safeZone}', '${safeName}', '${safeType}', '${safeData}', ${r.ttl || 900})" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Record">
+                            <button data-action="edit-dns-record" data-zone="${safeZone}" data-name="${safeName}" data-type="${safeType}" data-data="${safeData}" data-ttl="${safeTtl}" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded text-xs transition flex items-center gap-1 border border-slate-700" title="Edit Record">
                                 <i class="fa-solid fa-pen-to-square"></i> Edit
                             </button>
-                            <button onclick="deleteDnsRecord('${safeZone}', '${safeName}', '${safeType}', '${safeData}')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 rounded text-xs transition flex items-center gap-1 border border-slate-700 hover:border-rose-800" title="Delete Record">
+                            <button data-action="delete-dns-record" data-zone="${safeZone}" data-name="${safeName}" data-type="${safeType}" data-data="${safeData}" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 rounded text-xs transition flex items-center gap-1 border border-slate-700 hover:border-rose-800" title="Delete Record">
                                 <i class="fa-solid fa-trash-can"></i> Delete
                             </button>
                         </div>
@@ -463,11 +465,11 @@
 
                 return `
                     <tr class="hover:bg-slate-800/30 transition">
-                        <td class="px-4 py-2.5 font-mono ${nameHighlight}">${r.name}</td>
+                        <td class="px-4 py-2.5 font-mono ${nameHighlight}">${safeName}</td>
                         <td class="px-4 py-2.5">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono border font-bold ${typeBadgeClass}">${r.type}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono border font-bold ${typeBadgeClass}">${safeType}</span>
                         </td>
-                        <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs font-mono" title="${r.data}">${r.data}</td>
+                        <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs font-mono" title="${safeData}">${safeData}</td>
                         <td class="px-4 py-2.5">${ttlBadge}</td>
                         <td class="px-4 py-2.5">${scopeBadge}</td>
                         <td class="px-4 py-2.5 text-right">${actionHtml}</td>
@@ -535,26 +537,26 @@
                 resBox.classList.remove('hidden');
                 if (data.status === 'ok') {
                     statusEl.className = 'text-emerald-400 font-bold';
-                    statusEl.innerText = `HTTP ${data.http_status} OK (RFC 8484 NOERROR)`;
-                    timeEl.innerText = `${data.latency_ms || elapsed} ms`;
+                    statusEl.textContent = `HTTP ${data.http_status} OK (RFC 8484 NOERROR)`;
+                    timeEl.textContent = `${data.latency_ms || elapsed} ms`;
                     if (data.answers && data.answers.length > 0) {
                         answersEl.innerHTML = data.answers.map(ans => 
-                            `<div class="flex items-center gap-2"><span class="px-1.5 py-0.5 bg-slate-800 text-sky-300 rounded text-[10px]">${data.rtype}</span><span class="text-white">${ans}</span></div>`
+                            `<div class="flex items-center gap-2"><span class="px-1.5 py-0.5 bg-slate-800 text-sky-300 rounded text-[10px]">${escapeHtml(data.rtype)}</span><span class="text-white">${escapeHtml(ans)}</span></div>`
                         ).join('');
                     } else {
                         answersEl.innerHTML = `<span class="text-slate-500 italic">No resource records returned for query.</span>`;
                     }
                 } else {
                     statusEl.className = 'text-rose-400 font-bold';
-                    statusEl.innerText = `Error: ${data.detail || data.status}`;
-                    timeEl.innerText = `${elapsed} ms`;
-                    answersEl.innerHTML = `<span class="text-rose-400">${data.detail || 'DNS resolution failed.'}</span>`;
+                    statusEl.textContent = `Error: ${data.detail || data.status}`;
+                    timeEl.textContent = `${elapsed} ms`;
+                    answersEl.innerHTML = `<span class="text-rose-400">${escapeHtml(data.detail || 'DNS resolution failed.')}</span>`;
                 }
             } catch (err) {
                 resBox.classList.remove('hidden');
                 statusEl.className = 'text-rose-400 font-bold';
-                statusEl.innerText = `Network Error`;
-                answersEl.innerHTML = `<span class="text-rose-400">${err}</span>`;
+                statusEl.textContent = `Network Error`;
+                answersEl.innerHTML = `<span class="text-rose-400">${escapeHtml(String(err))}</span>`;
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-play"></i> Resolve`;

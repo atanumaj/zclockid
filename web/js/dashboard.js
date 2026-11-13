@@ -7,19 +7,19 @@
 
                 // Resource Gauges
                 if (data.resources) {
-                    document.getElementById('meter-cpu').innerText = `${data.resources.cpu_percent}%`;
+                    document.getElementById('meter-cpu').textContent = `${data.resources.cpu_percent}%`;
                     document.getElementById('bar-cpu').style.width = `${data.resources.cpu_percent}%`;
-                    document.getElementById('meter-mem').innerText = `${data.resources.memory_used_mb} / ${data.resources.memory_total_mb} MB (${data.resources.memory_percent}%)`;
+                    document.getElementById('meter-mem').textContent = `${data.resources.memory_used_mb} / ${data.resources.memory_total_mb} MB (${data.resources.memory_percent}%)`;
                     document.getElementById('bar-mem').style.width = `${data.resources.memory_percent}%`;
-                    document.getElementById('meter-disk').innerText = `${data.resources.disk_used_gb} / ${data.resources.disk_total_gb} GB (${data.resources.disk_percent}%)`;
+                    document.getElementById('meter-disk').textContent = `${data.resources.disk_used_gb} / ${data.resources.disk_total_gb} GB (${data.resources.disk_percent}%)`;
                     document.getElementById('bar-disk').style.width = `${data.resources.disk_percent}%`;
                 }
 
-                document.getElementById('header-host').innerText = data.hostname || 'zclockid';
-                document.getElementById('appliance-health').innerText = data.overall_health || 'HEALTHY';
+                document.getElementById('header-host').textContent = data.hostname || 'zclockid';
+                document.getElementById('appliance-health').textContent = data.overall_health || 'HEALTHY';
                 const upH = Math.floor(data.uptime_seconds / 3600);
                 const upM = Math.floor((data.uptime_seconds % 3600) / 60);
-                document.getElementById('appliance-uptime').innerText = `${upH}h ${upM}m`;
+                document.getElementById('appliance-uptime').textContent = `${upH}h ${upM}m`;
 
                 if (data.version) {
                     const vHeader = document.getElementById('header-version-badge');
@@ -27,11 +27,11 @@
                     const vApp = document.getElementById('appliance-version-label');
                     const vCur = document.getElementById('update-current-ver-badge');
                     const vInf = document.getElementById('info-current-version');
-                    if (vHeader) vHeader.innerText = `v${data.version}`;
-                    if (vPill) vPill.innerText = `v${data.version}`;
-                    if (vApp) vApp.innerText = `ZclockID v${data.version}`;
-                    if (vCur) vCur.innerText = `v${data.version}`;
-                    if (vInf) vInf.innerText = data.version;
+                    if (vHeader) vHeader.textContent = `v${data.version}`;
+                    if (vPill) vPill.textContent = `v${data.version}`;
+                    if (vApp) vApp.textContent = `ZclockID v${data.version}`;
+                    if (vCur) vCur.textContent = `v${data.version}`;
+                    if (vInf) vInf.textContent = data.version;
                 }
 
                 // Services Badges, Autostart & Dynamic Control Buttons
@@ -46,7 +46,7 @@
                         const actionsEl = document.getElementById(`actions-${dashKey}`);
 
                         if (badge) {
-                            badge.innerText = srv.status.toUpperCase();
+                            badge.textContent = srv.status.toUpperCase();
                             badge.className = srv.status === 'active' 
                                 ? 'px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800'
                                 : (srv.status === 'failed'
@@ -55,43 +55,45 @@
                         }
                         if (enabledEl && srv.enabled) {
                             const isEn = srv.enabled === 'enabled' || srv.enabled === 'alias';
-                            enabledEl.innerText = isEn ? 'BOOT: ON' : 'BOOT: OFF';
+                            enabledEl.textContent = isEn ? 'BOOT: ON' : 'BOOT: OFF';
                             enabledEl.className = isEn
                                 ? 'px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800'
                                 : 'px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-950 text-amber-400 border border-amber-800';
                         }
-                        if (pidEl) pidEl.innerText = srv.pid ? `${srv.pid}` : '-';
-                        if (memEl) memEl.innerText = srv.memory_mb ? `${srv.memory_mb} MB` : '-';
+                        if (pidEl) pidEl.textContent = srv.pid ? `${srv.pid}` : '-';
+                        if (memEl) memEl.textContent = srv.memory_mb ? `${srv.memory_mb} MB` : '-';
 
                         if (actionsEl) {
                             const meta = SERVICE_METADATA[dashKey] || { title: dashKey };
+                            const safeKey = escapeHtml(dashKey);
+                            const safeTitle = escapeHtml(meta.title);
                             if (srv.status === 'active') {
                                 actionsEl.innerHTML = `
-                                    <button onclick="controlService('${dashKey}', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <button data-action="control-service" data-service="${safeKey}" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                         <i class="fa-solid fa-arrows-rotate"></i> Restart
                                     </button>
-                                    <button onclick="controlService('${dashKey}', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <button data-action="control-service" data-service="${safeKey}" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                         <i class="fa-solid fa-stop"></i>
                                     </button>
-                                    <button onclick="openServiceControlModal('${dashKey}')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <button data-action="open-service-modal" data-service="${safeKey}" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                         <i class="fa-solid fa-sliders"></i>
                                     </button>
-                                    <button onclick="openLogViewer('${dashKey}', '${meta.title}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <button data-action="open-log-viewer" data-service="${safeKey}" data-title="${safeTitle}" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                         <i class="fa-solid fa-terminal"></i>
                                     </button>
                                 `;
                             } else {
                                 actionsEl.innerHTML = `
-                                    <button onclick="controlService('${dashKey}', 'start')" class="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/30">
+                                    <button data-action="control-service" data-service="${safeKey}" data-op="start" class="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/30">
                                         <i class="fa-solid fa-play"></i> Start
                                     </button>
-                                    <button onclick="controlService('${dashKey}', 'restart')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-semibold transition" title="Restart Service">
+                                    <button data-action="control-service" data-service="${safeKey}" data-op="restart" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-semibold transition" title="Restart Service">
                                         <i class="fa-solid fa-arrows-rotate"></i>
                                     </button>
-                                    <button onclick="openServiceControlModal('${dashKey}')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <button data-action="open-service-modal" data-service="${safeKey}" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                         <i class="fa-solid fa-sliders"></i>
                                     </button>
-                                    <button onclick="openLogViewer('${dashKey}', '${meta.title}')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <button data-action="open-log-viewer" data-service="${safeKey}" data-title="${safeTitle}" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                         <i class="fa-solid fa-terminal"></i>
                                     </button>
                                 `;

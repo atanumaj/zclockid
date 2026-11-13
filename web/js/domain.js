@@ -341,9 +341,10 @@
                 const tbody = document.getElementById('upn-table-body');
                 if (!tbody) return;
 
+                const safeRealm = escapeHtml((data.primary_realm || '').toLowerCase());
                 tbody.innerHTML = `
                     <tr class="hover:bg-slate-800/30">
-                        <td class="px-4 py-2.5 font-bold text-white">@${data.primary_realm.toLowerCase()}</td>
+                        <td class="px-4 py-2.5 font-bold text-white">@${safeRealm}</td>
                         <td class="px-4 py-2.5 text-indigo-400">Primary Forest Root</td>
                         <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800">DEFAULT</span></td>
                         <td class="px-4 py-2.5 text-right text-slate-500 font-sans italic text-[10px]">Protected Root</td>
@@ -351,20 +352,22 @@
                 `;
 
                 if (data.alternate_suffixes && data.alternate_suffixes.length > 0) {
-                    data.alternate_suffixes.forEach(s => {
-                        tbody.innerHTML += `
+                    const rows = data.alternate_suffixes.map(s => {
+                        const safeSuffix = escapeHtml(s);
+                        return `
                             <tr class="hover:bg-slate-800/30">
-                                <td class="px-4 py-2.5 font-bold text-emerald-300">@${s}</td>
+                                <td class="px-4 py-2.5 font-bold text-emerald-300">@${safeSuffix}</td>
                                 <td class="px-4 py-2.5 text-slate-400">Alternate UPN Suffix</td>
                                 <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">ACTIVE</span></td>
                                 <td class="px-4 py-2.5 text-right">
-                                    <button onclick="deleteUpnSuffix('${s}')" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/60 text-rose-400 border border-rose-800/60 rounded text-[10px] transition">
+                                    <button data-action="delete-upn-suffix" data-suffix="${safeSuffix}" class="px-2 py-1 bg-rose-950/60 hover:bg-rose-900/60 text-rose-400 border border-rose-800/60 rounded text-[10px] transition">
                                         <i class="fa-solid fa-trash-can mr-1"></i> Delete
                                     </button>
                                 </td>
                             </tr>
                         `;
-                    });
+                    }).join('');
+                    tbody.innerHTML += rows;
                 }
             } catch (err) {
                 console.error('Error fetching UPN suffixes:', err);

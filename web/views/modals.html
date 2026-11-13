@@ -1359,7 +1359,7 @@
                                 <span class="text-[10px] text-slate-500 block">LAN / IP URL</span>
                                 <span class="text-cyan-300 font-bold" id="doh-guide-ip-url">https://&lt;appliance-ip&gt;/dns-query</span>
                             </div>
-                            <button onclick="copyToClipboard(document.getElementById('doh-guide-ip-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'IP DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
+                            <button data-action="copy-doh-ip" class="text-slate-400 hover:text-white p-1" title="Copy">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                         </div>
@@ -1368,7 +1368,7 @@
                                 <span class="text-[10px] text-slate-500 block">FQDN / TLS URL</span>
                                 <span class="text-emerald-300 font-bold" id="doh-guide-fqdn-url">https://&lt;hostname.domain&gt;/dns-query</span>
                             </div>
-                            <button onclick="copyToClipboard(document.getElementById('doh-guide-fqdn-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'FQDN DoH URL copied!')" class="text-slate-400 hover:text-white p-1" title="Copy">
+                            <button data-action="copy-doh-fqdn" class="text-slate-400 hover:text-white p-1" title="Copy">
                                 <i class="fa-regular fa-copy"></i>
                             </button>
                         </div>
@@ -1389,7 +1389,7 @@
                         <li>In the <em>DNS-over-HTTPS template</em> box, enter:
                             <div class="mt-1 flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 font-mono text-[11px] text-emerald-300">
                                 <span class="flex-1 truncate" id="doh-guide-template-url">https://&lt;hostname.domain&gt;/dns-query</span>
-                                <button onclick="copyToClipboard(document.getElementById('doh-guide-template-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'Template copied!')" class="text-slate-400 hover:text-white"><i class="fa-regular fa-copy"></i></button>
+                                <button data-action="copy-doh-fqdn" class="text-slate-400 hover:text-white"><i class="fa-regular fa-copy"></i></button>
                             </div>
                         </li>
                     </ol>
@@ -1410,7 +1410,7 @@
                         </ol>
                         <div class="flex items-center justify-between bg-slate-900 px-2.5 py-1.5 rounded border border-slate-800 font-mono text-[10px] text-cyan-300">
                             <span class="truncate" id="doh-guide-chrome-url">https://&lt;hostname.domain&gt;/dns-query</span>
-                            <button onclick="copyToClipboard(document.getElementById('doh-guide-chrome-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'Chrome DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
+                            <button data-action="copy-doh-fqdn" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
                         </div>
                     </div>
 
@@ -1427,7 +1427,7 @@
                         </ol>
                         <div class="flex items-center justify-between bg-slate-900 px-2.5 py-1.5 rounded border border-slate-800 font-mono text-[10px] text-cyan-300">
                             <span class="truncate" id="doh-guide-firefox-url">https://&lt;hostname.domain&gt;/dns-query</span>
-                            <button onclick="copyToClipboard(document.getElementById('doh-guide-firefox-url')?.innerText || `https://${window.location.hostname}/dns-query`, 'Firefox DoH URL copied!')" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
+                            <button data-action="copy-doh-fqdn" class="text-slate-400 hover:text-white ml-1"><i class="fa-regular fa-copy"></i></button>
                         </div>
                     </div>
                 </div>
@@ -1439,7 +1439,7 @@
                             <i class="fa-solid fa-terminal text-sky-400"></i>
                             <span>Linux & macOS curl RFC 8484 Test</span>
                         </div>
-                        <button onclick="copyToClipboard(`curl -k -H &quot;accept: application/dns-message&quot; &quot;https://${window.location.hostname}/dns-query?dns=EjQBAAABAAAAAAAABGluZXQDbmV0AAABAAE&quot; --output /dev/null -w &quot;HTTP %{http_code} | Time: %{time_total}s\\n&quot;`, 'curl command copied!')" class="text-slate-400 hover:text-white text-xs">
+                        <button data-action="copy-doh-curl" class="text-slate-400 hover:text-white text-xs">
                             <i class="fa-regular fa-copy"></i> Copy Command
                         </button>
                     </div>
