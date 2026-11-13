@@ -8,7 +8,7 @@ import time
 import secrets
 import sqlite3
 import logging
-from fastapi import APIRouter, HTTPException, status, Header, Request
+from fastapi import APIRouter, HTTPException, status, Header, Request, Depends
 from typing import Optional
 
 from api.core.config import (
@@ -27,7 +27,157 @@ from api.schemas.auth_schema import (
     BreakGlassUpdateRequest
 )
 
-router = APIRouter(prefix="/api/v1", tags=["Authentication & Setup"])
+ROLE_HIERARCHY = {
+    "fulladmin": 4,
+    "operator": 3,
+    "report": 2,
+    "readonly": 1,
+}
+
+PUBLIC_PATHS = [
+    "/api/v1/auth/login",
+    "/api/v1/setup/status",
+    "/api/v1/setup/provision",
+    "/api/v1/public/register/*",
+    "/api/v1/self-service/password/config",
+    "/api/v1/self-service/password/change-with-old",
+    "/api/v1/self-service/password/request-otp",
+    "/api/v1/self-service/password/verify-and-reset",
+    "/register.html",
+    "/password-reset.html",
+    "/portal-assets/*",
+]
+
+def is_public_path(path: str) -> bool:
+    for pub in PUBLIC_PATHS:
+        if pub.endswith("/*"):
+            prefix = pub[:-1]  # e.g. "/api/v1/public/register/"
+            if path.startswith(prefix) or path == pub[:-2]:
+                return True
+        elif pub.endswith("*"):
+            prefix = pub[:-1]
+            if path.startswith(prefix):
+                return True
+        elif path == pub:
+            return True
+    return False
+
+def _requires_fulladmin(path: str, method: str) -> bool:
+    # Fulladmin subsystems: system, backups, updates, rbac, api_keys, security, license, certificates
+    fulladmin_prefixes = (
+        "/api/v1/system",
+        "/api/v1/services",
+        "/api/v1/backups",
+        "/api/v1/rbac",
+        "/api/v1/api-keys",
+        "/api/v1/security",
+        "/api/v1/license",
+        "/api/v1/certificates",
+    )
+    for prefix in fulladmin_prefixes:
+        if path == prefix or path.startswith(prefix + "/"):
+            return True
+
+    # Setting changes: mutating operations on configuration/settings/policy endpoints
+    if method in ("POST", "PUT", "PATCH", "DELETE"):
+        setting_keywords = (
+            "/settings",
+            "/config",
+            "/retention",
+            "/forwarders",
+            "/break-glass",
+        )
+        for kw in setting_keywords:
+            if kw in path:
+                return True
+
+    return False
+
+def get_session_user(authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
+    token = authorization.replace("Bearer ", "").strip()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("SELECT username, role, expires_at, last_active, created_at FROM sessions WHERE token = ?", (token,))
+    row = cursor.fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired or invalid.")
+
+    now = time.time()
+    if row["expires_at"] < now:
+        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session has expired. Please log in again.")
+
+    # Idle timeout validation
+    settings = get_security_settings()
+    idle_timeout_min = settings.get("session_idle_timeout_min", 15)
+    last_act = row["last_active"] or row["created_at"] or now
+
+    if idle_timeout_min > 0 and (now - last_act) > (idle_timeout_min * 60):
+        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Session expired due to {idle_timeout_min} minutes of inactivity. Please sign in again."
+        )
+
+    # Throttled update of last_active (every 30 seconds)
+    if (now - last_act) > 30:
+        cursor.execute("UPDATE sessions SET last_active = ? WHERE token = ?", (now, token))
+        conn.commit()
+
+    conn.close()
+    return dict(row)
+
+def require_role(*roles: str):
+    def role_dependency(
+        request: Request,
+        authorization: Optional[str] = Header(None)
+    ) -> Optional[dict]:
+        path = request.url.path
+        if is_public_path(path):
+            if path == "/api/v1/setup/provision" and SETUP_LOCK_FILE.exists():
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Setup has already been completed and appliance is locked."
+                )
+            return None
+
+        user = get_session_user(authorization)
+        user_role = (user.get("role") or "").lower()
+        user_level = ROLE_HIERARCHY.get(user_role, 0)
+
+        # Base role rank required
+        if roles:
+            required_level = min(ROLE_HIERARCHY.get(r.lower(), 1) for r in roles)
+        else:
+            required_level = ROLE_HIERARCHY["readonly"]
+
+        method = request.method.upper()
+
+        # Endpoints that must require fulladmin
+        if _requires_fulladmin(path, method):
+            required_level = max(required_level, ROLE_HIERARCHY["fulladmin"])
+        # Mutating endpoints (POST, PUT, DELETE) must require operator or higher
+        elif method in ("POST", "PUT", "DELETE", "PATCH") and path != "/api/v1/auth/logout":
+            required_level = max(required_level, ROLE_HIERARCHY["operator"])
+
+        if user_level < required_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions for this operation."
+            )
+        return user
+    return role_dependency
+
+router = APIRouter(prefix="/api/v1", tags=["Authentication & Setup"], dependencies=[Depends(require_role("readonly"))])
 
 @router.get("/setup/status")
 def get_setup_status():
@@ -56,6 +206,11 @@ def get_setup_status():
 
 @router.post("/setup/provision")
 def execute_initial_provisioning(req: SetupProvisionRequest):
+    if SETUP_LOCK_FILE.exists():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Setup has already been completed and appliance is locked."
+        )
     realm = req.realm.upper()
     domain = req.domain_netbios.upper()
 
@@ -396,49 +551,6 @@ def logout(authorization: Optional[str] = Header(None)):
     except Exception:
         pass
     return {"status": "success", "message": "Logged out successfully."}
-
-def get_session_user(authorization: Optional[str] = Header(None)) -> dict:
-    if not authorization:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
-    token = authorization.replace("Bearer ", "").strip()
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT username, role, expires_at, last_active, created_at FROM sessions WHERE token = ?", (token,))
-    row = cursor.fetchone()
-
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired or invalid.")
-
-    now = time.time()
-    if row["expires_at"] < now:
-        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
-        conn.commit()
-        conn.close()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session has expired. Please log in again.")
-
-    # Idle timeout validation
-    settings = get_security_settings()
-    idle_timeout_min = settings.get("session_idle_timeout_min", 15)
-    last_act = row["last_active"] or row["created_at"] or now
-
-    if idle_timeout_min > 0 and (now - last_act) > (idle_timeout_min * 60):
-        cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
-        conn.commit()
-        conn.close()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Session expired due to {idle_timeout_min} minutes of inactivity. Please sign in again."
-        )
-
-    # Throttled update of last_active (every 30 seconds)
-    if (now - last_act) > 30:
-        cursor.execute("UPDATE sessions SET last_active = ? WHERE token = ?", (now, token))
-        conn.commit()
-
-    conn.close()
-    return dict(row)
 
 @router.get("/auth/profile")
 def get_user_profile(authorization: Optional[str] = Header(None)):

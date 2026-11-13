@@ -4,7 +4,7 @@ Handles self-service user onboarding, mobile OTP dispatch and verification, orga
 and administrator approval queue.
 """
 
-from fastapi import APIRouter, HTTPException, status, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, status, Request, BackgroundTasks, Depends
 import sqlite3
 import time
 import re
@@ -29,8 +29,10 @@ from api.schemas.registration_schema import (
     SelfRegistrationApprovalAction
 )
 
+from api.routers.auth import require_role
+
 logger = logging.getLogger("zclockid.registration")
-router = APIRouter(prefix="/api/v1", tags=["Self-Registration & Captive Portal"])
+router = APIRouter(prefix="/api/v1", tags=["Self-Registration & Captive Portal"], dependencies=[Depends(require_role("readonly"))])
 
 def get_self_registration_settings() -> Dict[str, Any]:
     conn = sqlite3.connect(DB_PATH)

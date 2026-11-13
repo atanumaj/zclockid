@@ -4,7 +4,7 @@ Provides comprehensive REST management for Active Directory Users, Groups, and C
 Implements Zero-Shadow Directory State: reads directly from Samba sam.ldb and respects RSAT modifications.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 import subprocess
 import time
 import re
@@ -18,6 +18,7 @@ from api.core.license import get_license_status
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.services.samba_service import parse_bw_info, format_bw_rate_str, update_user_upn
 from api.services.radius_service import sync_freeradius_policies
+from api.routers.auth import require_role
 from api.schemas.user_schema import (
     UserCreateRequest,
     UserUpdateRequest,
@@ -28,7 +29,7 @@ from api.schemas.user_schema import (
 )
 
 logger = logging.getLogger("zclockid.users")
-router = APIRouter(prefix="/api/v1", tags=["Active Directory Identity Objects"])
+router = APIRouter(prefix="/api/v1", tags=["Active Directory Identity Objects"], dependencies=[Depends(require_role("readonly"))])
 
 PROTECTED_BUILTIN_GROUPS = {
     "administrators", "domain admins", "enterprise admins", "schema admins",

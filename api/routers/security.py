@@ -9,7 +9,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Header, Request, status
 
 from api.core.config import DB_PATH
-from api.routers.auth import get_session_user
+from api.routers.auth import get_session_user, require_role
 from api.schemas.security_schema import (
     SecuritySettingsUpdateRequest,
     SecuritySettingsResponse,
@@ -40,7 +40,7 @@ from api.services.firewall_service import (
     reset_to_default_template
 )
 
-router = APIRouter(prefix="/api/v1/security", tags=["System Security & Access Controls"])
+router = APIRouter(prefix="/api/v1/security", tags=["System Security & Access Controls"], dependencies=[Depends(require_role("readonly"))])
 
 def require_admin(authorization: Optional[str] = Header(None)) -> dict:
     user = get_session_user(authorization)

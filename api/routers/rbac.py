@@ -7,10 +7,11 @@ import time
 import sqlite3
 import subprocess
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Header, status
+from fastapi import APIRouter, HTTPException, Header, status, Depends
 
 from api.core.config import DB_PATH, SAMBA_LDB_PATH
 from api.services.system_service import log_audit, run_cmd
+from api.routers.auth import require_role
 from api.schemas.rbac_schema import (
     RbacMappingCreateRequest,
     RbacMappingUpdateRequest,
@@ -19,7 +20,7 @@ from api.schemas.rbac_schema import (
     VALID_ROLES
 )
 
-router = APIRouter(prefix="/api/v1/rbac", tags=["Access Control & RBAC"])
+router = APIRouter(prefix="/api/v1/rbac", tags=["Access Control & RBAC"], dependencies=[Depends(require_role("readonly"))])
 
 ROLE_PERMISSIONS = {
     "fulladmin": [

@@ -4,7 +4,7 @@ Provides complete management for 802.1X NAS clients, decoupled QoS bandwidth obj
 MAB devices for IoT, live accounting sessions, Disconnect-Message (PoD/CoA), and raw config inspection.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 import sqlite3
 import time
 import re
@@ -35,8 +35,10 @@ from api.schemas.radius_schema import (
     DisconnectSessionRequest
 )
 
+from api.routers.auth import require_role
+
 logger = logging.getLogger("zclockid.radius_router")
-router = APIRouter(prefix="/api/v1/radius", tags=["FreeRADIUS 802.1X & Access Control"])
+router = APIRouter(prefix="/api/v1/radius", tags=["FreeRADIUS 802.1X & Access Control"], dependencies=[Depends(require_role("readonly"))])
 
 def get_freeradius_certificate_info() -> Dict[str, Any]:
     p_realm = get_primary_realm().lower()

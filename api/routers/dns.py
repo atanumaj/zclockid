@@ -4,7 +4,7 @@ Handles Forward/Reverse DNS lookup zones, A/CNAME/SRV records, upstream forwarde
 and RFC 8484 DNS-over-HTTPS (DoH) resolution tests.
 """
 
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, status, Request, Depends
 import re
 import os
 import time
@@ -141,7 +141,9 @@ def sync_bind_overrides(data: dict):
     run_cmd(["rndc", "reload"])
     run_cmd(["rndc", "flush"])
 
-router = APIRouter(prefix="/api/v1/dns", tags=["DNS Services (BIND9 DLZ & DoH)"])
+from api.routers.auth import require_role
+
+router = APIRouter(prefix="/api/v1/dns", tags=["DNS Services (BIND9 DLZ & DoH)"], dependencies=[Depends(require_role("readonly"))])
 
 def is_protected_dns_record(name: str, rtype: str, zone: str = "") -> bool:
     """

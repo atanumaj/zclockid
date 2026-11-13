@@ -3,7 +3,7 @@ ZclockID Enterprise Management Appliance - Domain Controller Router
 Handles Active Directory Domain Information, FSMO roles, Functional Levels, UPN Suffixes, and DRS Replication.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 import os
 import re
 import time
@@ -12,6 +12,7 @@ from pathlib import Path
 from api.core.config import SAMBA_LDB_PATH, SMB_CONF_FILE, DEFAULT_REALM
 from api.core.security import get_ad_creds
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.routers.auth import require_role
 from api.schemas.domain_schema import (
     FunctionalLevelRaiseRequest,
     SystemIdentityUpdateRequest,
@@ -19,7 +20,7 @@ from api.schemas.domain_schema import (
     FsmoTransferRequest
 )
 
-router = APIRouter(prefix="/api/v1/domain", tags=["Active Directory Domain"])
+router = APIRouter(prefix="/api/v1/domain", tags=["Active Directory Domain"], dependencies=[Depends(require_role("readonly"))])
 
 LEVEL_ORDER = {
     "2003": 1,

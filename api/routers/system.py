@@ -17,8 +17,10 @@ import subprocess
 import requests
 from pathlib import Path
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, status, Depends
 from fastapi.responses import FileResponse, PlainTextResponse
+
+from api.routers.auth import require_role
 
 from api.core.config import (
     DB_PATH,
@@ -52,7 +54,7 @@ from api.schemas.system_schema import (
     UpdateInstallModel
 )
 
-router = APIRouter(tags=["System Administration & Maintenance"])
+router = APIRouter(tags=["System Administration & Maintenance"], dependencies=[Depends(require_role("readonly"))])
 
 ALL_MANAGED_SERVICES = [
     "samba-ad-dc",

@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from api.core.config import CONFIG_DIR, DATA_DIR, DEFAULT_REALM
-from api.routers.auth import get_session_user
+from api.routers.auth import get_session_user, require_role
 from api.services.system_service import get_primary_realm, run_cmd, log_audit
 from api.schemas.federation_schema import (
     KeycloakFederationConfigResponse,
@@ -22,7 +22,7 @@ from api.schemas.federation_schema import (
     TestLdapConnectionRequest
 )
 
-router = APIRouter(prefix="/api/v1/federation", tags=["Identity Federation & Keycloak SSO"])
+router = APIRouter(prefix="/api/v1/federation", tags=["Identity Federation & Keycloak SSO"], dependencies=[Depends(require_role("readonly"))])
 
 KEYTAB_FILE = CONFIG_DIR / "keycloak.keytab"
 

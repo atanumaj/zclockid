@@ -19,13 +19,13 @@ from api.core.license import (
     verify_license_text,
     FREE_TIER_MAX_USERS
 )
-from api.routers.auth import get_session_user
+from api.routers.auth import get_session_user, require_role
 from api.services.system_service import log_audit, run_cmd
 from api.core.config import SAMBA_LDB_PATH
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/license", tags=["License & Subscription"])
+router = APIRouter(prefix="/api/v1/license", tags=["License & Subscription"], dependencies=[Depends(require_role("readonly"))])
 
 def require_admin(user: dict = Depends(get_session_user)) -> dict:
     role = user.get("role", "")

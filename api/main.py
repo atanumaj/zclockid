@@ -60,8 +60,9 @@ app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
     description="Enterprise Active Directory & Network Identity Management Appliance REST API",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
 # Global CORS

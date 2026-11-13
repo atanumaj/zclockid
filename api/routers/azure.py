@@ -4,7 +4,7 @@ Provides automated background identity federation, OAuth 2.0 connectivity diagno
 and manual single-shot sync triggers.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 import os
 import json
 import urllib.request
@@ -13,9 +13,10 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 from api.core.config import AZURE_CONFIG_FILE, AZURE_STATUS_FILE
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.routers.auth import require_role
 from api.schemas.azure_schema import AzureSyncConfig, AzureTestConnectionRequest
 
-router = APIRouter(prefix="/api/v1/azure", tags=["Azure / Entra ID Cloud Sync"])
+router = APIRouter(prefix="/api/v1/azure", tags=["Azure / Entra ID Cloud Sync"], dependencies=[Depends(require_role("readonly"))])
 
 @router.get("/status")
 def get_azure_sync_status():

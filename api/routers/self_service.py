@@ -16,7 +16,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Request, Response, status, UploadFile, File, Body
+from fastapi import APIRouter, HTTPException, Request, Response, status, UploadFile, File, Body, Depends
 from fastapi.responses import PlainTextResponse
 
 from api.core.config import DB_PATH, SAMBA_LDB_PATH, DATA_DIR, WEB_DIR
@@ -31,8 +31,10 @@ from api.schemas.self_service_schema import (
     TestSmsRequest
 )
 
+from api.routers.auth import require_role
+
 logger = logging.getLogger("zclockid.self_service")
-router = APIRouter(prefix="/api/v1/self-service", tags=["Self Services & Password Reset"])
+router = APIRouter(prefix="/api/v1/self-service", tags=["Self Services & Password Reset"], dependencies=[Depends(require_role("readonly"))])
 
 
 def get_sspr_settings() -> Dict[str, Any]:

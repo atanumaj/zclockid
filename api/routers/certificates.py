@@ -8,7 +8,7 @@ import shutil
 import ipaddress
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import PlainTextResponse
 
 from cryptography import x509
@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from api.services.system_service import log_audit, run_cmd
+from api.routers.auth import require_role
 from api.schemas.cert_schema import (
     SelfSignedCertRequest,
     CertUploadRequest,
@@ -24,7 +25,7 @@ from api.schemas.cert_schema import (
     ActiveCertDetailsResponse
 )
 
-router = APIRouter(prefix="/api/v1/certificates", tags=["SSL/TLS Certificate Management"])
+router = APIRouter(prefix="/api/v1/certificates", tags=["SSL/TLS Certificate Management"], dependencies=[Depends(require_role("readonly"))])
 
 PRIMARY_CERT_PATH = "/etc/zclockid/certs/appliance.crt"
 PRIMARY_KEY_PATH = "/etc/zclockid/certs/appliance.key"

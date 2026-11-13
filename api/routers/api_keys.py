@@ -10,10 +10,11 @@ import hashlib
 import sqlite3
 import ipaddress
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Header, Request, status
+from fastapi import APIRouter, HTTPException, Header, Request, status, Depends
 
 from api.core.config import DB_PATH
 from api.services.system_service import log_audit
+from api.routers.auth import require_role
 from api.schemas.api_key_schema import (
     ApiKeyCreateRequest,
     ApiKeyCreateResponse,
@@ -21,7 +22,7 @@ from api.schemas.api_key_schema import (
     VALID_SCOPES
 )
 
-router = APIRouter(prefix="/api/v1/api-keys", tags=["API Key Management"])
+router = APIRouter(prefix="/api/v1/api-keys", tags=["API Key Management"], dependencies=[Depends(require_role("readonly"))])
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)

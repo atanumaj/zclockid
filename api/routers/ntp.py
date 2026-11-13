@@ -13,9 +13,10 @@ from api.core.config import (
     ZCLOCK_NTP_SOURCES,
 )
 from api.services.system_service import run_cmd, log_audit
+from api.routers.auth import require_role
 from api.schemas.ntp_schema import NtpConfigRequest
 
-router = APIRouter(prefix="/api/v1/ntp", tags=["NTP Time Service"])
+router = APIRouter(prefix="/api/v1/ntp", tags=["NTP Time Service"], dependencies=[Depends(require_role("readonly"))])
 
 @router.get("/status")
 def get_ntp_status():

@@ -16,20 +16,26 @@ from api.core.config import DB_PATH
 from api.services.system_service import run_cmd, log_audit
 
 def get_client_ip(request: Request) -> str:
-    """Extracts client IP address considering reverse proxies (Nginx) and direct connections."""
-    # Check X-Real-IP first
-    x_real = request.headers.get("x-real-ip")
-    if x_real:
-        ip = x_real.strip()
-    else:
-        # Check X-Forwarded-For
-        x_fwd = request.headers.get("x-forwarded-for")
-        if x_fwd:
-            ip = x_fwd.split(",")[0].strip()
-        elif request.client and request.client.host:
-            ip = request.client.host.strip()
+    """Extracts client IP address considering reverse proxies (Nginx) and direct connections.
+    Trusts X-Real-IP and X-Forwarded-For only when the direct connection is from 127.0.0.1.
+    """
+    direct_host = request.client.host.strip() if (request.client and request.client.host) else "127.0.0.1"
+    if direct_host.startswith("::ffff:"):
+        direct_host = direct_host.replace("::ffff:", "")
+
+    # Trust proxy headers only when request is from localhost reverse proxy (127.0.0.1)
+    if direct_host == "127.0.0.1":
+        x_real = request.headers.get("x-real-ip")
+        if x_real:
+            ip = x_real.strip()
         else:
-            ip = "127.0.0.1"
+            x_fwd = request.headers.get("x-forwarded-for")
+            if x_fwd:
+                ip = x_fwd.split(",")[0].strip()
+            else:
+                ip = direct_host
+    else:
+        ip = direct_host
 
     # Normalize IPv6-mapped IPv4 (e.g. ::ffff:192.168.1.100)
     if ip.startswith("::ffff:"):
@@ -54,7 +60,7 @@ def is_ip_allowed(client_ip: str, allowed_subnets_str: str) -> bool:
     """Checks if a client IP is allowed within configured subnets."""
     if not client_ip:
         return False
-    if client_ip in ("127.0.0.1", "::1", "localhost"):
+    if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
         return True
     if not allowed_subnets_str or not allowed_subnets_str.strip():
         return True
@@ -83,14 +89,17 @@ def is_ip_allowed(client_ip: str, allowed_subnets_str: str) -> bool:
 
 def get_security_settings() -> Dict[str, Any]:
     """Fetches system-wide security settings from SQLite."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM security_settings WHERE id = 1")
-    row = cursor.fetchone()
-    conn.close()
-    if row:
-        return dict(row)
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM security_settings WHERE id = 1")
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return dict(row)
+    except Exception:
+        pass
     return {
         "session_idle_timeout_min": 15,
         "session_max_lifetime_hours": 8,

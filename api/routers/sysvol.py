@@ -4,7 +4,7 @@ Handles bi-directional GPO file sync, NTACL permission healing (Option A),
 partner mesh pairing, and sha256 manifest verification.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import PlainTextResponse
 import os
 import time
@@ -19,9 +19,10 @@ from api.core.config import (
     PHYSICAL_SYSVOL_DIR
 )
 from api.services.system_service import run_cmd, log_audit
+from api.routers.auth import require_role
 from api.schemas.sysvol_schema import SysvolPartnerRequest, SysvolFileUploadRequest
 
-router = APIRouter(prefix="/api/v1/sysvol", tags=["Sysvol Replication & NTACL"])
+router = APIRouter(prefix="/api/v1/sysvol", tags=["Sysvol Replication & NTACL"], dependencies=[Depends(require_role("readonly"))])
 
 SYSVOL_PARTNERS_FILE = CONFIG_DIR / "sysvol_partners.json"
 SYSVOL_LOCAL_SECRET_FILE = CONFIG_DIR / "sysvol_secret"

@@ -7,11 +7,12 @@ import time
 import socket
 import sqlite3
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status, Depends
 from pydantic import BaseModel, Field
 
 from api.core.config import DB_PATH
 from api.services.system_service import log_audit, run_cmd
+from api.routers.auth import require_role
 from api.services.log_retention_service import (
     get_log_retention_settings,
     update_log_retention_settings,
@@ -23,7 +24,7 @@ from api.schemas.syslog_schema import (
     SyslogTestEventRequest
 )
 
-router = APIRouter(prefix="/api/v1/syslog", tags=["Syslog & Live Logs"])
+router = APIRouter(prefix="/api/v1/syslog", tags=["Syslog & Live Logs"], dependencies=[Depends(require_role("readonly"))])
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
