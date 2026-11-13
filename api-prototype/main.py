@@ -509,7 +509,7 @@ def run_cmd(cmd: List[str], timeout: int = 45) -> tuple[int, str, str]:
 
 def get_ad_creds() -> tuple[str, str]:
     admin_user = "Administrator"
-    admin_pass = "ZclockID@Admin2026!"
+    admin_pass = ""
     if AD_CREDS_FILE.exists():
         try:
             with open(AD_CREDS_FILE) as f:

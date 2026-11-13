@@ -1,28 +1,41 @@
 """
 End-to-End Verification Suite for ZclockID MVP 3 Features
 Tests Hybrid RBAC, API Keys, SSL/TLS Certificates, and Remote Syslog / Live Streaming.
-Target: https://192.168.1.41/
+Credentials and target URL can be configured via environment variables:
+  ZCLOCKID_TARGET_HOST (default: 127.0.0.1)
+  ZCLOCKID_ADMIN_USER  (default: admin)
+  ZCLOCKID_ADMIN_PASSWORD
 """
 
+import os
 import urllib3
 import requests
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-BASE_URL = "https://192.168.1.41/api/v1"
+TARGET_HOST = os.environ.get("ZCLOCKID_TARGET_HOST", "127.0.0.1")
+BASE_URL = os.environ.get("ZCLOCKID_API_URL", f"https://{TARGET_HOST}/api/v1")
+ADMIN_USER = os.environ.get("ZCLOCKID_ADMIN_USER", "admin")
+ADMIN_PASS = os.environ.get("ZCLOCKID_ADMIN_PASSWORD", "")
+AD_ADMIN_USER = os.environ.get("ZCLOCKID_AD_ADMIN_USER", "Administrator")
+AD_ADMIN_PASS = os.environ.get("ZCLOCKID_AD_ADMIN_PASSWORD", ADMIN_PASS)
 
 def test_mvp3():
     print("=" * 60)
     print("ZCLOCKID MVP 3 - LIVE END-TO-END VERIFICATION")
-    print("Target: https://192.168.1.41/api/v1")
+    print(f"Target: {BASE_URL}")
     print("=" * 60)
+
+    if not ADMIN_PASS:
+        print("[WARN] ZCLOCKID_ADMIN_PASSWORD not set. Skipping live authentication tests.")
+        return
 
     session = requests.Session()
     session.verify = False
 
     # 1. Local Admin Authentication (Break-Glass)
     print("\n[TEST 1] Hybrid Login - Local Admin (Break-Glass)...")
-    res = session.post(f"{BASE_URL}/auth/login", json={"username": "admin", "password": "ZclockID@Admin2026!"}, timeout=8)
+    res = session.post(f"{BASE_URL}/auth/login", json={"username": ADMIN_USER, "password": ADMIN_PASS}, timeout=8)
     assert res.status_code == 200, f"Local login failed: {res.text}"
     local_data = res.json()
     print(f"  -> Local Admin Logged In: username={local_data.get('username')}, role={local_data.get('role')}, is_ad_user={local_data.get('is_ad_user')}")
@@ -31,7 +44,7 @@ def test_mvp3():
 
     # 2. Active Directory Domain Admin Authentication
     print("\n[TEST 2] Hybrid Login - Active Directory Domain Admin (Administrator)...")
-    res = session.post(f"{BASE_URL}/auth/login", json={"username": "Administrator", "password": "ZclockID@Admin2026!"}, timeout=8)
+    res = session.post(f"{BASE_URL}/auth/login", json={"username": AD_ADMIN_USER, "password": AD_ADMIN_PASS}, timeout=8)
     assert res.status_code == 200, f"AD login failed: {res.text}"
     ad_data = res.json()
     ad_token = ad_data.get("access_token") or ad_data.get("token")
