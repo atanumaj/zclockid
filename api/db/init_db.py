@@ -13,8 +13,9 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
+def init_db(db_path=None):
+    target_db = db_path or globals().get("DB_PATH", DB_PATH)
+    conn = sqlite3.connect(target_db)
     cursor = conn.cursor()
 
     # Admin users for Web GUI authentication
@@ -71,7 +72,8 @@ def init_db():
             otp_code TEXT,
             otp_expires_at REAL,
             otp_verified INTEGER DEFAULT 0,
-            password_hash TEXT
+            password_hash TEXT,
+            failed_attempts INTEGER DEFAULT 0
         )
     """)
 
@@ -83,7 +85,8 @@ def init_db():
         "otp_code": "TEXT",
         "otp_expires_at": "REAL",
         "otp_verified": "INTEGER DEFAULT 0",
-        "password_hash": "TEXT"
+        "password_hash": "TEXT",
+        "failed_attempts": "INTEGER DEFAULT 0"
     }
     for col_name, col_type in cols_to_add.items():
         if col_name not in existing_cols:
@@ -203,9 +206,28 @@ def init_db():
             user_agent TEXT,
             created_at REAL,
             completed_at REAL,
-            notes TEXT
+            notes TEXT,
+            failed_attempts INTEGER DEFAULT 0
         )
     """)
+
+    # Column migrations for self_service_password_logs
+    cursor.execute("PRAGMA table_info(self_service_password_logs)")
+    existing_sspr_cols = [row[1] for row in cursor.fetchall()]
+    if "failed_attempts" not in existing_sspr_cols:
+        cursor.execute("ALTER TABLE self_service_password_logs ADD COLUMN failed_attempts INTEGER DEFAULT 0")
+
+    # SSPR Rate Limiting Attempts
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sspr_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            ip_address TEXT,
+            action TEXT,
+            timestamp REAL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_attempts ON sspr_attempts(timestamp, username, ip_address)")
 
     # Index for fast month/date queries and username lookups
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_logs_created ON self_service_password_logs(created_at)")

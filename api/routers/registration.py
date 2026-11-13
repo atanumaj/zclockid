@@ -17,8 +17,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, List, Optional
 from api.core.config import DB_PATH
-from api.core.security import validate_ad_password_complexity
+from api.core.security import validate_ad_password_complexity, hash_otp, verify_otp_hash
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.services.security_service import get_client_ip
 from api.services.samba_service import provision_user_in_ad
 from api.services.radius_service import sync_freeradius_policies
 from api.schemas.registration_schema import (
@@ -33,6 +34,20 @@ from api.routers.auth import require_role
 
 logger = logging.getLogger("zclockid.registration")
 router = APIRouter(prefix="/api/v1", tags=["Self-Registration & Captive Portal"], dependencies=[Depends(require_role("readonly"))])
+
+def is_sms_gateway_configured(settings: dict) -> bool:
+    """Returns True if a real (non-simulated) external SMS gateway is configured."""
+    gw_type = (settings.get("sms_gateway_type") or "simulated").lower().strip()
+    if gw_type == "simulated" or not gw_type:
+        return False
+    if gw_type == "webhook":
+        return bool(settings.get("sms_gateway_url", "").strip())
+    if gw_type == "twilio":
+        return bool(settings.get("sms_gateway_url", "").strip() and settings.get("sms_api_key", "").strip())
+    if gw_type in ("fast2sms", "msg91"):
+        return bool(settings.get("sms_api_key", "").strip())
+    return False
+
 
 def get_self_registration_settings() -> Dict[str, Any]:
     conn = sqlite3.connect(DB_PATH)
@@ -245,8 +260,8 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
         raise HTTPException(status_code=403, detail="User self-registration is currently disabled by administrator.")
 
     clean_user = req.username.strip().lower()
-    if not re.match(r"^[a-zA-Z0-9._-]{3,32}$", clean_user):
-        raise HTTPException(status_code=400, detail="Username must be 3-32 characters (letters, numbers, dots, dashes).")
+    if clean_user.startswith("-") or not re.match(r"^[a-zA-Z0-9._-]{3,32}$", clean_user):
+        raise HTTPException(status_code=400, detail="Username must be 3-32 characters (letters, numbers, dots, dashes) and cannot start with '-'.")
 
     reserved_users = ["admin", "administrator", "root", "guest", "krbtgt", "system", "daemon", "bin", "sys"]
     if clean_user in reserved_users:
@@ -275,8 +290,11 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
         if clean_user in existing_ad:
             raise HTTPException(status_code=409, detail=f"Username '{clean_user}' is already registered in the domain.")
 
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     require_otp = bool(settings.get("require_mobile_otp", 1))
+
+    if require_otp and not is_sms_gateway_configured(settings):
+        raise HTTPException(status_code=503, detail="No verification channel configured.")
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -284,16 +302,17 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
 
     if require_otp:
         otp = f"{secrets.randbelow(900000) + 100000}"
+        otp_hashed = hash_otp(otp)
         expiry = time.time() + 600
 
         cursor.execute("""
             INSERT INTO self_registrations (
                 username, email, given_name, surname, department, mobile,
-                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, ?, ?)
+                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes, failed_attempts
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, ?, ?, 0)
         """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
               chosen_dept, clean_mobile, client_ip, time.time(),
-              otp, expiry, req.password, req.justification or ""))
+              otp_hashed, expiry, req.password, req.justification or ""))
         reg_id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -309,15 +328,14 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
             "registration_id": reg_id,
             "username": clean_user,
             "mobile_masked": masked_mobile,
-            "otp_debug": otp if settings.get("sms_gateway_type") == "simulated" else None,
             "message": f"Verification OTP sent to mobile number {masked_mobile}. Please verify to complete activation."
         }
     else:
         cursor.execute("""
             INSERT INTO self_registrations (
                 username, email, given_name, surname, department, mobile,
-                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, NULL, NULL, 0, ?, ?)
+                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes, failed_attempts
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, NULL, NULL, 0, ?, ?, 0)
         """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
               chosen_dept, clean_mobile, client_ip, time.time(),
               req.password, req.justification or ""))
@@ -356,6 +374,10 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
         conn.close()
         return {"status": "success", "message": "Account has already been verified and provisioned.", "username": reg["username"]}
 
+    if reg["status"] == "LOCKED":
+        conn.close()
+        raise HTTPException(status_code=400, detail="This registration request has been locked due to too many failed attempts.")
+
     if reg["status"] != "PENDING_OTP":
         conn.close()
         raise HTTPException(status_code=400, detail=f"Invalid registration state: {reg['status']}")
@@ -364,9 +386,21 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
         conn.close()
         raise HTTPException(status_code=400, detail="Verification OTP code has expired. Please request a new code.")
 
-    if req.otp_code.strip() != str(reg["otp_code"]).strip():
+    # Validate OTP hash
+    clean_otp = req.otp_code.strip()
+    stored_hash = str(reg["otp_code"]).strip() if reg["otp_code"] else ""
+    if not verify_otp_hash(clean_otp, stored_hash):
+        failed_attempts = int(reg["failed_attempts"] or 0) + 1
+        new_status = "LOCKED" if failed_attempts >= 5 else "PENDING_OTP"
+        cursor.execute("UPDATE self_registrations SET failed_attempts = ?, status = ? WHERE id = ?", (failed_attempts, new_status, req.registration_id))
+        conn.commit()
         conn.close()
-        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check your SMS and try again.")
+
+        if failed_attempts >= 5:
+            log_audit("REGISTRATION_LOCKED", reg["username"], "appliance", "LOCKED", {"reg_id": req.registration_id, "attempts": failed_attempts})
+            raise HTTPException(status_code=400, detail="Too many failed verification attempts. This registration request has been locked.")
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid OTP code ({5 - failed_attempts} attempts remaining). Please check your SMS and try again.")
 
     username = reg["username"]
     password = reg["password_hash"]
@@ -429,6 +463,9 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
 def resend_registration_otp(req: SelfRegistrationResendOtpRequest):
     """Generates and resends a new mobile OTP for an existing unverified registration."""
     settings = get_self_registration_settings()
+    if not is_sms_gateway_configured(settings):
+        raise HTTPException(status_code=503, detail="No verification channel configured.")
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -439,9 +476,10 @@ def resend_registration_otp(req: SelfRegistrationResendOtpRequest):
         raise HTTPException(status_code=404, detail="Pending registration request not found.")
 
     otp = f"{secrets.randbelow(900000) + 100000}"
+    otp_hashed = hash_otp(otp)
     expiry = time.time() + 600
 
-    cursor.execute("UPDATE self_registrations SET otp_code = ?, otp_expires_at = ? WHERE id = ?", (otp, expiry, req.registration_id))
+    cursor.execute("UPDATE self_registrations SET otp_code = ?, otp_expires_at = ? WHERE id = ?", (otp_hashed, expiry, req.registration_id))
     conn.commit()
     conn.close()
 
@@ -452,8 +490,7 @@ def resend_registration_otp(req: SelfRegistrationResendOtpRequest):
 
     return {
         "status": "success",
-        "message": f"A new OTP code has been sent to {masked_mobile}.",
-        "otp_debug": otp if settings.get("sms_gateway_type") == "simulated" else None
+        "message": f"A new OTP code has been sent to {masked_mobile}."
     }
 
 @router.get("/registrations/settings")

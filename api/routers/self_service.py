@@ -13,6 +13,8 @@ import json
 import secrets
 import sqlite3
 import logging
+import hmac
+import hashlib
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -20,8 +22,9 @@ from fastapi import APIRouter, HTTPException, Request, Response, status, UploadF
 from fastapi.responses import PlainTextResponse
 
 from api.core.config import DB_PATH, SAMBA_LDB_PATH, DATA_DIR, WEB_DIR
-from api.core.security import get_ad_creds, validate_ad_password_complexity
+from api.core.security import get_ad_creds, validate_ad_password_complexity, hash_otp, verify_otp_hash
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.services.security_service import get_client_ip
 from api.routers.registration import dispatch_sms, dispatch_email
 from api.schemas.self_service_schema import (
     PasswordChangeOldRequest,
@@ -35,6 +38,126 @@ from api.routers.auth import require_role
 
 logger = logging.getLogger("zclockid.self_service")
 router = APIRouter(prefix="/api/v1/self-service", tags=["Self Services & Password Reset"], dependencies=[Depends(require_role("readonly"))])
+
+OTP_SECRET_KEY = os.environ.get("ZCLOCKID_OTP_SECRET", "zclockid-sspr-otp-hmac-secret-2026").encode()
+
+
+def hash_otp(otp_code: str) -> str:
+    """Computes HMAC-SHA256 hex digest of an OTP code for secure at-rest storage."""
+    return hmac.new(OTP_SECRET_KEY, otp_code.strip().encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def verify_otp_hash(provided_code: str, stored_hash: str) -> bool:
+    """Validates an OTP code against stored HMAC-SHA256 hash using secrets.compare_digest."""
+    if not provided_code or not stored_hash:
+        return False
+    computed = hash_otp(provided_code)
+    return secrets.compare_digest(computed, stored_hash)
+
+
+def is_sms_gateway_configured(settings: dict) -> bool:
+    """Returns True if a real (non-simulated) external SMS gateway is configured."""
+    gw_type = (settings.get("sms_gateway_type") or "simulated").lower().strip()
+    if gw_type == "simulated" or not gw_type:
+        return False
+    if gw_type == "webhook":
+        return bool(settings.get("sms_gateway_url", "").strip())
+    if gw_type == "twilio":
+        return bool(settings.get("sms_gateway_url", "").strip() and settings.get("sms_api_key", "").strip())
+    if gw_type in ("fast2sms", "msg91"):
+        return bool(settings.get("sms_api_key", "").strip())
+    return False
+
+
+def is_smtp_configured(settings: dict) -> bool:
+    """Returns True if SMTP email dispatch is actively enabled and configured."""
+    return bool(settings.get("email_smtp_enabled") and settings.get("smtp_host", "").strip())
+
+
+def rfc4515_escape(val: str) -> str:
+    """Escapes characters in LDAP search filter strings per RFC 4515 (*, (, ), \\, NUL)."""
+    if not val:
+        return ""
+    # Backslash must be escaped first to prevent double-escaping
+    val = val.replace("\\", "\\5c")
+    val = val.replace("\x00", "\\00")
+    val = val.replace("*", "\\2a")
+    val = val.replace("(", "\\28")
+    val = val.replace(")", "\\29")
+    return val
+
+
+def validate_username_format(username: str) -> bool:
+    """Rejects usernames that start with '-' or contain anything other than [A-Za-z0-9._@-]."""
+    if not username or username.startswith("-"):
+        return False
+    return bool(re.match(r"^[A-Za-z0-9._@-]{1,64}$", username))
+
+
+def is_privileged_account(account_name: str, admin_count: int = 0, member_of: Optional[List[str]] = None) -> bool:
+    """Refuses SSPR for Administrator, krbtgt, Guest, adminCount=1, or privileged group members."""
+    name_lower = (account_name or "").lower().strip()
+    if name_lower in ("administrator", "krbtgt", "guest"):
+        return True
+    if admin_count == 1:
+        return True
+    privileged_groups = {"domain admins", "enterprise admins", "schema admins", "administrators"}
+    if member_of:
+        for group in member_of:
+            group_lower = group.lower()
+            for pg in privileged_groups:
+                if f"cn={pg}," in group_lower or group_lower.endswith(f"cn={pg}") or group_lower == pg:
+                    return True
+    return False
+
+
+def check_and_record_sspr_attempt(username: str, client_ip: str, action: str, max_daily: int):
+    """Enforces max_daily_attempts per username and per client IP across all SSPR actions, returning 429 when exceeded."""
+    if max_daily <= 0:
+        return
+    cutoff = time.time() - 86400
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS sspr_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            ip_address TEXT,
+            action TEXT,
+            timestamp REAL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_attempts ON sspr_attempts(timestamp, username, ip_address)")
+
+    clean_user = (username or "").strip().lower()
+    if clean_user:
+        cursor.execute("SELECT COUNT(*) FROM sspr_attempts WHERE LOWER(username) = ? AND timestamp > ?", (clean_user, cutoff))
+        user_attempts = cursor.fetchone()[0]
+        if user_attempts >= max_daily:
+            conn.close()
+            log_audit("SSPR_RATE_LIMIT_EXCEEDED", username, "sspr", "BLOCKED", {"ip": client_ip, "action": action, "count": user_attempts, "max": max_daily})
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded: maximum daily attempts ({max_daily}) reached for this account."
+            )
+
+    if client_ip:
+        cursor.execute("SELECT COUNT(*) FROM sspr_attempts WHERE ip_address = ? AND timestamp > ?", (client_ip, cutoff))
+        ip_attempts = cursor.fetchone()[0]
+        if ip_attempts >= max_daily:
+            conn.close()
+            log_audit("SSPR_RATE_LIMIT_EXCEEDED", username, "sspr", "BLOCKED", {"ip": client_ip, "action": action, "count": ip_attempts, "max": max_daily})
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded: maximum daily attempts ({max_daily}) reached from this IP address."
+            )
+
+    cursor.execute(
+        "INSERT INTO sspr_attempts (username, ip_address, action, timestamp) VALUES (?, ?, ?, ?)",
+        (clean_user, client_ip, action, time.time())
+    )
+    conn.commit()
+    conn.close()
 
 
 def get_sspr_settings() -> Dict[str, Any]:
@@ -76,17 +199,19 @@ def get_sspr_settings() -> Dict[str, Any]:
 
 
 def lookup_ad_user(username: str) -> Dict[str, Any]:
-    """Searches Active Directory (Samba LDB) for user account and contact attributes."""
-    clean_user = username.strip()
-    if not clean_user:
+    """Searches Active Directory (Samba LDB) for user account and contact attributes with RFC 4515 escaping."""
+    clean_user = (username or "").strip()
+    if not clean_user or not validate_username_format(clean_user):
         return {"found": False}
 
+    escaped_user = rfc4515_escape(clean_user)
+
     # Query by sAMAccountName, userPrincipalName, or mail
-    query = f"(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={clean_user})(userPrincipalName={clean_user})(mail={clean_user})))"
+    query = f"(&(objectClass=user)(!(objectClass=computer))(|(sAMAccountName={escaped_user})(userPrincipalName={escaped_user})(mail={escaped_user})))"
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", str(SAMBA_LDB_PATH),
         query,
-        "sAMAccountName", "mail", "mobile", "telephoneNumber", "userPrincipalName", "userAccountControl"
+        "sAMAccountName", "mail", "mobile", "telephoneNumber", "userPrincipalName", "userAccountControl", "adminCount", "memberOf"
     ], timeout=10)
 
     if code != 0 or "dn: " not in stdout:
@@ -96,6 +221,8 @@ def lookup_ad_user(username: str) -> Dict[str, Any]:
     email = None
     mobile = None
     uac = 512
+    admin_count = 0
+    member_of: List[str] = []
 
     for line in stdout.splitlines():
         line = line.strip()
@@ -110,17 +237,28 @@ def lookup_ad_user(username: str) -> Dict[str, Any]:
         elif line.lower().startswith("useraccountcontrol:"):
             try:
                 uac = int(line.split(":", 1)[1].strip())
-            except:
+            except Exception:
                 pass
+        elif line.lower().startswith("admincount:"):
+            try:
+                admin_count = int(line.split(":", 1)[1].strip())
+            except Exception:
+                pass
+        elif line.lower().startswith("memberof:"):
+            member_of.append(line.split(":", 1)[1].strip())
 
     is_disabled = bool(uac & 2)
+    is_priv = is_privileged_account(account_name, admin_count, member_of)
 
     return {
         "found": True,
         "username": account_name,
         "email": email,
         "mobile": mobile,
-        "is_disabled": is_disabled
+        "is_disabled": is_disabled,
+        "is_privileged": is_priv,
+        "admin_count": admin_count,
+        "member_of": member_of
     }
 
 
@@ -174,12 +312,47 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
     if not settings.get("allow_old_password_reset", 1):
         raise HTTPException(status_code=403, detail="Direct password change using current password is not permitted.")
 
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    clean_user = req.username.strip()
+    client_ip = get_client_ip(request)
+    clean_user = (req.username or "").strip()
+
+    if not validate_username_format(clean_user):
+        raise HTTPException(status_code=400, detail="Invalid username format. Username cannot start with '-' and can only contain letters, digits, '.', '_', '@', and '-'.")
+
+    # Enforce daily attempt limit per username and per client IP across SSPR
+    max_daily = int(settings.get("max_daily_attempts", 5) or 5)
+    check_and_record_sspr_attempt(clean_user, client_ip, "change-with-old", max_daily)
+
+    # Check if account is privileged
+    if is_privileged_account(clean_user):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO self_service_password_logs (
+                username, method, recipient, otp_code, otp_expires_at, status,
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
+            ) VALUES (?, 'OLD_PASSWORD', 'Direct Authentication', NULL, NULL, 'FAILED', ?, ?, ?, ?, 'SSPR refused for privileged account', 0)
+        """, (clean_user, client_ip, request.headers.get("User-Agent", ""), time.time(), time.time()))
+        conn.commit()
+        conn.close()
+        log_audit("SSPR_PRIVILEGED_BLOCKED", clean_user, "sspr", "BLOCKED", {"ip": client_ip, "method": "OLD_PASSWORD"})
+        raise HTTPException(status_code=403, detail="Self-service password change is not permitted for privileged administrative accounts.")
 
     # Look up user to resolve sAMAccountName if UPN or email entered
     user_info = lookup_ad_user(clean_user)
     if user_info.get("found"):
+        if user_info.get("is_privileged"):
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO self_service_password_logs (
+                    username, method, recipient, otp_code, otp_expires_at, status,
+                    ip_address, user_agent, created_at, completed_at, notes, failed_attempts
+                ) VALUES (?, 'OLD_PASSWORD', 'Direct Authentication', NULL, NULL, 'FAILED', ?, ?, ?, ?, 'SSPR refused for privileged account', 0)
+            """, (clean_user, client_ip, request.headers.get("User-Agent", ""), time.time(), time.time()))
+            conn.commit()
+            conn.close()
+            log_audit("SSPR_PRIVILEGED_BLOCKED", clean_user, "sspr", "BLOCKED", {"ip": client_ip, "method": "OLD_PASSWORD"})
+            raise HTTPException(status_code=403, detail="Self-service password change is not permitted for privileged administrative accounts.")
         clean_user = user_info["username"]
 
     # Check password complexity if required
@@ -211,8 +384,8 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
-                ip_address, user_agent, created_at, completed_at, notes
-            ) VALUES (?, 'OLD_PASSWORD', 'Direct Authentication', NULL, NULL, 'COMPLETED', ?, ?, ?, ?, 'Password changed successfully')
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
+            ) VALUES (?, 'OLD_PASSWORD', 'Direct Authentication', NULL, NULL, 'COMPLETED', ?, ?, ?, ?, 'Password changed successfully', 0)
         """, (clean_user, client_ip, request.headers.get("User-Agent", ""), time.time(), time.time()))
         conn.commit()
         conn.close()
@@ -234,8 +407,8 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
-                ip_address, user_agent, created_at, completed_at, notes
-            ) VALUES (?, 'OLD_PASSWORD', 'Direct Authentication', NULL, NULL, 'FAILED', ?, ?, ?, ?, ?)
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
+            ) VALUES (?, 'OLD_PASSWORD', 'Direct Authentication', NULL, NULL, 'FAILED', ?, ?, ?, ?, ?, 0)
         """, (clean_user, client_ip, request.headers.get("User-Agent", ""), time.time(), time.time(), user_facing_err))
         conn.commit()
         conn.close()
@@ -251,108 +424,163 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
     if not settings.get("enabled", 1):
         raise HTTPException(status_code=403, detail="Self Service Password Reset is currently disabled by administrator.")
 
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    clean_user = req.username.strip()
+    clean_user = (req.username or "").strip()
 
-    # Look up user in AD
+    # Reject usernames that start with '-' or contain anything other than [A-Za-z0-9._@-]
+    if not validate_username_format(clean_user):
+        raise HTTPException(status_code=400, detail="Invalid username format. Username cannot start with '-' and can only contain letters, digits, '.', '_', '@', and '-'.")
+
+    channel = (req.channel or "").lower().strip()
+    if channel not in ("email", "sms"):
+        raise HTTPException(status_code=400, detail="Invalid verification channel requested. Must be 'email' or 'sms'.")
+
+    # Stop returning the code in the response: return 503 if channel not configured
+    if channel == "email" and not is_smtp_configured(settings):
+        raise HTTPException(status_code=503, detail="No verification channel configured.")
+    if channel == "sms" and not is_sms_gateway_configured(settings):
+        raise HTTPException(status_code=503, detail="No verification channel configured.")
+
+    if channel == "email" and not settings.get("allow_email_reset", 1):
+        raise HTTPException(status_code=403, detail="Password reset via Email is not enabled.")
+    if channel == "sms" and not settings.get("allow_otp_reset", 1):
+        raise HTTPException(status_code=403, detail="Password reset via Mobile SMS is not enabled.")
+
+    client_ip = get_client_ip(request)
+
+    # Rate limiting: enforce max_daily_attempts per username and per client IP
+    max_daily = int(settings.get("max_daily_attempts", 5) or 5)
+    check_and_record_sspr_attempt(clean_user, client_ip, "request-otp", max_daily)
+
+    # Generic response parameters (identical for existing and nonexistent users to prevent enumeration)
+    generic_msg = "If an account matching the provided username exists, a verification code has been dispatched."
+    generic_recipient = "registered email" if channel == "email" else "registered mobile"
+
+    # Lookup user in AD
     user_info = lookup_ad_user(clean_user)
+
+    # Determine eligibility without disclosing to client
+    eligible = True
+    ineligible_reason = ""
+
     if not user_info.get("found"):
-        raise HTTPException(status_code=404, detail=f"Domain account '{clean_user}' not found. Please verify your username.")
+        eligible = False
+        ineligible_reason = f"Domain account '{clean_user}' not found in Active Directory."
+    elif user_info.get("is_disabled"):
+        eligible = False
+        ineligible_reason = f"Account '{clean_user}' is disabled."
+    elif user_info.get("is_privileged"):
+        eligible = False
+        ineligible_reason = f"Account '{clean_user}' is a privileged administrative account (SSPR refused)."
+    else:
+        if channel == "email":
+            user_email = user_info.get("email")
+            if not user_email or "@" not in user_email:
+                eligible = False
+                ineligible_reason = f"No email address registered for account '{clean_user}'."
+        elif channel == "sms":
+            user_mobile = user_info.get("mobile")
+            if not user_mobile or len(re.sub(r'[^\d]', '', user_mobile)) < 7:
+                eligible = False
+                ineligible_reason = f"No valid mobile phone registered for account '{clean_user}'."
 
-    if user_info.get("is_disabled"):
-        raise HTTPException(status_code=403, detail="This account has been disabled. Please contact your domain administrator.")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-    real_username = user_info["username"]
-    channel = req.channel.lower()
-
-    if channel == "email":
-        if not settings.get("allow_email_reset", 1):
-            raise HTTPException(status_code=403, detail="Password reset via Email is not enabled.")
-        user_email = user_info.get("email")
-        if not user_email or "@" not in user_email:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No email address is registered on account '{real_username}'. Please contact your Domain Administrator to update your profile."
-            )
-
-        # Generate OTP
-        otp = f"{secrets.randbelow(900000) + 100000}"
-        expiry_min = int(settings.get("otp_expiry_minutes", 10))
-        expires_at = time.time() + (expiry_min * 60)
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+    if not eligible:
+        # Don't reveal which accounts exist. Real reason goes strictly to audit log.
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
-                ip_address, user_agent, created_at, completed_at, notes
-            ) VALUES (?, 'EMAIL_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered email')
-        """, (real_username, user_email, otp, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time()))
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
+            ) VALUES (?, ?, ?, NULL, NULL, 'FAILED', ?, ?, ?, ?, ?, 0)
+        """, (
+            clean_user,
+            "EMAIL_OTP" if channel == "email" else "SMS_OTP",
+            generic_recipient,
+            client_ip,
+            request.headers.get("User-Agent", ""),
+            time.time(),
+            time.time(),
+            ineligible_reason
+        ))
+        dummy_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        log_audit(
+            "SSPR_OTP_REQUEST_REJECTED",
+            clean_user,
+            channel,
+            "BLOCKED",
+            {"reason": ineligible_reason, "ip": client_ip, "channel": channel}
+        )
+
+        return {
+            "status": "otp_sent",
+            "reset_id": dummy_id,
+            "username": clean_user,
+            "channel": channel,
+            "recipient_masked": generic_recipient,
+            "message": generic_msg
+        }
+
+    # Eligible user: generate OTP, hash it with HMAC-SHA256, dispatch via channel
+    real_username = user_info["username"]
+    otp = f"{secrets.randbelow(900000) + 100000}"
+    otp_hashed = hash_otp(otp)
+    expiry_min = int(settings.get("otp_expiry_minutes", 10))
+    expires_at = time.time() + (expiry_min * 60)
+
+    if channel == "email":
+        user_email = user_info["email"]
+        cursor.execute("""
+            INSERT INTO self_service_password_logs (
+                username, method, recipient, otp_code, otp_expires_at, status,
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
+            ) VALUES (?, 'EMAIL_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered email', 0)
+        """, (real_username, user_email, otp_hashed, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time()))
         reset_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
         email_body = f"Hello {real_username},\n\nA password reset request was initiated for your ZclockID account from IP {client_ip}.\n\nYour verification code is: {otp}\n\nThis code will expire in {expiry_min} minutes. If you did not request this, please contact your security administrator immediately."
         dispatch_email(user_email, "ZclockID Password Reset Verification Code", email_body, settings)
-        masked = mask_email(user_email)
 
-        log_audit("SSPR_OTP_SENT", real_username, "email", "SUCCESS", {"recipient": masked, "ip": client_ip})
+        log_audit("SSPR_OTP_SENT", real_username, "email", "SUCCESS", {"recipient": mask_email(user_email), "ip": client_ip})
 
         return {
             "status": "otp_sent",
             "reset_id": reset_id,
-            "username": real_username,
+            "username": clean_user,
             "channel": "email",
-            "recipient_masked": masked,
-            "otp_debug": otp if not settings.get("email_smtp_enabled") else None,
-            "message": f"Verification code has been sent to your registered email ({masked})."
+            "recipient_masked": generic_recipient,
+            "message": generic_msg
         }
-
-    elif channel == "sms":
-        if not settings.get("allow_otp_reset", 1):
-            raise HTTPException(status_code=403, detail="Password reset via Mobile SMS is not enabled.")
-        user_mobile = user_info.get("mobile")
-        if not user_mobile or len(re.sub(r'[^\d]', '', user_mobile)) < 7:
-            raise HTTPException(
-                status_code=400,
-                detail=f"No mobile phone number is registered on account '{real_username}'. Please contact your Domain Administrator to update your profile."
-            )
-
-        # Generate OTP
-        otp = f"{secrets.randbelow(900000) + 100000}"
-        expiry_min = int(settings.get("otp_expiry_minutes", 10))
-        expires_at = time.time() + (expiry_min * 60)
-
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+    else:  # channel == "sms"
+        user_mobile = user_info["mobile"]
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
-                ip_address, user_agent, created_at, completed_at, notes
-            ) VALUES (?, 'SMS_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered mobile')
-        """, (real_username, user_mobile, otp, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time()))
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
+            ) VALUES (?, 'SMS_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered mobile', 0)
+        """, (real_username, user_mobile, otp_hashed, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time()))
         reset_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
         sms_msg = settings.get("sms_template", "Your ZclockID password reset verification code is {otp}. Valid for 10 minutes.").replace("{otp}", otp).replace("{username}", real_username)
         dispatch_sms(user_mobile, sms_msg, settings)
-        masked = mask_phone(user_mobile)
 
-        log_audit("SSPR_OTP_SENT", real_username, "sms", "SUCCESS", {"recipient": masked, "ip": client_ip})
+        log_audit("SSPR_OTP_SENT", real_username, "sms", "SUCCESS", {"recipient": mask_phone(user_mobile), "ip": client_ip})
 
         return {
             "status": "otp_sent",
             "reset_id": reset_id,
-            "username": real_username,
+            "username": clean_user,
             "channel": "sms",
-            "recipient_masked": masked,
-            "otp_debug": otp if settings.get("sms_gateway_type") == "simulated" else None,
-            "message": f"Verification code has been sent to your registered mobile ({masked})."
+            "recipient_masked": generic_recipient,
+            "message": generic_msg
         }
-
-    else:
-        raise HTTPException(status_code=400, detail="Invalid verification channel requested.")
 
 
 @router.post("/password/verify-and-reset")
@@ -362,9 +590,20 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
     if not settings.get("enabled", 1):
         raise HTTPException(status_code=403, detail="Self Service Password Reset is currently disabled by administrator.")
 
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    clean_user = req.username.strip()
-    clean_otp = req.otp_code.strip()
+    client_ip = get_client_ip(request)
+    clean_user = (req.username or "").strip()
+    clean_otp = (req.otp_code or "").strip()
+
+    if not validate_username_format(clean_user):
+        raise HTTPException(status_code=400, detail="Invalid username format.")
+
+    # Enforce daily attempt limit per username and per client IP across SSPR
+    max_daily = int(settings.get("max_daily_attempts", 5) or 5)
+    check_and_record_sspr_attempt(clean_user, client_ip, "verify-and-reset", max_daily)
+
+    # Check if account is privileged
+    if is_privileged_account(clean_user):
+        raise HTTPException(status_code=403, detail="Self-service password reset is not permitted for privileged accounts.")
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -380,7 +619,14 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
         conn.close()
         raise HTTPException(status_code=404, detail="Invalid password reset request identifier.")
 
-    if log_entry["status"] != "PENDING_OTP":
+    current_status = log_entry["status"]
+    failed_attempts = int(log_entry["failed_attempts"] or 0)
+
+    if current_status == "LOCKED":
+        conn.close()
+        raise HTTPException(status_code=400, detail="This reset request has been locked due to too many failed attempts.")
+
+    if current_status != "PENDING_OTP":
         conn.close()
         raise HTTPException(status_code=400, detail="This reset request has already been used or has expired.")
 
@@ -390,11 +636,25 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
         conn.close()
         raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new code.")
 
-    if log_entry["otp_code"] != clean_otp:
-        cursor.execute("UPDATE self_service_password_logs SET notes = notes || ' | Incorrect OTP entered' WHERE id = ?", (req.reset_id,))
+    # Validate OTP with HMAC-SHA256 comparison
+    stored_hash = log_entry["otp_code"]
+    if not verify_otp_hash(clean_otp, stored_hash):
+        failed_attempts += 1
+        new_status = "LOCKED" if failed_attempts >= 5 else "PENDING_OTP"
+        cursor.execute("""
+            UPDATE self_service_password_logs 
+            SET failed_attempts = ?, status = ?, notes = notes || ' | Incorrect OTP attempt'
+            WHERE id = ?
+        """, (failed_attempts, new_status, req.reset_id))
         conn.commit()
         conn.close()
-        raise HTTPException(status_code=400, detail="Invalid verification code entered. Please try again.")
+
+        if failed_attempts >= 5:
+            log_audit("SSPR_REQUEST_LOCKED", clean_user, "sspr", "LOCKED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
+            raise HTTPException(status_code=400, detail="Too many failed verification attempts. This request has been locked.")
+        else:
+            log_audit("SSPR_OTP_FAILED", clean_user, "sspr", "FAILED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
+            raise HTTPException(status_code=400, detail=f"Invalid verification code entered ({5 - failed_attempts} attempts remaining). Please try again.")
 
     # Validate password rules
     min_len = int(settings.get("min_password_length", 8))
@@ -553,6 +813,7 @@ def get_password_reset_logs(
 
     for r in rows:
         d = dict(r)
+        d.pop("otp_code", None)  # Redact OTP hash from admin log output
         ts = d.get("created_at") or time.time()
         m_str = datetime.fromtimestamp(ts).strftime("%Y-%m")
         available_months.add(m_str)

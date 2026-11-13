@@ -4,11 +4,26 @@ Handles PBKDF2-HMAC password hashing, session tokens, and Active Directory passw
 """
 
 import hashlib
+import hmac
+import os
 import secrets
 import re
 from typing import Optional, Tuple
 from pathlib import Path
 from api.core.config import AD_CREDS_FILE
+
+OTP_SECRET_KEY = os.environ.get("ZCLOCKID_OTP_SECRET", "zclockid-sspr-otp-hmac-secret-2026").encode()
+
+def hash_otp(otp_code: str) -> str:
+    """Computes HMAC-SHA256 hex digest of an OTP code for secure at-rest storage."""
+    return hmac.new(OTP_SECRET_KEY, otp_code.strip().encode("utf-8"), hashlib.sha256).hexdigest()
+
+def verify_otp_hash(provided_code: str, stored_hash: str) -> bool:
+    """Validates an OTP code against stored HMAC-SHA256 hash using secrets.compare_digest."""
+    if not provided_code or not stored_hash:
+        return False
+    computed = hash_otp(provided_code)
+    return secrets.compare_digest(computed, stored_hash)
 
 def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     if not salt:
