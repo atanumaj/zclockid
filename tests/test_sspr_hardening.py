@@ -1,5 +1,5 @@
 """
-ZclockID SSPR & Self-Registration Hardening Test Suite (v1.3.5)
+ZclockID SSPR & Self-Registration Hardening Test Suite (v1.3.6)
 ==============================================================
 Validates security hardening for Self-Service Password Reset and Self-Registration:
 1. No otp_debug in any response and 503 when no channel is configured.
@@ -8,6 +8,13 @@ Validates security hardening for Self-Service Password Reset and Self-Registrati
 4. LDAP RFC 4515 escaping and rejection of '*', ')(', and leading '-' usernames.
 5. Identical generic responses for existing and nonexistent users on request-otp.
 6. Absence of otp_code / plaintext OTP in admin logs and CSV export.
+7. Verify accepts email, UPN, and case-insensitive username via reset_id.
+8. Indistinguishable fake request behavior for ineligible/nonexistent accounts.
+9. Nested admin-group detection via LDAP filter matching rule in chain (1.2.840.113556.1.4.1941).
+10. OTP secret key generation (32 bytes, mode 0600) without hardcoded fallback.
+11. Configurable max_daily_attempts_per_ip (50) and per-user (5) rate limits.
+12. Registration failed_attempts carry-over on resubmit and 3 SMS/hr rate limiting.
+13. Public /password/config reporting only actually configured channels.
 """
 
 import os
@@ -317,9 +324,21 @@ def test_administrator_and_privileged_accounts_refused():
             assert "privileged" in res_admin_change.json().get("detail", "").lower()
 
             # 3. verify-and-reset refuses Administrator with 403
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO self_service_password_logs (
+                    username, method, recipient, otp_code, otp_expires_at, status,
+                    ip_address, user_agent, created_at, failed_attempts
+                ) VALUES ('Administrator', 'EMAIL_OTP', 'admin@corp.local', 'dummyhash', ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
+            """, (time.time() + 600, time.time()))
+            admin_reset_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
             res_admin_reset = client.post("/api/v1/self-service/password/verify-and-reset", json={
                 "username": "Administrator",
-                "reset_id": 9999,
+                "reset_id": admin_reset_id,
                 "otp_code": "123456",
                 "new_password": "NewValidPassword123!"
             })
@@ -487,6 +506,451 @@ def test_no_otp_field_in_logs_endpoint():
             _restore_environment(orig)
 
 
+def test_verify_accepts_email_upn_and_case_insensitive_username():
+    """
+    Verifies that verify_otp_and_reset_password looks up request by reset_id ONLY
+    and uses the stored username from DB, allowing the caller to provide email, UPN,
+    or different capitalization without 400/404 mismatch.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = Path(td)
+        db_file, _, orig = _setup_test_environment(tmp_dir)
+        try:
+            client = TestClient(app, raise_server_exceptions=False, client=("127.0.0.1", 50000))
+            
+            orig_lookup = ss_mod.lookup_ad_user
+            orig_run_cmd = ss_mod.run_cmd
+            orig_creds = ss_mod.get_ad_creds
+
+            ss_mod.get_ad_creds = lambda: ("Administrator", "MockPass123!")
+            ss_mod.lookup_ad_user = lambda u: {
+                "found": True,
+                "username": "johndoe",
+                "email": "johndoe@example.com",
+                "mobile": "+1234567890",
+                "is_disabled": False,
+                "is_privileged": False
+            }
+            executed_cmds = []
+            ss_mod.run_cmd = lambda cmd, **kwargs: (executed_cmds.append(cmd) or (0, "Password changed successfully", ""))
+
+            try:
+                # 1. Insert stored row for 'johndoe'
+                code_1 = "123456"
+                hash_1 = hash_otp(code_1)
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO self_service_password_logs (
+                        username, method, recipient, otp_code, otp_expires_at, status,
+                        ip_address, user_agent, created_at, failed_attempts
+                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
+                """, (hash_1, time.time() + 600, time.time()))
+                reset_id_1 = cursor.lastrowid
+                conn.commit()
+                conn.close()
+
+                # Call verify with uppercase username "JOHNDOE"
+                res_caps = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "username": "JOHNDOE",
+                    "reset_id": reset_id_1,
+                    "otp_code": code_1,
+                    "new_password": "NewSecretPass123!"
+                })
+                assert res_caps.status_code == 200, f"Failed with uppercase username: {res_caps.text}"
+                assert res_caps.json().get("status") == "success"
+                assert executed_cmds[-1][0:4] == ["samba-tool", "user", "setpassword", "johndoe"]
+
+                # 2. Call verify with email "johndoe@example.com"
+                code_2 = "654321"
+                hash_2 = hash_otp(code_2)
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO self_service_password_logs (
+                        username, method, recipient, otp_code, otp_expires_at, status,
+                        ip_address, user_agent, created_at, failed_attempts
+                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
+                """, (hash_2, time.time() + 600, time.time()))
+                reset_id_2 = cursor.lastrowid
+                conn.commit()
+                conn.close()
+
+                res_email = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "username": "johndoe@example.com",
+                    "reset_id": reset_id_2,
+                    "otp_code": code_2,
+                    "new_password": "NewSecretPass123!"
+                })
+                assert res_email.status_code == 200, f"Failed with email: {res_email.text}"
+                assert res_email.json().get("status") == "success"
+                assert executed_cmds[-1][0:4] == ["samba-tool", "user", "setpassword", "johndoe"]
+
+                # 3. Call verify with UPN "johndoe@CORP.LOCAL"
+                code_3 = "789123"
+                hash_3 = hash_otp(code_3)
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO self_service_password_logs (
+                        username, method, recipient, otp_code, otp_expires_at, status,
+                        ip_address, user_agent, created_at, failed_attempts
+                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
+                """, (hash_3, time.time() + 600, time.time()))
+                reset_id_3 = cursor.lastrowid
+                conn.commit()
+                conn.close()
+
+                res_upn = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "username": "johndoe@CORP.LOCAL",
+                    "reset_id": reset_id_3,
+                    "otp_code": code_3,
+                    "new_password": "NewSecretPass123!"
+                })
+                assert res_upn.status_code == 200, f"Failed with UPN: {res_upn.text}"
+                assert res_upn.json().get("status") == "success"
+                assert executed_cmds[-1][0:4] == ["samba-tool", "user", "setpassword", "johndoe"]
+
+            finally:
+                ss_mod.lookup_ad_user = orig_lookup
+                ss_mod.run_cmd = orig_run_cmd
+                ss_mod.get_ad_creds = orig_creds
+        finally:
+            _restore_environment(orig)
+
+
+def test_fake_request_ineligible_user_indistinguishable_from_real_user():
+    """
+    Verifies that an ineligible user's request is stored as PENDING_OTP with an unusable hash,
+    and returns identical responses to a real user across 5 wrong guesses until both lock.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = Path(td)
+        db_file, _, orig = _setup_test_environment(tmp_dir)
+        try:
+            client = TestClient(app, raise_server_exceptions=False, client=("127.0.0.1", 50000))
+            
+            # Configure SMTP and higher daily attempt limit
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE self_service_password_settings SET email_smtp_enabled = 1, smtp_host = 'smtp.test.local', max_daily_attempts = 20, max_daily_attempts_per_ip = 50 WHERE id = 1")
+            conn.commit()
+            conn.close()
+
+            orig_lookup = ss_mod.lookup_ad_user
+            orig_dispatch = ss_mod.dispatch_email
+            ss_mod.dispatch_email = lambda *args, **kwargs: (True, "sent")
+
+            def mock_lookup(username):
+                if username == "real_user":
+                    return {
+                        "found": True,
+                        "username": "real_user",
+                        "email": "real@example.com",
+                        "mobile": None,
+                        "is_disabled": False,
+                        "is_privileged": False
+                    }
+                return {"found": False}
+
+            ss_mod.lookup_ad_user = mock_lookup
+
+            try:
+                # 1. Request OTP for real user
+                r_real = client.post("/api/v1/self-service/password/request-otp", json={"username": "real_user", "channel": "email"})
+                assert r_real.status_code == 200
+                reset_id_real = r_real.json()["reset_id"]
+
+                # 2. Request OTP for ineligible/nonexistent user
+                r_fake = client.post("/api/v1/self-service/password/request-otp", json={"username": "fake_user", "channel": "email"})
+                assert r_fake.status_code == 200
+                reset_id_fake = r_fake.json()["reset_id"]
+
+                # Compare verify responses for attempts 1 through 4
+                for attempt in range(1, 5):
+                    wrong_code = f"88888{attempt}"
+                    res_real = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                        "username": "real_user",
+                        "reset_id": reset_id_real,
+                        "otp_code": wrong_code,
+                        "new_password": "NewPassword123!"
+                    })
+                    res_fake = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                        "username": "fake_user",
+                        "reset_id": reset_id_fake,
+                        "otp_code": wrong_code,
+                        "new_password": "NewPassword123!"
+                    })
+
+                    assert res_real.status_code == 400
+                    assert res_fake.status_code == 400
+                    assert res_real.json()["detail"] == res_fake.json()["detail"]
+                    assert f"{5 - attempt} attempts remaining" in res_real.json()["detail"]
+
+                # 5th attempt: both must lock with identical message
+                res_real_5 = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "username": "real_user",
+                    "reset_id": reset_id_real,
+                    "otp_code": "000000",
+                    "new_password": "NewPassword123!"
+                })
+                res_fake_5 = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "username": "fake_user",
+                    "reset_id": reset_id_fake,
+                    "otp_code": "000000",
+                    "new_password": "NewPassword123!"
+                })
+
+                assert res_real_5.status_code == 400
+                assert res_fake_5.status_code == 400
+                assert res_real_5.json()["detail"] == res_fake_5.json()["detail"]
+                assert "locked" in res_real_5.json()["detail"].lower()
+
+                # Verify database records for both
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE id = ?", (reset_id_real,))
+                row_real = cursor.fetchone()
+                cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE id = ?", (reset_id_fake,))
+                row_fake = cursor.fetchone()
+                conn.close()
+
+                assert row_real[0] == row_fake[0] == "LOCKED"
+                assert row_real[1] == row_fake[1] == 5
+
+            finally:
+                ss_mod.lookup_ad_user = orig_lookup
+                ss_mod.dispatch_email = orig_dispatch
+        finally:
+            _restore_environment(orig)
+
+
+def test_nested_admin_group_membership_detection():
+    """Verifies that nested admin-group membership is detected using LDAP matching rule in chain."""
+    orig_run_cmd = ss_mod.run_cmd
+    queried_filters = []
+
+    def mock_run_cmd(cmd, **kwargs):
+        for arg in cmd:
+            if "memberOf:1.2.840.113556.1.4.1941" in arg:
+                queried_filters.append(arg)
+        if any("nested_admin" in arg for arg in cmd):
+            return 0, "dn: CN=nested_admin,CN=Users,DC=example,DC=com\n", ""
+        return 0, "", ""
+
+    ss_mod.run_cmd = mock_run_cmd
+    try:
+        assert ss_mod.is_privileged_account("nested_admin", base_dn="DC=example,DC=com") is True
+        assert len(queried_filters) > 0
+        q = queried_filters[-1]
+        assert "CN=Domain Admins,CN=Users,DC=example,DC=com" in q
+        assert "CN=Enterprise Admins,CN=Users,DC=example,DC=com" in q
+        assert "CN=Schema Admins,CN=Users,DC=example,DC=com" in q
+        assert "CN=Administrators,CN=Builtin,DC=example,DC=com" in q
+
+        assert ss_mod.is_privileged_account("regular_user", base_dn="DC=example,DC=com") is False
+    finally:
+        ss_mod.run_cmd = orig_run_cmd
+
+
+def test_otp_secret_key_generation_and_file_mode():
+    """Verifies that OTP key is generated as 32 random bytes and saved with mode 0600."""
+    import api.core.security as sec_mod
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = Path(td)
+        test_secret_file = tmp_dir / "otp_secret"
+        orig_file = sec_mod.OTP_SECRET_FILE
+        orig_runtime = sec_mod._RUNTIME_OTP_KEY
+        orig_cfg = sec_mod.CONFIG_DIR
+
+        sec_mod.OTP_SECRET_FILE = test_secret_file
+        sec_mod.CONFIG_DIR = tmp_dir
+        sec_mod._RUNTIME_OTP_KEY = None
+
+        try:
+            assert not test_secret_file.exists()
+            key1 = sec_mod.get_otp_secret_key()
+            assert len(key1) == 32
+            assert test_secret_file.exists()
+            assert (test_secret_file.stat().st_mode & 0o777) == 0o600
+
+            key2 = sec_mod.get_otp_secret_key()
+            assert key1 == key2
+        finally:
+            sec_mod.OTP_SECRET_FILE = orig_file
+            sec_mod._RUNTIME_OTP_KEY = orig_runtime
+            sec_mod.CONFIG_DIR = orig_cfg
+
+
+def test_per_ip_limit_and_per_user_limit():
+    """Verifies default limits and that exceeding max_daily_attempts_per_ip triggers HTTP 429."""
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = Path(td)
+        db_file, _, orig = _setup_test_environment(tmp_dir)
+        try:
+            client = TestClient(app, raise_server_exceptions=False, client=("192.168.1.100", 50000))
+            
+            # 1. Check default values
+            settings = ss_mod.get_sspr_settings()
+            assert settings.get("max_daily_attempts") == 5
+            assert settings.get("max_daily_attempts_per_ip") == 50
+
+            # 2. Update to low IP limit (2) and high user limit (10)
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE self_service_password_settings SET max_daily_attempts = 10, max_daily_attempts_per_ip = 2, email_smtp_enabled = 1, smtp_host = 'smtp.test.local' WHERE id = 1")
+            conn.commit()
+            conn.close()
+
+            orig_lookup = ss_mod.lookup_ad_user
+            orig_dispatch = ss_mod.dispatch_email
+            ss_mod.lookup_ad_user = lambda u: {"found": True, "username": u, "email": f"{u}@test.local", "mobile": None, "is_disabled": False, "is_privileged": False}
+            ss_mod.dispatch_email = lambda *args, **kwargs: (True, "sent")
+
+            try:
+                # Two distinct users from same IP
+                r1 = client.post("/api/v1/self-service/password/request-otp", json={"username": "user_one", "channel": "email"})
+                assert r1.status_code == 200
+                r2 = client.post("/api/v1/self-service/password/request-otp", json={"username": "user_two", "channel": "email"})
+                assert r2.status_code == 200
+
+                # Third request from same IP must hit IP rate limit 429
+                r3 = client.post("/api/v1/self-service/password/request-otp", json={"username": "user_three", "channel": "email"})
+                assert r3.status_code == 429
+                assert "reached from this ip address" in r3.json()["detail"].lower()
+            finally:
+                ss_mod.lookup_ad_user = orig_lookup
+                ss_mod.dispatch_email = orig_dispatch
+        finally:
+            _restore_environment(orig)
+
+
+def test_registration_failed_attempts_carryover_and_rate_limit():
+    """
+    Verifies that self-registration carries failed_attempts over when the same user/mobile resubmits,
+    refuses locked resubmissions, and enforces 3 SMS per hour per mobile.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = Path(td)
+        db_file, _, orig = _setup_test_environment(tmp_dir)
+        try:
+            client = TestClient(app, raise_server_exceptions=False, client=("127.0.0.1", 50000))
+
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE self_registration_settings SET enabled = 1, require_mobile_otp = 1, sms_gateway_type = 'webhook', sms_gateway_url = 'http://sms.local/send' WHERE id = 1")
+            conn.commit()
+            conn.close()
+
+            orig_cmd = reg_mod.run_cmd
+            orig_req = reg_mod.requests.get
+            reg_mod.run_cmd = lambda cmd, **kwargs: (0, "", "")
+            class DummyResp:
+                status_code = 200
+                text = "OK"
+            reg_mod.requests.get = lambda *args, **kwargs: DummyResp()
+
+            try:
+                # 1. Submit up to 3 times (the hourly limit)
+                for i in range(1, 4):
+                    res = client.post("/api/v1/public/register/initiate", json={
+                        "username": f"reguser{i}",
+                        "password": "Password123!",
+                        "given_name": "Test",
+                        "surname": "User",
+                        "email": f"reg{i}@example.com",
+                        "mobile": "+19998887777"
+                    })
+                    assert res.status_code == 200, f"Attempt {i} failed: {res.text}"
+
+                # 4th submit with same mobile -> 429
+                res_limit = client.post("/api/v1/public/register/initiate", json={
+                    "username": "reguser4",
+                    "password": "Password123!",
+                    "given_name": "Test",
+                    "surname": "User",
+                    "email": "reg4@example.com",
+                    "mobile": "+19998887777"
+                })
+                assert res_limit.status_code == 429
+                assert "per hour" in res_limit.json()["detail"].lower()
+
+                # 2. Test failed_attempts carryover
+                conn = sqlite3.connect(db_file)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO self_registrations (
+                        username, email, given_name, surname, department, mobile,
+                        password_hash, status, failed_attempts, created_at
+                    ) VALUES ('lockeduser', 'locked@test.local', 'Lock', 'User', 'IT', '+15550001111',
+                              'hash', 'LOCKED', 5, ?)
+                """, (time.time(),))
+                conn.commit()
+                conn.close()
+
+                # Resubmission for locked user must be rejected with 400
+                res_resub = client.post("/api/v1/public/register/initiate", json={
+                    "username": "lockeduser",
+                    "password": "Password123!",
+                    "given_name": "Lock",
+                    "surname": "User",
+                    "email": "locked2@test.local",
+                    "mobile": "+15550001111"
+                })
+                assert res_resub.status_code == 400
+                assert "locked" in res_resub.json()["detail"].lower()
+
+            finally:
+                reg_mod.run_cmd = orig_cmd
+                reg_mod.requests.get = orig_req
+        finally:
+            _restore_environment(orig)
+
+
+def test_public_password_config_reports_only_configured_channels():
+    """Verifies that /password/config reports email and SMS as available ONLY when actually configured."""
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = Path(td)
+        db_file, _, orig = _setup_test_environment(tmp_dir)
+        try:
+            client = TestClient(app, raise_server_exceptions=False, client=("127.0.0.1", 50000))
+
+            # 1. Initially neither SMTP nor SMS is configured
+            r1 = client.get("/api/v1/self-service/password/config")
+            assert r1.status_code == 200
+            cfg1 = r1.json()
+            assert cfg1["allow_email_reset"] is False
+            assert cfg1["allow_otp_reset"] is False
+
+            # 2. Configure SMTP only
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE self_service_password_settings SET email_smtp_enabled = 1, smtp_host = 'smtp.test.local' WHERE id = 1")
+            conn.commit()
+            conn.close()
+
+            r2 = client.get("/api/v1/self-service/password/config")
+            assert r2.status_code == 200
+            cfg2 = r2.json()
+            assert cfg2["allow_email_reset"] is True
+            assert cfg2["allow_otp_reset"] is False
+
+            # 3. Configure SMS gateway (webhook)
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("UPDATE self_service_password_settings SET sms_gateway_type = 'webhook', sms_gateway_url = 'https://sms.example.com/send' WHERE id = 1")
+            conn.commit()
+            conn.close()
+
+            r3 = client.get("/api/v1/self-service/password/config")
+            assert r3.status_code == 200
+            cfg3 = r3.json()
+            assert cfg3["allow_email_reset"] is True
+            assert cfg3["allow_otp_reset"] is True
+        finally:
+            _restore_environment(orig)
+
+
 if __name__ == "__main__":
     orig_is_ip_allowed = sec_svc.is_ip_allowed
     sec_svc.is_ip_allowed = lambda ip, allowed: True if ip in ("testclient", "127.0.0.1") else orig_is_ip_allowed(ip, allowed)
@@ -503,4 +967,18 @@ if __name__ == "__main__":
     test_identical_responses_for_existing_and_nonexistent_users()
     print("Running test_no_otp_field_in_logs_endpoint...")
     test_no_otp_field_in_logs_endpoint()
+    print("Running test_verify_accepts_email_upn_and_case_insensitive_username...")
+    test_verify_accepts_email_upn_and_case_insensitive_username()
+    print("Running test_fake_request_ineligible_user_indistinguishable_from_real_user...")
+    test_fake_request_ineligible_user_indistinguishable_from_real_user()
+    print("Running test_nested_admin_group_membership_detection...")
+    test_nested_admin_group_membership_detection()
+    print("Running test_otp_secret_key_generation_and_file_mode...")
+    test_otp_secret_key_generation_and_file_mode()
+    print("Running test_per_ip_limit_and_per_user_limit...")
+    test_per_ip_limit_and_per_user_limit()
+    print("Running test_registration_failed_attempts_carryover_and_rate_limit...")
+    test_registration_failed_attempts_carryover_and_rate_limit()
+    print("Running test_public_password_config_reports_only_configured_channels...")
+    test_public_password_config_reports_only_configured_channels()
     print("ALL SSPR HARDENING TESTS PASSED SUCCESSFULLY!")

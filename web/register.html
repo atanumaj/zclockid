@@ -155,12 +155,6 @@
                 <p class="text-xs text-slate-400">
                     A mobile OTP has been dispatched to <strong id="otp-mobile-display" class="font-mono text-cyan-300">+91 ••••• •4321</strong>.
                 </p>
-                <!-- Dev Simulated OTP helper badge -->
-                <div id="otp-debug-container" class="hidden pt-1">
-                    <button type="button" onclick="fillDebugOtp()" class="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 rounded-lg text-[11px] font-mono border border-amber-500/30 transition inline-flex items-center gap-1.5">
-                        <i class="fa-solid fa-flask"></i> Simulator OTP: <span id="otp-debug-value" class="font-bold underline">123456</span> (Click to auto-fill)
-                    </button>
-                </div>
             </div>
 
             <form onsubmit="handleOtpVerify(event)" class="space-y-4">
@@ -241,7 +235,6 @@
 
     <script>
         let currentRegId = null;
-        let currentDebugOtp = null;
         let resendTimer = null;
         let resendSeconds = 60;
         let publicConfig = {};
@@ -396,12 +389,6 @@
                         currentRegId = data.registration_id;
                         document.getElementById('otp-mobile-display').innerText = data.mobile_masked || payload.mobile;
 
-                        if (data.otp_debug) {
-                            currentDebugOtp = data.otp_debug;
-                            document.getElementById('otp-debug-value').innerText = data.otp_debug;
-                            document.getElementById('otp-debug-container').classList.remove('hidden');
-                        }
-
                         document.getElementById('step-details').classList.add('hidden');
                         document.getElementById('step-otp').classList.remove('hidden');
                         startResendCountdown();
@@ -426,12 +413,6 @@
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Submit Registration';
-            }
-        }
-
-        function fillDebugOtp() {
-            if (currentDebugOtp) {
-                document.getElementById('otp_input').value = currentDebugOtp;
             }
         }
 
@@ -509,10 +490,6 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    if (data.otp_debug) {
-                        currentDebugOtp = data.otp_debug;
-                        document.getElementById('otp-debug-value').innerText = data.otp_debug;
-                    }
                     showStatus('success', `<i class="fa-solid fa-check mr-1.5"></i> ${data.message}`);
                     startResendCountdown();
                 } else {

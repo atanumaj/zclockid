@@ -30,6 +30,7 @@ class PasswordResetSettingsUpdate(BaseModel):
     require_complexity: bool = True
     otp_expiry_minutes: int = 10
     max_daily_attempts: int = 5
+    max_daily_attempts_per_ip: int = 50
     email_smtp_enabled: bool = False
     smtp_host: str = ""
     smtp_port: int = 587

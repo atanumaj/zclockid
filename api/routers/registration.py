@@ -49,6 +49,56 @@ def is_sms_gateway_configured(settings: dict) -> bool:
     return False
 
 
+def check_and_record_registration_attempt(mobile: str, client_ip: str, action: str, max_hourly_mobile: int = 3, max_hourly_ip: int = 20):
+    """
+    Rate-limits registration submit and resend-otp per IP and per mobile number (e.g. 3 SMS per hour).
+    Raises HTTP 429 when limits are exceeded.
+    """
+    cutoff = time.time() - 3600
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS registration_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mobile TEXT,
+            ip_address TEXT,
+            action TEXT,
+            timestamp REAL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_reg_attempts ON registration_attempts(timestamp, mobile, ip_address)")
+
+    clean_mob = re.sub(r"[^\d+]", "", (mobile or "").strip())
+    if clean_mob and max_hourly_mobile > 0:
+        cursor.execute("SELECT COUNT(*) FROM registration_attempts WHERE mobile = ? AND timestamp > ?", (clean_mob, cutoff))
+        mob_attempts = cursor.fetchone()[0]
+        if mob_attempts >= max_hourly_mobile:
+            conn.close()
+            log_audit("REGISTRATION_RATE_LIMIT_EXCEEDED", "system", clean_mob, "BLOCKED", {"ip": client_ip, "action": action, "count": mob_attempts, "max": max_hourly_mobile})
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded: maximum SMS verification attempts ({max_hourly_mobile} per hour) reached for this mobile number."
+            )
+
+    if client_ip and max_hourly_ip > 0:
+        cursor.execute("SELECT COUNT(*) FROM registration_attempts WHERE ip_address = ? AND timestamp > ?", (client_ip, cutoff))
+        ip_attempts = cursor.fetchone()[0]
+        if ip_attempts >= max_hourly_ip:
+            conn.close()
+            log_audit("REGISTRATION_RATE_LIMIT_EXCEEDED", "system", client_ip, "BLOCKED", {"mobile": clean_mob, "action": action, "count": ip_attempts, "max": max_hourly_ip})
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded: maximum registration attempts ({max_hourly_ip} per hour) reached from this IP address."
+            )
+
+    cursor.execute(
+        "INSERT INTO registration_attempts (mobile, ip_address, action, timestamp) VALUES (?, ?, ?, ?)",
+        (clean_mob, client_ip, action, time.time())
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_self_registration_settings() -> Dict[str, Any]:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -298,6 +348,26 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    # Carry failed_attempts over when the same username or mobile resubmits
+    cursor.execute("""
+        SELECT MAX(failed_attempts), status FROM self_registrations 
+        WHERE username = ? OR mobile = ?
+    """, (clean_user, clean_mobile))
+    prev_row = cursor.fetchone()
+    carried_failed = int(prev_row[0] or 0) if prev_row and prev_row[0] is not None else 0
+
+    if carried_failed >= 5:
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Too many failed verification attempts. This registration request has been locked. Please contact your administrator."
+        )
+
+    # Rate limiting: 3 SMS per hour per mobile, 20 per IP
+    if require_otp:
+        check_and_record_registration_attempt(clean_mobile, client_ip, "submit", max_hourly_mobile=3, max_hourly_ip=20)
+
     cursor.execute("DELETE FROM self_registrations WHERE username = ? OR (mobile = ? AND status = 'PENDING_OTP')", (clean_user, clean_mobile))
 
     if require_otp:
@@ -309,10 +379,10 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
             INSERT INTO self_registrations (
                 username, email, given_name, surname, department, mobile,
                 status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes, failed_attempts
-            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, ?, ?, 0)
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, ?, ?, ?)
         """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
               chosen_dept, clean_mobile, client_ip, time.time(),
-              otp_hashed, expiry, req.password, req.justification or ""))
+              otp_hashed, expiry, req.password, req.justification or "", carried_failed))
         reg_id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -460,20 +530,35 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
     }
 
 @router.post("/public/register/resend-otp")
-def resend_registration_otp(req: SelfRegistrationResendOtpRequest):
+def resend_registration_otp(req: SelfRegistrationResendOtpRequest, request: Request):
     """Generates and resends a new mobile OTP for an existing unverified registration."""
     settings = get_self_registration_settings()
     if not is_sms_gateway_configured(settings):
         raise HTTPException(status_code=503, detail="No verification channel configured.")
 
+    client_ip = get_client_ip(request)
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM self_registrations WHERE id = ? AND status = 'PENDING_OTP'", (req.registration_id,))
+    cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req.registration_id,))
     reg = cursor.fetchone()
     if not reg:
         conn.close()
         raise HTTPException(status_code=404, detail="Pending registration request not found.")
+
+    if reg["status"] == "LOCKED" or int(reg["failed_attempts"] or 0) >= 5:
+        conn.close()
+        raise HTTPException(status_code=400, detail="This registration request has been locked due to too many failed attempts.")
+
+    if reg["status"] != "PENDING_OTP":
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Cannot resend OTP for registration with status '{reg['status']}'.")
+
+    clean_mobile = reg["mobile"]
+
+    # Rate limit check: 3 SMS per hour
+    check_and_record_registration_attempt(clean_mobile, client_ip, "resend-otp", max_hourly_mobile=3, max_hourly_ip=20)
 
     otp = f"{secrets.randbelow(900000) + 100000}"
     otp_hashed = hash_otp(otp)
@@ -483,7 +568,6 @@ def resend_registration_otp(req: SelfRegistrationResendOtpRequest):
     conn.commit()
     conn.close()
 
-    clean_mobile = reg["mobile"]
     msg = settings.get("sms_template", "Your ZclockID verification code is {otp}. Valid for 10 minutes.").replace("{otp}", otp).replace("{username}", reg["username"])
     dispatch_sms(clean_mobile, msg, settings)
     masked_mobile = clean_mobile[:4] + "*" * (len(clean_mobile) - 7) + clean_mobile[-3:] if len(clean_mobile) > 7 else clean_mobile

@@ -10,13 +10,55 @@ import secrets
 import re
 from typing import Optional, Tuple
 from pathlib import Path
-from api.core.config import AD_CREDS_FILE
+from api.core.config import AD_CREDS_FILE, CONFIG_DIR
 
-OTP_SECRET_KEY = os.environ.get("ZCLOCKID_OTP_SECRET", "zclockid-sspr-otp-hmac-secret-2026").encode()
+OTP_SECRET_FILE = CONFIG_DIR / "otp_secret"
+_RUNTIME_OTP_KEY: Optional[bytes] = None
+
+
+def get_otp_secret_key() -> bytes:
+    """
+    Retrieves or generates a persistent random 32-byte OTP HMAC key stored in CONFIG_DIR/otp_secret (mode 0600).
+    No hardcoded fallback key is used.
+    """
+    global _RUNTIME_OTP_KEY
+    env_secret = os.environ.get("ZCLOCKID_OTP_SECRET")
+    if env_secret:
+        return env_secret.strip().encode("utf-8")
+
+    if OTP_SECRET_FILE.exists():
+        try:
+            key = OTP_SECRET_FILE.read_bytes().strip()
+            if len(key) >= 32:
+                return key
+        except Exception:
+            pass
+
+    # Generate random 32-byte key and persist with 0600 permissions
+    new_key = secrets.token_bytes(32)
+    try:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        mode = 0o600
+        fd = os.open(str(OTP_SECRET_FILE), flags, mode)
+        with os.fdopen(fd, "wb") as f:
+            f.write(new_key)
+        try:
+            os.chmod(str(OTP_SECRET_FILE), 0o600)
+        except Exception:
+            pass
+        return new_key
+    except Exception:
+        if _RUNTIME_OTP_KEY is None:
+            _RUNTIME_OTP_KEY = secrets.token_bytes(32)
+        return _RUNTIME_OTP_KEY
+
 
 def hash_otp(otp_code: str) -> str:
     """Computes HMAC-SHA256 hex digest of an OTP code for secure at-rest storage."""
-    return hmac.new(OTP_SECRET_KEY, otp_code.strip().encode("utf-8"), hashlib.sha256).hexdigest()
+    key = get_otp_secret_key()
+    return hmac.new(key, otp_code.strip().encode("utf-8"), hashlib.sha256).hexdigest()
+
 
 def verify_otp_hash(provided_code: str, stored_hash: str) -> bool:
     """Validates an OTP code against stored HMAC-SHA256 hash using secrets.compare_digest."""

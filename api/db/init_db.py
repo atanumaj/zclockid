@@ -154,6 +154,7 @@ def init_db(db_path=None):
             require_complexity INTEGER DEFAULT 1,
             otp_expiry_minutes INTEGER DEFAULT 10,
             max_daily_attempts INTEGER DEFAULT 5,
+            max_daily_attempts_per_ip INTEGER DEFAULT 50,
             email_smtp_enabled INTEGER DEFAULT 0,
             smtp_host TEXT DEFAULT '',
             smtp_port INTEGER DEFAULT 587,
@@ -177,6 +178,8 @@ def init_db(db_path=None):
         cursor.execute("ALTER TABLE self_service_password_settings ADD COLUMN use_custom_html INTEGER DEFAULT 0")
     if "custom_html_updated_at" not in sspr_cols:
         cursor.execute("ALTER TABLE self_service_password_settings ADD COLUMN custom_html_updated_at REAL")
+    if "max_daily_attempts_per_ip" not in sspr_cols:
+        cursor.execute("ALTER TABLE self_service_password_settings ADD COLUMN max_daily_attempts_per_ip INTEGER DEFAULT 50")
 
     cursor.execute("SELECT COUNT(*) FROM self_service_password_settings")
     if cursor.fetchone()[0] == 0:
@@ -228,6 +231,18 @@ def init_db(db_path=None):
         )
     """)
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_attempts ON sspr_attempts(timestamp, username, ip_address)")
+
+    # Registration Rate Limiting Attempts
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS registration_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mobile TEXT,
+            ip_address TEXT,
+            action TEXT,
+            timestamp REAL
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_reg_attempts ON registration_attempts(timestamp, mobile, ip_address)")
 
     # Index for fast month/date queries and username lookups
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_logs_created ON self_service_password_logs(created_at)")

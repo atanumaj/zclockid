@@ -39,20 +39,19 @@ from api.routers.auth import require_role
 logger = logging.getLogger("zclockid.self_service")
 router = APIRouter(prefix="/api/v1/self-service", tags=["Self Services & Password Reset"], dependencies=[Depends(require_role("readonly"))])
 
-OTP_SECRET_KEY = os.environ.get("ZCLOCKID_OTP_SECRET", "zclockid-sspr-otp-hmac-secret-2026").encode()
-
-
-def hash_otp(otp_code: str) -> str:
-    """Computes HMAC-SHA256 hex digest of an OTP code for secure at-rest storage."""
-    return hmac.new(OTP_SECRET_KEY, otp_code.strip().encode("utf-8"), hashlib.sha256).hexdigest()
-
-
-def verify_otp_hash(provided_code: str, stored_hash: str) -> bool:
-    """Validates an OTP code against stored HMAC-SHA256 hash using secrets.compare_digest."""
-    if not provided_code or not stored_hash:
-        return False
-    computed = hash_otp(provided_code)
-    return secrets.compare_digest(computed, stored_hash)
+def get_ad_base_dn() -> str:
+    """Retrieves authoritative Active Directory base DN (e.g. DC=inet,DC=net)."""
+    try:
+        code, stdout, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), "-b", "", "-s", "base", "defaultNamingContext"], timeout=5)
+        if code == 0:
+            for line in stdout.splitlines():
+                if line.lower().startswith("defaultnamingcontext:"):
+                    return line.split(":", 1)[1].strip()
+    except Exception:
+        pass
+    realm = get_primary_realm()
+    parts = realm.strip().lower().split(".")
+    return ",".join([f"DC={p}" for p in parts if p])
 
 
 def is_sms_gateway_configured(settings: dict) -> bool:
@@ -94,8 +93,11 @@ def validate_username_format(username: str) -> bool:
     return bool(re.match(r"^[A-Za-z0-9._@-]{1,64}$", username))
 
 
-def is_privileged_account(account_name: str, admin_count: int = 0, member_of: Optional[List[str]] = None) -> bool:
-    """Refuses SSPR for Administrator, krbtgt, Guest, adminCount=1, or privileged group members."""
+def is_privileged_account(account_name: str, admin_count: int = 0, member_of: Optional[List[str]] = None, base_dn: Optional[str] = None) -> bool:
+    """
+    Refuses SSPR for Administrator, krbtgt, Guest, adminCount=1, direct memberOf,
+    or nested admin-group membership using LDAP filter (memberOf:1.2.840.113556.1.4.1941:=...).
+    """
     name_lower = (account_name or "").lower().strip()
     if name_lower in ("administrator", "krbtgt", "guest"):
         return True
@@ -108,13 +110,30 @@ def is_privileged_account(account_name: str, admin_count: int = 0, member_of: Op
             for pg in privileged_groups:
                 if f"cn={pg}," in group_lower or group_lower.endswith(f"cn={pg}") or group_lower == pg:
                     return True
+
+    # Detect nested admin-group membership via LDAP matching rule in chain (1.2.840.113556.1.4.1941)
+    if account_name:
+        b_dn = base_dn or get_ad_base_dn()
+        escaped_user = rfc4515_escape(account_name.strip())
+        nested_filter = (
+            f"(&(objectClass=user)(sAMAccountName={escaped_user})"
+            f"(|(memberOf:1.2.840.113556.1.4.1941:=CN=Domain Admins,CN=Users,{b_dn})"
+            f"(memberOf:1.2.840.113556.1.4.1941:=CN=Enterprise Admins,CN=Users,{b_dn})"
+            f"(memberOf:1.2.840.113556.1.4.1941:=CN=Schema Admins,CN=Users,{b_dn})"
+            f"(memberOf:1.2.840.113556.1.4.1941:=CN=Administrators,CN=Builtin,{b_dn})))"
+        )
+        code, stdout, _ = run_cmd([
+            "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+            nested_filter, "dn"
+        ], timeout=5)
+        if code == 0 and "dn: " in stdout:
+            return True
+
     return False
 
 
-def check_and_record_sspr_attempt(username: str, client_ip: str, action: str, max_daily: int):
-    """Enforces max_daily_attempts per username and per client IP across all SSPR actions, returning 429 when exceeded."""
-    if max_daily <= 0:
-        return
+def check_and_record_sspr_attempt(username: str, client_ip: str, action: str, max_daily_user: int, max_daily_ip: int):
+    """Enforces max_daily_attempts per username and max_daily_attempts_per_ip per client IP across all SSPR actions."""
     cutoff = time.time() - 86400
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -130,26 +149,26 @@ def check_and_record_sspr_attempt(username: str, client_ip: str, action: str, ma
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_attempts ON sspr_attempts(timestamp, username, ip_address)")
 
     clean_user = (username or "").strip().lower()
-    if clean_user:
+    if clean_user and max_daily_user > 0:
         cursor.execute("SELECT COUNT(*) FROM sspr_attempts WHERE LOWER(username) = ? AND timestamp > ?", (clean_user, cutoff))
         user_attempts = cursor.fetchone()[0]
-        if user_attempts >= max_daily:
+        if user_attempts >= max_daily_user:
             conn.close()
-            log_audit("SSPR_RATE_LIMIT_EXCEEDED", username, "sspr", "BLOCKED", {"ip": client_ip, "action": action, "count": user_attempts, "max": max_daily})
+            log_audit("SSPR_RATE_LIMIT_EXCEEDED", username, "sspr", "BLOCKED", {"ip": client_ip, "action": action, "count": user_attempts, "max": max_daily_user})
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Rate limit exceeded: maximum daily attempts ({max_daily}) reached for this account."
+                detail=f"Rate limit exceeded: maximum daily attempts ({max_daily_user}) reached for this account."
             )
 
-    if client_ip:
+    if client_ip and max_daily_ip > 0:
         cursor.execute("SELECT COUNT(*) FROM sspr_attempts WHERE ip_address = ? AND timestamp > ?", (client_ip, cutoff))
         ip_attempts = cursor.fetchone()[0]
-        if ip_attempts >= max_daily:
+        if ip_attempts >= max_daily_ip:
             conn.close()
-            log_audit("SSPR_RATE_LIMIT_EXCEEDED", username, "sspr", "BLOCKED", {"ip": client_ip, "action": action, "count": ip_attempts, "max": max_daily})
+            log_audit("SSPR_RATE_LIMIT_EXCEEDED", username, "sspr", "BLOCKED", {"ip": client_ip, "action": action, "count": ip_attempts, "max": max_daily_ip})
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Rate limit exceeded: maximum daily attempts ({max_daily}) reached from this IP address."
+                detail=f"Rate limit exceeded: maximum daily attempts ({max_daily_ip}) reached from this IP address."
             )
 
     cursor.execute(
@@ -170,7 +189,10 @@ def get_sspr_settings() -> Dict[str, Any]:
     conn.close()
 
     if row:
-        return dict(row)
+        d = dict(row)
+        if not d.get("max_daily_attempts_per_ip"):
+            d["max_daily_attempts_per_ip"] = 50
+        return d
 
     # Defaults
     return {
@@ -183,6 +205,7 @@ def get_sspr_settings() -> Dict[str, Any]:
         "require_complexity": 1,
         "otp_expiry_minutes": 10,
         "max_daily_attempts": 5,
+        "max_daily_attempts_per_ip": 50,
         "email_smtp_enabled": 0,
         "smtp_host": "",
         "smtp_port": 587,
@@ -247,8 +270,9 @@ def lookup_ad_user(username: str) -> Dict[str, Any]:
         elif line.lower().startswith("memberof:"):
             member_of.append(line.split(":", 1)[1].strip())
 
+    base_dn = get_ad_base_dn()
     is_disabled = bool(uac & 2)
-    is_priv = is_privileged_account(account_name, admin_count, member_of)
+    is_priv = is_privileged_account(account_name, admin_count, member_of, base_dn=base_dn)
 
     return {
         "found": True,
@@ -290,12 +314,15 @@ def get_public_password_config():
     settings = get_sspr_settings()
     primary_realm = get_primary_realm()
 
+    allow_email = bool(settings.get("allow_email_reset", 1) and is_smtp_configured(settings))
+    allow_sms = bool(settings.get("allow_otp_reset", 1) and is_sms_gateway_configured(settings))
+
     return {
         "status": "success",
         "enabled": bool(settings.get("enabled", 1)),
         "allow_old_password_reset": bool(settings.get("allow_old_password_reset", 1)),
-        "allow_email_reset": bool(settings.get("allow_email_reset", 1)),
-        "allow_otp_reset": bool(settings.get("allow_otp_reset", 1)),
+        "allow_email_reset": allow_email,
+        "allow_otp_reset": allow_sms,
         "min_password_length": int(settings.get("min_password_length", 8)),
         "require_complexity": bool(settings.get("require_complexity", 1)),
         "primary_domain": primary_realm,
@@ -319,8 +346,9 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
         raise HTTPException(status_code=400, detail="Invalid username format. Username cannot start with '-' and can only contain letters, digits, '.', '_', '@', and '-'.")
 
     # Enforce daily attempt limit per username and per client IP across SSPR
-    max_daily = int(settings.get("max_daily_attempts", 5) or 5)
-    check_and_record_sspr_attempt(clean_user, client_ip, "change-with-old", max_daily)
+    max_daily_user = int(settings.get("max_daily_attempts", 5) or 5)
+    max_daily_ip = int(settings.get("max_daily_attempts_per_ip", 50) or 50)
+    check_and_record_sspr_attempt(clean_user, client_ip, "change-with-old", max_daily_user, max_daily_ip)
 
     # Check if account is privileged
     if is_privileged_account(clean_user):
@@ -447,9 +475,10 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
 
     client_ip = get_client_ip(request)
 
-    # Rate limiting: enforce max_daily_attempts per username and per client IP
-    max_daily = int(settings.get("max_daily_attempts", 5) or 5)
-    check_and_record_sspr_attempt(clean_user, client_ip, "request-otp", max_daily)
+    # Rate limiting: enforce max_daily_attempts per username and max_daily_attempts_per_ip per client IP
+    max_daily_user = int(settings.get("max_daily_attempts", 5) or 5)
+    max_daily_ip = int(settings.get("max_daily_attempts_per_ip", 50) or 50)
+    check_and_record_sspr_attempt(clean_user, client_ip, "request-otp", max_daily_user, max_daily_ip)
 
     # Generic response parameters (identical for existing and nonexistent users to prevent enumeration)
     generic_msg = "If an account matching the provided username exists, a verification code has been dispatched."
@@ -487,21 +516,28 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
     cursor = conn.cursor()
 
     if not eligible:
-        # Don't reveal which accounts exist. Real reason goes strictly to audit log.
+        # Make the fake request for an ineligible user indistinguishable from a real one:
+        # store it as PENDING_OTP with a random unusable hash, so wrong codes get the same "attempts remaining" and lock behaviour.
+        unusable_otp = secrets.token_hex(32)
+        unusable_hash = hash_otp(unusable_otp)
+        expiry_min = int(settings.get("otp_expiry_minutes", 10))
+        expires_at = time.time() + (expiry_min * 60)
+
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
                 ip_address, user_agent, created_at, completed_at, notes, failed_attempts
-            ) VALUES (?, ?, ?, NULL, NULL, 'FAILED', ?, ?, ?, ?, ?, 0)
+            ) VALUES (?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, ?, 0)
         """, (
             clean_user,
             "EMAIL_OTP" if channel == "email" else "SMS_OTP",
             generic_recipient,
+            unusable_hash,
+            expires_at,
             client_ip,
             request.headers.get("User-Agent", ""),
             time.time(),
-            time.time(),
-            ineligible_reason
+            f"[INELIGIBLE] {ineligible_reason}"
         ))
         dummy_id = cursor.lastrowid
         conn.commit()
@@ -591,33 +627,34 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
         raise HTTPException(status_code=403, detail="Self Service Password Reset is currently disabled by administrator.")
 
     client_ip = get_client_ip(request)
-    clean_user = (req.username or "").strip()
     clean_otp = (req.otp_code or "").strip()
-
-    if not validate_username_format(clean_user):
-        raise HTTPException(status_code=400, detail="Invalid username format.")
-
-    # Enforce daily attempt limit per username and per client IP across SSPR
-    max_daily = int(settings.get("max_daily_attempts", 5) or 5)
-    check_and_record_sspr_attempt(clean_user, client_ip, "verify-and-reset", max_daily)
-
-    # Check if account is privileged
-    if is_privileged_account(clean_user):
-        raise HTTPException(status_code=403, detail="Self-service password reset is not permitted for privileged accounts.")
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
+    # Look up by reset_id ONLY and take username from the stored row
     cursor.execute("""
         SELECT * FROM self_service_password_logs 
-        WHERE id = ? AND username = ?
-    """, (req.reset_id, clean_user))
+        WHERE id = ?
+    """, (req.reset_id,))
     log_entry = cursor.fetchone()
 
     if not log_entry:
         conn.close()
         raise HTTPException(status_code=404, detail="Invalid password reset request identifier.")
+
+    target_user = log_entry["username"]
+
+    # Enforce daily attempt limit per username and per client IP across SSPR
+    max_daily_user = int(settings.get("max_daily_attempts", 5) or 5)
+    max_daily_ip = int(settings.get("max_daily_attempts_per_ip", 50) or 50)
+    check_and_record_sspr_attempt(target_user, client_ip, "verify-and-reset", max_daily_user, max_daily_ip)
+
+    # Check if target account is privileged
+    if is_privileged_account(target_user):
+        conn.close()
+        raise HTTPException(status_code=403, detail="Self-service password reset is not permitted for privileged accounts.")
 
     current_status = log_entry["status"]
     failed_attempts = int(log_entry["failed_attempts"] or 0)
@@ -650,11 +687,28 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
         conn.close()
 
         if failed_attempts >= 5:
-            log_audit("SSPR_REQUEST_LOCKED", clean_user, "sspr", "LOCKED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
+            log_audit("SSPR_REQUEST_LOCKED", target_user, "sspr", "LOCKED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
             raise HTTPException(status_code=400, detail="Too many failed verification attempts. This request has been locked.")
         else:
-            log_audit("SSPR_OTP_FAILED", clean_user, "sspr", "FAILED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
+            log_audit("SSPR_OTP_FAILED", target_user, "sspr", "FAILED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
             raise HTTPException(status_code=400, detail=f"Invalid verification code entered ({5 - failed_attempts} attempts remaining). Please try again.")
+
+    # Ineligible fake request check (unusable OTP would never match, but safety check)
+    notes = log_entry["notes"] or ""
+    if notes.startswith("[INELIGIBLE]"):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Invalid verification code entered. Please try again.")
+
+    # Look up user in AD to resolve canonical username and re-verify privileges
+    user_info = lookup_ad_user(target_user)
+    if not user_info.get("found"):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Unable to process password reset for this account.")
+    if user_info.get("is_privileged"):
+        conn.close()
+        raise HTTPException(status_code=403, detail="Self-service password reset is not permitted for privileged accounts.")
+
+    canonical_user = user_info["username"]
 
     # Validate password rules
     min_len = int(settings.get("min_password_length", 8))
@@ -672,7 +726,7 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
     admin_user, admin_pass = get_ad_creds()
     cmd = [
         "samba-tool", "user", "setpassword",
-        clean_user,
+        canonical_user,
         f"--newpassword={req.new_password}",
         f"-U{admin_user}",
         f"--password={admin_pass}"
@@ -699,7 +753,7 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
     conn.commit()
     conn.close()
 
-    log_audit("SSPR_PASSWORD_RESET_SUCCESS", clean_user, "active_directory", "SUCCESS", {"method": log_entry["method"], "ip": client_ip})
+    log_audit("SSPR_PASSWORD_RESET_SUCCESS", canonical_user, "active_directory", "SUCCESS", {"method": log_entry["method"], "ip": client_ip})
 
     return {
         "status": "success",
@@ -732,6 +786,7 @@ def update_password_reset_settings(req: PasswordResetSettingsUpdate):
             require_complexity = ?,
             otp_expiry_minutes = ?,
             max_daily_attempts = ?,
+            max_daily_attempts_per_ip = ?,
             email_smtp_enabled = ?,
             smtp_host = ?,
             smtp_port = ?,
@@ -754,6 +809,7 @@ def update_password_reset_settings(req: PasswordResetSettingsUpdate):
         1 if req.require_complexity else 0,
         req.otp_expiry_minutes,
         req.max_daily_attempts,
+        req.max_daily_attempts_per_ip,
         1 if req.email_smtp_enabled else 0,
         req.smtp_host.strip(),
         req.smtp_port,
