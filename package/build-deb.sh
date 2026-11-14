@@ -27,12 +27,18 @@ mkdir -p "${BUILD_ROOT}/etc/chrony/sources.d"
 mkdir -p "${BUILD_ROOT}/etc/zclockid/templates"
 mkdir -p "${BUILD_ROOT}/var/lib/zclockid"
 mkdir -p "${BUILD_ROOT}/var/backups/zclockid"
+mkdir -p "${BUILD_ROOT}/usr/share/keyrings"
 
-# 1. Copy package metadata
+# 1. Copy package metadata and archive signing keyring
 cp "${DIST_DIR}/package/debian/control" "${BUILD_ROOT}/DEBIAN/control"
 sed -i '' "s/^Version:.*/Version: ${VERSION}/" "${BUILD_ROOT}/DEBIAN/control" 2>/dev/null || sed -i "s/^Version:.*/Version: ${VERSION}/" "${BUILD_ROOT}/DEBIAN/control"
 cp "${DIST_DIR}/package/debian/postinst" "${BUILD_ROOT}/DEBIAN/"
 chmod 755 "${BUILD_ROOT}/DEBIAN/postinst"
+
+if [[ -f "${DIST_DIR}/package/keyrings/zclockid-archive-keyring.gpg" ]]; then
+    cp "${DIST_DIR}/package/keyrings/zclockid-archive-keyring.gpg" "${BUILD_ROOT}/usr/share/keyrings/"
+    chmod 644 "${BUILD_ROOT}/usr/share/keyrings/zclockid-archive-keyring.gpg"
+fi
 
 # 2. Copy API backend (Full modular FastAPI application)
 cp -r "${DIST_DIR}/api/"* "${BUILD_ROOT}/opt/zclockid/api/"

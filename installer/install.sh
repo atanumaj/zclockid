@@ -76,17 +76,22 @@ if [[ ! -f "$TMP_DEB" || ! -s "$TMP_DEB" ]]; then
 fi
 
 # 5. Configure ZclockID Ubuntu APT Repository on GitHub for future upgrades
+log_info "Installing official ZclockID archive signing keyring..."
+mkdir -p /usr/share/keyrings
+curl -fsSL "${GITHUB_REPO_RAW}/package/keyrings/zclockid-archive-keyring.gpg" -o /usr/share/keyrings/zclockid-archive-keyring.gpg
+chmod 644 /usr/share/keyrings/zclockid-archive-keyring.gpg
+
 log_info "Configuring official GitHub APT repository for continuous updates..."
 cat << EOF > /etc/apt/sources.list.d/zclockid.sources
 Types: deb
 URIs: ${GITHUB_REPO_RAW}/apt-repo
 Suites: stable
 Components: main
-Trusted: yes
+Signed-By: /usr/share/keyrings/zclockid-archive-keyring.gpg
 EOF
 
 cat << EOF > /etc/apt/sources.list.d/zclockid.list
-deb [trusted=yes] ${GITHUB_REPO_RAW}/apt-repo stable main
+deb [signed-by=/usr/share/keyrings/zclockid-archive-keyring.gpg] ${GITHUB_REPO_RAW}/apt-repo stable main
 EOF
 
 # Ensure universe repository is available for samba-ad-provision on Ubuntu

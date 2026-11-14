@@ -689,6 +689,7 @@
 
         // ==================== SOFTWARE UPDATES & UPGRADE SUBSYSTEM ====================
         let stagedDebFile = null;
+        let stagedSigFile = null;
         let updatePollInterval = null;
         let cachedLatestRelease = null;
         let currentUpdateSubTab = 'appliance';
@@ -1419,6 +1420,18 @@
             }
         }
 
+        function updateStagedUploadState() {
+            const btn = document.getElementById('btn-submit-deb');
+            if (!btn) return;
+            if (stagedDebFile && stagedSigFile) {
+                btn.disabled = false;
+                btn.className = 'px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-violet-600/20 shrink-0';
+            } else {
+                btn.disabled = true;
+                btn.className = 'px-5 py-2.5 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-not-allowed shrink-0';
+            }
+        }
+
         function handleDebFileSelected(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1430,37 +1443,70 @@
             }
 
             stagedDebFile = file;
-            document.getElementById('staged-file-name').innerText = file.name;
-            document.getElementById('staged-file-size').innerText = `${Math.round(file.size / 1024)} KB`;
-            document.getElementById('staged-file-status').innerText = 'READY TO UPLOAD';
-            document.getElementById('staged-file-status').className = 'text-[10px] font-mono text-emerald-400 font-bold';
+            const nameEl = document.getElementById('staged-file-name');
+            const sizeEl = document.getElementById('staged-file-size');
+            const labelMain = document.getElementById('upload-label-main');
+            const labelSub = document.getElementById('upload-label-sub');
 
-            const btn = document.getElementById('btn-submit-deb');
-            btn.disabled = false;
-            btn.className = 'w-full py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-violet-600/20';
+            if (nameEl) nameEl.innerText = file.name;
+            if (sizeEl) sizeEl.innerText = `(${Math.round(file.size / 1024)} KB)`;
+            if (labelMain) labelMain.innerText = `Package: ${file.name}`;
+            if (labelSub) labelSub.innerText = `${Math.round(file.size / 1024)} KB ready`;
 
-            document.getElementById('upload-label-main').innerText = `Selected: ${file.name}`;
-            document.getElementById('upload-label-sub').innerText = `Size: ${Math.round(file.size / 1024)} KB - Click 'Upload & Install Package' to proceed`;
+            updateStagedUploadState();
+        }
+
+        function handleSigFileSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.endsWith('.sig') && !file.name.endsWith('.asc')) {
+                alert('Please select a valid GPG detached signature (.deb.sig or .sig)');
+                event.target.value = '';
+                return;
+            }
+
+            stagedSigFile = file;
+            const nameEl = document.getElementById('staged-sig-name');
+            const sizeEl = document.getElementById('staged-sig-size');
+            const labelMain = document.getElementById('upload-sig-label-main');
+            const labelSub = document.getElementById('upload-sig-label-sub');
+
+            if (nameEl) nameEl.innerText = file.name;
+            if (sizeEl) sizeEl.innerText = `(${file.size} B)`;
+            if (labelMain) labelMain.innerText = `Signature: ${file.name}`;
+            if (labelSub) labelSub.innerText = `${file.size} bytes ready`;
+
+            updateStagedUploadState();
         }
 
         async function submitDebUpload() {
             if (!stagedDebFile) {
-                alert('Please select a .deb file first.');
+                alert('Please select a .deb package file first.');
+                return;
+            }
+            if (!stagedSigFile) {
+                alert('Please select the detached GPG signature (.sig) for this package.');
                 return;
             }
 
-            const autoInstall = document.getElementById('upload-auto-install').checked;
+            const autoInstall = document.getElementById('upload-auto-install') ? document.getElementById('upload-auto-install').checked : true;
+            const allowDowngrade = document.getElementById('upload-allow-downgrade') ? document.getElementById('upload-allow-downgrade').checked : false;
             const btn = document.getElementById('btn-submit-deb');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading Package...`;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Verifying & Uploading...`;
+            }
 
             setUpdateStep(1, 'active');
             setUpdateTerminalStatus('UPLOADING');
-            appendTerminalLog(`[ZclockID Console] Uploading package file: ${stagedDebFile.name} (${Math.round(stagedDebFile.size / 1024)} KB)...`);
+            appendTerminalLog(`[ZclockID Console] Uploading package file: ${stagedDebFile.name} with signature: ${stagedSigFile.name}...`);
 
             const formData = new FormData();
             formData.append('package', stagedDebFile);
+            formData.append('signature', stagedSigFile);
             formData.append('auto_install', autoInstall ? 'true' : 'false');
+            formData.append('allow_downgrade', allowDowngrade ? 'true' : 'false');
 
             try {
                 const res = await fetch(`${API_BASE}/system/update/upload`, {
@@ -1470,7 +1516,8 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    appendTerminalLog(`[ZclockID Console] Package uploaded and verified: ${data.package} v${data.version} (${data.arch})`);
+                    appendTerminalLog(`[ZclockID Console] GPG signature verified successfully: ${data.signature_status || 'Good signature'}`);
+                    appendTerminalLog(`[ZclockID Console] Package staged: ${data.package} v${data.version} (${data.arch})`);
                     setUpdateStep(2, 'success');
 
                     if (autoInstall) {
@@ -1479,16 +1526,21 @@
                         appendTerminalLog(`[ZclockID Console] Background updater runner active. Installing v${data.version}...`);
                         startUpdateWatchdog(data.version);
                     } else {
-                        alert(`Package v${data.version} uploaded successfully and verified!`);
-                        btn.disabled = false;
-                        btn.innerHTML = `<i class="fa-solid fa-check"></i> Package Staged`;
+                        alert(`Package v${data.version} uploaded successfully and cryptographically verified!`);
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerHTML = `<i class="fa-solid fa-check"></i> Package Staged`;
+                        }
                     }
                 } else {
                     alert(`Package validation failed: ${data.detail || 'Unknown error'}`);
+                    appendTerminalLog(`[ZclockID Console] ERROR: ${data.detail || 'Package validation failed'}`);
                     setUpdateStep(2, 'error');
                     setUpdateTerminalStatus('ERROR');
-                    btn.disabled = false;
-                    btn.innerHTML = `<i class="fa-solid fa-upload"></i> Upload & Install Package`;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-shield-halved"></i> Verify & Install Package`;
+                    }
                 }
             } catch (err) {
                 if (autoInstall) {
@@ -1497,8 +1549,10 @@
                     startUpdateWatchdog();
                 } else {
                     alert(`Upload error: ${err}`);
-                    btn.disabled = false;
-                    btn.innerHTML = `<i class="fa-solid fa-upload"></i> Upload & Install Package`;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-shield-halved"></i> Verify & Install Package`;
+                    }
                 }
             }
         }

@@ -105,6 +105,11 @@ EOFBIND
             chmod 755 /usr/local/bin/zclock-telemetry.sh
         fi
 
+        # Ensure official archive keyring permissions
+        if [ -f /usr/share/keyrings/zclockid-archive-keyring.gpg ]; then
+            chmod 644 /usr/share/keyrings/zclockid-archive-keyring.gpg 2>/dev/null || true
+        fi
+
         # 5. Generate appliance self-signed TLS certificates if absent
         mkdir -p /etc/zclockid/certs /etc/zclockid/license /var/lib/zclockid /var/backups/zclockid
         chmod 755 /etc/zclockid/license 2>/dev/null || true

@@ -53,16 +53,26 @@ If you prefer to manually configure the APT repository or install the `.deb` pac
 
 ### Option A: Via APT Repository
 ```bash
-# 1. Add repository source (DEB822 format for Ubuntu 24.04/22.04)
+# 1. Install official archive signing key
+sudo mkdir -p /usr/share/keyrings
+sudo curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/package/keyrings/zclockid-archive-keyring.gpg -o /usr/share/keyrings/zclockid-archive-keyring.gpg
+sudo chmod 644 /usr/share/keyrings/zclockid-archive-keyring.gpg
+
+# 2. Add repository source (DEB822 format for Ubuntu 24.04/22.04)
 sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/zclockid.sources
 Types: deb
 URIs: https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo
 Suites: stable
 Components: main
-Trusted: yes
+Signed-By: /usr/share/keyrings/zclockid-archive-keyring.gpg
 EOF'
 
-# 2. Update and install
+# Or standard one-line source:
+sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/zclockid.list
+deb [signed-by=/usr/share/keyrings/zclockid-archive-keyring.gpg] https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo stable main
+EOF'
+
+# 3. Update and install
 sudo apt-get update
 sudo apt-get install -y zclockid
 ```

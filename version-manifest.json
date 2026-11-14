@@ -1,12 +1,12 @@
 {
-  "version": "1.3.9",
-  "name": "ZclockID Enterprise v1.3.9",
+  "version": "1.4.0",
+  "name": "ZclockID Enterprise v1.4.0",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-14T11:25:00Z",
-  "summary": "URL Token Ingestion Removal, Playwright CSP Smoke Testing, Strict Tab Allowlist, and Case-Insensitive Auth",
-  "notes": "### What's Changed in v1.3.9:\n* **URL Token Ingestion Removal:** Completely removed token parameter extraction from URL query strings in production JavaScript; session tokens are strictly maintained in secure client storage.\n* **Automated CSP & Runtime Testing:** Implemented automated Playwright browser test suite verifying 0 CSP violations and 0 JavaScript runtime errors across Dashboard, Users, DNS, RADIUS, Self-Service, and Security views.\n* **Strict Navigation Allowlist:** Hardened ?tab= URL query parameter navigation with an explicit valid tab allowlist falling back to dashboard.\n* **Action Delegation Alignment:** Added copy-doh-curl delegation handler and 1-to-1 data-action test coverage.\n* **Authentication Robustness:** Enabled case-insensitive matching for local administrator logins.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.3.9_all.deb",
-  "package_name": "zclockid_1.3.9_all.deb",
+  "release_type": "minor",
+  "published_at": "2026-11-14T12:00:00Z",
+  "summary": "Cryptographically Signed APT Repository & Offline Packages, GPG Keyring Verification, Downgrade Protection, and HTTPS Enforcement",
+  "notes": "### What's Changed in v1.4.0:\n* **Signed APT Repository:** Official APT repository secured with dedicated RSA 4096-bit GPG signing key; Release metadata signed as InRelease and Release.gpg.\n* **Keyring Distribution:** Official public keyring shipped in-package at /usr/share/keyrings/zclockid-archive-keyring.gpg; insecure trusted=yes flags completely removed.\n* **Cryptographic Package Verification:** Detached .deb.sig OpenPGP signatures required for manual web uploads and verified via gpgv before installation.\n* **Version Downgrade Guard:** Downgrade protection prevents installing older packages unless explicit allow_downgrade flag is authorized by fulladmin.\n* **HTTPS Enforcement:** Update downloads strictly enforce HTTPS with certificate validation enabled.\n* **Key Rotation Architecture:** Dual-key keyring rotation runbook documented in docs/KEY_ROTATION.md.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.0_all.deb",
+  "package_name": "zclockid_1.4.0_all.deb",
   "min_version_required": "1.0.0"
 }

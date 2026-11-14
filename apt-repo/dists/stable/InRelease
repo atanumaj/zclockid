@@ -1,0 +1,43 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: ZclockID Open Source
+Label: ZclockID APT Repository
+Suite: stable
+Codename: stable
+Architectures: amd64 all
+Components: main
+Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
+Date: Sat, 14 Nov 2026 06:31:22 UTC
+MD5Sum:
+ c96fa6ff9f3fbc64ea1d10d940362a88 50095 main/binary-amd64/Packages
+ fd979eecd562fc5a64c6be07fb64a7c3 5048 main/binary-amd64/Packages.gz
+ c96fa6ff9f3fbc64ea1d10d940362a88 50095 main/binary-all/Packages
+ fd979eecd562fc5a64c6be07fb64a7c3 5048 main/binary-all/Packages.gz
+SHA1:
+ 0c388dcb99eacb2ee2b8a011968d1476cb236dc8 50095 main/binary-amd64/Packages
+ c7ccab9e3876a63976607a42c06b6c7025c347a2 5048 main/binary-amd64/Packages.gz
+ 0c388dcb99eacb2ee2b8a011968d1476cb236dc8 50095 main/binary-all/Packages
+ c7ccab9e3876a63976607a42c06b6c7025c347a2 5048 main/binary-all/Packages.gz
+SHA256:
+ ac6ab564c64b1c93a6635e81eb526f62bb6041f59309679b97dea4c84dfb2e74 50095 main/binary-amd64/Packages
+ dc1bf33f0976a6d8a4b5a27b68151fbd2879952e8481aa3f9798f934c54f12ce 5048 main/binary-amd64/Packages.gz
+ ac6ab564c64b1c93a6635e81eb526f62bb6041f59309679b97dea4c84dfb2e74 50095 main/binary-all/Packages
+ dc1bf33f0976a6d8a4b5a27b68151fbd2879952e8481aa3f9798f934c54f12ce 5048 main/binary-all/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQJPBAEBCAA5FiEEMpfTscaMhgGUF/DvT0QsNqOTdCkFAmr4ADobFIAAAAAABAAO
+bWFudTIsMi41KzEuMTIsMCwzAAoJEE9ELDajk3QpsRQQAKQoFsC5VSGz2tqF/NY/
+sM90w4faEgpc134jQ+3Opz7Nytc7YmVCA0GF5G1hqmG7iZxE/HyiHOE4QeRw+U7a
+VnwcQpfMxhoQcQC9cH/JuCmajcsfpre/sw894rhn0tf876LY3uFfr6AaWpex7LuX
+PjIIhsds+jKXfVHLQqo0flz2LDh60+jZthghtlfcjjGKj8FjU1K9/DX6CpIcXhah
+fjBYCFKuMyoBYujSo3rzH+iIB9mhuUdrHvbA0gkThVu1SJDfmBhv8Kw0vFg+RDOl
+/+SHly1eZNtsjDg7g4UolqDCwikxBmXqMaijvHm+oLuQoCWu6KS7NfG6lYvHp2xa
+7kd5Kpy+36rykmW3pa4yd/p9qSrD0WvNTZTIryM+aLG7+gEtKCvkYM0TZAtblb29
+/xNGQ8G914RELdOEcewgVsET5eWPl3jnAmd+ayIdIzxbxAKRPwTONcelpgxUxj7n
+X+2fTKmc8WUjrOfqIrqUW8YV6HI9+eX0mCyH4RLMae3WasOZuuGqI6dfXlrXO4QP
+mQJAcA2b8U5JPtfDoOsifBq01q1BKFgdXhodMkEvE29HDWBPcTLbrYypssLb6LY0
+8/UfGXfwOsl8PzNrxkdEySCTb/+b37v82Ty8tWmAiH9dSiULbg1f9HgSsdxiMcnK
+F5LrRab92qZCgsXqtpkWtZLS
+=QB7d
+-----END PGP SIGNATURE-----

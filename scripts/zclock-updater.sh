@@ -38,6 +38,18 @@ if [ "${PKG_NAME}" != "zclockid" ]; then
     exit 1
 fi
 
+KEYRING="/usr/share/keyrings/zclockid-archive-keyring.gpg"
+SIG_FILE="${DEB_PACKAGE}.sig"
+if [ -f "${SIG_FILE}" ] && [ -f "${KEYRING}" ]; then
+    log "Verifying package signature against ${KEYRING}..."
+    if ! gpgv --keyring "${KEYRING}" "${SIG_FILE}" "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
+        log "ERROR: Package signature verification failed!"
+        echo "ERROR: Invalid signature" > "${STATUS_FILE}"
+        exit 1
+    fi
+    log "Package signature verified successfully."
+fi
+
 log "Package validated successfully. Applying upgrade via dpkg..."
 
 # Automated pre-update safety backup

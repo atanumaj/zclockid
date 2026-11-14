@@ -166,50 +166,77 @@
                         </div>
                     </div>
 
-                    <!-- Row 2: Manual Package Upload (.deb) for Air-Gapped Environments -->
+                    <!-- Row 2: Manual Package Upload (.deb & .sig) for Air-Gapped Environments -->
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                         <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                             <div>
                                 <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                                    <i class="fa-solid fa-file-arrow-up text-cyan-400"></i> Offline / Manual Package Upload (.deb)
+                                    <i class="fa-solid fa-file-shield text-cyan-400"></i> Offline / Manual Package Upload (.deb & .sig)
                                 </h3>
-                                <p class="text-xs text-slate-400 mt-0.5">Upload a thin ZclockID Debian package directly through the browser for offline environments or private custom builds.</p>
+                                <p class="text-xs text-slate-400 mt-0.5">Upload a signed ZclockID Debian package alongside its detached GPG signature (.sig). Unsigned or invalid packages are strictly rejected.</p>
                             </div>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">AIR-GAP READY</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">GPG VERIFIED</span>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="md:col-span-2">
-                                <div id="dropzone-update" onclick="document.getElementById('file-upload-deb').click()" class="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-xl p-6 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition flex flex-col items-center justify-center space-y-2">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-cube text-violet-400"></i> 1. ZclockID Debian Package (.deb) <span class="text-rose-400">*</span>
+                                </label>
+                                <div id="dropzone-update" onclick="document.getElementById('file-upload-deb').click()" class="border-2 border-dashed border-slate-800 hover:border-violet-500/50 rounded-xl p-5 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition flex flex-col items-center justify-center space-y-2">
                                     <input type="file" id="file-upload-deb" accept=".deb" class="hidden" onchange="handleDebFileSelected(event)">
-                                    <div class="h-10 w-10 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-lg">
+                                    <div class="h-9 w-9 rounded-full bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400 text-base">
                                         <i class="fa-solid fa-cloud-arrow-up"></i>
                                     </div>
-                                    <div class="text-xs text-slate-300 font-semibold" id="upload-label-main">Click to select or drag and drop ZclockID .deb package</div>
-                                    <div class="text-[10px] text-slate-500" id="upload-label-sub">Supported format: zclockid_*.deb (Debian / Ubuntu archive)</div>
+                                    <div class="text-xs text-slate-300 font-semibold" id="upload-label-main">Click to select .deb package</div>
+                                    <div class="text-[10px] text-slate-500 truncate max-w-full" id="upload-label-sub">zclockid_*.deb</div>
                                 </div>
                             </div>
 
-                            <!-- Upload Staging & Install Card -->
-                            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col justify-between space-y-3">
-                                <div class="space-y-2">
-                                    <div class="text-xs font-semibold text-white flex items-center justify-between">
-                                        <span>Selected File</span>
-                                        <span id="staged-file-status" class="text-[10px] font-mono text-slate-500">NO FILE</span>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-signature text-cyan-400"></i> 2. Detached GPG Signature (.deb.sig) <span class="text-rose-400">*</span>
+                                </label>
+                                <div id="dropzone-sig" onclick="document.getElementById('file-upload-sig').click()" class="border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-xl p-5 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950/80 transition flex flex-col items-center justify-center space-y-2">
+                                    <input type="file" id="file-upload-sig" accept=".sig,.asc" class="hidden" onchange="handleSigFileSelected(event)">
+                                    <div class="h-9 w-9 rounded-full bg-cyan-600/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-base">
+                                        <i class="fa-solid fa-file-signature"></i>
                                     </div>
-                                    <div class="text-xs font-mono text-slate-300 truncate" id="staged-file-name">None</div>
-                                    <div class="text-[11px] font-mono text-slate-400 flex justify-between">
-                                        <span>File Size:</span>
-                                        <span id="staged-file-size" class="text-white">-</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 pt-1">
+                                    <div class="text-xs text-slate-300 font-semibold" id="upload-sig-label-main">Click to select .deb.sig signature</div>
+                                    <div class="text-[10px] text-slate-500 truncate max-w-full" id="upload-sig-label-sub">zclockid_*.deb.sig</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Staging Status & Controls -->
+                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div class="space-y-1 text-xs font-mono">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-400">Package:</span>
+                                    <span id="staged-file-name" class="text-slate-200 truncate">None</span>
+                                    <span id="staged-file-size" class="text-slate-500">(-)</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-slate-400">Signature:</span>
+                                    <span id="staged-sig-name" class="text-slate-200 truncate">None</span>
+                                    <span id="staged-sig-size" class="text-slate-500">(-)</span>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2">
                                         <input type="checkbox" id="upload-auto-install" checked class="rounded bg-slate-950 border-slate-800 text-violet-600 focus:ring-0">
-                                        <label for="upload-auto-install" class="text-xs text-slate-300 cursor-pointer">Install immediately after upload</label>
+                                        <label for="upload-auto-install" class="text-xs text-slate-300 cursor-pointer">Install immediately after verification</label>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" id="upload-allow-downgrade" class="rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0">
+                                        <label for="upload-allow-downgrade" class="text-xs text-amber-300 cursor-pointer">Allow version downgrade (fulladmin only)</label>
                                     </div>
                                 </div>
 
-                                <button onclick="submitDebUpload()" id="btn-submit-deb" disabled class="w-full py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-not-allowed">
-                                    <i class="fa-solid fa-upload"></i> Upload & Install Package
+                                <button onclick="submitDebUpload()" id="btn-submit-deb" disabled class="px-5 py-2.5 bg-slate-800 text-slate-500 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2 cursor-not-allowed shrink-0">
+                                    <i class="fa-solid fa-shield-halved"></i> Verify & Install Package
                                 </button>
                             </div>
                         </div>

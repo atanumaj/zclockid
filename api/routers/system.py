@@ -16,11 +16,11 @@ import sqlite3
 import subprocess
 import requests
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, status, Depends
 from fastapi.responses import FileResponse, PlainTextResponse
 
-from api.routers.auth import require_role
+from api.routers.auth import require_role, get_session_user
 
 from api.core.config import (
     DB_PATH,
@@ -88,6 +88,45 @@ def is_newer_version(candidate: str, baseline: str) -> bool:
     except Exception:
         return False
 
+def is_downgrade_version(candidate: str, baseline: str) -> bool:
+    try:
+        return parse_semver(candidate) < parse_semver(baseline)
+    except Exception:
+        return False
+
+def get_archive_keyring_path() -> Path:
+    """Returns the trusted GPG keyring for verifying ZclockID packages and updates."""
+    custom = os.environ.get("ZCLOCKID_KEYRING_PATH")
+    if custom and Path(custom).exists():
+        return Path(custom)
+    sys_path = Path("/usr/share/keyrings/zclockid-archive-keyring.gpg")
+    if sys_path.exists():
+        return sys_path
+    repo_fallback = Path(__file__).resolve().parent.parent.parent / "package" / "keyrings" / "zclockid-archive-keyring.gpg"
+    if repo_fallback.exists():
+        return repo_fallback
+    return sys_path
+
+def verify_package_signature(deb_path: Path, sig_path: Path, keyring_path: Optional[Path] = None) -> Tuple[bool, str]:
+    """Verifies detached GPG signature of a .deb package using gpgv and the shipped keyring."""
+    keyring = keyring_path or get_archive_keyring_path()
+    if not keyring.exists():
+        return False, f"Archive keyring not found at {keyring}."
+    if not sig_path.exists():
+        return False, "Detached signature file not found."
+    if not deb_path.exists():
+        return False, "Package file not found."
+
+    code, stdout, stderr = run_cmd([
+        "gpgv", "--keyring", str(keyring), str(sig_path), str(deb_path)
+    ], timeout=15)
+
+    if code == 0:
+        return True, stdout.strip() or "Good signature"
+    else:
+        err_msg = stderr.strip() or stdout.strip() or "Invalid signature"
+        return False, err_msg
+
 def ensure_updater_script() -> str:
     standard_paths = [
         str(ZCLOCKID_ROOT / "daemons" / "zclock-updater"),
@@ -114,6 +153,15 @@ fi
 PKG_INFO=$(dpkg-deb -I "${DEB_PACKAGE}" 2>&1)
 PKG_NAME=$(echo "${PKG_INFO}" | grep -E '^\s*Package:' | awk '{print $2}')
 PKG_VER=$(echo "${PKG_INFO}" | grep -E '^\s*Version:' | awk '{print $2}')
+KEYRING="/usr/share/keyrings/zclockid-archive-keyring.gpg"
+SIG_FILE="${DEB_PACKAGE}.sig"
+if [ -f "${SIG_FILE}" ] && [ -f "${KEYRING}" ]; then
+    if ! gpgv --keyring "${KEYRING}" "${SIG_FILE}" "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
+        echo "ERROR: Invalid package signature" >> "${LOG_FILE}"
+        echo "ERROR: Invalid package signature" > "${STATUS_FILE}"
+        exit 1
+    fi
+fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing ${PKG_NAME} ${PKG_VER}..." >> "${LOG_FILE}"
 export DEBIAN_FRONTEND=noninteractive
 dpkg -i "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1 || apt-get install -f -y >> "${LOG_FILE}" 2>&1
@@ -1458,8 +1506,10 @@ def check_for_updates(req: Optional[UpdateCheckModel] = None):
         manifest_urls.insert(0, f"{row['custom_manifest_url'].strip()}?t={int(now)}")
 
     for m_url in manifest_urls:
+        if not m_url.startswith("https://"):
+            continue
         try:
-            resp = requests.get(m_url, timeout=8, headers={"User-Agent": "ZclockID-Appliance-Updater"})
+            resp = requests.get(m_url, timeout=8, verify=True, headers={"User-Agent": "ZclockID-Appliance-Updater"})
             if resp.status_code == 200:
                 data = resp.json()
                 raw_ver = data.get("version", "")
@@ -1498,7 +1548,7 @@ def check_for_updates(req: Optional[UpdateCheckModel] = None):
     repo = APP_REPO
     github_url = f"https://api.github.com/repos/{repo}/releases/latest"
     try:
-        resp = requests.get(github_url, timeout=6, headers={
+        resp = requests.get(github_url, timeout=6, verify=True, headers={
             "User-Agent": "ZclockID-Appliance-Updater",
             "Accept": "application/vnd.github.v3+json"
         })
@@ -1576,23 +1626,70 @@ def check_for_updates(req: Optional[UpdateCheckModel] = None):
         }
 
 @router.post("/api/v1/system/update/upload")
-async def upload_update_package(package: UploadFile = File(...), auto_install: bool = Form(False)):
-    """Accepts manual upload of a zclockid .deb package and verifies integrity before installation."""
-    if not package.filename.endswith(".deb"):
+async def upload_update_package(
+    package: UploadFile = File(...),
+    signature: Optional[UploadFile] = File(None),
+    auto_install: bool = Form(False),
+    allow_downgrade: bool = Form(False),
+    user: dict = Depends(get_session_user)
+):
+    """Accepts manual upload of a zclockid .deb package with its detached .sig signature and verifies cryptographic integrity before staging or installation."""
+    if not package.filename or not package.filename.endswith(".deb"):
         raise HTTPException(status_code=400, detail="Only Debian (.deb) package archives are supported.")
 
+    if not signature or not signature.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required detached package signature (.deb.sig). All updates must be cryptographically signed."
+        )
+
     dest_path = Path("/tmp/zclockid_update.deb")
-    with open(dest_path, "wb") as f:
-        shutil.copyfileobj(package.file, f)
+    sig_path = Path("/tmp/zclockid_update.deb.sig")
+
+    try:
+        with open(dest_path, "wb") as f:
+            shutil.copyfileobj(package.file, f)
+
+        with open(sig_path, "wb") as f:
+            shutil.copyfileobj(signature.file, f)
+    except Exception as e:
+        dest_path.unlink(missing_ok=True)
+        sig_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Failed to stage uploaded files: {str(e)}")
 
     file_size = dest_path.stat().st_size
+    sig_size = sig_path.stat().st_size
+
     if file_size < 1000:
         dest_path.unlink(missing_ok=True)
+        sig_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail="Uploaded file is too small to be a valid package.")
 
+    if sig_size < 32:
+        dest_path.unlink(missing_ok=True)
+        sig_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Uploaded signature file is too small or invalid.")
+
+    # 1. Cryptographic GPG signature verification
+    is_valid, sig_err = verify_package_signature(dest_path, sig_path)
+    if not is_valid:
+        dest_path.unlink(missing_ok=True)
+        sig_path.unlink(missing_ok=True)
+        log_audit("UPDATE_SIGNATURE_FAILED", user.get("username", "admin"), "appliance", "REJECTED", {
+            "error": sig_err,
+            "deb_filename": package.filename,
+            "sig_filename": signature.filename
+        })
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cryptographic signature verification failed: {sig_err}"
+        )
+
+    # 2. Package metadata inspection
     code, stdout, stderr = run_cmd(["dpkg-deb", "-I", str(dest_path)])
     if code != 0:
         dest_path.unlink(missing_ok=True)
+        sig_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=f"Corrupted or invalid Debian package: {stderr}")
 
     pkg_name = ""
@@ -1608,9 +1705,35 @@ async def upload_update_package(package: UploadFile = File(...), auto_install: b
 
     if pkg_name != "zclockid":
         dest_path.unlink(missing_ok=True)
+        sig_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=f"Invalid package '{pkg_name}'. Expected 'zclockid'.")
 
-    log_audit("UPDATE_PACKAGE_UPLOADED", "admin", "appliance", "SUCCESS", {"version": pkg_ver, "size": file_size, "arch": pkg_arch})
+    # 3. Version downgrade check
+    curr_ver = get_appliance_version()
+    if is_downgrade_version(pkg_ver, curr_ver):
+        if not allow_downgrade:
+            dest_path.unlink(missing_ok=True)
+            sig_path.unlink(missing_ok=True)
+            log_audit("UPDATE_DOWNGRADE_REJECTED", user.get("username", "admin"), "appliance", "BLOCKED", {
+                "current_version": curr_ver,
+                "target_version": pkg_ver
+            })
+            raise HTTPException(
+                status_code=400,
+                detail=f"Version downgrade rejected: Package version v{pkg_ver} is older than current v{curr_ver}. Explicit allow_downgrade=true required."
+            )
+        if user.get("role") != "fulladmin":
+            dest_path.unlink(missing_ok=True)
+            sig_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=403, detail="Only fulladmin role can authorize version downgrade.")
+        log_audit("UPDATE_DOWNGRADE_PERMITTED", user.get("username", "admin"), "appliance", "ALLOWED", {
+            "current_version": curr_ver,
+            "target_version": pkg_ver
+        })
+
+    log_audit("UPDATE_PACKAGE_UPLOADED", user.get("username", "admin"), "appliance", "SUCCESS", {
+        "version": pkg_ver, "size": file_size, "arch": pkg_arch, "sig_verified": True
+    })
 
     if auto_install:
         updater_script = ensure_updater_script()
@@ -1621,7 +1744,8 @@ async def upload_update_package(package: UploadFile = File(...), auto_install: b
             "version": pkg_ver,
             "arch": pkg_arch,
             "size_bytes": file_size,
-            "message": f"Package v{pkg_ver} uploaded and update initiated! The system will restart services in a few seconds."
+            "sig_verified": True,
+            "message": f"Package v{pkg_ver} uploaded, cryptographically verified, and update initiated! Services will restart in a few seconds."
         }
 
     return {
@@ -1630,15 +1754,19 @@ async def upload_update_package(package: UploadFile = File(...), auto_install: b
         "version": pkg_ver,
         "arch": pkg_arch,
         "size_bytes": file_size,
-        "message": f"Package v{pkg_ver} ({pkg_arch}) verified and staged successfully. Click 'Install Update' to apply."
+        "sig_verified": True,
+        "message": f"Package v{pkg_ver} ({pkg_arch}) cryptographically verified and staged successfully. Click 'Install Update' to apply."
     }
 
 @router.post("/api/v1/system/update/install")
-def install_update(req: Optional[UpdateInstallModel] = None):
-    """Downloads remote update or runs installer on already staged package in background."""
+def install_update(req: Optional[UpdateInstallModel] = None, user: dict = Depends(get_session_user)):
+    """Downloads remote update over HTTPS with signature verification, or runs installer on already staged package."""
     target_deb = Path("/tmp/zclockid_update.deb")
+    target_sig = Path("/tmp/zclockid_update.deb.sig")
 
     download_url = req.download_url if req and req.download_url else None
+    allow_downgrade = req.allow_downgrade if req and req.allow_downgrade else False
+
     if not download_url and not target_deb.exists():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -1649,8 +1777,18 @@ def install_update(req: Optional[UpdateInstallModel] = None):
             download_url = row[0]
 
     if download_url:
+        if not download_url.startswith("https://"):
+            raise HTTPException(status_code=400, detail="Update packages must be downloaded over HTTPS only.")
+
         try:
-            resp = requests.get(download_url, stream=True, timeout=30, headers={"User-Agent": "ZclockID-Appliance-Updater"})
+            # Download package over HTTPS with strict TLS certificate verification
+            resp = requests.get(
+                download_url,
+                stream=True,
+                timeout=30,
+                verify=True,
+                headers={"User-Agent": "ZclockID-Appliance-Updater"}
+            )
             if resp.status_code == 200:
                 with open(target_deb, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=8192):
@@ -1658,15 +1796,48 @@ def install_update(req: Optional[UpdateInstallModel] = None):
                             f.write(chunk)
             else:
                 raise HTTPException(status_code=400, detail=f"Failed to download update package: HTTP {resp.status_code}")
+
+            # Download detached signature over HTTPS
+            sig_url = f"{download_url}.sig"
+            resp_sig = requests.get(
+                sig_url,
+                timeout=15,
+                verify=True,
+                headers={"User-Agent": "ZclockID-Appliance-Updater"}
+            )
+            if resp_sig.status_code == 200:
+                with open(target_sig, "wb") as f:
+                    f.write(resp_sig.content)
+            else:
+                target_deb.unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to download package signature (.deb.sig) from {sig_url}: HTTP {resp_sig.status_code}"
+                )
+        except HTTPException:
+            raise
         except Exception as e:
+            target_deb.unlink(missing_ok=True)
+            target_sig.unlink(missing_ok=True)
             raise HTTPException(status_code=500, detail=f"Download error: {str(e)}")
 
     if not target_deb.exists():
         raise HTTPException(status_code=400, detail="No update package staged on appliance. Please upload a .deb file or check for updates first.")
 
+    # Cryptographic GPG signature verification
+    if target_sig.exists():
+        is_valid, sig_err = verify_package_signature(target_deb, target_sig)
+        if not is_valid:
+            target_deb.unlink(missing_ok=True)
+            target_sig.unlink(missing_ok=True)
+            log_audit("UPDATE_SIGNATURE_FAILED", user.get("username", "admin"), "appliance", "REJECTED", {"error": sig_err})
+            raise HTTPException(status_code=400, detail=f"Cryptographic signature verification failed: {sig_err}")
+
+    # Inspect package metadata
     code, stdout, stderr = run_cmd(["dpkg-deb", "-I", str(target_deb)])
     if code != 0:
         target_deb.unlink(missing_ok=True)
+        target_sig.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=f"Invalid package file: {stderr}")
 
     pkg_ver = "unknown"
@@ -1674,9 +1845,32 @@ def install_update(req: Optional[UpdateInstallModel] = None):
         if line.strip().startswith("Version:"):
             pkg_ver = line.split(":", 1)[1].strip()
 
+    # Version downgrade check
+    curr_ver = get_appliance_version()
+    if is_downgrade_version(pkg_ver, curr_ver):
+        if not allow_downgrade:
+            target_deb.unlink(missing_ok=True)
+            target_sig.unlink(missing_ok=True)
+            log_audit("UPDATE_DOWNGRADE_REJECTED", user.get("username", "admin"), "appliance", "BLOCKED", {
+                "current_version": curr_ver,
+                "target_version": pkg_ver
+            })
+            raise HTTPException(
+                status_code=400,
+                detail=f"Version downgrade rejected: Package version v{pkg_ver} is older than current v{curr_ver}. Explicit allow_downgrade=true required."
+            )
+        if user.get("role") != "fulladmin":
+            target_deb.unlink(missing_ok=True)
+            target_sig.unlink(missing_ok=True)
+            raise HTTPException(status_code=403, detail="Only fulladmin role can authorize version downgrade.")
+        log_audit("UPDATE_DOWNGRADE_PERMITTED", user.get("username", "admin"), "appliance", "ALLOWED", {
+            "current_version": curr_ver,
+            "target_version": pkg_ver
+        })
+
     updater_script = ensure_updater_script()
     launch_update_runner(updater_script, target_deb)
-    log_audit("SYSTEM_UPDATE_STARTED", "admin", "appliance", "STARTED", {"target_version": pkg_ver})
+    log_audit("SYSTEM_UPDATE_STARTED", user.get("username", "admin"), "appliance", "STARTED", {"target_version": pkg_ver})
 
     return {
         "status": "started",

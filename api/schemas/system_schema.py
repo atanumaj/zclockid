@@ -53,4 +53,5 @@ class UpdateCheckModel(BaseModel):
 
 class UpdateInstallModel(BaseModel):
     download_url: Optional[str] = None
+    allow_downgrade: Optional[bool] = False
 
