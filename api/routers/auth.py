@@ -475,21 +475,23 @@ def login(req: LoginRequest, request: Request):
             detail=f"Security Baseline Lockout: Too many failed login attempts ({recent_failures}). This account and IP are locked for {lockout_min} minutes."
         )
 
-    cursor.execute("SELECT password_hash, salt FROM admin_users WHERE username = ?", (req.username,))
+    cursor.execute("SELECT password_hash, salt, username FROM admin_users WHERE LOWER(username) = LOWER(?)", (req.username,))
     row = cursor.fetchone()
 
     authenticated = False
     is_local = False
     role = "readonly"
+    canonical_username = req.username
 
     # 1. Local admin authentication check (Break-Glass admin fallback)
     if row:
-        stored_hash, salt = row
+        stored_hash, salt, stored_username = row
         if verify_password(req.password, stored_hash, salt):
             authenticated = True
             is_local = True
+            canonical_username = stored_username
             from api.routers.rbac import resolve_user_role
-            role, _ = resolve_user_role(req.username, is_local_admin=True)
+            role, _ = resolve_user_role(canonical_username, is_local_admin=True)
 
     # 2. If not local or local failed, attempt Active Directory authentication
     if not authenticated:
@@ -530,19 +532,19 @@ def login(req: LoginRequest, request: Request):
     cursor.execute("""
         INSERT INTO sessions (token, username, role, ip_address, user_agent, created_at, last_active, expires_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (token, req.username, role, client_ip, user_agent, now, now, expires_at))
+    """, (token, canonical_username, role, client_ip, user_agent, now, now, expires_at))
     if is_local:
-        cursor.execute("UPDATE admin_users SET last_login = ? WHERE username = ?", (now, req.username))
+        cursor.execute("UPDATE admin_users SET last_login = ? WHERE LOWER(username) = LOWER(?)", (now, canonical_username))
     conn.commit()
     conn.close()
 
-    log_audit("ADMIN_LOGIN", req.username, "web_console", "SUCCESS", {"role": role, "is_ad_user": not is_local, "ip": client_ip})
+    log_audit("ADMIN_LOGIN", canonical_username, "web_console", "SUCCESS", {"role": role, "is_ad_user": not is_local, "ip": client_ip})
     return {
         "status": "success",
         "token": token,
         "access_token": token,
         "token_type": "bearer",
-        "username": req.username,
+        "username": canonical_username,
         "role": role,
         "is_ad_user": not is_local,
         "expires_in": max_life_hours * 3600,
