@@ -82,12 +82,22 @@ sudo apt-get install -y ./zclockid_1.2.2_all.deb
 ## 4. Updates & Upgrades
 
 ### Checking Updates via Web Console
-Navigate to **Security & Management > Software Updates**. Click **Check Updates** to query new releases. When a new version is available, click **Install Update Now** to upgrade with zero downtime.
+Navigate to **Security & Management > Software Updates**. Click **Check Updates** to query new releases against the upstream channel. When a new version is available, click **Install Update Now** to upgrade with zero downtime.
 
-### Upgrading via APT CLI
+### CLI Upgrades via Appliance Updater Script (Recommended)
+Download the latest Debian package from the official repository and invoke the appliance's built-in detached background updater script. The updater script automatically creates a pre-upgrade safety snapshot under `/var/backups/zclockid/`, validates package checksums, resolves dependencies, and safely restarts the management daemon without interrupting Active Directory Samba services:
+
 ```bash
-sudo apt-get update
-sudo apt-get --only-upgrade install zclockid
+# 1. Fetch the latest release package
+curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.3.9_all.deb" -o /tmp/zclockid_update.deb
+
+# 2. Run the automated updater script
+sudo /opt/zclockid/scripts/zclock-updater.sh /tmp/zclockid_update.deb
+```
+
+Alternatively, apply the package directly via `dpkg`:
+```bash
+sudo dpkg -i /tmp/zclockid_update.deb
 ```
 
 ---

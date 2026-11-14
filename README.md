@@ -42,7 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/installer/
 * 📶 **Transparent FreeRADIUS 802.1X Access:** Seamless network authentication for enterprise Wi-Fi and VPNs using Samba's `ntlm_auth` (MS-CHAPv2 / PEAP) and RFC 3580 Dynamic VLAN assignment based on Active Directory group membership.
 * 🔄 **Bi-Directional Sysvol Sync with NTACL Self-Healing:** Dedicated `zclock-sysvold` engine that synchronizes Group Policy Objects while continuously repairing and preserving Windows Security Descriptors (`security.NTACL`).
 * ⚡ **Headless REST API First:** 100% headless control via FastAPI with interactive OpenAPI (Swagger) documentation for automated provisioning, user lifecycle, and replication monitoring.
-* 🌐 **Modern Identity & Web SSO:** Out-of-the-box SAML 2.0 and OpenID Connect (OIDC) federation with Kerberos SPNEGO for zero-touch desktop SSO on domain-joined PCs.
+* 🌐 **Modern Identity & Web SSO connector:** Out-of-the-box SAML 2.0 and OpenID Connect (OIDC) federation connector with Kerberos SPNEGO for zero-touch desktop SSO on domain-joined PCs.
 * 🔐 **Self Services & Custom Portals:** Built-in Self-Registration and Self-Service Password Reset (Current Password, Email OTP, and SMS OTP with Twilio, Fast2SMS, MSG91, and HTTP GET/POST Webhooks), audit log CSV exports, and pfSense-style uploadable custom HTML portals & branding assets.
 * 📊 **SNMP Telemetry & Metrics:** SNMP daemon with custom Active Directory OID extensions and native Go `zclock-exporter` Prometheus metrics (`/metrics`).
 
