@@ -33,14 +33,8 @@ def _resolve_updates_dir() -> Path:
         default_p.mkdir(parents=True, exist_ok=True)
         os.chmod(default_p, 0o700)
         return default_p
-    except (PermissionError, OSError):
-        fallback = Path(tempfile.gettempdir()) / "zclockid" / "updates"
-        try:
-            fallback.mkdir(parents=True, exist_ok=True)
-            os.chmod(fallback, 0o700)
-        except Exception:
-            pass
-        return fallback
+    except (PermissionError, OSError) as e:
+        raise RuntimeError(f"Cannot access or initialize secure updates directory at {default_p}: {e}")
 
 UPDATES_DIR = _resolve_updates_dir()
 

@@ -67,9 +67,11 @@ log "Package validated successfully. Applying upgrade via dpkg..."
 log "Creating automated pre-update snapshot backup..."
 BACKUP_DIR="/var/backups/zclockid"
 mkdir -p "${BACKUP_DIR}"
+chmod 700 "${BACKUP_DIR}" 2>/dev/null || true
 CURR_V=$(cat /opt/zclockid/VERSION 2>/dev/null || echo "pre-update")
 BACKUP_TAR="${BACKUP_DIR}/zclockid-backup-v${CURR_V}-$(date +%Y%m%d%H%M%S).tar.gz"
-tar -czf "${BACKUP_TAR}" -C / var/lib/zclockid etc/zclockid 2>/dev/null || true
+(umask 077 && tar -czf "${BACKUP_TAR}" -C / var/lib/zclockid etc/zclockid 2>/dev/null || true)
+chmod 600 "${BACKUP_TAR}" 2>/dev/null || true
 log "Safety snapshot created at ${BACKUP_TAR}"
 
 export DEBIAN_FRONTEND=noninteractive
