@@ -52,6 +52,11 @@ def allow_testclient_in_tests(monkeypatch, tmp_path_factory):
     monkeypatch.setattr(sys_mod, "DB_PATH", test_db)
     monkeypatch.setattr(auth_mod, "DB_PATH", test_db)
 
+    test_updates_dir = tmp_path_factory.mktemp("updates")
+    monkeypatch.setenv("ZCLOCKID_UPDATES_DIR", str(test_updates_dir))
+    monkeypatch.setattr(config, "UPDATES_DIR", test_updates_dir)
+    monkeypatch.setattr(sys_mod, "UPDATES_DIR", test_updates_dir)
+
     # Insert test sessions for fulladmin and operator
     now = time.time()
     conn = sqlite3.connect(test_db)
@@ -71,12 +76,12 @@ def allow_testclient_in_tests(monkeypatch, tmp_path_factory):
 def throwaway_gpg_keys():
     """
     Generates two disposable GPG keypairs in short temp directories in /tmp
-    (avoiding UNIX socket length limits on macOS):
+    (prefix='zg' to avoid UNIX socket path length limits on macOS):
     - Key A: The trusted repository signing key.
     - Key B: An untrusted / rogue key.
     Exports Key A's public key to a binary keyring (.gpg) matching archive format.
     """
-    base_tmp = Path(tempfile.mkdtemp(prefix="zgpg_", dir="/tmp"))
+    base_tmp = Path(tempfile.mkdtemp(prefix="zg", dir="/tmp"))
     homedir_a = base_tmp / "a"
     homedir_b = base_tmp / "b"
     homedir_a.mkdir(mode=0o700)
@@ -154,8 +159,8 @@ def test_repo_strictly_contains_no_trusted_yes():
     for root, dirs, files in os.walk(repo_root):
         dirs[:] = [d for d in dirs if d not in ignore_dirs]
         for f in files:
-            # Skip test itself and binary packages, archives, images, git databases
-            if f == "test_signed_updates.py":
+            # Skip test itself, changelogs, version manifests, and binary packages/archives/images
+            if f == "test_signed_updates.py" or f == "version-manifest.json" or f.startswith("CHANGELOG"):
                 continue
             if f.endswith((".deb", ".gz", ".tar", ".png", ".jpg", ".gpg", ".db", ".iso", ".pyc")):
                 continue
@@ -344,3 +349,93 @@ def test_key_rotation_documentation_exists():
     assert "Dual-Key Keyring Window" in content
     assert "/usr/share/keyrings/zclockid-archive-keyring.gpg" in content
     assert "Emergency Key Revocation Runbook" in content
+
+
+def test_install_update_refused_without_sig(tmp_path, monkeypatch):
+    """Verify that staged .deb without .sig is refused with HTTP 400."""
+    updates_dir = tmp_path / "updates"
+    updates_dir.mkdir(mode=0o700, exist_ok=True)
+    monkeypatch.setattr(sys_mod, "UPDATES_DIR", updates_dir)
+
+    target_deb = updates_dir / "zclockid_update.deb"
+    _create_sample_deb_file(target_deb)
+    target_sig = updates_dir / "zclockid_update.deb.sig"
+    target_sig.unlink(missing_ok=True)
+
+    res = client.post("/api/v1/system/update/install", json={}, headers=ADMIN_HEADERS)
+    assert res.status_code == 400
+    assert "Missing required package signature" in res.json()["detail"]
+
+
+def test_install_update_refused_when_keyring_missing(tmp_path, monkeypatch):
+    """Verify that missing keyring refuses update install with HTTP 400."""
+    updates_dir = tmp_path / "updates"
+    updates_dir.mkdir(mode=0o700, exist_ok=True)
+    monkeypatch.setattr(sys_mod, "UPDATES_DIR", updates_dir)
+
+    target_deb = updates_dir / "zclockid_update.deb"
+    target_sig = updates_dir / "zclockid_update.deb.sig"
+    _create_sample_deb_file(target_deb)
+    target_sig.write_text("DUMMY_SIGNATURE_BYTES" * 5)
+
+    monkeypatch.setenv("ZCLOCKID_KEYRING_PATH", str(tmp_path / "nonexistent-keyring.gpg"))
+
+    res = client.post("/api/v1/system/update/install", json={}, headers=ADMIN_HEADERS)
+    assert res.status_code == 400
+    assert "Archive keyring missing" in res.json()["detail"]
+
+
+def test_updater_script_fails_closed_without_sig(tmp_path, monkeypatch):
+    """Verify that scripts/zclock-updater.sh exits non-zero when .sig is missing."""
+    repo_root = Path(__file__).resolve().parent.parent
+    updater_script = repo_root / "scripts" / "zclock-updater.sh"
+    assert updater_script.exists()
+
+    dummy_deb = tmp_path / "test_pkg.deb"
+    _create_sample_deb_file(dummy_deb)
+
+    # Mock dpkg and dpkg-deb via PATH stub
+    bin_stub = tmp_path / "bin"
+    bin_stub.mkdir()
+    dpkg_stub = bin_stub / "dpkg-deb"
+    dpkg_stub.write_text("""#!/bin/sh
+echo "Package: zclockid"
+echo "Version: 1.4.1"
+exit 0
+""")
+    dpkg_stub.chmod(0o755)
+
+    # Mock gpgv stub
+    gpgv_stub = bin_stub / "gpgv"
+    gpgv_stub.write_text("""#!/bin/sh
+echo "Stub gpgv called"
+exit 0
+""")
+    gpgv_stub.chmod(0o755)
+
+    # Mock dpkg stub
+    real_dpkg = bin_stub / "dpkg"
+    real_dpkg.write_text("""#!/bin/sh
+echo "Stub dpkg called"
+exit 0
+""")
+    real_dpkg.chmod(0o755)
+
+    # Provide a dummy keyring file
+    keyring_file = tmp_path / "test-keyring.gpg"
+    keyring_file.write_text("KEYRING")
+
+    env = os.environ.copy()
+    env["PATH"] = f"{bin_stub}:{env['PATH']}"
+    env["ZCLOCKID_KEYRING_PATH"] = str(keyring_file)
+
+    # Execute updater script against dummy deb with NO .sig file
+    proc = subprocess.run(
+        ["/bin/bash", str(updater_script), str(dummy_deb)],
+        capture_output=True,
+        text=True,
+        env=env
+    )
+    assert proc.returncode != 0, f"Expected non-zero exit when .sig is missing, got {proc.returncode}"
+    output = proc.stdout + proc.stderr
+    assert "Package signature missing" in output or "not found" in output

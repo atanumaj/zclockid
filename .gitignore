@@ -10,6 +10,7 @@ venv/
 
 # Root debian build artifacts (official packages reside in apt-repo/pool/main/)
 /zclockid_*.deb
+/zclockid_*.deb.sig
 
 # Private keys, certificates & customer licenses
 *.pem

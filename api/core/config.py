@@ -4,6 +4,7 @@ Implements unified root (/zclockid) with graceful fallback for live migration.
 """
 
 import os
+import tempfile
 from pathlib import Path
 
 # Base Appliance Root Directory
@@ -17,10 +18,38 @@ WEB_DIR = Path(os.environ.get("ZCLOCKID_WEB_DIR", ZCLOCKID_ROOT / "web" if ZCLOC
 TEMPLATES_DIR = Path(os.environ.get("ZCLOCKID_TEMPLATES_DIR", ZCLOCKID_ROOT / "templates" if ZCLOCKID_ROOT.exists() else "/opt/zclockid/templates"))
 BACKUP_DIR = Path(os.environ.get("ZCLOCKID_BACKUP_DIR", DATA_DIR / "backups"))
 
+def _resolve_updates_dir() -> Path:
+    custom = os.environ.get("ZCLOCKID_UPDATES_DIR")
+    if custom:
+        p = Path(custom)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            os.chmod(p, 0o700)
+        except Exception:
+            pass
+        return p
+    default_p = Path("/var/lib/zclockid/updates")
+    try:
+        default_p.mkdir(parents=True, exist_ok=True)
+        os.chmod(default_p, 0o700)
+        return default_p
+    except (PermissionError, OSError):
+        fallback = Path(tempfile.gettempdir()) / "zclockid" / "updates"
+        try:
+            fallback.mkdir(parents=True, exist_ok=True)
+            os.chmod(fallback, 0o700)
+        except Exception:
+            pass
+        return fallback
+
+UPDATES_DIR = _resolve_updates_dir()
+
 # Ensure base directories exist
-for d in [DATA_DIR, LOG_DIR, BACKUP_DIR]:
+for d in [DATA_DIR, LOG_DIR, BACKUP_DIR, UPDATES_DIR]:
     try:
         d.mkdir(parents=True, exist_ok=True)
+        if d == UPDATES_DIR:
+            os.chmod(d, 0o700)
     except Exception:
         pass
 
@@ -66,7 +95,7 @@ except Exception:
 
 # Product Metadata & Author Fingerprint
 APP_NAME = "ZclockID Enterprise Management Appliance"
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.4.1"
 APP_AUTHOR = "Atanu Majumdar (@atanumaj)"
 APP_COPYRIGHT = "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved."
 APP_REPO = "atanumaj/zclockid"

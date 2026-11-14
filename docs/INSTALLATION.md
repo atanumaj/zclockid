@@ -58,6 +58,9 @@ sudo mkdir -p /usr/share/keyrings
 sudo curl -fsSL https://raw.githubusercontent.com/atanumaj/zclockid/master/package/keyrings/zclockid-archive-keyring.gpg -o /usr/share/keyrings/zclockid-archive-keyring.gpg
 sudo chmod 644 /usr/share/keyrings/zclockid-archive-keyring.gpg
 
+# Official Release Signing Key Fingerprint:
+# F85A 5376 2E2B ADA8 C5FF  6AF4 408D 10F3 F786 00EE
+
 # 2. Add repository source (DEB822 format for Ubuntu 24.04/22.04)
 sudo bash -c 'cat << EOF > /etc/apt/sources.list.d/zclockid.sources
 Types: deb
@@ -77,14 +80,23 @@ sudo apt-get update
 sudo apt-get install -y zclockid
 ```
 
-### Option B: Direct DEB Package Installation
+### Option B: Direct DEB Package Installation (Cryptographically Verified)
 ```bash
-# Download package from GitHub repository
-wget https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.2.2_all.deb
+# 1. Ensure private update staging directory exists with strict permissions (mode 0700)
+sudo mkdir -p /var/lib/zclockid/updates
+sudo chown root:root /var/lib/zclockid/updates
+sudo chmod 700 /var/lib/zclockid/updates
 
-# Install package and resolve dependencies
+# 2. Download package and detached signature from GitHub repository
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.1_all.deb" -o /var/lib/zclockid/updates/zclockid_update.deb
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.1_all.deb.sig" -o /var/lib/zclockid/updates/zclockid_update.deb.sig
+
+# 3. Cryptographically verify package signature using the official keyring
+gpgv --keyring /usr/share/keyrings/zclockid-archive-keyring.gpg /var/lib/zclockid/updates/zclockid_update.deb.sig /var/lib/zclockid/updates/zclockid_update.deb
+
+# 4. Install package and resolve dependencies
 sudo apt-get update
-sudo apt-get install -y ./zclockid_1.2.2_all.deb
+sudo apt-get install -y /var/lib/zclockid/updates/zclockid_update.deb
 ```
 
 ---
@@ -92,22 +104,27 @@ sudo apt-get install -y ./zclockid_1.2.2_all.deb
 ## 4. Updates & Upgrades
 
 ### Checking Updates via Web Console
-Navigate to **Security & Management > Software Updates**. Click **Check Updates** to query new releases against the upstream channel. When a new version is available, click **Install Update Now** to upgrade with zero downtime.
+Navigate to **Security & Management > Software Updates**. Click **Check Updates** to query new releases against the upstream channel. When a new version is available, click **Install Update Now** to upgrade with zero downtime. Updates are staged in `/var/lib/zclockid/updates/` (mode 0700) and cryptographically verified prior to execution.
 
 ### CLI Upgrades via Appliance Updater Script (Recommended)
-Download the latest Debian package from the official repository and invoke the appliance's built-in detached background updater script. The updater script automatically creates a pre-upgrade safety snapshot under `/var/backups/zclockid/`, validates package checksums, resolves dependencies, and safely restarts the management daemon without interrupting Active Directory Samba services:
+Download the latest Debian package and detached signature into the secure staging directory `/var/lib/zclockid/updates/` and invoke the appliance's built-in background updater script. The updater script validates the cryptographic signature using the trusted keyring (failing closed if signature or keyring is missing), creates a pre-upgrade safety snapshot under `/var/backups/zclockid/`, resolves dependencies, and safely restarts the management daemon without interrupting Active Directory Samba services:
 
 ```bash
-# 1. Fetch the latest release package
-curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.3.9_all.deb" -o /tmp/zclockid_update.deb
+# 1. Ensure updates directory exists with mode 0700
+sudo mkdir -p /var/lib/zclockid/updates
+sudo chmod 700 /var/lib/zclockid/updates
 
-# 2. Run the automated updater script
-sudo /opt/zclockid/scripts/zclock-updater.sh /tmp/zclockid_update.deb
+# 2. Fetch the latest release package and signature
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.1_all.deb" -o /var/lib/zclockid/updates/zclockid_update.deb
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.1_all.deb.sig" -o /var/lib/zclockid/updates/zclockid_update.deb.sig
+
+# 3. Run the automated updater script (fails closed if signature is missing or tampered)
+sudo /opt/zclockid/scripts/zclock-updater.sh /var/lib/zclockid/updates/zclockid_update.deb
 ```
 
 Alternatively, apply the package directly via `dpkg`:
 ```bash
-sudo dpkg -i /tmp/zclockid_update.deb
+sudo dpkg -i /var/lib/zclockid/updates/zclockid_update.deb
 ```
 
 ---

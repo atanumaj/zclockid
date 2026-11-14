@@ -25,6 +25,7 @@ from api.routers.auth import require_role, get_session_user
 from api.core.config import (
     DB_PATH,
     BACKUP_DIR,
+    UPDATES_DIR,
     APP_VERSION,
     APP_REPO,
     OFFICIAL_MANIFEST_URL,
@@ -97,7 +98,7 @@ def is_downgrade_version(candidate: str, baseline: str) -> bool:
 def get_archive_keyring_path() -> Path:
     """Returns the trusted GPG keyring for verifying ZclockID packages and updates."""
     custom = os.environ.get("ZCLOCKID_KEYRING_PATH")
-    if custom and Path(custom).exists():
+    if custom is not None:
         return Path(custom)
     sys_path = Path("/usr/share/keyrings/zclockid-archive-keyring.gpg")
     if sys_path.exists():
@@ -127,6 +128,59 @@ def verify_package_signature(deb_path: Path, sig_path: Path, keyring_path: Optio
         err_msg = stderr.strip() or stdout.strip() or "Invalid signature"
         return False, err_msg
 
+def secure_stage_file(target_path: Path, upload_file: UploadFile) -> int:
+    """Safely stages an uploaded file into private updates directory with mode 0600 and no symlink following."""
+    target_path.unlink(missing_ok=True)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(target_path.parent, 0o700)
+    except Exception:
+        pass
+    fd = os.open(str(target_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            shutil.copyfileobj(upload_file.file, f)
+        return target_path.stat().st_size
+    except Exception:
+        target_path.unlink(missing_ok=True)
+        raise
+
+def secure_stage_bytes(target_path: Path, data_bytes: bytes) -> int:
+    """Safely writes byte content into private updates directory with mode 0600."""
+    target_path.unlink(missing_ok=True)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(target_path.parent, 0o700)
+    except Exception:
+        pass
+    fd = os.open(str(target_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data_bytes)
+        return target_path.stat().st_size
+    except Exception:
+        target_path.unlink(missing_ok=True)
+        raise
+
+def secure_stage_stream(target_path: Path, response_stream) -> int:
+    """Safely streams download content into private updates directory with mode 0600."""
+    target_path.unlink(missing_ok=True)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(target_path.parent, 0o700)
+    except Exception:
+        pass
+    fd = os.open(str(target_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            for chunk in response_stream.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        return target_path.stat().st_size
+    except Exception:
+        target_path.unlink(missing_ok=True)
+        raise
+
 def ensure_updater_script() -> str:
     standard_paths = [
         str(ZCLOCKID_ROOT / "daemons" / "zclock-updater"),
@@ -142,7 +196,7 @@ def ensure_updater_script() -> str:
 set -o pipefail
 LOG_FILE="/var/log/zclock-update.log"
 STATUS_FILE="/var/run/zclock-update.status"
-DEB_PACKAGE="${1:-/tmp/zclockid_update.deb}"
+DEB_PACKAGE="${1:-/var/lib/zclockid/updates/zclockid_update.deb}"
 echo "UPDATING" > "${STATUS_FILE}"
 echo "=== ZclockID Package Update Initiated at $(date) ===" > "${LOG_FILE}"
 if [ ! -f "${DEB_PACKAGE}" ]; then
@@ -153,14 +207,22 @@ fi
 PKG_INFO=$(dpkg-deb -I "${DEB_PACKAGE}" 2>&1)
 PKG_NAME=$(echo "${PKG_INFO}" | grep -E '^\s*Package:' | awk '{print $2}')
 PKG_VER=$(echo "${PKG_INFO}" | grep -E '^\s*Version:' | awk '{print $2}')
-KEYRING="/usr/share/keyrings/zclockid-archive-keyring.gpg"
+KEYRING="${ZCLOCKID_KEYRING_PATH:-/usr/share/keyrings/zclockid-archive-keyring.gpg}"
 SIG_FILE="${DEB_PACKAGE}.sig"
-if [ -f "${SIG_FILE}" ] && [ -f "${KEYRING}" ]; then
-    if ! gpgv --keyring "${KEYRING}" "${SIG_FILE}" "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
-        echo "ERROR: Invalid package signature" >> "${LOG_FILE}"
-        echo "ERROR: Invalid package signature" > "${STATUS_FILE}"
-        exit 1
-    fi
+if [ ! -f "${KEYRING}" ]; then
+    echo "ERROR: Archive keyring missing" >> "${LOG_FILE}"
+    echo "ERROR: Keyring missing" > "${STATUS_FILE}"
+    exit 1
+fi
+if [ ! -f "${SIG_FILE}" ]; then
+    echo "ERROR: Package signature missing" >> "${LOG_FILE}"
+    echo "ERROR: Signature missing" > "${STATUS_FILE}"
+    exit 1
+fi
+if ! gpgv --keyring "${KEYRING}" "${SIG_FILE}" "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
+    echo "ERROR: Invalid package signature" >> "${LOG_FILE}"
+    echo "ERROR: Invalid package signature" > "${STATUS_FILE}"
+    exit 1
 fi
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] Installing ${PKG_NAME} ${PKG_VER}..." >> "${LOG_FILE}"
 export DEBIAN_FRONTEND=noninteractive
@@ -1643,22 +1705,16 @@ async def upload_update_package(
             detail="Missing required detached package signature (.deb.sig). All updates must be cryptographically signed."
         )
 
-    dest_path = Path("/tmp/zclockid_update.deb")
-    sig_path = Path("/tmp/zclockid_update.deb.sig")
+    dest_path = UPDATES_DIR / "zclockid_update.deb"
+    sig_path = UPDATES_DIR / "zclockid_update.deb.sig"
 
     try:
-        with open(dest_path, "wb") as f:
-            shutil.copyfileobj(package.file, f)
-
-        with open(sig_path, "wb") as f:
-            shutil.copyfileobj(signature.file, f)
+        file_size = secure_stage_file(dest_path, package)
+        sig_size = secure_stage_file(sig_path, signature)
     except Exception as e:
         dest_path.unlink(missing_ok=True)
         sig_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Failed to stage uploaded files: {str(e)}")
-
-    file_size = dest_path.stat().st_size
-    sig_size = sig_path.stat().st_size
 
     if file_size < 1000:
         dest_path.unlink(missing_ok=True)
@@ -1669,6 +1725,13 @@ async def upload_update_package(
         dest_path.unlink(missing_ok=True)
         sig_path.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail="Uploaded signature file is too small or invalid.")
+
+    # Fail closed if keyring is missing
+    keyring = get_archive_keyring_path()
+    if not keyring or not keyring.exists():
+        dest_path.unlink(missing_ok=True)
+        sig_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Archive keyring missing. Cannot verify update package cryptographically.")
 
     # 1. Cryptographic GPG signature verification
     is_valid, sig_err = verify_package_signature(dest_path, sig_path)
@@ -1761,8 +1824,8 @@ async def upload_update_package(
 @router.post("/api/v1/system/update/install")
 def install_update(req: Optional[UpdateInstallModel] = None, user: dict = Depends(get_session_user)):
     """Downloads remote update over HTTPS with signature verification, or runs installer on already staged package."""
-    target_deb = Path("/tmp/zclockid_update.deb")
-    target_sig = Path("/tmp/zclockid_update.deb.sig")
+    target_deb = UPDATES_DIR / "zclockid_update.deb"
+    target_sig = UPDATES_DIR / "zclockid_update.deb.sig"
 
     download_url = req.download_url if req and req.download_url else None
     allow_downgrade = req.allow_downgrade if req and req.allow_downgrade else False
@@ -1790,10 +1853,7 @@ def install_update(req: Optional[UpdateInstallModel] = None, user: dict = Depend
                 headers={"User-Agent": "ZclockID-Appliance-Updater"}
             )
             if resp.status_code == 200:
-                with open(target_deb, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
+                secure_stage_stream(target_deb, resp)
             else:
                 raise HTTPException(status_code=400, detail=f"Failed to download update package: HTTP {resp.status_code}")
 
@@ -1806,8 +1866,7 @@ def install_update(req: Optional[UpdateInstallModel] = None, user: dict = Depend
                 headers={"User-Agent": "ZclockID-Appliance-Updater"}
             )
             if resp_sig.status_code == 200:
-                with open(target_sig, "wb") as f:
-                    f.write(resp_sig.content)
+                secure_stage_bytes(target_sig, resp_sig.content)
             else:
                 target_deb.unlink(missing_ok=True)
                 raise HTTPException(
@@ -1824,14 +1883,16 @@ def install_update(req: Optional[UpdateInstallModel] = None, user: dict = Depend
     if not target_deb.exists():
         raise HTTPException(status_code=400, detail="No update package staged on appliance. Please upload a .deb file or check for updates first.")
 
-    # Cryptographic GPG signature verification
-    if target_sig.exists():
-        is_valid, sig_err = verify_package_signature(target_deb, target_sig)
-        if not is_valid:
-            target_deb.unlink(missing_ok=True)
-            target_sig.unlink(missing_ok=True)
-            log_audit("UPDATE_SIGNATURE_FAILED", user.get("username", "admin"), "appliance", "REJECTED", {"error": sig_err})
-            raise HTTPException(status_code=400, detail=f"Cryptographic signature verification failed: {sig_err}")
+    # Cryptographic GPG signature verification (fail closed)
+    keyring = get_archive_keyring_path()
+    if not keyring or not keyring.exists():
+        target_deb.unlink(missing_ok=True)
+        target_sig.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Archive keyring missing. Cannot verify update package cryptographically.")
+
+    if not target_sig.exists():
+        target_deb.unlink(missing_ok=True)
+        raise HTTPException(status_code=400, detail="Missing required package signature (.deb.sig). Update verification failed closed.")
 
     # Inspect package metadata
     code, stdout, stderr = run_cmd(["dpkg-deb", "-I", str(target_deb)])
@@ -1867,6 +1928,14 @@ def install_update(req: Optional[UpdateInstallModel] = None, user: dict = Depend
             "current_version": curr_ver,
             "target_version": pkg_ver
         })
+
+    # Task v1.4.1 requirement: install_update must call verify_package_signature() right before running the updater
+    is_valid, sig_err = verify_package_signature(target_deb, target_sig)
+    if not is_valid:
+        target_deb.unlink(missing_ok=True)
+        target_sig.unlink(missing_ok=True)
+        log_audit("UPDATE_SIGNATURE_FAILED", user.get("username", "admin"), "appliance", "REJECTED", {"error": sig_err})
+        raise HTTPException(status_code=400, detail=f"Cryptographic signature verification failed: {sig_err}")
 
     updater_script = ensure_updater_script()
     launch_update_runner(updater_script, target_deb)

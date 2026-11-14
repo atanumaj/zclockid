@@ -1,12 +1,12 @@
 {
-  "version": "1.4.0",
-  "name": "ZclockID Enterprise v1.4.0",
+  "version": "1.4.1",
+  "name": "ZclockID Enterprise v1.4.1",
   "channel": "stable",
-  "release_type": "minor",
-  "published_at": "2026-11-14T12:00:00Z",
-  "summary": "Cryptographically Signed APT Repository & Offline Packages, GPG Keyring Verification, Downgrade Protection, and HTTPS Enforcement",
-  "notes": "### What's Changed in v1.4.0:\n* **Signed APT Repository:** Official APT repository secured with dedicated RSA 4096-bit GPG signing key; Release metadata signed as InRelease and Release.gpg.\n* **Keyring Distribution:** Official public keyring shipped in-package at /usr/share/keyrings/zclockid-archive-keyring.gpg; insecure trusted=yes flags completely removed.\n* **Cryptographic Package Verification:** Detached .deb.sig OpenPGP signatures required for manual web uploads and verified via gpgv before installation.\n* **Version Downgrade Guard:** Downgrade protection prevents installing older packages unless explicit allow_downgrade flag is authorized by fulladmin.\n* **HTTPS Enforcement:** Update downloads strictly enforce HTTPS with certificate validation enabled.\n* **Key Rotation Architecture:** Dual-key keyring rotation runbook documented in docs/KEY_ROTATION.md.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.0_all.deb",
-  "package_name": "zclockid_1.4.0_all.deb",
+  "release_type": "patch",
+  "published_at": "2026-11-14T12:30:00Z",
+  "summary": "Fail-Closed Cryptographic Update Verification, Secure Updates Staging Directory, and Secret Key Hygiene",
+  "notes": "### What's Changed in v1.4.1:\n* **Private Update Staging:** All updates are staged exclusively in private directory /var/lib/zclockid/updates (mode 0700, owned root:root) using secure O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW descriptors.\n* **Fail-Closed Verification:** install_update unconditionally calls verify_package_signature() right before running the updater, refusing installation (HTTP 400) if the signature or keyring is missing.\n* **Updater Script Hardening:** scripts/zclock-updater.sh defaults to /var/lib/zclockid/updates/zclockid_update.deb and exits non-zero if the archive keyring, detached signature, or gpgv check fails.\n* **Signing Key Hygiene:** Primary GPG signing key and subkey set to 2-year expiration (2028-11-13); private key protected by AES-256 passphrase stored in macOS Keychain with offline disaster recovery backup.\n* **Remote Build Security:** RejectPolicy with known_hosts host key validation enforced on remote deployment sessions.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.1_all.deb",
+  "package_name": "zclockid_1.4.1_all.deb",
   "min_version_required": "1.0.0"
 }

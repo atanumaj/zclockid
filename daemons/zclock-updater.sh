@@ -8,7 +8,7 @@ set -o pipefail
 
 LOG_FILE="/var/log/zclock-update.log"
 STATUS_FILE="/var/run/zclock-update.status"
-DEB_PACKAGE="${1:-/tmp/zclockid_update.deb}"
+DEB_PACKAGE="${1:-/var/lib/zclockid/updates/zclockid_update.deb}"
 
 echo "UPDATING" > "${STATUS_FILE}"
 
@@ -38,7 +38,39 @@ if [ "${PKG_NAME}" != "zclockid" ]; then
     exit 1
 fi
 
+KEYRING="${ZCLOCKID_KEYRING_PATH:-/usr/share/keyrings/zclockid-archive-keyring.gpg}"
+SIG_FILE="${DEB_PACKAGE}.sig"
+
+if [ ! -f "${KEYRING}" ]; then
+    log "CRITICAL: Archive keyring ${KEYRING} not found! Cannot verify package cryptographically."
+    echo "ERROR: Archive keyring missing" > "${STATUS_FILE}"
+    exit 1
+fi
+
+if [ ! -f "${SIG_FILE}" ]; then
+    log "CRITICAL: Package signature file ${SIG_FILE} not found! All updates must be cryptographically signed."
+    echo "ERROR: Package signature missing" > "${STATUS_FILE}"
+    exit 1
+fi
+
+log "Verifying package signature against ${KEYRING}..."
+if ! gpgv --keyring "${KEYRING}" "${SIG_FILE}" "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
+    log "ERROR: Package signature verification failed!"
+    echo "ERROR: Invalid signature" > "${STATUS_FILE}"
+    exit 1
+fi
+log "Package signature verified successfully."
+
 log "Package validated successfully. Applying upgrade via dpkg..."
+
+# Automated pre-update safety backup
+log "Creating automated pre-update snapshot backup..."
+BACKUP_DIR="/var/backups/zclockid"
+mkdir -p "${BACKUP_DIR}"
+CURR_V=$(cat /opt/zclockid/VERSION 2>/dev/null || echo "pre-update")
+BACKUP_TAR="${BACKUP_DIR}/zclockid-backup-v${CURR_V}-$(date +%Y%m%d%H%M%S).tar.gz"
+tar -czf "${BACKUP_TAR}" -C / var/lib/zclockid etc/zclockid 2>/dev/null || true
+log "Safety snapshot created at ${BACKUP_TAR}"
 
 export DEBIAN_FRONTEND=noninteractive
 if dpkg -i "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then

@@ -8,7 +8,7 @@ set -o pipefail
 
 LOG_FILE="/var/log/zclock-update.log"
 STATUS_FILE="/var/run/zclock-update.status"
-DEB_PACKAGE="${1:-/tmp/zclockid_update.deb}"
+DEB_PACKAGE="${1:-/var/lib/zclockid/updates/zclockid_update.deb}"
 
 echo "UPDATING" > "${STATUS_FILE}"
 
@@ -38,17 +38,28 @@ if [ "${PKG_NAME}" != "zclockid" ]; then
     exit 1
 fi
 
-KEYRING="/usr/share/keyrings/zclockid-archive-keyring.gpg"
+KEYRING="${ZCLOCKID_KEYRING_PATH:-/usr/share/keyrings/zclockid-archive-keyring.gpg}"
 SIG_FILE="${DEB_PACKAGE}.sig"
-if [ -f "${SIG_FILE}" ] && [ -f "${KEYRING}" ]; then
-    log "Verifying package signature against ${KEYRING}..."
-    if ! gpgv --keyring "${KEYRING}" "${SIG_FILE}" "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
-        log "ERROR: Package signature verification failed!"
-        echo "ERROR: Invalid signature" > "${STATUS_FILE}"
-        exit 1
-    fi
-    log "Package signature verified successfully."
+
+if [ ! -f "${KEYRING}" ]; then
+    log "CRITICAL: Archive keyring ${KEYRING} not found! Cannot verify package cryptographically."
+    echo "ERROR: Archive keyring missing" > "${STATUS_FILE}"
+    exit 1
 fi
+
+if [ ! -f "${SIG_FILE}" ]; then
+    log "CRITICAL: Package signature file ${SIG_FILE} not found! All updates must be cryptographically signed."
+    echo "ERROR: Package signature missing" > "${STATUS_FILE}"
+    exit 1
+fi
+
+log "Verifying package signature against ${KEYRING}..."
+if ! gpgv --keyring "${KEYRING}" "${SIG_FILE}" "${DEB_PACKAGE}" >> "${LOG_FILE}" 2>&1; then
+    log "ERROR: Package signature verification failed!"
+    echo "ERROR: Invalid signature" > "${STATUS_FILE}"
+    exit 1
+fi
+log "Package signature verified successfully."
 
 log "Package validated successfully. Applying upgrade via dpkg..."
 
