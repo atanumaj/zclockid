@@ -1,12 +1,12 @@
 {
-  "version": "1.3.3",
-  "name": "ZclockID Enterprise v1.3.3",
+  "version": "1.3.9",
+  "name": "ZclockID Enterprise v1.3.9",
   "channel": "stable",
-  "release_type": "minor",
-  "published_at": "2026-11-13T07:30:00Z",
-  "summary": "Default-On API Authentication, Granular Role Hierarchy, and Reverse Proxy IP Hardening",
-  "notes": "### What's Changed in v1.3.3:\n* **Default-On Authentication Across Entire API:** Added `dependencies=[Depends(require_role(\"readonly\"))]` to all router definitions, securing all 180+ non-public endpoints against unauthenticated access.\n* **Enforced Role Hierarchy:** Built `require_role(*roles)` with `fulladmin > operator > report > readonly` enforcement. Mutating endpoints (POST, PUT, DELETE) require `operator` or higher; system administration, backups, updates, RBAC, API keys, security baselines, licensing, certificates, and setting changes strictly require `fulladmin`.\n* **Explicit Public Path Allowlist:** Whitelisted only `/api/v1/auth/login`, `/api/v1/setup/status`, `/api/v1/setup/provision` (locked with 403 once `setup.lock` exists), `/api/v1/public/register/*`, `/api/v1/self-service/password/*` config and reset endpoints, and public portal assets.\n* **Uvicorn Host Binding & Proxy Trust Hardening:** Bound `zclock-api.service` to `--host 127.0.0.1` and restricted `X-Real-IP` / `X-Forwarded-For` trust strictly to connections originating from `127.0.0.1`.\n* **Automated Auth Coverage Test Suite:** Added `tests/test_auth_coverage.py` using FastAPI `TestClient` to verify 100% auth coverage and role enforcement offline without requiring Samba or network access.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.3.3_all.deb",
-  "package_name": "zclockid_1.3.3_all.deb",
+  "release_type": "patch",
+  "published_at": "2026-11-14T11:25:00Z",
+  "summary": "URL Token Ingestion Removal, Playwright CSP Smoke Testing, Strict Tab Allowlist, and Case-Insensitive Auth",
+  "notes": "### What's Changed in v1.3.9:\n* **URL Token Ingestion Removal:** Completely removed token parameter extraction from URL query strings in production JavaScript; session tokens are strictly maintained in secure client storage.\n* **Automated CSP & Runtime Testing:** Implemented automated Playwright browser test suite verifying 0 CSP violations and 0 JavaScript runtime errors across Dashboard, Users, DNS, RADIUS, Self-Service, and Security views.\n* **Strict Navigation Allowlist:** Hardened ?tab= URL query parameter navigation with an explicit valid tab allowlist falling back to dashboard.\n* **Action Delegation Alignment:** Added copy-doh-curl delegation handler and 1-to-1 data-action test coverage.\n* **Authentication Robustness:** Enabled case-insensitive matching for local administrator logins.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.3.9_all.deb",
+  "package_name": "zclockid_1.3.9_all.deb",
   "min_version_required": "1.0.0"
 }
