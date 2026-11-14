@@ -320,6 +320,7 @@
                 globalBandwidthProfiles = data.profiles || [];
                 populateBandwidthSelects();
                 const tbody = document.getElementById('radius-bandwidth-table-body');
+                if (!tbody) return;
                 if (data.profiles && data.profiles.length > 0) {
                     tbody.innerHTML = data.profiles.map(p => {
                         const sessStr = p.session_timeout_mins > 0 ? `${escapeHtml(p.session_timeout_mins)}m` : 'Unlimited';

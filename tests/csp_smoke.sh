@@ -84,18 +84,23 @@ test_csp_url "$BASE_URL/login.html" "Login Interface"
 test_csp_url "$BASE_URL/register.html" "Self-Registration Portal"
 test_csp_url "$BASE_URL/password-reset.html" "Password Reset Portal"
 
-# 2. Authenticated Tab Tests (Dashboard, Users, DNS, Self-Service)
-if [ -n "$TOKEN" ]; then
+# 2. Authenticated Tab Tests via Playwright (tests/csp_smoke.py)
+if [ -n "${ZCLOCK_USER:-}" ] && [ -n "${ZCLOCK_PASS:-}" ]; then
     echo ""
-    echo "Running authenticated tests with session token..."
-    test_csp_url "$BASE_URL/?token=$TOKEN&tab=dashboard" "Authenticated Tab: Dashboard"
-    test_csp_url "$BASE_URL/?token=$TOKEN&tab=users" "Authenticated Tab: Users"
-    test_csp_url "$BASE_URL/?token=$TOKEN&tab=dns" "Authenticated Tab: DNS"
-    test_csp_url "$BASE_URL/?token=$TOKEN&tab=registrations" "Authenticated Tab: Self-Service"
+    echo "Running Playwright authenticated tab smoke tests (tests/csp_smoke.py)..."
+    PYTHON_BIN="python3"
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -x "/Users/atanu/Documents/GitHub/zclockid-private/.venv/bin/python" ]; then
+        PYTHON_BIN="/Users/atanu/Documents/GitHub/zclockid-private/.venv/bin/python"
+    elif [ -n "${VIRTUAL_ENV:-}" ] && [ -x "$VIRTUAL_ENV/bin/python" ]; then
+        PYTHON_BIN="$VIRTUAL_ENV/bin/python"
+    fi
+    "$PYTHON_BIN" "$SCRIPT_DIR/csp_smoke.py" "$HOST"
 else
     echo ""
-    echo "Notice: No session token provided as arg 2; skipping authenticated tab checks."
-    echo "Usage with auth: tests/csp_smoke.sh <host> <token>"
+    echo "Notice: ZCLOCK_USER and ZCLOCK_PASS not set in environment."
+    echo "To run authenticated tab tests via Playwright, provide:"
+    echo "  ZCLOCK_USER=admin ZCLOCK_PASS=... ./tests/csp_smoke.sh $HOST"
 fi
 
 echo "================================================================="

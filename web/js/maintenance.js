@@ -1376,9 +1376,6 @@
                     </div>
                 `;
             }
-                    </div>
-                `;
-            }
         }
 
         async function confirmAndRunUpdate() {

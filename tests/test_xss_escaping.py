@@ -1,5 +1,5 @@
 """
-Tests for v1.3.8 XSS escaping, interim CSP headers, action delegation uniqueness, and SSPR fixes.
+Tests for v1.3.8/v1.3.9 XSS escaping, interim CSP headers, action delegation uniqueness, URL token removal, and SSPR fixes.
 """
 import os
 import re
@@ -61,8 +61,11 @@ def test_escape_html_implementation_in_core_js():
 
 
 def test_no_duplicate_actions_in_core_js_click_handler():
-    """Verify that every data-action handler branch in core.js appears at most once, and control-service reads data-op."""
-    core_js_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../web/js/core.js"))
+    """Verify that every data-action handler branch in core.js appears at most once,
+    every data-action used across web/ has a matching branch in core.js,
+    and control-service reads data-op."""
+    web_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../web"))
+    core_js_path = os.path.join(web_dir, "js", "core.js")
     with open(core_js_path, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -73,11 +76,46 @@ def test_no_duplicate_actions_in_core_js_click_handler():
 
     assert not duplicates, f"Duplicate data-action handler branches found in core.js: {duplicates}"
 
+    # Extract all data-action attributes used across web/
+    used_actions = set()
+    for root, _, files in os.walk(web_dir):
+        for fname in files:
+            if fname.endswith((".html", ".js")):
+                with open(os.path.join(root, fname), "r", encoding="utf-8") as file:
+                    used_actions.update(re.findall(r'data-action=["\']([a-zA-Z0-9_-]+)["\']', file.read()))
+
+    handled_actions = set(action_matches)
+    missing = used_actions - handled_actions
+    assert not missing, f"Missing data-action branches in core.js: {missing}"
+    assert "copy-doh-curl" in handled_actions, "copy-doh-curl branch must be handled in core.js"
+
     # Verify control-service reads data-op, to match dashboard.js
     match = re.search(r"action === ['\"]control-service['\"][\s\S]*?window\.controlService\(([^)]+)\)", content)
     assert match, "control-service action branch not found in core.js"
     args = match.group(1)
     assert "btn.dataset.service" in args and "btn.dataset.op" in args, f"control-service must read btn.dataset.op, found: {args}"
+
+
+def test_no_token_reading_from_url_in_web():
+    """Verify production code never reads session tokens from URLSearchParams or location in web/."""
+    web_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../web"))
+    violations = []
+    for root, _, files in os.walk(web_dir):
+        for fname in sorted(files):
+            if not (fname.endswith(".js") or fname.endswith(".html")):
+                continue
+            fpath = os.path.join(root, fname)
+            rel_path = os.path.relpath(fpath, web_dir)
+            with open(fpath, "r", encoding="utf-8") as file:
+                for idx, line in enumerate(file, 1):
+                    # Check for URLSearchParams or .get('token')
+                    if re.search(r'URLSearchParams.*\.get\([\"\']token[\"\']\)', line) or re.search(r'\.get\([\"\']token[\"\']\)', line):
+                        violations.append(f"{rel_path}:{idx}: {line.strip()}")
+                    elif "location" in line and "token" in line and not line.strip().startswith("//") and "license/download" not in line:
+                        if any(term in line for term in ["getItem", "search", "hash", "pathname", "href.includes", "match", "split"]):
+                            violations.append(f"{rel_path}:{idx}: {line.strip()}")
+
+    assert not violations, f"Found session token reading from URL/location in web/:\n" + "\n".join(violations)
 
 
 def test_nginx_csp_and_security_headers():

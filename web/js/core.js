@@ -47,14 +47,7 @@
         })();
 
         // ==================== AUTHENTICATION GUARD & CLIENT SECURITY ====================
-        let initialAuthToken = localStorage.getItem('zclockid_token');
-        const urlParams = new URLSearchParams(window.location.search);
-        if (!initialAuthToken && urlParams.get('token')) {
-            initialAuthToken = urlParams.get('token');
-            try {
-                localStorage.setItem('zclockid_token', initialAuthToken);
-            } catch (e) {}
-        }
+        const initialAuthToken = localStorage.getItem('zclockid_token');
         if (!initialAuthToken) {
             fetch('/api/v1/setup/status')
                 .then(r => r.json())
@@ -750,6 +743,12 @@
                 const url = el?.textContent?.trim() || `https://${window.location.hostname}/dns-query`;
                 if (typeof window.copyToClipboard === 'function') {
                     window.copyToClipboard(url, 'FQDN DoH URL copied!');
+                }
+            } else if (action === 'copy-doh-curl') {
+                const el = document.getElementById('doh-guide-curl-cmd');
+                const cmd = el?.textContent?.trim() || '';
+                if (typeof window.copyToClipboard === 'function') {
+                    window.copyToClipboard(cmd, 'cURL command copied!');
                 }
             }
         });

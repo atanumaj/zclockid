@@ -1,7 +1,13 @@
         // Initialize dashboard and telemetry polling
         document.addEventListener('DOMContentLoaded', async () => {
+            const VALID_TABS = new Set([
+                'dashboard', 'domain', 'ntp', 'users', 'dns', 'radius', 'sysvol',
+                'azure', 'registrations', 'reports', 'backup', 'snmp', 'update',
+                'rbac', 'apikeys', 'certs', 'syslog', 'federation', 'license'
+            ]);
             const urlParams = new URLSearchParams(window.location.search);
-            const targetTab = urlParams.get('tab') || (window.location.hash || '').replace('#', '') || 'dashboard';
+            const reqTab = (urlParams.get('tab') || (window.location.hash || '').replace('#', '')).toLowerCase();
+            const targetTab = VALID_TABS.has(reqTab) ? reqTab : 'dashboard';
 
             // 1. Asynchronously load modals and active tab
             await Promise.all([loadModals(), ensureTabLoaded(targetTab)]);

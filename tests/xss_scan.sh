@@ -50,6 +50,35 @@ if [ -n "$PYTHON_HITS" ]; then
     VIOLATIONS=$((VIOLATIONS + $(echo "$PYTHON_HITS" | wc -l)))
 fi
 
+# 4. Check that nothing in web/ reads a token from URLSearchParams or location
+URL_TOKEN_HITS=$(python3 -c "
+import os, sys, re
+web_dir = sys.argv[1]
+hits = []
+for root, _, files in os.walk(web_dir):
+    for f in sorted(files):
+        if not (f.endswith('.js') or f.endswith('.html')):
+            continue
+        path = os.path.join(root, f)
+        rel_path = os.path.relpath(path, web_dir)
+        with open(path, 'r', encoding='utf-8') as file:
+            for idx, line in enumerate(file, 1):
+                # Disallow reading token from URL parameters or location object
+                if re.search(r'URLSearchParams.*\.get\([\"\']token[\"\']\)', line) or re.search(r'\.get\([\"\']token[\"\']\)', line):
+                    hits.append(f'{rel_path}:{idx}: {line.strip()}')
+                elif 'location' in line and 'token' in line and not line.strip().startswith('//') and 'license/download' not in line:
+                    if any(term in line for term in ['getItem', 'search', 'hash', 'pathname', 'href.includes', 'match', 'split']):
+                        hits.append(f'{rel_path}:{idx}: {line.strip()}')
+for h in hits:
+    print(h)
+" "$WEB_DIR")
+
+if [ -n "$URL_TOKEN_HITS" ]; then
+    echo "Violation: reading authentication token from URLSearchParams or location:"
+    echo "$URL_TOKEN_HITS"
+    VIOLATIONS=$((VIOLATIONS + $(echo "$URL_TOKEN_HITS" | wc -l)))
+fi
+
 if [ "$VIOLATIONS" -gt 0 ]; then
     echo "Total violations found: $VIOLATIONS"
     exit 1
