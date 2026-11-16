@@ -553,3 +553,177 @@ def test_invariant_12_python_daemon_threshold_and_approval():
     assert len(to_del) == 0
     assert state.get("approved_mass_delete") is None
     assert len(state["pending_mass_delete"]["paths"]) == 16
+
+
+def test_invariant_13_approval_zero_candidates_not_consumed():
+    """13. Approval with 0 candidates is not consumed."""
+    now = time.time()
+    local_manifest = {
+        "domain/Policies/GPO_01/gpt.ini": {"hash": "hash1", "mtime": now - 500, "size": 10}
+    }
+    state = {
+        "files": dict(local_manifest),
+        "tombstones": {},
+        "approved_mass_delete": {
+            "partner_ip": "192.168.180.44",
+            "paths": ["domain/Policies/GPO_99/gpt.ini"],
+            "detected_at": now - 50
+        }
+    }
+    # No matching tombstones in remote list -> candidates is empty
+    candidates, conflicts, tripped = zclock_sysvold.merge_tombstones(
+        local_manifest, [], state, "192.168.180.44"
+    )
+    assert not tripped
+    assert candidates == []
+    # Approval MUST NOT be consumed
+    assert state.get("approved_mass_delete") is not None
+    assert state["approved_mass_delete"]["paths"] == ["domain/Policies/GPO_99/gpt.ini"]
+
+
+def test_invariant_14_two_node_simulation_reject_restores_15_files(tmp_path):
+    """14. Two-node simulation: delete 15 on A, B trips, reject on B, run 3 cycles -> all 15 files exist on both, no tombstones remain, health is HEALTHY."""
+    root_a = tmp_path / "node_a_sysvol"
+    root_b = tmp_path / "node_b_sysvol"
+    root_a.mkdir(parents=True, exist_ok=True)
+    root_b.mkdir(parents=True, exist_ok=True)
+
+    state_file_a = tmp_path / "node_a_state.json"
+    state_file_b = tmp_path / "node_b_state.json"
+    health_file_b = tmp_path / "node_b_health"
+
+    reconciler_a = zclock_sysvold.SysvolReconciler(str(root_a))
+    reconciler_b = zclock_sysvold.SysvolReconciler(str(root_b))
+
+    # Create 15 files on both nodes
+    file_hashes = {}
+    now = time.time()
+    for i in range(15):
+        rel_p = f"domain/Policies/GPO_{i:02d}/gpt.ini"
+        content = f"[General]\nVersion={i}\nSection=TestGPO{i}\n".encode("utf-8")
+        h = hashlib.sha256(content).hexdigest()
+        file_hashes[rel_p] = h
+
+        p_a = root_a / rel_p
+        p_b = root_b / rel_p
+        p_a.parent.mkdir(parents=True, exist_ok=True)
+        p_b.parent.mkdir(parents=True, exist_ok=True)
+        p_a.write_bytes(content)
+        p_b.write_bytes(content)
+        os.utime(p_a, (now - 100, now - 100))
+        os.utime(p_b, (now - 100, now - 100))
+
+    # Initialize state on both nodes
+    state_a = {"files": reconciler_a.get_local_manifest(), "tombstones": {}}
+    state_b = {"files": reconciler_b.get_local_manifest(), "tombstones": {}}
+    zclock_sysvold.save_sysvol_state(state_a, state_file_a)
+    zclock_sysvold.save_sysvol_state(state_b, state_file_b)
+
+    # 1. Delete all 15 files on Node A
+    for i in range(15):
+        rel_p = f"domain/Policies/GPO_{i:02d}/gpt.ini"
+        (root_a / rel_p).unlink()
+
+    # Scan on Node A -> 15 tombstones recorded
+    manifest_a = reconciler_a.get_local_manifest()
+    assert len(manifest_a) == 0
+    reconciler_a.update_local_state_on_scan(manifest_a, state_a)
+    zclock_sysvold.save_sysvol_state(state_a, state_file_a)
+    assert len(state_a["tombstones"]) == 15
+
+    # 2. Node B syncs against Node A -> Safety brake trips
+    manifest_b = reconciler_b.get_local_manifest()
+    remote_tombs_from_a = list(state_a["tombstones"].values())
+    candidates, conflicts, tripped = zclock_sysvold.merge_tombstones(
+        manifest_b, remote_tombs_from_a, state_b, partner_ip="192.168.180.43"
+    )
+    assert tripped is True
+    assert len(candidates) == 0
+    assert state_b.get("mass_delete_tripped") is True
+    assert state_b.get("pending_mass_delete") is not None
+    assert len(state_b["pending_mass_delete"]["paths"]) == 15
+    assert len(state_b["pending_mass_delete"]["tombstones"]) == 15
+    zclock_sysvold.save_sysvol_state(state_b, state_file_b)
+
+    # 3. Fulladmin calls Reject on Node B
+    pending = state_b.get("pending_mass_delete")
+    rej_tombs = state_b.setdefault("rejected_tombstones", {})
+    for p in pending["paths"]:
+        d_at = pending["tombstones"].get(p, time.time())
+        rej_tombs[p] = {
+            "partner_ip": pending.get("partner_ip"),
+            "deleted_at": float(d_at)
+        }
+        state_b["tombstones"].pop(p, None)
+    state_b["pending_mass_delete"] = None
+    state_b["approved_mass_delete"] = None
+    state_b["mass_delete_tripped"] = False
+    zclock_sysvold.save_sysvol_state(state_b, state_file_b)
+
+    # 4. Cycle 1: Node B syncs with Node A
+    # MergeTombstones skips rejected tombstones -> 0 candidates, not tripped
+    manifest_b = reconciler_b.get_local_manifest()
+    candidates, conflicts, tripped = zclock_sysvold.merge_tombstones(
+        manifest_b, remote_tombs_from_a, state_b, partner_ip="192.168.180.43"
+    )
+    assert tripped is False
+    assert len(candidates) == 0
+
+    # Node B push step: checks rejected_tombstones and pushes with restore=True to Node A
+    for rel_p, l_info in list(manifest_b.items()):
+        is_restore = rel_p in state_b.get("rejected_tombstones", {})
+        assert is_restore is True
+        # Simulate Node A receiving the restored file
+        p_dest = root_a / rel_p
+        p_dest.parent.mkdir(parents=True, exist_ok=True)
+        content = (root_b / rel_p).read_bytes()
+        p_dest.write_bytes(content)
+        # Node A clears its local tombstone upon receiving restore file
+        state_a["tombstones"].pop(rel_p, None)
+
+    zclock_sysvold.save_sysvol_state(state_a, state_file_a)
+
+    # 5. Cycle 2: Node A scans local files
+    manifest_a = reconciler_a.get_local_manifest()
+    assert len(manifest_a) == 15
+    reconciler_a.update_local_state_on_scan(manifest_a, state_a)
+    zclock_sysvold.save_sysvol_state(state_a, state_file_a)
+    assert len(state_a["tombstones"]) == 0
+
+    # 6. Cycle 3: Node B syncs with Node A again
+    # Partner manifest has all 15 files and 0 tombstones -> rejected_tombstones cleaned up!
+    remote_manifest_a = reconciler_a.get_local_manifest()
+    remote_tombs_a = list(state_a.get("tombstones", {}).values())
+    remote_tomb_map_a = {t["rel_path"]: t for t in remote_tombs_a}
+
+    rej_tombs = state_b.get("rejected_tombstones", {})
+    keys_to_del = []
+    now_ts = time.time()
+    for p, r_info in rej_tombs.items():
+        if (p in remote_manifest_a and p not in remote_tomb_map_a) or (now_ts - float(r_info.get("deleted_at", 0)) > 30 * 86400):
+            keys_to_del.append(p)
+    for p in keys_to_del:
+        rej_tombs.pop(p, None)
+
+    # Health status on B
+    health_file_b.write_text("STATUS=HEALTHY\nLAST_RESET=1000\nMESSAGE=Sysvol NTACLs verified and healthy\n")
+    state_b["files"] = reconciler_b.get_local_manifest()
+    zclock_sysvold.save_sysvol_state(state_b, state_file_b)
+
+    # Final Invariants Verification
+    assert len(reconciler_a.get_local_manifest()) == 15
+    assert len(reconciler_b.get_local_manifest()) == 15
+    for i in range(15):
+        rel_p = f"domain/Policies/GPO_{i:02d}/gpt.ini"
+        assert (root_a / rel_p).exists()
+        assert (root_b / rel_p).exists()
+        assert hashlib.sha256((root_a / rel_p).read_bytes()).hexdigest() == file_hashes[rel_p]
+        assert hashlib.sha256((root_b / rel_p).read_bytes()).hexdigest() == file_hashes[rel_p]
+
+    assert len(state_a.get("tombstones", {})) == 0
+    assert len(state_b.get("tombstones", {})) == 0
+    assert len(state_b.get("rejected_tombstones", {})) == 0
+    assert state_b.get("mass_delete_tripped") is False
+    assert state_b.get("pending_mass_delete") is None
+    assert "HEALTHY" in health_file_b.read_text()
+

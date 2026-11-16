@@ -1,12 +1,12 @@
 {
-  "version": "1.4.5",
-  "name": "ZclockID Enterprise v1.4.5",
+  "version": "1.4.6",
+  "name": "ZclockID Enterprise v1.4.6",
   "channel": "stable",
   "release_type": "security",
-  "published_at": "2026-11-16T18:30:00Z",
-  "summary": "SYSVOL replication mass-delete brake usability: reviewable pending sets, operator approval/rejection workflows, configurable thresholds, and real user audit logging",
-  "notes": "### What's Changed in v1.4.5:\n* **Configurable Mass-Deletion Safety Brake:** Threshold adjusted to trip only when numToDelete > 50 or (numToDelete > 10 and numToDelete > 20% of totalFiles), configurable via `sysvol_partners.json` settings (`mass_delete_min_files`, `mass_delete_pct`, `mass_delete_max_files`).\n* **Reviewable Pending Set & Approval Flow:** Pending mass deletion set recorded with partner IP, exact paths, and detected_at timestamp (`GET /api/v1/sysvol/mass-delete/pending`). Fulladmin approval (`POST /api/v1/sysvol/mass-delete/confirm`) verifies timestamp and candidate subset before execution. Immediate re-trip if unapproved files appear.\n* **Rejection & Self-Healing Restoration:** Operator rejection (`POST /api/v1/sysvol/mass-delete/reject`) drops pending list, clears tombstones, and protects local files by updating mtime to push back to partner.\n* **Real User Audit Logging:** Strict attribution to authenticated `user['username']` on all Sysvol replication operations.\n* **Interactive Admin UI:** New review modal with full path inspection, approval, and rejection controls.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.5_all.deb",
-  "package_name": "zclockid_1.4.5_all.deb",
+  "published_at": "2026-11-16T20:00:00Z",
+  "summary": "SYSVOL replication mass-delete reject restoration: rejection records, peer push restoration with restore flag, state file locking, and zero-candidate approval preservation",
+  "notes": "### What's Changed in v1.4.6:\n* **Mass-Delete Rejection Restoration:** Rejecting pending mass deletion records rejected tombstones and pushes local protected copies back to the partner with `restore: true`.\n* **Peer File Restoration:** `POST /api/v1/sysvol/file` accepts `restore` flag, writing the file and atomically dropping local tombstones under file lock.\n* **Sysvol State File Locking:** Implemented atomic file locking (`flock` on `.lock` file) across both daemons (Go and Python) and API routers to prevent race conditions during concurrent replication and scan cycles.\n* **Zero-Candidate Approval Preservation:** Preserves approved mass-delete records when candidate lists are empty, ensuring approvals are only consumed when deletions actually take place.\n* **Automated Cleanup:** Safely purges rejected tombstone records once the partner confirms receipt and no longer advertises tombstones, or after 30 days.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.6_all.deb",
+  "package_name": "zclockid_1.4.6_all.deb",
   "min_version_required": "1.0.0"
 }

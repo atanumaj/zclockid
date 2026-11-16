@@ -13,6 +13,8 @@ import secrets
 import hashlib
 import ssl
 import socket
+import fcntl
+from contextlib import contextmanager
 from typing import Dict, Any, List, Optional
 from pathlib import Path
 from api.core.config import (
@@ -73,6 +75,23 @@ def write_partners_file_atomic(data: dict):
         json.dump(data, f, indent=2)
     os.chmod(str(tmp_file), 0o600)
     os.replace(str(tmp_file), str(SYSVOL_PARTNERS_FILE))
+
+
+@contextmanager
+def sysvol_state_lock():
+    """File lock using flock on sysvol_state.json (.lock file) for every read-modify-write."""
+    lock_path = Path(str(SYSVOL_STATE_FILE) + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        os.close(lock_fd)
 
 
 def load_sysvol_state() -> dict:
@@ -484,24 +503,26 @@ def confirm_mass_delete(
     user: dict = Depends(require_role("fulladmin"))
 ):
     """Approves a reviewable pending mass deletion set (requires fulladmin)."""
-    sys_state = load_sysvol_state()
-    pending = sys_state.get("pending_mass_delete")
-    if not pending or not pending.get("paths"):
-        raise HTTPException(status_code=400, detail="No pending mass deletion found to confirm.")
+    with sysvol_state_lock():
+        sys_state = load_sysvol_state()
+        pending = sys_state.get("pending_mass_delete")
+        if not pending or not pending.get("paths"):
+            raise HTTPException(status_code=400, detail="No pending mass deletion found to confirm.")
 
-    pending_detected_at = float(pending.get("detected_at", 0))
-    if abs(float(req.detected_at) - pending_detected_at) > 0.001:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Pending mass deletion timestamp mismatch (requested {req.detected_at}, current {pending_detected_at}). Review latest pending list."
-        )
+        pending_detected_at = float(pending.get("detected_at", 0))
+        if abs(float(req.detected_at) - pending_detected_at) > 0.001:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Pending mass deletion timestamp mismatch (requested {req.detected_at}, current {pending_detected_at}). Review latest pending list."
+            )
 
-    sys_state["approved_mass_delete"] = {
-        "partner_ip": pending.get("partner_ip"),
-        "paths": list(pending.get("paths", [])),
-        "detected_at": pending_detected_at
-    }
-    save_sysvol_state(sys_state)
+        sys_state["approved_mass_delete"] = {
+            "partner_ip": pending.get("partner_ip"),
+            "paths": list(pending.get("paths", [])),
+            "detected_at": pending_detected_at
+        }
+        save_sysvol_state(sys_state)
+
     run_cmd(["systemctl", "restart", "zclock-sysvold"])
     username = user.get("username") or user.get("sub", "unknown")
     log_audit("SYSVOL_MASS_DELETE_CONFIRMED", username, "sysvol", "SUCCESS", {
@@ -518,30 +539,35 @@ def confirm_mass_delete(
 
 @router.post("/mass-delete/reject")
 def reject_mass_delete(user: dict = Depends(require_role("fulladmin"))):
-    """Rejects pending mass deletion: drops pending list, clears local tombstones, and restores local files (requires fulladmin)."""
-    sys_state = load_sysvol_state()
-    pending = sys_state.get("pending_mass_delete")
+    """Rejects pending mass deletion: saves rejected_tombstones, drops pending list, and clears local tombstones (requires fulladmin)."""
     paths_restored = 0
     partner_ip = ""
-    if pending:
-        partner_ip = pending.get("partner_ip", "")
-        paths = pending.get("paths", [])
-        now = time.time()
-        for p in paths:
-            if "tombstones" in sys_state:
-                sys_state["tombstones"].pop(p, None)
-            local_file = PHYSICAL_SYSVOL_DIR / p
-            if local_file.exists():
-                try:
-                    os.utime(str(local_file), (now + 10, now + 10))
-                    paths_restored += 1
-                except Exception:
-                    pass
+    with sysvol_state_lock():
+        sys_state = load_sysvol_state()
+        pending = sys_state.get("pending_mass_delete")
+        if pending:
+            partner_ip = pending.get("partner_ip", "")
+            paths = pending.get("paths", [])
+            pending_tombs = pending.get("tombstones", {})
+            rejected_tombs = sys_state.setdefault("rejected_tombstones", {})
+            for p in paths:
+                if "tombstones" in sys_state:
+                    sys_state["tombstones"].pop(p, None)
+                d_at = pending_tombs.get(p)
+                if isinstance(d_at, dict):
+                    d_at = d_at.get("deleted_at")
+                if d_at is None:
+                    d_at = pending.get("detected_at", time.time())
+                rejected_tombs[p] = {
+                    "partner_ip": partner_ip,
+                    "deleted_at": float(d_at)
+                }
+                paths_restored += 1
 
-    sys_state["pending_mass_delete"] = None
-    sys_state["approved_mass_delete"] = None
-    sys_state["mass_delete_tripped"] = False
-    save_sysvol_state(sys_state)
+        sys_state["pending_mass_delete"] = None
+        sys_state["approved_mass_delete"] = None
+        sys_state["mass_delete_tripped"] = False
+        save_sysvol_state(sys_state)
 
     if SYSVOL_HEALTH_FILE.exists() or SYSVOL_HEALTH_FILE.parent.exists():
         try:
@@ -590,31 +616,32 @@ def get_sysvol_manifest():
                     pass
 
     now = time.time()
-    state = load_sysvol_state()
-    prev_files = state.get("files", {})
-    tombstones = state.get("tombstones", {})
+    with sysvol_state_lock():
+        state = load_sysvol_state()
+        prev_files = state.get("files", {})
+        tombstones = state.get("tombstones", {})
 
-    # Prune tombstones older than 30 days
-    cutoff = now - (30 * 86400)
-    tombstones = {p: t for p, t in tombstones.items() if t.get("deleted_at", 0) > cutoff}
+        # Prune tombstones older than 30 days
+        cutoff = now - (30 * 86400)
+        tombstones = {p: t for p, t in tombstones.items() if t.get("deleted_at", 0) > cutoff}
 
-    # Record tombstones for files in last state but missing locally
-    for p, prev_info in prev_files.items():
-        if p not in manifest and p not in tombstones:
-            tombstones[p] = {
-                "rel_path": p,
-                "deleted_at": now,
-                "hash_at_delete": prev_info.get("hash", "")
-            }
+        # Record tombstones for files in last state but missing locally
+        for p, prev_info in prev_files.items():
+            if p not in manifest and p not in tombstones:
+                tombstones[p] = {
+                    "rel_path": p,
+                    "deleted_at": now,
+                    "hash_at_delete": prev_info.get("hash", "")
+                }
 
-    # Remove tombstone if file is present locally
-    for p in manifest:
-        if p in tombstones:
-            del tombstones[p]
+        # Remove tombstone if file is present locally
+        for p in manifest:
+            if p in tombstones:
+                del tombstones[p]
 
-    state["files"] = manifest
-    state["tombstones"] = tombstones
-    save_sysvol_state(state)
+        state["files"] = manifest
+        state["tombstones"] = tombstones
+        save_sysvol_state(state)
 
     return {
         "manifest": manifest,
@@ -667,11 +694,12 @@ def upload_sysvol_file(req: SysvolFileUploadRequest):
         try: os.utime(target, (req.mtime, req.mtime))
         except: pass
 
-    # Clear tombstone if file is re-created
-    state = load_sysvol_state()
-    if req.rel_path in state.get("tombstones", {}):
-        del state["tombstones"][req.rel_path]
-        save_sysvol_state(state)
+    # Clear tombstone if file is re-created or restored (under file lock)
+    with sysvol_state_lock():
+        state = load_sysvol_state()
+        if req.rel_path in state.get("tombstones", {}):
+            del state["tombstones"][req.rel_path]
+            save_sysvol_state(state)
 
     run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=20)
     return {"status": "success", "rel_path": req.rel_path}
@@ -746,10 +774,11 @@ def admin_upload_sysvol_file(req: SysvolFileUploadRequest, user: dict = Depends(
         try: os.utime(target, (req.mtime, req.mtime))
         except: pass
 
-    state = load_sysvol_state()
-    if req.rel_path in state.get("tombstones", {}):
-        del state["tombstones"][req.rel_path]
-        save_sysvol_state(state)
+    with sysvol_state_lock():
+        state = load_sysvol_state()
+        if req.rel_path in state.get("tombstones", {}):
+            del state["tombstones"][req.rel_path]
+            save_sysvol_state(state)
 
     run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=20)
     username = user.get("username") or user.get("sub", "unknown")

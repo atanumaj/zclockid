@@ -23,6 +23,8 @@ import urllib.request
 import urllib.parse
 import ssl
 import socket
+import fcntl
+from contextlib import contextmanager
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 from threading import Timer, Thread
@@ -115,6 +117,24 @@ def get_local_secret() -> str:
 LOCAL_SECRET = ""
 
 
+@contextmanager
+def sysvol_state_lock(state_file: Optional[Path] = None):
+    """File lock using flock on sysvol_state.json (.lock file) for every read-modify-write."""
+    target = state_file or SYSVOL_STATE_FILE
+    lock_path = Path(str(target) + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
+        os.close(lock_fd)
+
+
 def load_sysvol_state(state_file: Optional[Path] = None) -> dict:
     target_file = state_file or SYSVOL_STATE_FILE
     if target_file.exists():
@@ -182,11 +202,21 @@ def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict,
     total_files = len(local_manifest)
     candidates = []
     conflict_count = 0
+    rejected_tombs = (state.get("rejected_tombstones") or {}) if state else {}
 
     for rt in remote_tombstones:
         rel_p = rt.get("rel_path")
         if not rel_p:
             continue
+
+        # Skip remote tombstones matching rejected_tombstones for this partner
+        if rel_p in rejected_tombs:
+            rej = rejected_tombs[rel_p]
+            if (not rej.get("partner_ip") or not partner_ip or rej.get("partner_ip") == partner_ip) and \
+               abs(float(rej.get("deleted_at", 0)) - float(rt.get("deleted_at", 0))) < 0.001:
+                logger.info(f"Skipping remote tombstone for '{rel_p}' as it was rejected by operator.")
+                continue
+
         l_info = local_manifest.get(rel_p)
         if not l_info:
             if state is not None:
@@ -208,18 +238,21 @@ def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict,
 
     candidates.sort()
 
-    # Check if approved
+    # Check if approved (only consume when len(candidates) > 0)
     if state and state.get("approved_mass_delete"):
         approved = state["approved_mass_delete"]
         app_paths = set(approved.get("paths", []))
         app_partner = approved.get("partner_ip", "")
         if not partner_ip or not app_partner or partner_ip == app_partner:
             if set(candidates).issubset(app_paths):
-                logger.info(f"Mass deletion of {len(candidates)} files approved. Proceeding with deletion.")
-                state["approved_mass_delete"] = None
-                state["pending_mass_delete"] = None
-                state["mass_delete_tripped"] = False
-                return candidates, conflict_count, False
+                if len(candidates) > 0:
+                    logger.info(f"Mass deletion of {len(candidates)} files approved. Proceeding with deletion.")
+                    state["approved_mass_delete"] = None
+                    state["pending_mass_delete"] = None
+                    state["mass_delete_tripped"] = False
+                    return candidates, conflict_count, False
+                else:
+                    logger.info("Approval exists but candidate list is empty; preserving approval.")
             else:
                 logger.warning("Candidates contain unapproved paths. Invalidating prior approval and re-tripping safety brake.")
                 state["approved_mass_delete"] = None
@@ -237,6 +270,11 @@ def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict,
         if state is not None:
             state["mass_delete_tripped"] = True
             now = time.time()
+            cand_tombs = {}
+            for rt in remote_tombstones:
+                p = rt.get("rel_path")
+                if p in candidates:
+                    cand_tombs[p] = float(rt.get("deleted_at", 0))
             existing_pending = state.get("pending_mass_delete")
             paths_match = False
             if existing_pending and existing_pending.get("partner_ip") == partner_ip and set(existing_pending.get("paths", [])) == set(candidates):
@@ -245,8 +283,11 @@ def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict,
                 state["pending_mass_delete"] = {
                     "partner_ip": partner_ip,
                     "paths": candidates,
+                    "tombstones": cand_tombs,
                     "detected_at": now
                 }
+            else:
+                existing_pending["tombstones"] = cand_tombs
         return [], conflict_count, True
 
     if state is not None:
@@ -383,136 +424,154 @@ class SysvolReconciler:
                 remote_manifest = remote_data.get("manifest", {})
                 remote_tombstones = remote_data.get("tombstones", [])
 
-            state = load_sysvol_state()
-            local_manifest = self.get_local_manifest()
-            self.update_local_state_on_scan(local_manifest, state)
-            changed = False
+            with sysvol_state_lock(SYSVOL_STATE_FILE):
+                state = load_sysvol_state()
+                local_manifest = self.get_local_manifest()
+                self.update_local_state_on_scan(local_manifest, state)
+                changed = False
 
-            remote_tomb_map = {t["rel_path"]: t for t in remote_tombstones if t.get("rel_path")}
+                remote_tomb_map = {t["rel_path"]: t for t in remote_tombstones if t.get("rel_path")}
 
-            # 3. Process remote tombstones (deletions)
-            cfg = load_partners_config()
-            had_approval = bool(state.get("approved_mass_delete"))
-            to_delete, _, tripped = merge_tombstones(
-                local_manifest, remote_tombstones, state, partner_ip=p_ip, settings=cfg.get("settings")
-            )
-            if tripped:
-                cnt = len(state.get("pending_mass_delete", {}).get("paths", []))
-                self.record_health("ERROR", time.time(), f"Mass deletion brake tripped: attempted to delete {cnt} files. Confirmation required.")
-                logger.warning(f"Mass deletion safety brake tripped during sync with {p_name}! Deletion skipped.")
-                save_sysvol_state(state)
-            else:
-                if had_approval and not state.get("approved_mass_delete"):
-                    self.record_health("HEALTHY", time.time(), "Operating normally (mass deletion approved and executed)")
-                if to_delete:
-                    for rel_path in to_delete:
-                        dest_path = os.path.join(self.sysvol_path, os.path.normpath(rel_path))
-                        if os.path.exists(dest_path):
+                # Clean up rejected_tombstones if partner manifest lists the file and partner no longer has tombstone, or after 30 days
+                rej_tombs = state.get("rejected_tombstones", {})
+                now_ts = time.time()
+                keys_to_del = []
+                for p, r_info in rej_tombs.items():
+                    if not r_info.get("partner_ip") or not p_ip or r_info.get("partner_ip") == p_ip:
+                        if (p in remote_manifest and p not in remote_tomb_map) or (now_ts - float(r_info.get("deleted_at", 0)) > 30 * 86400):
+                            keys_to_del.append(p)
+                for p in keys_to_del:
+                    rej_tombs.pop(p, None)
+
+                # 3. Process remote tombstones (deletions)
+                cfg = load_partners_config()
+                had_approval = bool(state.get("approved_mass_delete"))
+                to_delete, _, tripped = merge_tombstones(
+                    local_manifest, remote_tombstones, state, partner_ip=p_ip, settings=cfg.get("settings")
+                )
+                if tripped:
+                    cnt = len(state.get("pending_mass_delete", {}).get("paths", []))
+                    self.record_health("ERROR", time.time(), f"Mass deletion brake tripped: attempted to delete {cnt} files. Confirmation required.")
+                    logger.warning(f"Mass deletion safety brake tripped during sync with {p_name}! Deletion skipped.")
+                    save_sysvol_state(state)
+                else:
+                    if had_approval and not state.get("approved_mass_delete"):
+                        self.record_health("HEALTHY", time.time(), "Operating normally (mass deletion approved and executed)")
+                    if to_delete:
+                        for rel_path in to_delete:
+                            dest_path = os.path.join(self.sysvol_path, os.path.normpath(rel_path))
+                            if os.path.exists(dest_path):
+                                try:
+                                    os.remove(dest_path)
+                                    logger.info(f"Deleted local file per peer tombstone: {rel_path}")
+                                    cleanup_empty_dirs(self.sysvol_path, dest_path)
+                                    changed = True
+                                    local_manifest.pop(rel_path, None)
+                                    state.get("files", {}).pop(rel_path, None)
+                                    if rel_path in remote_tomb_map:
+                                        state.setdefault("tombstones", {})[rel_path] = remote_tomb_map[rel_path]
+                                except Exception as e:
+                                    logger.error(f"Failed to delete {dest_path}: {e}")
+
+                # 4. Pull remote files that are newer or missing locally
+                for rel_path, r_info in remote_manifest.items():
+                    clean_rel = os.path.normpath(rel_path)
+                    if clean_rel.startswith("..") or os.path.isabs(clean_rel):
+                        logger.warning(f"Path traversal rejected from remote manifest: {rel_path}")
+                        continue
+
+                    # Never pull if listed in own tombstones unless remote is newer and hash differs
+                    local_tomb = state.get("tombstones", {}).get(rel_path)
+                    if local_tomb:
+                        if not (r_info.get("mtime", 0) > local_tomb.get("deleted_at", 0) and r_info.get("hash") != local_tomb.get("hash_at_delete")):
+                            continue
+                        state["tombstones"].pop(rel_path, None)
+
+                    l_info = local_manifest.get(rel_path)
+                    if not l_info or (r_info["hash"] != l_info["hash"] and r_info["mtime"] > l_info["mtime"]):
+                        logger.info(f"Pulling updated file '{rel_path}' from partner {p_name} ({p_ip})...")
+                        dl_url = f"{url_base}/api/v1/sysvol/file?rel_path={urllib.parse.quote(rel_path)}"
+                        dl_req = urllib.request.Request(dl_url, headers=headers)
+                        with urllib.request.urlopen(dl_req, context=ssl_ctx, timeout=20) as dl_resp:
+                            file_bytes = dl_resp.read(MAX_FILE_SIZE + 1)
+
+                        if len(file_bytes) > MAX_FILE_SIZE:
+                            logger.error(f"File {rel_path} exceeds 50 MB limit. Aborting download.")
+                            continue
+
+                        # Check SHA-256 integrity
+                        dl_hash = hashlib.sha256(file_bytes).hexdigest()
+                        if dl_hash.lower() != r_info.get("hash", "").lower():
+                            logger.error(f"SHA-256 integrity mismatch for {rel_path}: got {dl_hash}, expected {r_info.get('hash')}")
+                            continue
+
+                        dest_path = os.path.join(self.sysvol_path, clean_rel)
+                        if not dest_path.startswith(os.path.abspath(self.sysvol_path)):
+                            continue
+
+                        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                        tmp_dest = dest_path + ".tmp"
+                        with open(tmp_dest, "wb") as fp:
+                            fp.write(file_bytes)
+                        os.replace(tmp_dest, dest_path)
+                        if r_info.get("mtime"):
                             try:
-                                os.remove(dest_path)
-                                logger.info(f"Deleted local file per peer tombstone: {rel_path}")
-                                cleanup_empty_dirs(self.sysvol_path, dest_path)
-                                changed = True
-                                local_manifest.pop(rel_path, None)
-                                state.get("files", {}).pop(rel_path, None)
-                                if rel_path in remote_tomb_map:
-                                    state.setdefault("tombstones", {})[rel_path] = remote_tomb_map[rel_path]
-                            except Exception as e:
-                                logger.error(f"Failed to delete {dest_path}: {e}")
+                                os.utime(dest_path, (r_info["mtime"], r_info["mtime"]))
+                            except Exception:
+                                pass
+                        state.get("tombstones", {}).pop(rel_path, None)
+                        changed = True
 
-            # 4. Pull remote files that are newer or missing locally
-            for rel_path, r_info in remote_manifest.items():
-                clean_rel = os.path.normpath(rel_path)
-                if clean_rel.startswith("..") or os.path.isabs(clean_rel):
-                    logger.warning(f"Path traversal rejected from remote manifest: {rel_path}")
-                    continue
+                # 5. Push local files that are newer or missing remotely
+                for rel_path, l_info in list(local_manifest.items()):
+                    is_restore = False
+                    if state.get("rejected_tombstones") and rel_path in state["rejected_tombstones"]:
+                        rej = state["rejected_tombstones"][rel_path]
+                        if not rej.get("partner_ip") or not p_ip or rej.get("partner_ip") == p_ip:
+                            is_restore = True
 
-                # Never pull if listed in own tombstones unless remote is newer and hash differs
-                local_tomb = state.get("tombstones", {}).get(rel_path)
-                if local_tomb:
-                    if not (r_info.get("mtime", 0) > local_tomb.get("deleted_at", 0) and r_info.get("hash") != local_tomb.get("hash_at_delete")):
-                        continue
-                    state["tombstones"].pop(rel_path, None)
+                    # Do not push if remote partner has a tombstone, unless local file was modified after deletion or is restore
+                    r_tomb = remote_tomb_map.get(rel_path)
+                    if r_tomb and not is_restore:
+                        if not (l_info["mtime"] > r_tomb.get("deleted_at", 0) and l_info["hash"] != r_tomb.get("hash_at_delete")):
+                            continue
 
-                l_info = local_manifest.get(rel_path)
-                if not l_info or (r_info["hash"] != l_info["hash"] and r_info["mtime"] > l_info["mtime"]):
-                    logger.info(f"Pulling updated file '{rel_path}' from partner {p_name} ({p_ip})...")
-                    dl_url = f"{url_base}/api/v1/sysvol/file?rel_path={urllib.parse.quote(rel_path)}"
-                    dl_req = urllib.request.Request(dl_url, headers=headers)
-                    with urllib.request.urlopen(dl_req, context=ssl_ctx, timeout=20) as dl_resp:
-                        file_bytes = dl_resp.read(MAX_FILE_SIZE + 1)
+                    # Do not push if local state has a tombstone, unless local file was modified after deletion or is restore
+                    l_tomb = state.get("tombstones", {}).get(rel_path)
+                    if l_tomb and not is_restore:
+                        if not (l_info["mtime"] > l_tomb.get("deleted_at", 0) and l_info["hash"] != l_tomb.get("hash_at_delete")):
+                            continue
 
-                    if len(file_bytes) > MAX_FILE_SIZE:
-                        logger.error(f"File {rel_path} exceeds 50 MB limit. Aborting download.")
-                        continue
+                    r_info = remote_manifest.get(rel_path)
+                    if is_restore or not r_info or (l_info["hash"] != r_info["hash"] and l_info["mtime"] > r_info["mtime"]):
+                        local_file_path = os.path.join(self.sysvol_path, rel_path)
+                        if not os.path.exists(local_file_path):
+                            continue
+                        logger.info(f"Pushing updated file '{rel_path}' to partner {p_name} ({p_ip}) (restore={is_restore})...")
+                        with open(local_file_path, "rb") as fp:
+                            f_bytes = fp.read()
 
-                    # Check SHA-256 integrity
-                    dl_hash = hashlib.sha256(file_bytes).hexdigest()
-                    if dl_hash.lower() != r_info.get("hash", "").lower():
-                        logger.error(f"SHA-256 integrity mismatch for {rel_path}: got {dl_hash}, expected {r_info.get('hash')}")
-                        continue
-
-                    dest_path = os.path.join(self.sysvol_path, clean_rel)
-                    if not dest_path.startswith(os.path.abspath(self.sysvol_path)):
-                        continue
-
-                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                    tmp_dest = dest_path + ".tmp"
-                    with open(tmp_dest, "wb") as fp:
-                        fp.write(file_bytes)
-                    os.replace(tmp_dest, dest_path)
-                    if r_info.get("mtime"):
-                        try:
-                            os.utime(dest_path, (r_info["mtime"], r_info["mtime"]))
-                        except Exception:
+                        push_url = f"{url_base}/api/v1/sysvol/file"
+                        payload = json.dumps({
+                            "rel_path": rel_path,
+                            "content_base64": f_bytes.hex(),
+                            "sha256": l_info["hash"],
+                            "mtime": l_info["mtime"],
+                            "restore": is_restore
+                        }).encode("utf-8")
+                        push_req = urllib.request.Request(
+                            push_url,
+                            data=payload,
+                            headers={**headers, "Content-Type": "application/json"},
+                            method="POST"
+                        )
+                        with urllib.request.urlopen(push_req, context=ssl_ctx, timeout=20) as p_resp:
                             pass
-                    state.get("tombstones", {}).pop(rel_path, None)
-                    changed = True
+                        changed = True
 
-            # 5. Push local files that are newer or missing remotely
-            for rel_path, l_info in list(local_manifest.items()):
-                # Do not push if remote partner has a tombstone, unless local file was modified after deletion
-                r_tomb = remote_tomb_map.get(rel_path)
-                if r_tomb:
-                    if not (l_info["mtime"] > r_tomb.get("deleted_at", 0) and l_info["hash"] != r_tomb.get("hash_at_delete")):
-                        continue
-
-                # Do not push if local state has a tombstone, unless local file was modified after deletion
-                l_tomb = state.get("tombstones", {}).get(rel_path)
-                if l_tomb:
-                    if not (l_info["mtime"] > l_tomb.get("deleted_at", 0) and l_info["hash"] != l_tomb.get("hash_at_delete")):
-                        continue
-
-                r_info = remote_manifest.get(rel_path)
-                if not r_info or (l_info["hash"] != r_info["hash"] and l_info["mtime"] > r_info["mtime"]):
-                    local_file_path = os.path.join(self.sysvol_path, rel_path)
-                    if not os.path.exists(local_file_path):
-                        continue
-                    logger.info(f"Pushing updated file '{rel_path}' to partner {p_name} ({p_ip})...")
-                    local_file_path = os.path.join(self.sysvol_path, rel_path)
-                    with open(local_file_path, "rb") as fp:
-                        f_bytes = fp.read()
-
-                    push_url = f"{url_base}/api/v1/sysvol/file"
-                    payload = json.dumps({
-                        "rel_path": rel_path,
-                        "content_base64": f_bytes.hex(),
-                        "sha256": l_info["hash"],
-                        "mtime": l_info["mtime"]
-                    }).encode("utf-8")
-                    push_req = urllib.request.Request(
-                        push_url,
-                        data=payload,
-                        headers={**headers, "Content-Type": "application/json"},
-                        method="POST"
-                    )
-                    with urllib.request.urlopen(push_req, context=ssl_ctx, timeout=20) as p_resp:
-                        pass
-                    changed = True
-
-            # Save state
-            state["files"] = self.get_local_manifest()
-            save_sysvol_state(state)
+                # Save state
+                state["files"] = self.get_local_manifest()
+                save_sysvol_state(state)
 
             self.partner_statuses[p_ip] = {
                 "name": p_name,

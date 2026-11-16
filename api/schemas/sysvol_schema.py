@@ -24,3 +24,4 @@ class SysvolFileUploadRequest(BaseModel):
     content_base64: str
     sha256: str = Field(..., example="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
     mtime: Optional[float] = None
+    restore: Optional[bool] = Field(False, description="Whether this file upload is restoring a rejected mass-deleted file")

@@ -323,6 +323,137 @@ func TestMergeTombstones_UnapprovedNewFileTripsAgain(t *testing.T) {
 	}
 }
 
+func TestMergeTombstones_ApprovalZeroCandidatesNotConsumed(t *testing.T) {
+	now := float64(time.Now().Unix())
+
+	localManifest := map[string]FileInfo{
+		"cybertechie.net/scripts/login.bat": {
+			Hash:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			Mtime: now - 500,
+			Size:  10,
+		},
+	}
+
+	state := &SysvolState{
+		Files:      make(map[string]FileInfo),
+		Tombstones: make(map[string]Tombstone),
+		ApprovedMassDelete: &MassDeleteApproved{
+			PartnerIP:  "192.168.180.44",
+			Paths:      []string{"cybertechie.net/scripts/test1.bat", "cybertechie.net/scripts/test2.bat"},
+			DetectedAt: now - 30,
+		},
+	}
+
+	// 0 remote tombstones -> 0 candidates
+	var remoteTombstones []Tombstone
+
+	toDelete, conflicts, tripped := MergeTombstones(localManifest, remoteTombstones, state, "192.168.180.44", nil)
+
+	if tripped {
+		t.Fatalf("Did not expect trip with 0 candidates")
+	}
+	if len(toDelete) != 0 || conflicts != 0 {
+		t.Fatalf("Expected 0 deletions, got %d", len(toDelete))
+	}
+	if state.ApprovedMassDelete == nil {
+		t.Fatalf("Approval with 0 candidates MUST NOT be consumed!")
+	}
+	if len(state.ApprovedMassDelete.Paths) != 2 {
+		t.Errorf("Expected 2 approved paths retained, got %d", len(state.ApprovedMassDelete.Paths))
+	}
+}
+
+func TestMergeTombstones_Reject_NextCycleSkipsAndRestores(t *testing.T) {
+	now := float64(time.Now().Unix())
+
+	// Create 25 local files
+	localManifest := make(map[string]FileInfo)
+	for i := 0; i < 25; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		localManifest[p] = FileInfo{
+			Hash:  fmt.Sprintf("%064d", i),
+			Mtime: now - 500,
+			Size:  10,
+		}
+	}
+
+	// Remote partner sends tombstones for 15 files
+	var remoteTombstones []Tombstone
+	for i := 0; i < 15; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		remoteTombstones = append(remoteTombstones, Tombstone{
+			RelPath:      p,
+			DeletedAt:    now - 10,
+			HashAtDelete: fmt.Sprintf("%064d", i),
+		})
+	}
+
+	state := &SysvolState{
+		Files:              make(map[string]FileInfo),
+		Tombstones:         make(map[string]Tombstone),
+		RejectedTombstones: make(map[string]RejectedTombstone),
+	}
+
+	// 1. Initial cycle: trips mass-delete brake
+	toDelete, _, tripped := MergeTombstones(localManifest, remoteTombstones, state, "192.168.180.44", nil)
+	if !tripped {
+		t.Fatalf("Expected brake to trip on 15 of 25 files")
+	}
+	if len(toDelete) != 0 {
+		t.Fatalf("Expected 0 files deleted when brake trips")
+	}
+	if state.PendingMassDelete == nil || len(state.PendingMassDelete.Tombstones) != 15 {
+		t.Fatalf("Expected PendingMassDelete with 15 tombstones, got %v", state.PendingMassDelete)
+	}
+
+	// 2. Operator rejects: save rejected_tombstones using partner's tombstone deleted_at
+	for p, delAt := range state.PendingMassDelete.Tombstones {
+		state.RejectedTombstones[p] = RejectedTombstone{
+			PartnerIP: "192.168.180.44",
+			DeletedAt: delAt,
+		}
+		delete(state.Tombstones, p)
+	}
+	state.PendingMassDelete = nil
+	state.ApprovedMassDelete = nil
+	state.MassDeleteTripped = false
+
+	// 3. Next cycle: partner STILL advertises unchanged tombstones
+	toDelete2, _, tripped2 := MergeTombstones(localManifest, remoteTombstones, state, "192.168.180.44", nil)
+	if tripped2 {
+		t.Fatalf("Next cycle MUST NOT trip after rejection!")
+	}
+	if len(toDelete2) != 0 {
+		t.Fatalf("Next cycle MUST NOT delete any files after rejection, got %v", toDelete2)
+	}
+	if len(state.Tombstones) != 0 {
+		t.Fatalf("Rejected tombstones must NOT be merged into local state.Tombstones, got %v", state.Tombstones)
+	}
+
+	// 4. Verify push step selects those 15 files with restore=true even if Hash == HashAtDelete
+	restoreCount := 0
+	for relPath, lInfo := range localManifest {
+		isRestore := false
+		if state.RejectedTombstones != nil {
+			if rej, hasRej := state.RejectedTombstones[relPath]; hasRej {
+				if rej.PartnerIP == "" || rej.PartnerIP == "192.168.180.44" {
+					isRestore = true
+				}
+			}
+		}
+		if isRestore {
+			restoreCount++
+			// Even though remote tombstone exists with matching hash, restore overrides skip
+			if lInfo.Hash == "" {
+				t.Errorf("Invalid hash for %s", relPath)
+			}
+		}
+	}
+	if restoreCount != 15 {
+		t.Fatalf("Push step expected 15 files selected with restore=true, got %d", restoreCount)
+	}
+}
+
 func TestMergeTombstones_RejectKeepsFiles(t *testing.T) {
 	now := float64(time.Now().Unix())
 

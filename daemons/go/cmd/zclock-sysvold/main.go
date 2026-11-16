@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -46,6 +47,11 @@ type Tombstone struct {
 	HashAtDelete string  `json:"hash_at_delete"`
 }
 
+type RejectedTombstone struct {
+	PartnerIP string  `json:"partner_ip"`
+	DeletedAt float64 `json:"deleted_at"`
+}
+
 type SysvolSettings struct {
 	MassDeleteMinFiles int     `json:"mass_delete_min_files"`
 	MassDeletePct      float64 `json:"mass_delete_pct"`
@@ -53,9 +59,10 @@ type SysvolSettings struct {
 }
 
 type MassDeletePending struct {
-	PartnerIP  string   `json:"partner_ip"`
-	Paths      []string `json:"paths"`
-	DetectedAt float64  `json:"detected_at"`
+	PartnerIP  string             `json:"partner_ip"`
+	Paths      []string           `json:"paths"`
+	DetectedAt float64            `json:"detected_at"`
+	Tombstones map[string]float64 `json:"tombstones,omitempty"`
 }
 
 type MassDeleteApproved struct {
@@ -65,11 +72,12 @@ type MassDeleteApproved struct {
 }
 
 type SysvolState struct {
-	Files              map[string]FileInfo  `json:"files"`
-	Tombstones         map[string]Tombstone `json:"tombstones"`
-	MassDeleteTripped  bool                 `json:"mass_delete_tripped"`
-	PendingMassDelete  *MassDeletePending   `json:"pending_mass_delete,omitempty"`
-	ApprovedMassDelete *MassDeleteApproved  `json:"approved_mass_delete,omitempty"`
+	Files              map[string]FileInfo          `json:"files"`
+	Tombstones         map[string]Tombstone         `json:"tombstones"`
+	MassDeleteTripped  bool                         `json:"mass_delete_tripped"`
+	PendingMassDelete  *MassDeletePending           `json:"pending_mass_delete,omitempty"`
+	ApprovedMassDelete *MassDeleteApproved          `json:"approved_mass_delete,omitempty"`
+	RejectedTombstones map[string]RejectedTombstone `json:"rejected_tombstones,omitempty"`
 }
 
 type PartnersConfig struct {
@@ -128,10 +136,32 @@ func getOrCreateSecret() string {
 	return sec
 }
 
+func (d *SysvolDaemon) LockState() (*os.File, error) {
+	lockPath := d.statePath + ".lock"
+	_ = os.MkdirAll(filepath.Dir(lockPath), 0700)
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+func (d *SysvolDaemon) UnlockState(f *os.File) {
+	if f != nil {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	}
+}
+
 func (d *SysvolDaemon) LoadState() SysvolState {
 	st := SysvolState{
-		Files:      make(map[string]FileInfo),
-		Tombstones: make(map[string]Tombstone),
+		Files:              make(map[string]FileInfo),
+		Tombstones:         make(map[string]Tombstone),
+		RejectedTombstones: make(map[string]RejectedTombstone),
 	}
 	if data, err := os.ReadFile(d.statePath); err == nil {
 		_ = json.Unmarshal(data, &st)
@@ -140,6 +170,9 @@ func (d *SysvolDaemon) LoadState() SysvolState {
 		}
 		if st.Tombstones == nil {
 			st.Tombstones = make(map[string]Tombstone)
+		}
+		if st.RejectedTombstones == nil {
+			st.RejectedTombstones = make(map[string]RejectedTombstone)
 		}
 	}
 	return st
@@ -200,8 +233,22 @@ func VerifyHash(content []byte, expectedHash string) bool {
 func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombstone, state *SysvolState, partnerIP string, settings *SysvolSettings) (toDelete []string, conflictCount int, tripped bool) {
 	totalFiles := len(localManifest)
 	candidates := make([]string, 0)
+	candTombstones := make(map[string]float64)
 
 	for _, rt := range remoteTombstones {
+		if rt.RelPath == "" {
+			continue
+		}
+
+		// Skip any remote tombstone whose (rel_path, deleted_at) matches an entry in rejected_tombstones for that partner
+		if state != nil && state.RejectedTombstones != nil {
+			if rej, hasRej := state.RejectedTombstones[rt.RelPath]; hasRej {
+				if (partnerIP == "" || rej.PartnerIP == "" || rej.PartnerIP == partnerIP) && math.Abs(rej.DeletedAt-rt.DeletedAt) < 0.001 {
+					continue
+				}
+			}
+		}
+
 		lInfo, exists := localManifest[rt.RelPath]
 		if !exists {
 			if state != nil {
@@ -214,17 +261,19 @@ func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombs
 
 		if lInfo.Hash == rt.HashAtDelete {
 			candidates = append(candidates, rt.RelPath)
+			candTombstones[rt.RelPath] = rt.DeletedAt
 		} else if lInfo.Mtime > rt.DeletedAt {
 			log.Printf("[zclock-sysvold] Conflict for '%s': locally modified after remote deletion (mtime %.0f > deleted_at %.0f). Keeping local copy.", rt.RelPath, lInfo.Mtime, rt.DeletedAt)
 			conflictCount++
 		} else {
 			candidates = append(candidates, rt.RelPath)
+			candTombstones[rt.RelPath] = rt.DeletedAt
 		}
 	}
 
 	sort.Strings(candidates)
 
-	// Check if an approval exists
+	// Check if an approval exists (only consume when len(candidates) > 0)
 	if state != nil && state.ApprovedMassDelete != nil && len(state.ApprovedMassDelete.Paths) > 0 {
 		partnerMatch := partnerIP == "" || state.ApprovedMassDelete.PartnerIP == "" || state.ApprovedMassDelete.PartnerIP == partnerIP
 		if partnerMatch {
@@ -240,13 +289,13 @@ func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombs
 				}
 			}
 
-			if isSubset {
+			if len(candidates) > 0 && isSubset {
 				log.Printf("[zclock-sysvold] Mass deletion of %d files approved. Proceeding with deletion.", len(candidates))
 				state.ApprovedMassDelete = nil
 				state.PendingMassDelete = nil
 				state.MassDeleteTripped = false
 				return candidates, conflictCount, false
-			} else {
+			} else if !isSubset {
 				log.Printf("[zclock-sysvold] Candidates contain unapproved paths. Invalidating prior approval and re-tripping safety brake.")
 				state.ApprovedMassDelete = nil
 			}
@@ -298,6 +347,7 @@ func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombs
 					PartnerIP:  partnerIP,
 					Paths:      candidates,
 					DetectedAt: now,
+					Tombstones: candTombstones,
 				}
 			}
 		}
@@ -607,6 +657,11 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 		return false
 	}
 
+	lockFile, lockErr := d.LockState()
+	if lockErr == nil && lockFile != nil {
+		defer d.UnlockState(lockFile)
+	}
+
 	state := d.LoadState()
 	localManifest := d.GetLocalManifest()
 	d.UpdateLocalStateOnScan(localManifest, &state)
@@ -617,6 +672,25 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 	for _, t := range remoteData.Tombstones {
 		if t.RelPath != "" {
 			remoteTombMap[t.RelPath] = t
+		}
+	}
+
+	// Clean up rejected_tombstones if remote partner lists file again and no longer tombstones it (or >30 days)
+	now := float64(time.Now().Unix())
+	if state.RejectedTombstones != nil {
+		for rPath, rej := range state.RejectedTombstones {
+			if now-rej.DeletedAt > 30*86400 {
+				delete(state.RejectedTombstones, rPath)
+				continue
+			}
+			if rej.PartnerIP == "" || rej.PartnerIP == p.IPAddress {
+				_, hasManifest := remoteData.Manifest[rPath]
+				_, hasTomb := remoteTombMap[rPath]
+				if hasManifest && !hasTomb {
+					log.Printf("[zclock-sysvold] Partner %s confirmed restoration of '%s'. Clearing rejection record.", p.IPAddress, rPath)
+					delete(state.RejectedTombstones, rPath)
+				}
+			}
 		}
 	}
 
@@ -720,35 +794,58 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 		}
 	}
 
-	// 3. Push local files that are missing or newer remotely
+	// 3. Push local files that are missing or newer remotely (or restored per rejection)
 	for relPath, lInfo := range localManifest {
-		// Do not push if remote partner has a tombstone for this file, unless local file was modified after deletion
-		if rTomb, hasRTomb := remoteTombMap[relPath]; hasRTomb {
-			if !(lInfo.Mtime > rTomb.DeletedAt && lInfo.Hash != rTomb.HashAtDelete) {
-				continue
+		isRestore := false
+		if state.RejectedTombstones != nil {
+			if rej, hasRej := state.RejectedTombstones[relPath]; hasRej {
+				if p.IPAddress == "" || rej.PartnerIP == "" || rej.PartnerIP == p.IPAddress {
+					isRestore = true
+				}
 			}
 		}
 
-		// Do not push if local state has a tombstone for this file, unless local file was modified after deletion
-		if lTomb, hasLTomb := state.Tombstones[relPath]; hasLTomb {
-			if !(lInfo.Mtime > lTomb.DeletedAt && lInfo.Hash != lTomb.HashAtDelete) {
-				continue
+		shouldPush := false
+		if isRestore {
+			shouldPush = true
+		} else {
+			// Do not push if remote partner has a tombstone for this file, unless local file was modified after deletion
+			if rTomb, hasRTomb := remoteTombMap[relPath]; hasRTomb {
+				if !(lInfo.Mtime > rTomb.DeletedAt && lInfo.Hash != rTomb.HashAtDelete) {
+					continue
+				}
+			}
+
+			// Do not push if local state has a tombstone for this file, unless local file was modified after deletion
+			if lTomb, hasLTomb := state.Tombstones[relPath]; hasLTomb {
+				if !(lInfo.Mtime > lTomb.DeletedAt && lInfo.Hash != lTomb.HashAtDelete) {
+					continue
+				}
+			}
+
+			rInfo, exists := remoteData.Manifest[relPath]
+			if !exists || (lInfo.Hash != rInfo.Hash && lInfo.Mtime > rInfo.Mtime) {
+				shouldPush = true
 			}
 		}
 
-		rInfo, exists := remoteData.Manifest[relPath]
-		if !exists || (lInfo.Hash != rInfo.Hash && lInfo.Mtime > rInfo.Mtime) {
+		if shouldPush {
 			localFilePath := filepath.Join(d.sysvolPath, relPath)
 			if _, statErr := os.Stat(localFilePath); statErr != nil {
 				continue
 			}
-			log.Printf("[zclock-sysvold] Pushing updated file '%s' to %s (%s)...", relPath, name, p.IPAddress)
+			actionLabel := "Pushing updated"
+			if isRestore {
+				actionLabel = "Restoring rejected"
+			}
+			log.Printf("[zclock-sysvold] %s file '%s' to %s (%s)...", actionLabel, relPath, name, p.IPAddress)
 			if fileData, err := os.ReadFile(localFilePath); err == nil {
 				pushPayload := map[string]interface{}{
 					"rel_path":       relPath,
 					"content_base64": hex.EncodeToString(fileData),
 					"sha256":         lInfo.Hash,
 					"mtime":          lInfo.Mtime,
+					"restore":        isRestore,
 				}
 				jsonPayload, _ := json.Marshal(pushPayload)
 
