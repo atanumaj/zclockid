@@ -29,7 +29,10 @@
                                 <td class="px-4 py-2.5 font-bold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-server text-indigo-400"></i> ${safeName}
                                 </td>
-                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">${safeIp}</td>
+                                <td class="px-4 py-2.5 text-cyan-300 font-semibold">
+                                    <div>${safeIp}</div>
+                                    ${p.cert_fingerprint ? `<div class="text-[9px] text-slate-400 font-mono tracking-tight mt-0.5" title="${escapeHtml(p.cert_fingerprint)}"><i class="fa-solid fa-lock text-emerald-400 text-[8px] mr-1"></i>${escapeHtml(p.cert_fingerprint.substring(0, 23))}...</div>` : ''}
+                                </td>
                                 <td class="px-4 py-2.5">
                                     <span class="px-2 py-0.5 rounded text-[10px] ${p.status === 'IN_SYNC' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}">${safeStatus}</span>
                                 </td>
@@ -81,10 +84,29 @@
             }
         }
 
+        async function probeSysvolTls() {
+            const ip = document.getElementById('sysvol-p-ip-input').value.trim();
+            if (!ip) return alert('Please enter Partner DC IP Address first.');
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/probe-tls?ip=${encodeURIComponent(ip)}`);
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('sysvol-p-fingerprint-input').value = data.fingerprint;
+                    const cnSpan = document.getElementById('sysvol-cert-cn');
+                    if (cnSpan) cnSpan.innerText = `CN: ${data.subject_cn || 'Verified'}`;
+                } else {
+                    alert(`TLS Probe failed: ${data.detail || 'Could not verify peer TLS'}`);
+                }
+            } catch (err) {
+                alert(`Error probing TLS: ${err}`);
+            }
+        }
+
         async function submitAddSysvolPartner() {
             const name = document.getElementById('sysvol-p-name-input').value.trim();
             const ip = document.getElementById('sysvol-p-ip-input').value.trim();
             const secret = document.getElementById('sysvol-p-secret-input').value.trim();
+            const fingerprint = document.getElementById('sysvol-p-fingerprint-input').value.trim();
 
             if (!name || !ip || !secret) return alert('Name, IP, and Secret are required.');
 
@@ -92,7 +114,12 @@
                 const res = await fetch(`${API_BASE}/sysvol/partners`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ name: name, ip_address: ip, shared_secret: secret })
+                    body: JSON.stringify({ 
+                        name: name, 
+                        ip_address: ip, 
+                        shared_secret: secret,
+                        cert_fingerprint: fingerprint || null
+                    })
                 });
                 const data = await res.json();
                 if (res.ok) {

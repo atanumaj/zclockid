@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -30,9 +32,11 @@ type FileInfo struct {
 }
 
 type Partner struct {
-	Name         string `json:"name"`
-	IPAddress    string `json:"ip_address"`
-	SharedSecret string `json:"shared_secret"`
+	Name            string `json:"name"`
+	IPAddress       string `json:"ip_address"`
+	SharedSecret    string `json:"shared_secret"`
+	CertFingerprint string `json:"cert_fingerprint"`
+	CertPEM         string `json:"cert_pem"`
 }
 
 type PartnersConfig struct {
@@ -55,7 +59,6 @@ type SysvolDaemon struct {
 	resetMutex      sync.Mutex
 	partnerStatuses map[string]PartnerStatus
 	statusMutex     sync.RWMutex
-	httpClient      *http.Client
 	localSecret     string
 }
 
@@ -89,15 +92,46 @@ func getOrCreateSecret() string {
 	return sec
 }
 
-func NewSysvolDaemon(sysvolPath string, debounceSec int) *SysvolDaemon {
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+func (d *SysvolDaemon) GetClientForPartner(p Partner) *http.Client {
+	roots := x509.NewCertPool()
+	if p.CertPEM != "" {
+		roots.AppendCertsFromPEM([]byte(p.CertPEM))
 	}
+	certPath := fmt.Sprintf("/etc/zclockid/certs/partner_%s.crt", p.IPAddress)
+	if data, err := os.ReadFile(certPath); err == nil {
+		roots.AppendCertsFromPEM(data)
+	}
+
+	expectedFP := strings.ToLower(strings.ReplaceAll(p.CertFingerprint, ":", ""))
+
+	tlsConfig := &tls.Config{
+		RootCAs: roots,
+		// InsecureSkipVerify is completely removed / false: standard CA/SAN validation occurs,
+		// supplemented by exact SHA-256 fingerprint verification on every connection.
+		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+			if len(rawCerts) == 0 {
+				return fmt.Errorf("no peer certificates presented by %s", p.IPAddress)
+			}
+			fp := sha256.Sum256(rawCerts[0])
+			fpHex := hex.EncodeToString(fp[:])
+			if expectedFP != "" && fpHex != expectedFP {
+				return fmt.Errorf("TLS certificate fingerprint mismatch for %s: got %s, expected %s", p.IPAddress, fpHex, expectedFP)
+			}
+			return nil
+		},
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+	return &http.Client{Transport: tr, Timeout: 25 * time.Second}
+}
+
+func NewSysvolDaemon(sysvolPath string, debounceSec int) *SysvolDaemon {
 	return &SysvolDaemon{
 		sysvolPath:      sysvolPath,
 		debounceSec:     time.Duration(debounceSec) * time.Second,
 		partnerStatuses: make(map[string]PartnerStatus),
-		httpClient:      &http.Client{Transport: tr, Timeout: 25 * time.Second},
 		localSecret:     getOrCreateSecret(),
 	}
 }
@@ -217,13 +251,15 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 	baseURL := fmt.Sprintf("https://%s", p.IPAddress)
 	manifestURL := fmt.Sprintf("%s/api/v1/sysvol/manifest", baseURL)
 
+	client := d.GetClientForPartner(p)
+
 	req, err := http.NewRequest("GET", manifestURL, nil)
 	if err != nil {
 		return false
 	}
 	req.Header.Set("X-Zclock-Sync-Secret", p.SharedSecret)
 
-	resp, err := d.httpClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		errStr := err.Error()
 		d.statusMutex.Lock()
@@ -267,6 +303,16 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 
 	// 1. Pull remote files that are missing or newer
 	for relPath, rInfo := range remoteData.Manifest {
+		cleanRel := filepath.Clean(relPath)
+		if strings.HasPrefix(cleanRel, "..") || filepath.IsAbs(cleanRel) {
+			log.Printf("[zclock-sysvold] Path traversal rejected from remote manifest: %s", relPath)
+			continue
+		}
+		destPath := filepath.Join(d.sysvolPath, cleanRel)
+		if !strings.HasPrefix(destPath, d.sysvolPath) {
+			continue
+		}
+
 		lInfo, exists := localManifest[relPath]
 		if !exists || (rInfo.Hash != lInfo.Hash && rInfo.Mtime > lInfo.Mtime) {
 			log.Printf("[zclock-sysvold] Pulling updated file '%s' from %s (%s)...", relPath, name, p.IPAddress)
@@ -274,9 +320,8 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 			dlReq, _ := http.NewRequest("GET", dlURL, nil)
 			dlReq.Header.Set("X-Zclock-Sync-Secret", p.SharedSecret)
 
-			dlResp, err := d.httpClient.Do(dlReq)
+			dlResp, err := client.Do(dlReq)
 			if err == nil && dlResp.StatusCode == http.StatusOK {
-				destPath := filepath.Join(d.sysvolPath, relPath)
 				_ = os.MkdirAll(filepath.Dir(destPath), 0755)
 
 				tmpPath := destPath + ".tmp"
@@ -310,7 +355,7 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 				pushReq.Header.Set("X-Zclock-Sync-Secret", p.SharedSecret)
 				pushReq.Header.Set("Content-Type", "application/json")
 
-				if pushResp, err := d.httpClient.Do(pushReq); err == nil {
+				if pushResp, err := client.Do(pushReq); err == nil {
 					pushResp.Body.Close()
 					changed = true
 				}

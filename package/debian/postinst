@@ -116,10 +116,14 @@ EOFBIND
         chown root:root /var/lib/zclockid/updates 2>/dev/null || true
         chmod 700 /var/lib/zclockid/updates 2>/dev/null || true
         if [ ! -f /etc/zclockid/certs/appliance.crt ]; then
+            LOCAL_FQDN="$(hostname -f 2>/dev/null || echo 'zclockid.local')"
+            LOCAL_SHORT="$(hostname -s 2>/dev/null || echo 'zclockid')"
+            LOCAL_IP="$(hostname -I 2>/dev/null | awk '{print $1}' || echo '127.0.0.1')"
             openssl req -x509 -nodes -days 1825 -newkey rsa:2048 \
                 -keyout /etc/zclockid/certs/appliance.key \
                 -out /etc/zclockid/certs/appliance.crt \
-                -subj "/CN=$(hostname -f 2>/dev/null || echo 'zclockid.local')/O=ZclockID Enterprise/OU=Appliance" >/dev/null 2>&1 || true
+                -subj "/CN=${LOCAL_FQDN}/O=ZclockID Enterprise/OU=Appliance" \
+                -addext "subjectAltName=DNS:${LOCAL_FQDN},DNS:${LOCAL_SHORT},IP:${LOCAL_IP},IP:127.0.0.1" >/dev/null 2>&1 || true
             chmod 600 /etc/zclockid/certs/appliance.key
         fi
 

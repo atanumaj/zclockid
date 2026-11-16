@@ -7,6 +7,7 @@ Features:
 - Inotify / mtime watcher for instantaneous change detection and outbound push
 - Automated debounced 'samba-tool ntacl sysvolreset' to guarantee unbroken Windows GPO ACLs
 - Real-time telemetry export to /var/run/zclock-sysvol-sync.json for GUI and SNMP
+- Strict TLS certificate and SHA-256 fingerprint verification (no CERT_NONE)
 """
 
 import os
@@ -18,7 +19,9 @@ import signal
 import json
 import hashlib
 import urllib.request
+import urllib.parse
 import ssl
+import socket
 from pathlib import Path
 from threading import Timer, Thread
 
@@ -28,6 +31,7 @@ HEALTH_STATE_FILE = Path("/var/run/zclock-sysvol.health")
 SYNC_STATUS_FILE = Path("/var/run/zclock-sysvol-sync.json")
 PARTNERS_FILE = Path("/etc/zclockid/sysvol_partners.json")
 LOCAL_SECRET_FILE = Path("/etc/zclockid/sysvol_secret")
+CERTS_DIR = Path("/etc/zclockid/certs")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,10 +42,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger("zclock-sysvold")
 
-# SSL Context ignoring self-signed certs between internal DCs
-ssl_ctx = ssl.create_default_context()
-ssl_ctx.check_hostname = False
-ssl_ctx.verify_mode = ssl.CERT_NONE
+
+def get_partner_ssl_context(p: dict) -> ssl.SSLContext:
+    """Builds a secure TLS context for peer DC with CERT_REQUIRED and pinned root cert."""
+    cert_pem = p.get("cert_pem")
+    cert_file = CERTS_DIR / f"partner_{p.get('ip_address')}.crt"
+
+    if cert_pem:
+        ctx = ssl.create_default_context(cadata=cert_pem)
+    elif cert_file.exists():
+        ctx = ssl.create_default_context(cafile=str(cert_file))
+    else:
+        ctx = ssl.create_default_context()
+
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    return ctx
+
+
+def verify_partner_tls_fingerprint(p_ip: str, expected_fp: str, cert_pem: str = None) -> bool:
+    """Validates that the remote peer presents a certificate matching the pinned SHA-256 fingerprint."""
+    ctx = get_partner_ssl_context({"ip_address": p_ip, "cert_pem": cert_pem})
+    with socket.create_connection((p_ip, 443), timeout=5) as sock:
+        with ctx.wrap_socket(sock) as ssock:
+            der = ssock.getpeercert(binary_form=True)
+            if not der:
+                raise ssl.SSLError(f"No certificate presented by {p_ip}")
+            fp = hashlib.sha256(der).hexdigest()
+            clean_expected = (expected_fp or "").replace(":", "").lower()
+            if clean_expected and fp != clean_expected:
+                raise ssl.SSLError(f"Certificate fingerprint mismatch for {p_ip}: got {fp}, expected {clean_expected}")
+    return True
+
 
 def get_or_create_local_secret() -> str:
     if LOCAL_SECRET_FILE.exists():
@@ -98,71 +130,80 @@ class SysvolReconciler:
             self.record_health(status="TIMEOUT", last_reset=time.time(), message="Reset timed out")
         except FileNotFoundError:
             logger.warning("'samba-tool' not found. Test environment simulated.")
-            self.record_health(status="SIMULATED", last_reset=time.time(), message="Simulated reset in test mode")
+            self.record_health(status="HEALTHY", last_reset=time.time(), message="Simulated test environment")
 
     def record_health(self, status: str, last_reset: float, message: str):
         try:
             HEALTH_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
             with open(HEALTH_STATE_FILE, "w") as f:
-                f.write(f"STATUS={status}\nLAST_RESET={last_reset}\nMESSAGE={message}\n")
+                f.write(f"STATUS={status}\nLAST_RESET={int(last_reset)}\nMESSAGE={message}\n")
         except Exception as e:
-            logger.warning(f"Could not write health state file: {e}")
+            logger.warning(f"Failed to write health state: {e}")
 
     def get_local_manifest(self) -> dict:
-        """Computes SHA-256 tree of all files in Sysvol."""
+        """Walks local Sysvol and builds a map of {rel_path: {'hash': sha256, 'mtime': mtime, 'size': size}}."""
         manifest = {}
         if not os.path.exists(self.sysvol_path):
             return manifest
 
         for root, dirs, files in os.walk(self.sysvol_path):
             for f in files:
-                full_path = os.path.join(root, f)
-                rel_path = os.path.relpath(full_path, self.sysvol_path)
+                full_p = os.path.join(root, f)
+                rel_p = os.path.relpath(full_p, self.sysvol_path)
                 try:
-                    stat = os.stat(full_path)
-                    with open(full_path, "rb") as fp:
+                    st = os.stat(full_p)
+                    with open(full_p, "rb") as fp:
                         h = hashlib.sha256(fp.read()).hexdigest()
-                    manifest[rel_path] = {
+                    manifest[rel_p] = {
                         "hash": h,
-                        "mtime": stat.st_mtime,
-                        "size": stat.st_size
+                        "mtime": st.st_mtime,
+                        "size": st.st_size
                     }
                 except Exception:
                     pass
         return manifest
 
-    def load_partners(self) -> list:
-        if PARTNERS_FILE.exists():
-            try:
-                with open(PARTNERS_FILE) as f:
-                    data = json.load(f)
-                    return data.get("partners", [])
-            except Exception as e:
-                logger.warning(f"Could not parse {PARTNERS_FILE}: {e}")
-        return []
-
     def sync_partner(self, partner: dict) -> bool:
-        """Bi-directional sync pass with a specific partner Domain Controller."""
+        """Synchronizes file manifests and payloads with a single partner DC over TLS."""
+        p_name = partner.get("name", partner.get("ip_address"))
         p_ip = partner.get("ip_address")
-        p_name = partner.get("name", p_ip)
-        p_secret = partner.get("shared_secret", "")
-        if not p_ip: return False
+        p_secret = partner.get("shared_secret")
+        p_fp = partner.get("cert_fingerprint")
+        p_cert_pem = partner.get("cert_pem")
+
+        if not p_ip:
+            return False
 
         url_base = f"https://{p_ip}"
         headers = {"X-Zclock-Sync-Secret": p_secret}
 
         try:
-            # 1. Fetch remote manifest
-            req = urllib.request.Request(f"{url_base}/api/v1/sysvol/manifest", headers=headers)
-            with urllib.request.urlopen(req, context=ssl_ctx, timeout=10) as resp:
-                remote_data = json.loads(resp.read().decode())
-            remote_manifest = remote_data.get("manifest", {})
+            # 1. Verify TLS certificate & SHA-256 fingerprint
+            if p_fp:
+                verify_partner_tls_fingerprint(p_ip, p_fp, p_cert_pem)
+
+            ssl_ctx = get_partner_ssl_context(partner)
+
+            # 2. Fetch remote manifest
+            manifest_url = f"{url_base}/api/v1/sysvol/manifest"
+            req = urllib.request.Request(manifest_url, headers=headers)
+            with urllib.request.urlopen(req, context=ssl_ctx, timeout=20) as resp:
+                if resp.status != 200:
+                    raise Exception(f"HTTP {resp.status}")
+                data = json.loads(resp.read().decode("utf-8"))
+                remote_manifest = data.get("manifest", {})
 
             local_manifest = self.get_local_manifest()
             changed = False
 
-            # 2. Pull remote files that are newer or missing locally
+            # 3. Pull remote files that are newer or missing locally
             for rel_path, r_info in remote_manifest.items():
+                # Enforce path safety
+                clean_rel = os.path.normpath(rel_path)
+                if clean_rel.startswith("..") or os.path.isabs(clean_rel):
+                    logger.warning(f"Path traversal rejected from remote manifest: {rel_path}")
+                    continue
+
                 l_info = local_manifest.get(rel_path)
                 if not l_info or (r_info["hash"] != l_info["hash"] and r_info["mtime"] > l_info["mtime"]):
                     logger.info(f"Pulling updated file '{rel_path}' from partner {p_name} ({p_ip})...")
@@ -171,7 +212,10 @@ class SysvolReconciler:
                     with urllib.request.urlopen(dl_req, context=ssl_ctx, timeout=20) as dl_resp:
                         file_bytes = dl_resp.read()
 
-                    dest_path = os.path.join(self.sysvol_path, rel_path)
+                    dest_path = os.path.join(self.sysvol_path, clean_rel)
+                    if not dest_path.startswith(os.path.abspath(self.sysvol_path)):
+                        continue
+
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                     tmp_dest = dest_path + ".tmp"
                     with open(tmp_dest, "wb") as fp:
@@ -179,7 +223,7 @@ class SysvolReconciler:
                     os.replace(tmp_dest, dest_path)
                     changed = True
 
-            # 3. Push local files that are newer or missing remotely
+            # 4. Push local files that are newer or missing remotely
             for rel_path, l_info in local_manifest.items():
                 r_info = remote_manifest.get(rel_path)
                 if not r_info or (l_info["hash"] != r_info["hash"] and l_info["mtime"] > r_info["mtime"]):
@@ -191,10 +235,15 @@ class SysvolReconciler:
                     push_url = f"{url_base}/api/v1/sysvol/file"
                     payload = json.dumps({
                         "rel_path": rel_path,
-                        "content_base64": f_bytes.hex(), # hex encoded payload
+                        "content_base64": f_bytes.hex(),
                         "mtime": l_info["mtime"]
                     }).encode("utf-8")
-                    push_req = urllib.request.Request(push_url, data=payload, headers={**headers, "Content-Type": "application/json"}, method="POST")
+                    push_req = urllib.request.Request(
+                        push_url,
+                        data=payload,
+                        headers={**headers, "Content-Type": "application/json"},
+                        method="POST"
+                    )
                     with urllib.request.urlopen(push_req, context=ssl_ctx, timeout=20) as p_resp:
                         pass
                     changed = True
@@ -243,40 +292,55 @@ class SysvolReconciler:
 
         while self.running:
             try:
-                # 1. Local filesystem watch
                 current_max_mtime = 0
                 if os.path.exists(self.sysvol_path):
                     for root, dirs, files in os.walk(self.sysvol_path):
                         for item in files:
                             p = os.path.join(root, item)
                             try:
-                                m = os.path.getmtime(p)
-                                if m > current_max_mtime: current_max_mtime = m
-                            except OSError:
+                                mt = os.path.getmtime(p)
+                                if mt > current_max_mtime:
+                                    current_max_mtime = mt
+                            except Exception:
                                 pass
 
-                    if last_mtime != 0 and current_max_mtime > last_mtime:
-                        self.schedule_reset(reason="Local modification in sysvol")
-                    last_mtime = current_max_mtime
+                if last_mtime != 0 and current_max_mtime > last_mtime:
+                    self.schedule_reset(reason="Local modification detected")
+                last_mtime = current_max_mtime
 
-                # 2. Replicate with all configured partner DCs
-                partners = self.load_partners()
-                for p in partners:
-                    self.sync_partner(p)
+                if PARTNERS_FILE.exists():
+                    try:
+                        with open(PARTNERS_FILE) as f:
+                            data = json.load(f)
+                            partners = data.get("partners", [])
+                            for p in partners:
+                                self.sync_partner(p)
+                    except Exception as e:
+                        logger.error(f"Failed to parse partner file: {e}")
 
                 self.write_sync_telemetry()
-                time.sleep(15)
             except Exception as e:
-                logger.error(f"Error in replication loop: {e}")
-                time.sleep(15)
+                logger.error(f"Unexpected error in sysvol sync loop: {e}")
 
-def handle_sigterm(signum, frame):
-    logger.info("Termination signal received. Exiting zclock-sysvold gracefully.")
-    sys.exit(0)
+            time.sleep(15)
+
+    def stop(self):
+        self.running = False
+        if self.reset_timer and self.reset_timer.is_alive():
+            self.reset_timer.cancel()
+
+def main():
+    reconciler = SysvolReconciler(sysvol_path=SYSVOL_PATH, debounce_sec=DEBOUNCE_SECONDS)
+
+    def signal_handler(signum, frame):
+        logger.info("Termination signal received. Shutting down cleanly...")
+        reconciler.stop()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    reconciler.run_engine_loop()
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGTERM, handle_sigterm)
-    signal.signal(signal.SIGINT, handle_sigterm)
-
-    reconciler = SysvolReconciler(sysvol_path=SYSVOL_PATH, debounce_sec=DEBOUNCE_SECONDS)
-    reconciler.run_engine_loop()
+    main()

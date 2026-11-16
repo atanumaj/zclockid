@@ -8,36 +8,36 @@ Codename: stable
 Architectures: amd64 all
 Components: main
 Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
-Date: Mon, 16 Nov 2026 14:45:29 UTC
+Date: Mon, 16 Nov 2026 16:50:26 UTC
 MD5Sum:
- be9ccea50593a10328d92b53547b4479 53819 main/binary-amd64/Packages
- 7c72e7eee36a7b915ed60fce699b7c82 5276 main/binary-amd64/Packages.gz
- be9ccea50593a10328d92b53547b4479 53819 main/binary-all/Packages
- 7c72e7eee36a7b915ed60fce699b7c82 5276 main/binary-all/Packages.gz
+ ce7f66632facd2c0351b7ca855b890e1 55101 main/binary-amd64/Packages
+ 584024a9fe7fef13cf8f65facba30ab2 5385 main/binary-amd64/Packages.gz
+ ce7f66632facd2c0351b7ca855b890e1 55101 main/binary-all/Packages
+ 584024a9fe7fef13cf8f65facba30ab2 5385 main/binary-all/Packages.gz
 SHA1:
- 73fa097b3f06275828df5d09af0952b7ff3c2bd5 53819 main/binary-amd64/Packages
- c609e974be1634c7bb9776faa09b4a980fc93871 5276 main/binary-amd64/Packages.gz
- 73fa097b3f06275828df5d09af0952b7ff3c2bd5 53819 main/binary-all/Packages
- c609e974be1634c7bb9776faa09b4a980fc93871 5276 main/binary-all/Packages.gz
+ 11aef9cb15b4f47e51d0ebc6c273f12b4c56a026 55101 main/binary-amd64/Packages
+ bc3c2f4d0c9386549de036abce83cccea76bf197 5385 main/binary-amd64/Packages.gz
+ 11aef9cb15b4f47e51d0ebc6c273f12b4c56a026 55101 main/binary-all/Packages
+ bc3c2f4d0c9386549de036abce83cccea76bf197 5385 main/binary-all/Packages.gz
 SHA256:
- 0f667805468cb8a451d15040e667a8ece3e7e3f9553e2ad1e1cd7aae3fe8f097 53819 main/binary-amd64/Packages
- 814065d36cc948e712d08cbc62aa3142129e2063a6630b7af46f0d9b0e9af9a3 5276 main/binary-amd64/Packages.gz
- 0f667805468cb8a451d15040e667a8ece3e7e3f9553e2ad1e1cd7aae3fe8f097 53819 main/binary-all/Packages
- 814065d36cc948e712d08cbc62aa3142129e2063a6630b7af46f0d9b0e9af9a3 5276 main/binary-all/Packages.gz
+ f8c24fdfd6972631349ab54ebb647501a593d88f0dd4ebf866f1ceb823386355 55101 main/binary-amd64/Packages
+ b04bf07dde2d6b1cbfd6beabcc2e1bff379ac39ff119aea0a696e70276d52be0 5385 main/binary-amd64/Packages.gz
+ f8c24fdfd6972631349ab54ebb647501a593d88f0dd4ebf866f1ceb823386355 55101 main/binary-all/Packages
+ b04bf07dde2d6b1cbfd6beabcc2e1bff379ac39ff119aea0a696e70276d52be0 5385 main/binary-all/Packages.gz
 -----BEGIN PGP SIGNATURE-----
 
-iQJPBAEBCAA5FiEEMpfTscaMhgGUF/DvT0QsNqOTdCkFAmr7FwkbFIAAAAAABAAO
-bWFudTIsMi41KzEuMTIsMCwzAAoJEE9ELDajk3QphHIP/2y8QAEa5NkpyYfMB9Ze
-k9SHTGu2sOPx32IVwTDyvc2XoG+luB9SGzd2v8l2nsd+tv9qRpe4G6VjddSQ85Ga
-6WIVk93nImUp5I6uNqZC0lJxU5zVnFHyhsgrvgXCjZ3tblELw3fKzwDpDOoQ5IOx
-Vwsx/cxUPl/Y254ECcG+kpKiDNysMdniHyS3S7JMkAfT6iGbWSsHWTeOre/BPsbQ
-8ia12tUurv9kWjt/P8HZxSsZkJZgnjSafqflztG2jBXTQCCH7Vf/wJjpDqwaBbgo
-+ts+JXNVaAOdr8Dj0eZunNaSRh0ytFhQTacg3IZUnBs/Zj3OP3DAVIV7JpzzUz44
-3ovzjwrW+a+btEwgLjGaZ0ejYXGCM3oAzDdesfDwd+1M4aztR+rgrvBqrLT4VDBN
-+qbr3uZjOXipD8ga5FSmtmrZjmHfoV4o0YRPEY/06j43SmlQs5bzi04tfpC3qL+2
-UY/8SAWfzBEzVH49yg+A+T2TsXR0JBETL/ExSQC2TX2vl51JWXVBBFO9c74WdW3c
-kFuKDaF+J7S12tKHaBjXC8Y+MFHUfueiyUkWj2E32gBzmCYEKHM2n1aU/hJDWc7S
-8PNSSd7j7Q0957xoq3NKRgFkCQCDB95OIz4QCwXriByMRCGHEO8rZNT1ivN8ks2Q
-GqeNDsb2JRXj40HW14sA1ju0
-=Hn8H
+iQJPBAEBCAA5FiEEMpfTscaMhgGUF/DvT0QsNqOTdCkFAmr7NFIbFIAAAAAABAAO
+bWFudTIsMi41KzEuMTIsMCwzAAoJEE9ELDajk3QpeRsQAM0pPwS7UpPaqIEjqYVe
+SfTQnJLFJuunUTYgdIfbKGGw04+4JTMOC21ND/BDEXAIZ1SxrH6IoH65oP/AFIUJ
+314skqz1oVpxrAggcMtYy/GuwTEsRwujKKdwJV4mXk5JpCOBEUyncEsbzv2olwUy
+BaFPM8h8XkY7xn20jEPRgE6Fg+FuW7tenQRpCsKJznp3D73cDgt2eF9+d7hpzAPL
+WF8TX/xY6wkeTFB0AbRokkbWX0Y3NQU//OIrO8Oqk3+coDi3U6qn7z+u4OmmxSNs
+cVkV4dxf6Q1pD1VHbD4bzQMUIX5fVHdaI/vfB4mU4dbRbB3yi0YD8L00mjdm525N
+qr/LFUj3tSh2yo7Mtx8oyZ9oAjE9TVqwcu5ssUs6q66IlCxTFh1eUORsoweVvYBc
+ImJp0qyDNzCxP5/oGipIOrSDEh9c2/5yFFKoNj2Vj1YhgG5owolj+MdJH4XD1ism
+NRYBTm+QRv4sOeDo4MOvuOL/Cb7GADF4vGbT6FSdUybHkYxkycYqhchNBJvW7wsD
+4G+Sv2lk9/4Vmu8yV1H3geRwf/uMz6jC6VnVkZTPeSyJQOq7v/E0Vp4p4I+SwBcJ
+DWJY+rpGMgV+g9fwB6AgVcA638qHRLXPb4Czn6yNs1wBYVJN7y8W7F+y6mklrqV/
+YHUkY0d2QTnOoo2ngICrHUD7
+=mJN7
 -----END PGP SIGNATURE-----

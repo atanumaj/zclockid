@@ -1,12 +1,12 @@
 {
-  "version": "1.4.2",
-  "name": "ZclockID Enterprise v1.4.2",
+  "version": "1.4.3",
+  "name": "ZclockID Enterprise v1.4.3",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-16T14:40:00Z",
-  "summary": "Fix Sysvol peer replication daemon-to-daemon authorization via X-Zclock-Sync-Secret header",
-  "notes": "### What's Changed in v1.4.2:\n* **Sysvol Peer Sync Authorization Fix:** Replaced global router-level session authentication requirement in api/routers/sysvol.py with fine-grained endpoint security. Added verify_sysvol_sync_access() to allow zclock-sysvold background replication requests using constant-time X-Zclock-Sync-Secret header validation matching /etc/zclockid/sysvol_secret or configured partner shared secrets.\n* **Endpoints Restored:** Peer DC manifest comparison (GET /manifest) and file payload replication (GET/POST /file) now succeed with HTTP 200 rather than HTTP 401 Unauthorized.\n* **Admin Role Protection:** Management endpoints (/status, /partners, /sync-now, /reset-ntacl) remain strictly protected by readonly/operator role session checks.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.2_all.deb",
-  "package_name": "zclockid_1.4.2_all.deb",
+  "release_type": "security",
+  "published_at": "2026-11-16T17:00:00Z",
+  "summary": "Lock down SYSVOL replication with peer IP-secret binding, TLS certificate pinning, and path traversal protection",
+  "notes": "### What's Changed in v1.4.3:\n* **Peer-to-Peer Secret Hardening:** `POST /file`, `GET /file`, and `GET /manifest` accept only the peer sync secret tied strictly to the calling partner IP (via `get_client_ip`). User session tokens and appliance local secrets are rejected on inbound peer replication calls.\n* **Admin UI Separation:** Separate routes added for administrative SYSVOL browsing (`GET /admin/manifest`, `GET/POST /admin/file`) requiring operator (read) and fulladmin (write) with comprehensive audit logging.\n* **TLS Verification & Fingerprint Pinning:** Strict TLS verification enforced across Go and Python daemons (removing `InsecureSkipVerify` and `CERT_NONE`). Domain Controllers pin peer TLS certificate SHA-256 fingerprints and verify on every connection.\n* **Path Traversal Hardening:** Path safety validated strictly via `Path.is_relative_to(safe_root)`, rejecting empty paths, absolute paths, `.tmp` suffixes, and symlinks, with a 50 MB upload limit.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.3_all.deb",
+  "package_name": "zclockid_1.4.3_all.deb",
   "min_version_required": "1.0.0"
 }
