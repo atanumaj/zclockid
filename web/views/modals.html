@@ -1751,6 +1751,46 @@
         </div>
     </div>
 
+    <!-- Sysvol Mass Deletion Review & Approval Modal -->
+    <div id="sysvol-mass-delete-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                    <h3 class="text-sm font-bold text-white">Review Pending Sysvol Mass Deletions</h3>
+                </div>
+                <button onclick="closeMassDeleteReviewModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div class="p-3 bg-rose-950/40 rounded-lg border border-rose-800/40 text-[11px] text-rose-300 leading-relaxed">
+                    A peer synchronization cycle marked the following files for deletion. Review the list carefully before approving. Approving will delete the listed files on the next replication cycle. Rejecting will keep local copies and restore them to the partner DC.
+                </div>
+                <div class="grid grid-cols-2 gap-3 text-[11px] bg-slate-950 p-3 rounded-lg border border-slate-800">
+                    <div><span class="text-slate-400">Partner DC:</span> <span id="mass-del-partner-ip" class="font-mono text-white font-bold"></span></div>
+                    <div><span class="text-slate-400">Detected At:</span> <span id="mass-del-detected-at" class="font-mono text-slate-300"></span></div>
+                    <div><span class="text-slate-400">Pending File Count:</span> <span id="mass-del-count" class="font-mono text-rose-400 font-bold">0</span></div>
+                    <div><span class="text-slate-400">Status:</span> <span class="text-amber-400 font-semibold">Pending Operator Review</span></div>
+                </div>
+                <div>
+                    <label class="text-slate-400 block mb-1">Target Paths for Deletion:</label>
+                    <div id="mass-del-paths-list" class="max-h-48 overflow-y-auto bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-[11px] text-slate-300 space-y-1">
+                    </div>
+                </div>
+                <div class="flex justify-between items-center pt-2 border-t border-slate-800">
+                    <button type="button" onclick="rejectMassDelete()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-800 rounded text-xs font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-xmark"></i> Reject & Restore Files
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeMassDeleteReviewModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Close</button>
+                        <button id="mass-del-approve-btn" type="button" onclick="approveMassDelete()" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-check"></i> Approve Deletions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Create User Modal -->
     <div id="user-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">

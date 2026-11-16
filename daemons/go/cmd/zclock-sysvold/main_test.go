@@ -55,7 +55,7 @@ func TestMergeTombstones_BasicDeletion(t *testing.T) {
 		Tombstones: make(map[string]Tombstone),
 	}
 
-	toDelete, conflicts, tripped := MergeTombstones(localManifest, remoteTombstones, state)
+	toDelete, conflicts, tripped := MergeTombstones(localManifest, remoteTombstones, state, "", nil)
 
 	if tripped {
 		t.Fatalf("Did not expect mass-delete brake to trip for 1 file deletion")
@@ -95,7 +95,7 @@ func TestMergeTombstones_ModifiedBeatsDeleted(t *testing.T) {
 		Tombstones: make(map[string]Tombstone),
 	}
 
-	toDelete, conflicts, tripped := MergeTombstones(localManifest, remoteTombstones, state)
+	toDelete, conflicts, tripped := MergeTombstones(localManifest, remoteTombstones, state, "", nil)
 
 	if tripped {
 		t.Fatalf("Did not expect mass-delete brake to trip")
@@ -108,13 +108,13 @@ func TestMergeTombstones_ModifiedBeatsDeleted(t *testing.T) {
 	}
 }
 
-func TestMergeTombstones_MassDeleteBrake(t *testing.T) {
+func TestMergeTombstones_6of25_DoesNotTrip(t *testing.T) {
 	now := float64(time.Now().Unix())
 
-	// Create 10 local files
+	// Create 25 local files
 	localManifest := make(map[string]FileInfo)
-	for i := 0; i < 10; i++ {
-		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%d}/gpt.ini", i)
+	for i := 0; i < 25; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
 		localManifest[p] = FileInfo{
 			Hash:  fmt.Sprintf("%064d", i),
 			Mtime: now - 500,
@@ -122,11 +122,15 @@ func TestMergeTombstones_MassDeleteBrake(t *testing.T) {
 		}
 	}
 
-	// Remote sends tombstones for 3 files (3/10 = 30% > 20% limit)
-	remoteTombstones := []Tombstone{
-		{RelPath: "cybertechie.net/Policies/{GUID-0}/gpt.ini", DeletedAt: now - 10, HashAtDelete: fmt.Sprintf("%064d", 0)},
-		{RelPath: "cybertechie.net/Policies/{GUID-1}/gpt.ini", DeletedAt: now - 10, HashAtDelete: fmt.Sprintf("%064d", 1)},
-		{RelPath: "cybertechie.net/Policies/{GUID-2}/gpt.ini", DeletedAt: now - 10, HashAtDelete: fmt.Sprintf("%064d", 2)},
+	// 6 deletions out of 25 (6 <= 10, does not trip)
+	var remoteTombstones []Tombstone
+	for i := 0; i < 6; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		remoteTombstones = append(remoteTombstones, Tombstone{
+			RelPath:      p,
+			DeletedAt:    now - 10,
+			HashAtDelete: fmt.Sprintf("%064d", i),
+		})
 	}
 
 	state := &SysvolState{
@@ -134,16 +138,229 @@ func TestMergeTombstones_MassDeleteBrake(t *testing.T) {
 		Tombstones: make(map[string]Tombstone),
 	}
 
-	toDelete, _, tripped := MergeTombstones(localManifest, remoteTombstones, state)
+	toDelete, _, tripped := MergeTombstones(localManifest, remoteTombstones, state, "192.168.180.44", nil)
+
+	if tripped {
+		t.Fatalf("Deleting 6 of 25 files should NOT trip the safety brake (threshold is >10 and >20%%)")
+	}
+	if len(toDelete) != 6 {
+		t.Errorf("Expected 6 files approved for deletion, got %d", len(toDelete))
+	}
+	if state.MassDeleteTripped {
+		t.Errorf("Expected state.MassDeleteTripped to be false")
+	}
+}
+
+func TestMergeTombstones_15of25_Trips(t *testing.T) {
+	now := float64(time.Now().Unix())
+
+	// Create 25 local files
+	localManifest := make(map[string]FileInfo)
+	for i := 0; i < 25; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		localManifest[p] = FileInfo{
+			Hash:  fmt.Sprintf("%064d", i),
+			Mtime: now - 500,
+			Size:  10,
+		}
+	}
+
+	// 15 deletions out of 25 (15 > 10 and 15 > 20% of 25 = 5.0 -> TRIPS)
+	var remoteTombstones []Tombstone
+	for i := 0; i < 15; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		remoteTombstones = append(remoteTombstones, Tombstone{
+			RelPath:      p,
+			DeletedAt:    now - 10,
+			HashAtDelete: fmt.Sprintf("%064d", i),
+		})
+	}
+
+	state := &SysvolState{
+		Files:      make(map[string]FileInfo),
+		Tombstones: make(map[string]Tombstone),
+	}
+
+	toDelete, _, tripped := MergeTombstones(localManifest, remoteTombstones, state, "192.168.180.44", nil)
 
 	if !tripped {
-		t.Errorf("Expected mass-delete brake to trip for 30%% deletion (>20%% limit)")
+		t.Fatalf("Deleting 15 of 25 files MUST trip the safety brake")
 	}
 	if len(toDelete) != 0 {
-		t.Errorf("Expected no files returned for deletion when brake trips, got %v", toDelete)
+		t.Errorf("Expected 0 files deleted when tripped, got %d", len(toDelete))
 	}
 	if !state.MassDeleteTripped {
 		t.Errorf("Expected state.MassDeleteTripped to be true")
+	}
+	if state.PendingMassDelete == nil {
+		t.Fatalf("Expected PendingMassDelete to be recorded")
+	}
+	if len(state.PendingMassDelete.Paths) != 15 {
+		t.Errorf("Expected 15 pending paths, got %d", len(state.PendingMassDelete.Paths))
+	}
+	if state.PendingMassDelete.PartnerIP != "192.168.180.44" {
+		t.Errorf("Expected partner IP 192.168.180.44, got %s", state.PendingMassDelete.PartnerIP)
+	}
+}
+
+func TestMergeTombstones_ApprovalExecutes(t *testing.T) {
+	now := float64(time.Now().Unix())
+
+	localManifest := make(map[string]FileInfo)
+	for i := 0; i < 25; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		localManifest[p] = FileInfo{
+			Hash:  fmt.Sprintf("%064d", i),
+			Mtime: now - 500,
+			Size:  10,
+		}
+	}
+
+	var remoteTombstones []Tombstone
+	var pendingPaths []string
+	for i := 0; i < 15; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		remoteTombstones = append(remoteTombstones, Tombstone{
+			RelPath:      p,
+			DeletedAt:    now - 10,
+			HashAtDelete: fmt.Sprintf("%064d", i),
+		})
+		pendingPaths = append(pendingPaths, p)
+	}
+
+	state := &SysvolState{
+		Files:             make(map[string]FileInfo),
+		Tombstones:        make(map[string]Tombstone),
+		MassDeleteTripped: true,
+		PendingMassDelete: &MassDeletePending{
+			PartnerIP:  "192.168.180.44",
+			Paths:      pendingPaths,
+			DetectedAt: now - 30,
+		},
+		ApprovedMassDelete: &MassDeleteApproved{
+			PartnerIP:  "192.168.180.44",
+			Paths:      pendingPaths,
+			DetectedAt: now - 30,
+		},
+	}
+
+	toDelete, _, tripped := MergeTombstones(localManifest, remoteTombstones, state, "192.168.180.44", nil)
+
+	if tripped {
+		t.Fatalf("Approved deletion should not trip")
+	}
+	if len(toDelete) != 15 {
+		t.Fatalf("Expected exactly 15 files deleted on approval, got %d", len(toDelete))
+	}
+	if state.MassDeleteTripped {
+		t.Errorf("Expected MassDeleteTripped to be reset to false")
+	}
+	if state.ApprovedMassDelete != nil {
+		t.Errorf("Expected ApprovedMassDelete to be cleared")
+	}
+	if state.PendingMassDelete != nil {
+		t.Errorf("Expected PendingMassDelete to be cleared")
+	}
+}
+
+func TestMergeTombstones_UnapprovedNewFileTripsAgain(t *testing.T) {
+	now := float64(time.Now().Unix())
+
+	localManifest := make(map[string]FileInfo)
+	for i := 0; i < 25; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		localManifest[p] = FileInfo{
+			Hash:  fmt.Sprintf("%064d", i),
+			Mtime: now - 500,
+			Size:  10,
+		}
+	}
+
+	var remoteTombstones []Tombstone
+	var approvedPaths []string
+	for i := 0; i < 15; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		remoteTombstones = append(remoteTombstones, Tombstone{
+			RelPath:      p,
+			DeletedAt:    now - 10,
+			HashAtDelete: fmt.Sprintf("%064d", i),
+		})
+		approvedPaths = append(approvedPaths, p)
+	}
+
+	// A 16th file deletion appears that was NOT in the approved list!
+	unapprovedPath := "cybertechie.net/Policies/{GUID-15}/gpt.ini"
+	remoteTombstones = append(remoteTombstones, Tombstone{
+		RelPath:      unapprovedPath,
+		DeletedAt:    now - 5,
+		HashAtDelete: fmt.Sprintf("%064d", 15),
+	})
+
+	state := &SysvolState{
+		Files:             make(map[string]FileInfo),
+		Tombstones:        make(map[string]Tombstone),
+		MassDeleteTripped: true,
+		ApprovedMassDelete: &MassDeleteApproved{
+			PartnerIP:  "192.168.180.44",
+			Paths:      approvedPaths,
+			DetectedAt: now - 30,
+		},
+	}
+
+	toDelete, _, tripped := MergeTombstones(localManifest, remoteTombstones, state, "192.168.180.44", nil)
+
+	if !tripped {
+		t.Fatalf("Expected brake to trip again when an unapproved file is present in candidate deletions")
+	}
+	if len(toDelete) != 0 {
+		t.Fatalf("Expected NO files to be deleted when candidate list has unapproved files, got %d", len(toDelete))
+	}
+	if state.ApprovedMassDelete != nil {
+		t.Errorf("Expected ApprovedMassDelete to be cleared on unapproved path mismatch")
+	}
+	if state.PendingMassDelete == nil || len(state.PendingMassDelete.Paths) != 16 {
+		t.Errorf("Expected PendingMassDelete with all 16 paths, got %v", state.PendingMassDelete)
+	}
+}
+
+func TestMergeTombstones_RejectKeepsFiles(t *testing.T) {
+	now := float64(time.Now().Unix())
+
+	localManifest := make(map[string]FileInfo)
+	for i := 0; i < 25; i++ {
+		p := fmt.Sprintf("cybertechie.net/Policies/{GUID-%02d}/gpt.ini", i)
+		localManifest[p] = FileInfo{
+			Hash:  fmt.Sprintf("%064d", i),
+			Mtime: now - 500,
+			Size:  10,
+		}
+	}
+
+	state := &SysvolState{
+		Files:             make(map[string]FileInfo),
+		Tombstones:        make(map[string]Tombstone),
+		MassDeleteTripped: true,
+		PendingMassDelete: &MassDeletePending{
+			PartnerIP:  "192.168.180.44",
+			Paths:      []string{"cybertechie.net/Policies/{GUID-00}/gpt.ini"},
+			DetectedAt: now - 30,
+		},
+	}
+
+	// Operator rejects: pending is cleared, approved is cleared, mass_delete_tripped is cleared, tombstones cleared
+	state.PendingMassDelete = nil
+	state.ApprovedMassDelete = nil
+	state.MassDeleteTripped = false
+	delete(state.Tombstones, "cybertechie.net/Policies/{GUID-00}/gpt.ini")
+
+	if state.MassDeleteTripped {
+		t.Errorf("Expected MassDeleteTripped to be false after rejection")
+	}
+	if state.PendingMassDelete != nil {
+		t.Errorf("Expected PendingMassDelete to be nil after rejection")
+	}
+	if len(localManifest) != 25 {
+		t.Errorf("Expected all 25 files kept, got %d", len(localManifest))
 	}
 }
 

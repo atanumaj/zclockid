@@ -23,7 +23,12 @@ from api.core.config import (
 from api.services.system_service import run_cmd, log_audit
 from api.services.security_service import get_client_ip
 from api.routers.auth import require_role, get_session_user
-from api.schemas.sysvol_schema import SysvolPartnerRequest, SysvolFileUploadRequest, SysvolRepinRequest
+from api.schemas.sysvol_schema import (
+    SysvolPartnerRequest,
+    SysvolFileUploadRequest,
+    SysvolRepinRequest,
+    SysvolMassDeleteConfirmRequest
+)
 
 router = APIRouter(prefix="/api/v1/sysvol", tags=["Sysvol Replication & NTACL"])
 
@@ -309,8 +314,8 @@ def list_sysvol_partners():
     return {"count": len(res), "partners": res}
 
 
-@router.post("/partners", dependencies=[Depends(require_role("operator"))])
-def add_sysvol_partner(req: SysvolPartnerRequest):
+@router.post("/partners")
+def add_sysvol_partner(req: SysvolPartnerRequest, user: dict = Depends(require_role("operator"))):
     """Registers an additional Domain Controller with mutual secret and pinned TLS certificate fingerprint."""
     probe = None
     try:
@@ -364,7 +369,8 @@ def add_sysvol_partner(req: SysvolPartnerRequest):
     write_partners_file_atomic({"partners": existing})
 
     run_cmd(["systemctl", "restart", "zclock-sysvold"])
-    log_audit("SYSVOL_PARTNER_ADDED", "admin", req.ip_address, "SUCCESS", {
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_PARTNER_ADDED", username, req.ip_address, "SUCCESS", {
         "name": req.name,
         "fingerprint": partner_dict.get("cert_fingerprint")
     })
@@ -421,7 +427,8 @@ def repin_sysvol_partner(partner_ip: str, req: Optional[SysvolRepinRequest] = No
 
     write_partners_file_atomic({"partners": partners})
     run_cmd(["systemctl", "restart", "zclock-sysvold"])
-    log_audit("SYSVOL_PARTNER_REPINNED", user.get("sub", "admin"), partner_ip, "SUCCESS", {
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_PARTNER_REPINNED", username, partner_ip, "SUCCESS", {
         "old_fingerprint": old_fp,
         "new_fingerprint": new_fp
     })
@@ -432,8 +439,8 @@ def repin_sysvol_partner(partner_ip: str, req: Optional[SysvolRepinRequest] = No
     }
 
 
-@router.delete("/partners/{partner_ip}", dependencies=[Depends(require_role("operator"))])
-def delete_sysvol_partner(partner_ip: str):
+@router.delete("/partners/{partner_ip}")
+def delete_sysvol_partner(partner_ip: str, user: dict = Depends(require_role("operator"))):
     """Unregisters a Domain Controller from the Sysvol replication mesh."""
     if SYSVOL_PARTNERS_FILE.exists():
         try:
@@ -446,20 +453,113 @@ def delete_sysvol_partner(partner_ip: str):
             cert_file.unlink(missing_ok=True)
 
             run_cmd(["systemctl", "restart", "zclock-sysvold"])
+            username = user.get("username") or user.get("sub", "unknown")
+            log_audit("SYSVOL_PARTNER_REMOVED", username, partner_ip, "SUCCESS", {})
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     return {"status": "success", "message": f"Partner {partner_ip} removed."}
 
 
-@router.post("/mass-delete/confirm", dependencies=[Depends(require_role("operator"))])
-def confirm_mass_delete():
-    """Resets the mass-delete brake after operator review and triggers synchronization."""
+@router.get("/mass-delete/pending")
+def get_pending_mass_delete(user: dict = Depends(require_role("operator"))):
+    """Returns the reviewable pending mass deletion set (requires operator)."""
     sys_state = load_sysvol_state()
-    sys_state["mass_delete_tripped"] = False
+    pending = sys_state.get("pending_mass_delete")
+    if not pending or not pending.get("paths"):
+        return {"has_pending": False, "pending": None}
+    return {
+        "has_pending": True,
+        "pending": {
+            "partner_ip": pending.get("partner_ip"),
+            "paths": pending.get("paths", []),
+            "detected_at": pending.get("detected_at"),
+            "count": len(pending.get("paths", []))
+        }
+    }
+
+
+@router.post("/mass-delete/confirm")
+def confirm_mass_delete(
+    req: SysvolMassDeleteConfirmRequest,
+    user: dict = Depends(require_role("fulladmin"))
+):
+    """Approves a reviewable pending mass deletion set (requires fulladmin)."""
+    sys_state = load_sysvol_state()
+    pending = sys_state.get("pending_mass_delete")
+    if not pending or not pending.get("paths"):
+        raise HTTPException(status_code=400, detail="No pending mass deletion found to confirm.")
+
+    pending_detected_at = float(pending.get("detected_at", 0))
+    if abs(float(req.detected_at) - pending_detected_at) > 0.001:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Pending mass deletion timestamp mismatch (requested {req.detected_at}, current {pending_detected_at}). Review latest pending list."
+        )
+
+    sys_state["approved_mass_delete"] = {
+        "partner_ip": pending.get("partner_ip"),
+        "paths": list(pending.get("paths", [])),
+        "detected_at": pending_detected_at
+    }
     save_sysvol_state(sys_state)
     run_cmd(["systemctl", "restart", "zclock-sysvold"])
-    log_audit("SYSVOL_MASS_DELETE_CONFIRMED", "admin", "sysvol", "SUCCESS", {})
-    return {"status": "success", "message": "Mass deletion safety brake cleared. Replication resumed."}
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_MASS_DELETE_CONFIRMED", username, "sysvol", "SUCCESS", {
+        "detected_at": req.detected_at,
+        "paths_count": len(pending.get("paths", [])),
+        "partner_ip": pending.get("partner_ip")
+    })
+    return {
+        "status": "success",
+        "message": f"Approved mass deletion of {len(pending.get('paths', []))} files. Deletions will proceed on next sync.",
+        "approved_count": len(pending.get("paths", []))
+    }
+
+
+@router.post("/mass-delete/reject")
+def reject_mass_delete(user: dict = Depends(require_role("fulladmin"))):
+    """Rejects pending mass deletion: drops pending list, clears local tombstones, and restores local files (requires fulladmin)."""
+    sys_state = load_sysvol_state()
+    pending = sys_state.get("pending_mass_delete")
+    paths_restored = 0
+    partner_ip = ""
+    if pending:
+        partner_ip = pending.get("partner_ip", "")
+        paths = pending.get("paths", [])
+        now = time.time()
+        for p in paths:
+            if "tombstones" in sys_state:
+                sys_state["tombstones"].pop(p, None)
+            local_file = PHYSICAL_SYSVOL_DIR / p
+            if local_file.exists():
+                try:
+                    os.utime(str(local_file), (now + 10, now + 10))
+                    paths_restored += 1
+                except Exception:
+                    pass
+
+    sys_state["pending_mass_delete"] = None
+    sys_state["approved_mass_delete"] = None
+    sys_state["mass_delete_tripped"] = False
+    save_sysvol_state(sys_state)
+
+    if SYSVOL_HEALTH_FILE.exists() or SYSVOL_HEALTH_FILE.parent.exists():
+        try:
+            SYSVOL_HEALTH_FILE.write_text(f"STATUS=HEALTHY\nLAST_RESET={int(time.time())}\nMESSAGE=Operating normally (mass deletion rejected, files restored)\n")
+        except Exception:
+            pass
+
+    run_cmd(["systemctl", "restart", "zclock-sysvold"])
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_MASS_DELETE_REJECTED", username, "sysvol", "SUCCESS", {
+        "paths_restored": paths_restored,
+        "partner_ip": partner_ip
+    })
+    return {
+        "status": "success",
+        "message": f"Mass deletion rejected. {paths_restored} local files restored and protected.",
+        "restored_count": paths_restored
+    }
 
 
 @router.post("/sync-now", dependencies=[Depends(require_role("operator"))])
@@ -596,7 +696,8 @@ def admin_get_sysvol_manifest(user: dict = Depends(require_role("operator"))):
                     manifest[rel_p] = {"hash": h, "mtime": st.st_mtime, "size": st.st_size}
                 except Exception:
                     pass
-    log_audit("SYSVOL_ADMIN_MANIFEST_READ", user.get("sub", "admin"), "sysvol", "SUCCESS", {})
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_ADMIN_MANIFEST_READ", username, "sysvol", "SUCCESS", {})
     return {"manifest": manifest, "timestamp": time.time()}
 
 
@@ -607,7 +708,8 @@ def admin_download_sysvol_file(rel_path: str, user: dict = Depends(require_role(
     target = validate_sysvol_path(rel_path, safe_root)
     if not target.is_file():
         raise HTTPException(status_code=404, detail="File not found in Sysvol.")
-    log_audit("SYSVOL_ADMIN_FILE_READ", user.get("sub", "admin"), rel_path, "SUCCESS", {})
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_ADMIN_FILE_READ", username, rel_path, "SUCCESS", {})
     with open(target, "rb") as fp:
         content = fp.read()
     return PlainTextResponse(content, media_type="application/octet-stream")
@@ -650,15 +752,17 @@ def admin_upload_sysvol_file(req: SysvolFileUploadRequest, user: dict = Depends(
         save_sysvol_state(state)
 
     run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=20)
-    log_audit("SYSVOL_ADMIN_FILE_WRITE", user.get("sub", "admin"), req.rel_path, "SUCCESS", {})
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_ADMIN_FILE_WRITE", username, req.rel_path, "SUCCESS", {})
     return {"status": "success", "rel_path": req.rel_path}
 
 
-@router.post("/reset-ntacl", dependencies=[Depends(require_role("operator"))])
-def reset_sysvol_ntacl():
+@router.post("/reset-ntacl")
+def reset_sysvol_ntacl(user: dict = Depends(require_role("operator"))):
     """Forces 'samba-tool ntacl sysvolreset' to restore Windows ACLs across all GPOs."""
     code, stdout, stderr = run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=45)
-    log_audit("SYSVOL_NTACL_RESET", "admin", "sysvol", "SUCCESS" if code == 0 else "FAILED", {"code": code})
+    username = user.get("username") or user.get("sub", "unknown")
+    log_audit("SYSVOL_NTACL_RESET", username, "sysvol", "SUCCESS" if code == 0 else "FAILED", {"code": code})
     return {
         "status": "success" if code == 0 else "error",
         "message": "samba-tool ntacl sysvolreset completed. Windows ACLs restored." if code == 0 else stderr

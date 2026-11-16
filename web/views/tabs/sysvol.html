@@ -4,12 +4,17 @@
                         <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xl"></i>
                         <div>
                             <div class="font-bold text-rose-300">Safety Brake Tripped: High-Volume Sysvol Deletions Suspended</div>
-                            <div class="text-rose-400/80 text-[11px]">A sync cycle targeted more than 20% or &gt;50 files for deletion. Deletions are halted across all peers until manually confirmed by an administrator.</div>
+                            <div class="text-rose-400/80 text-[11px]">A sync cycle targeted more than 20% or &gt;50 files for deletion. Deletions are halted until approved or rejected by an administrator.</div>
                         </div>
                     </div>
-                    <button onclick="confirmMassDelete()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs shadow-lg transition flex items-center gap-1.5 shrink-0">
-                        <i class="fa-solid fa-check"></i> Confirm Deletions & Resume
-                    </button>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="openMassDeleteReviewModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs shadow-lg transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-check"></i> Review & Approve
+                        </button>
+                        <button onclick="rejectMassDelete()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-800 rounded-lg font-semibold text-xs transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-xmark"></i> Reject & Restore
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Status & Architecture Card -->

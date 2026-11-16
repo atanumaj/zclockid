@@ -16,6 +16,9 @@ class SysvolPartnerRequest(BaseModel):
 class SysvolRepinRequest(BaseModel):
     confirm: Optional[bool] = Field(False, description="Confirm re-pinning of newly probed peer certificate")
 
+class SysvolMassDeleteConfirmRequest(BaseModel):
+    detected_at: float = Field(..., description="The detected_at timestamp of the pending mass delete being confirmed")
+
 class SysvolFileUploadRequest(BaseModel):
     rel_path: str = Field(..., example="example.com/Policies/{GUID}/GPT.INI")
     content_base64: str

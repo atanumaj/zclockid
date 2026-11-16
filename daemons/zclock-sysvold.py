@@ -166,7 +166,18 @@ def cleanup_empty_dirs(sysvol_path: str, file_path: str):
             break
 
 
-def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict) -> tuple:
+def load_partners_config() -> dict:
+    for p in [PARTNERS_FILE, Path("/zclockid/config/sysvol_partners.json")]:
+        if p.exists():
+            try:
+                with open(p) as f:
+                    return json.load(f)
+            except Exception:
+                pass
+    return {}
+
+
+def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict, partner_ip: str = "", settings: dict = None) -> tuple:
     """Merges remote tombstones and evaluates mass-delete brake. Returns (candidates_to_delete, conflict_count, tripped)."""
     total_files = len(local_manifest)
     candidates = []
@@ -178,7 +189,7 @@ def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict)
             continue
         l_info = local_manifest.get(rel_p)
         if not l_info:
-            if state:
+            if state is not None:
                 existing = state.get("tombstones", {}).get(rel_p)
                 if not existing or rt.get("deleted_at", 0) > existing.get("deleted_at", 0):
                     state.setdefault("tombstones", {})[rel_p] = rt
@@ -195,11 +206,52 @@ def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict)
         else:
             candidates.append(rel_p)
 
+    candidates.sort()
+
+    # Check if approved
+    if state and state.get("approved_mass_delete"):
+        approved = state["approved_mass_delete"]
+        app_paths = set(approved.get("paths", []))
+        app_partner = approved.get("partner_ip", "")
+        if not partner_ip or not app_partner or partner_ip == app_partner:
+            if set(candidates).issubset(app_paths):
+                logger.info(f"Mass deletion of {len(candidates)} files approved. Proceeding with deletion.")
+                state["approved_mass_delete"] = None
+                state["pending_mass_delete"] = None
+                state["mass_delete_tripped"] = False
+                return candidates, conflict_count, False
+            else:
+                logger.warning("Candidates contain unapproved paths. Invalidating prior approval and re-tripping safety brake.")
+                state["approved_mass_delete"] = None
+
+    # Load thresholds
+    cfg_settings = settings or {}
+    min_files = cfg_settings.get("mass_delete_min_files", 10)
+    pct = cfg_settings.get("mass_delete_pct", 20.0)
+    max_files = cfg_settings.get("mass_delete_max_files", 50)
+
     num_to_delete = len(candidates)
-    if num_to_delete > 50 or (total_files > 0 and num_to_delete > 1 and num_to_delete > 0.20 * total_files):
+    tripped = num_to_delete > max_files or (total_files > 0 and num_to_delete > min_files and num_to_delete > (pct / 100.0) * total_files)
+
+    if tripped:
         if state is not None:
             state["mass_delete_tripped"] = True
+            now = time.time()
+            existing_pending = state.get("pending_mass_delete")
+            paths_match = False
+            if existing_pending and existing_pending.get("partner_ip") == partner_ip and set(existing_pending.get("paths", [])) == set(candidates):
+                paths_match = True
+            if not paths_match:
+                state["pending_mass_delete"] = {
+                    "partner_ip": partner_ip,
+                    "paths": candidates,
+                    "detected_at": now
+                }
         return [], conflict_count, True
+
+    if state is not None:
+        state["mass_delete_tripped"] = False
+        state["pending_mass_delete"] = None
 
     return candidates, conflict_count, False
 
@@ -339,25 +391,34 @@ class SysvolReconciler:
             remote_tomb_map = {t["rel_path"]: t for t in remote_tombstones if t.get("rel_path")}
 
             # 3. Process remote tombstones (deletions)
-            to_delete, _, tripped = merge_tombstones(local_manifest, remote_tombstones, state)
+            cfg = load_partners_config()
+            had_approval = bool(state.get("approved_mass_delete"))
+            to_delete, _, tripped = merge_tombstones(
+                local_manifest, remote_tombstones, state, partner_ip=p_ip, settings=cfg.get("settings")
+            )
             if tripped:
-                self.record_health("ERROR", time.time(), f"Mass deletion brake tripped: attempted to delete {len(to_delete)} files. Confirmation required.")
+                cnt = len(state.get("pending_mass_delete", {}).get("paths", []))
+                self.record_health("ERROR", time.time(), f"Mass deletion brake tripped: attempted to delete {cnt} files. Confirmation required.")
                 logger.warning(f"Mass deletion safety brake tripped during sync with {p_name}! Deletion skipped.")
-            elif to_delete:
-                for rel_path in to_delete:
-                    dest_path = os.path.join(self.sysvol_path, os.path.normpath(rel_path))
-                    if os.path.exists(dest_path):
-                        try:
-                            os.remove(dest_path)
-                            logger.info(f"Deleted local file per peer tombstone: {rel_path}")
-                            cleanup_empty_dirs(self.sysvol_path, dest_path)
-                            changed = True
-                            local_manifest.pop(rel_path, None)
-                            state.get("files", {}).pop(rel_path, None)
-                            if rel_path in remote_tomb_map:
-                                state.setdefault("tombstones", {})[rel_path] = remote_tomb_map[rel_path]
-                        except Exception as e:
-                            logger.error(f"Failed to delete {dest_path}: {e}")
+                save_sysvol_state(state)
+            else:
+                if had_approval and not state.get("approved_mass_delete"):
+                    self.record_health("HEALTHY", time.time(), "Operating normally (mass deletion approved and executed)")
+                if to_delete:
+                    for rel_path in to_delete:
+                        dest_path = os.path.join(self.sysvol_path, os.path.normpath(rel_path))
+                        if os.path.exists(dest_path):
+                            try:
+                                os.remove(dest_path)
+                                logger.info(f"Deleted local file per peer tombstone: {rel_path}")
+                                cleanup_empty_dirs(self.sysvol_path, dest_path)
+                                changed = True
+                                local_manifest.pop(rel_path, None)
+                                state.get("files", {}).pop(rel_path, None)
+                                if rel_path in remote_tomb_map:
+                                    state.setdefault("tombstones", {})[rel_path] = remote_tomb_map[rel_path]
+                            except Exception as e:
+                                logger.error(f"Failed to delete {dest_path}: {e}")
 
             # 4. Pull remote files that are newer or missing locally
             for rel_path, r_info in remote_manifest.items():

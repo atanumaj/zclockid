@@ -426,3 +426,130 @@ def test_invariant_10_repin_rbac_enforcement(client, sysvol_nodes, auth_sessions
     assert resp_fa.status_code == 200
     assert resp_fa.json()["status"] == "success"
     assert resp_fa.json()["cert_fingerprint"] == "99:88:77:66:55"
+
+
+def test_invariant_11_mass_delete_pending_and_rbac_flow(client, sysvol_nodes, auth_sessions_db):
+    """11. Mass delete pending list, operator 403 on confirm/reject, 409 on timestamp mismatch, fulladmin confirm/reject."""
+    state_file = sysvol_nodes["state_a"]
+    test_detected_at = 1700000000.0
+    pending_paths = ["cybertechie.net/Policies/{GPO-1}/gpt.ini", "cybertechie.net/Policies/{GPO-2}/gpt.ini"]
+
+    state = {
+        "files": {},
+        "tombstones": {},
+        "mass_delete_tripped": True,
+        "pending_mass_delete": {
+            "partner_ip": "192.168.180.44",
+            "paths": pending_paths,
+            "detected_at": test_detected_at
+        }
+    }
+    state_file.write_text(json.dumps(state))
+
+    # 1. Readonly on pending -> 403
+    ro_headers = {"Authorization": f"Bearer {auth_sessions_db['readonly']}"}
+    r = client.get("/api/v1/sysvol/mass-delete/pending", headers=ro_headers)
+    assert r.status_code == 403
+
+    # 2. Operator on pending -> 200 with list
+    op_headers = {"Authorization": f"Bearer {auth_sessions_db['operator']}"}
+    r = client.get("/api/v1/sysvol/mass-delete/pending", headers=op_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["has_pending"] is True
+    assert data["pending"]["count"] == 2
+    assert data["pending"]["paths"] == pending_paths
+    assert data["pending"]["detected_at"] == test_detected_at
+
+    # 3. Operator on confirm -> 403 (requires fulladmin)
+    r = client.post("/api/v1/sysvol/mass-delete/confirm", json={"detected_at": test_detected_at}, headers=op_headers)
+    assert r.status_code == 403
+
+    # 4. Operator on reject -> 403 (requires fulladmin)
+    r = client.post("/api/v1/sysvol/mass-delete/reject", headers=op_headers)
+    assert r.status_code == 403
+
+    # 5. Fulladmin with stale timestamp -> 409 Conflict
+    fa_headers = {"Authorization": f"Bearer {auth_sessions_db['fulladmin']}"}
+    r = client.post("/api/v1/sysvol/mass-delete/confirm", json={"detected_at": 1699999999.0}, headers=fa_headers)
+    assert r.status_code == 409
+    assert "mismatch" in r.json()["detail"].lower()
+
+    # 6. Fulladmin with matching timestamp -> 200 OK
+    r = client.post("/api/v1/sysvol/mass-delete/confirm", json={"detected_at": test_detected_at}, headers=fa_headers)
+    assert r.status_code == 200
+    saved_state = json.loads(state_file.read_text())
+    assert saved_state["approved_mass_delete"]["paths"] == pending_paths
+    assert saved_state["approved_mass_delete"]["detected_at"] == test_detected_at
+
+    # 7. Fulladmin reject -> 200 OK, clears pending and approved
+    r = client.post("/api/v1/sysvol/mass-delete/reject", headers=fa_headers)
+    assert r.status_code == 200
+    saved_state = json.loads(state_file.read_text())
+    assert saved_state.get("pending_mass_delete") is None
+    assert saved_state.get("approved_mass_delete") is None
+    assert saved_state.get("mass_delete_tripped") is False
+
+
+def test_invariant_12_python_daemon_threshold_and_approval():
+    """12. Python daemon: 6 of 25 does not trip, 15 of 25 trips, approval executes, unapproved new file re-trips."""
+    now = time.time()
+    local_manifest = {
+        f"domain/Policies/GPO_{i:02d}/gpt.ini": {"hash": f"{i:064d}", "mtime": now - 500, "size": 10}
+        for i in range(25)
+    }
+
+    # 6 of 25 -> Does not trip
+    tombs_6 = [
+        {"rel_path": f"domain/Policies/GPO_{i:02d}/gpt.ini", "deleted_at": now - 10, "hash_at_delete": f"{i:064d}"}
+        for i in range(6)
+    ]
+    state = {"files": {}, "tombstones": {}}
+    to_del, conf, tripped = zclock_sysvold.merge_tombstones(local_manifest, tombs_6, state, "192.168.180.44")
+    assert not tripped
+    assert len(to_del) == 6
+
+    # 15 of 25 -> Trips
+    tombs_15 = [
+        {"rel_path": f"domain/Policies/GPO_{i:02d}/gpt.ini", "deleted_at": now - 10, "hash_at_delete": f"{i:064d}"}
+        for i in range(15)
+    ]
+    state = {"files": {}, "tombstones": {}}
+    to_del, conf, tripped = zclock_sysvold.merge_tombstones(local_manifest, tombs_15, state, "192.168.180.44")
+    assert tripped
+    assert len(to_del) == 0
+    assert state.get("mass_delete_tripped") is True
+    assert state.get("pending_mass_delete") is not None
+    assert len(state["pending_mass_delete"]["paths"]) == 15
+
+    # Approval executes
+    state["approved_mass_delete"] = {
+        "partner_ip": "192.168.180.44",
+        "paths": [t["rel_path"] for t in tombs_15],
+        "detected_at": state["pending_mass_delete"]["detected_at"]
+    }
+    to_del, conf, tripped = zclock_sysvold.merge_tombstones(local_manifest, tombs_15, state, "192.168.180.44")
+    assert not tripped
+    assert len(to_del) == 15
+    assert state.get("approved_mass_delete") is None
+    assert state.get("pending_mass_delete") is None
+    assert state.get("mass_delete_tripped") is False
+
+    # Unapproved new file re-trips
+    state = {
+        "files": {},
+        "tombstones": {},
+        "approved_mass_delete": {
+            "partner_ip": "192.168.180.44",
+            "paths": [t["rel_path"] for t in tombs_15],
+            "detected_at": now - 30
+        }
+    }
+    tombs_16 = tombs_15 + [
+        {"rel_path": "domain/Policies/GPO_15/gpt.ini", "deleted_at": now - 5, "hash_at_delete": f"{15:064d}"}
+    ]
+    to_del, conf, tripped = zclock_sysvold.merge_tombstones(local_manifest, tombs_16, state, "192.168.180.44")
+    assert tripped
+    assert len(to_del) == 0
+    assert state.get("approved_mass_delete") is None
+    assert len(state["pending_mass_delete"]["paths"]) == 16

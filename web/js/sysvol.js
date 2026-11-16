@@ -219,24 +219,98 @@
             }
         }
 
-        async function confirmMassDelete() {
-            if (!confirm('WARNING: Authorize pending mass deletions across Sysvol? This will allow replication to resume.')) return;
+        let currentPendingDetectedAt = null;
+
+        function closeMassDeleteReviewModal() {
+            const modal = document.getElementById('sysvol-mass-delete-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function openMassDeleteReviewModal() {
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/mass-delete/pending`);
+                const data = await res.json();
+                if (!res.ok || !data.has_pending) {
+                    alert('No pending mass deletions found to review.');
+                    fetchSysvolStatus();
+                    return;
+                }
+                const p = data.pending;
+                currentPendingDetectedAt = p.detected_at;
+
+                const partnerEl = document.getElementById('mass-del-partner-ip');
+                const timeEl = document.getElementById('mass-del-detected-at');
+                const countEl = document.getElementById('mass-del-count');
+                const listEl = document.getElementById('mass-del-paths-list');
+
+                if (partnerEl) partnerEl.innerText = p.partner_ip || 'All Peers';
+                if (timeEl) timeEl.innerText = new Date(p.detected_at * 1000).toLocaleString();
+                if (countEl) countEl.innerText = p.count || p.paths.length;
+                if (listEl) {
+                    listEl.innerHTML = p.paths.map(path => `
+                        <div class="flex items-center gap-2 py-0.5 border-b border-slate-900/60 last:border-0">
+                            <i class="fa-solid fa-file-excel text-rose-400 text-[10px]"></i>
+                            <span class="text-slate-200 select-all">${path}</span>
+                        </div>
+                    `).join('');
+                }
+
+                const modal = document.getElementById('sysvol-mass-delete-modal');
+                if (modal) modal.classList.remove('hidden');
+            } catch (err) {
+                alert(`Error loading pending deletions: ${err}`);
+            }
+        }
+
+        async function approveMassDelete() {
+            if (currentPendingDetectedAt === null) {
+                alert('No pending mass delete selection active.');
+                return;
+            }
+            if (!confirm('WARNING: Are you sure you want to approve deletion of the listed files across Sysvol? This requires fulladmin privileges.')) return;
             try {
                 const res = await fetch(`${API_BASE}/sysvol/mass-delete/confirm`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ detected_at: currentPendingDetectedAt })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Mass deletion approved. Files will be deleted on next sync cycle.');
+                    closeMassDeleteReviewModal();
+                    fetchSysvolStatus();
+                    fetchSysvolPartners();
+                } else {
+                    alert(`Approval failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error approving mass deletions: ${err}`);
+            }
+        }
+
+        async function rejectMassDelete() {
+            if (!confirm('Reject pending mass deletions? Local files will be restored, tombstones cleared, and safety brake released.')) return;
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/mass-delete/reject`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'}
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    alert(data.message || 'Mass deletion safety brake released.');
+                    alert(data.message || 'Mass deletion rejected. Local files preserved.');
+                    closeMassDeleteReviewModal();
                     fetchSysvolStatus();
                     fetchSysvolPartners();
                 } else {
-                    alert(`Failed to confirm deletions: ${data.detail}`);
+                    alert(`Rejection failed: ${data.detail}`);
                 }
             } catch (err) {
-                alert(`Error confirming mass deletions: ${err}`);
+                alert(`Error rejecting mass deletions: ${err}`);
             }
+        }
+
+        async function confirmMassDelete() {
+            await openMassDeleteReviewModal();
         }
 
         function closeSysvolRepinModal() {
@@ -303,4 +377,8 @@
         window.confirmRepinSysvolPartner = confirmRepinSysvolPartner;
         window.closeSysvolRepinModal = closeSysvolRepinModal;
         window.confirmMassDelete = confirmMassDelete;
+        window.openMassDeleteReviewModal = openMassDeleteReviewModal;
+        window.closeMassDeleteReviewModal = closeMassDeleteReviewModal;
+        window.approveMassDelete = approveMassDelete;
+        window.rejectMassDelete = rejectMassDelete;
 

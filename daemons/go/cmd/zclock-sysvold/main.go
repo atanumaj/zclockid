@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -45,14 +46,35 @@ type Tombstone struct {
 	HashAtDelete string  `json:"hash_at_delete"`
 }
 
+type SysvolSettings struct {
+	MassDeleteMinFiles int     `json:"mass_delete_min_files"`
+	MassDeletePct      float64 `json:"mass_delete_pct"`
+	MassDeleteMaxFiles int     `json:"mass_delete_max_files"`
+}
+
+type MassDeletePending struct {
+	PartnerIP  string   `json:"partner_ip"`
+	Paths      []string `json:"paths"`
+	DetectedAt float64  `json:"detected_at"`
+}
+
+type MassDeleteApproved struct {
+	PartnerIP  string   `json:"partner_ip"`
+	Paths      []string `json:"paths"`
+	DetectedAt float64  `json:"detected_at"`
+}
+
 type SysvolState struct {
-	Files             map[string]FileInfo  `json:"files"`
-	Tombstones        map[string]Tombstone `json:"tombstones"`
-	MassDeleteTripped bool                 `json:"mass_delete_tripped"`
+	Files              map[string]FileInfo  `json:"files"`
+	Tombstones         map[string]Tombstone `json:"tombstones"`
+	MassDeleteTripped  bool                 `json:"mass_delete_tripped"`
+	PendingMassDelete  *MassDeletePending   `json:"pending_mass_delete,omitempty"`
+	ApprovedMassDelete *MassDeleteApproved  `json:"approved_mass_delete,omitempty"`
 }
 
 type PartnersConfig struct {
-	Partners []Partner `json:"partners"`
+	Partners []Partner       `json:"partners"`
+	Settings *SysvolSettings `json:"settings,omitempty"`
 }
 
 type PartnerStatus struct {
@@ -175,7 +197,7 @@ func VerifyHash(content []byte, expectedHash string) bool {
 	return strings.EqualFold(actualHash, strings.TrimSpace(expectedHash))
 }
 
-func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombstone, state *SysvolState) (toDelete []string, conflictCount int, tripped bool) {
+func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombstone, state *SysvolState, partnerIP string, settings *SysvolSettings) (toDelete []string, conflictCount int, tripped bool) {
 	totalFiles := len(localManifest)
 	candidates := make([]string, 0)
 
@@ -200,14 +222,92 @@ func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombs
 		}
 	}
 
+	sort.Strings(candidates)
+
+	// Check if an approval exists
+	if state != nil && state.ApprovedMassDelete != nil && len(state.ApprovedMassDelete.Paths) > 0 {
+		partnerMatch := partnerIP == "" || state.ApprovedMassDelete.PartnerIP == "" || state.ApprovedMassDelete.PartnerIP == partnerIP
+		if partnerMatch {
+			approvedMap := make(map[string]bool)
+			for _, p := range state.ApprovedMassDelete.Paths {
+				approvedMap[p] = true
+			}
+			isSubset := true
+			for _, c := range candidates {
+				if !approvedMap[c] {
+					isSubset = false
+					break
+				}
+			}
+
+			if isSubset {
+				log.Printf("[zclock-sysvold] Mass deletion of %d files approved. Proceeding with deletion.", len(candidates))
+				state.ApprovedMassDelete = nil
+				state.PendingMassDelete = nil
+				state.MassDeleteTripped = false
+				return candidates, conflictCount, false
+			} else {
+				log.Printf("[zclock-sysvold] Candidates contain unapproved paths. Invalidating prior approval and re-tripping safety brake.")
+				state.ApprovedMassDelete = nil
+			}
+		}
+	}
+
+	minFiles := 10
+	pct := 20.0
+	maxFiles := 50
+	if settings != nil {
+		if settings.MassDeleteMinFiles > 0 {
+			minFiles = settings.MassDeleteMinFiles
+		}
+		if settings.MassDeletePct > 0 {
+			pct = settings.MassDeletePct
+		}
+		if settings.MassDeleteMaxFiles > 0 {
+			maxFiles = settings.MassDeleteMaxFiles
+		}
+	}
+
 	numToDelete := len(candidates)
-	if numToDelete > 50 || (totalFiles > 0 && numToDelete > 1 && float64(numToDelete) > 0.20*float64(totalFiles)) {
+	trippedCond := numToDelete > maxFiles || (totalFiles > 0 && numToDelete > minFiles && float64(numToDelete) > (pct/100.0)*float64(totalFiles))
+
+	if trippedCond {
 		if state != nil {
 			state.MassDeleteTripped = true
+			now := float64(time.Now().Unix())
+			pathsMatch := false
+			if state.PendingMassDelete != nil && state.PendingMassDelete.PartnerIP == partnerIP && len(state.PendingMassDelete.Paths) == len(candidates) {
+				candMap := make(map[string]bool)
+				for _, c := range candidates {
+					candMap[c] = true
+				}
+				matchAll := true
+				for _, p := range state.PendingMassDelete.Paths {
+					if !candMap[p] {
+						matchAll = false
+						break
+					}
+				}
+				if matchAll {
+					pathsMatch = true
+				}
+			}
+
+			if !pathsMatch {
+				state.PendingMassDelete = &MassDeletePending{
+					PartnerIP:  partnerIP,
+					Paths:      candidates,
+					DetectedAt: now,
+				}
+			}
 		}
 		return nil, conflictCount, true
 	}
 
+	if state != nil {
+		state.MassDeleteTripped = false
+		state.PendingMassDelete = nil
+	}
 	return candidates, conflictCount, false
 }
 
@@ -381,7 +481,7 @@ func (d *SysvolDaemon) GetLocalManifest() map[string]FileInfo {
 	return manifest
 }
 
-func (d *SysvolDaemon) LoadPartners() []Partner {
+func (d *SysvolDaemon) LoadConfig() (PartnersConfig, error) {
 	partnerPaths := []string{
 		"/etc/zclockid/sysvol_partners.json",
 		"/zclockid/config/sysvol_partners.json",
@@ -391,11 +491,40 @@ func (d *SysvolDaemon) LoadPartners() []Partner {
 		if data, err := os.ReadFile(p); err == nil {
 			var cfg PartnersConfig
 			if err := json.Unmarshal(data, &cfg); err == nil {
-				return cfg.Partners
+				return cfg, nil
 			}
 		}
 	}
+	return PartnersConfig{}, fmt.Errorf("no partners config found")
+}
+
+func (d *SysvolDaemon) LoadPartners() []Partner {
+	cfg, err := d.LoadConfig()
+	if err == nil {
+		return cfg.Partners
+	}
 	return nil
+}
+
+func (d *SysvolDaemon) LoadSettings() SysvolSettings {
+	cfg, err := d.LoadConfig()
+	defaults := SysvolSettings{
+		MassDeleteMinFiles: 10,
+		MassDeletePct:      20.0,
+		MassDeleteMaxFiles: 50,
+	}
+	if err == nil && cfg.Settings != nil {
+		if cfg.Settings.MassDeleteMinFiles > 0 {
+			defaults.MassDeleteMinFiles = cfg.Settings.MassDeleteMinFiles
+		}
+		if cfg.Settings.MassDeletePct > 0 {
+			defaults.MassDeletePct = cfg.Settings.MassDeletePct
+		}
+		if cfg.Settings.MassDeleteMaxFiles > 0 {
+			defaults.MassDeleteMaxFiles = cfg.Settings.MassDeleteMaxFiles
+		}
+	}
+	return defaults
 }
 
 func (d *SysvolDaemon) SyncPartner(p Partner) bool {
@@ -492,21 +621,33 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 	}
 
 	// 1. Process deletions via Tombstones
-	candidatesToDelete, _, tripped := MergeTombstones(localManifest, remoteData.Tombstones, &state)
+	settings := d.LoadSettings()
+	hadApproval := state.ApprovedMassDelete != nil
+	candidatesToDelete, _, tripped := MergeTombstones(localManifest, remoteData.Tombstones, &state, p.IPAddress, &settings)
 	if tripped {
-		d.RecordHealth("ERROR", fmt.Sprintf("Mass deletion brake tripped: attempted to delete %d files (>20%% of %d or >50 files). Confirmation required.", len(candidatesToDelete), len(localManifest)))
+		cnt := 0
+		if state.PendingMassDelete != nil {
+			cnt = len(state.PendingMassDelete.Paths)
+		}
+		d.RecordHealth("ERROR", fmt.Sprintf("Mass deletion brake tripped: attempted to delete %d files (>%.0f%% of %d or >%d files). Confirmation required.", cnt, settings.MassDeletePct, len(localManifest), settings.MassDeleteMaxFiles))
 		log.Printf("[zclock-sysvold] Mass deletion brake tripped! Deletion aborted.")
-	} else if len(candidatesToDelete) > 0 {
-		for _, relPath := range candidatesToDelete {
-			targetPath := filepath.Join(d.sysvolPath, filepath.Clean(relPath))
-			if err := os.Remove(targetPath); err == nil {
-				log.Printf("[zclock-sysvold] Deleted local file per peer tombstone: %s", relPath)
-				d.CleanupEmptyDirs(targetPath)
-				changed = true
-				delete(localManifest, relPath)
-				delete(state.Files, relPath)
-				if rt, ok := remoteTombMap[relPath]; ok {
-					state.Tombstones[relPath] = rt
+		d.SaveState(state)
+	} else {
+		if hadApproval && state.ApprovedMassDelete == nil {
+			d.RecordHealth("HEALTHY", "Operating normally (mass deletion approved and executed)")
+		}
+		if len(candidatesToDelete) > 0 {
+			for _, relPath := range candidatesToDelete {
+				targetPath := filepath.Join(d.sysvolPath, filepath.Clean(relPath))
+				if err := os.Remove(targetPath); err == nil {
+					log.Printf("[zclock-sysvold] Deleted local file per peer tombstone: %s", relPath)
+					d.CleanupEmptyDirs(targetPath)
+					changed = true
+					delete(localManifest, relPath)
+					delete(state.Files, relPath)
+					if rt, ok := remoteTombMap[relPath]; ok {
+						state.Tombstones[relPath] = rt
+					}
 				}
 			}
 		}
