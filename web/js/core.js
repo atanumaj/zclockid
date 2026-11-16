@@ -681,6 +681,10 @@
                 if (typeof window.deleteSysvolPartner === 'function') {
                     window.deleteSysvolPartner(btn.dataset.ip);
                 }
+            } else if (action === 'repin-sysvol-partner') {
+                if (typeof window.startRepinSysvolPartner === 'function') {
+                    window.startRepinSysvolPartner(btn.dataset.ip);
+                }
             } else if (action === 'edit-user') {
                 if (typeof window.openEditUserModal === 'function') {
                     window.openEditUserModal(btn.dataset.username);

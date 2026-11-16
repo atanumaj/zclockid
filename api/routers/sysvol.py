@@ -23,7 +23,7 @@ from api.core.config import (
 from api.services.system_service import run_cmd, log_audit
 from api.services.security_service import get_client_ip
 from api.routers.auth import require_role, get_session_user
-from api.schemas.sysvol_schema import SysvolPartnerRequest, SysvolFileUploadRequest
+from api.schemas.sysvol_schema import SysvolPartnerRequest, SysvolFileUploadRequest, SysvolRepinRequest
 
 router = APIRouter(prefix="/api/v1/sysvol", tags=["Sysvol Replication & NTACL"])
 
@@ -31,8 +31,68 @@ SYSVOL_PARTNERS_FILE = CONFIG_DIR / "sysvol_partners.json"
 SYSVOL_LOCAL_SECRET_FILE = CONFIG_DIR / "sysvol_secret"
 SYSVOL_SYNC_STATUS_FILE = Path("/var/run/zclock-sysvol-sync.json")
 SYSVOL_CERTS_DIR = Path("/etc/zclockid/certs")
+SYSVOL_STATE_FILE = Path("/var/lib/zclockid/sysvol_state.json")
 
 MAX_SYSVOL_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB upload limit
+
+
+def mask_secret(sec: str) -> str:
+    """Masks secret as **** plus the last 4 characters to avoid exposing credentials."""
+    if not sec:
+        return ""
+    clean = str(sec).strip()
+    if len(clean) <= 4:
+        return "****"
+    return "****" + clean[-4:]
+
+
+def get_local_cert_fingerprint() -> str:
+    """Returns the local appliance certificate SHA-256 fingerprint."""
+    cert_path = SYSVOL_CERTS_DIR / "appliance.crt"
+    if cert_path.exists():
+        try:
+            der = ssl.PEM_cert_to_DER_cert(cert_path.read_text())
+            fp = hashlib.sha256(der).hexdigest()
+            return ":".join(fp[i:i+2].upper() for i in range(0, len(fp), 2))
+        except Exception:
+            pass
+    return ""
+
+
+def write_partners_file_atomic(data: dict):
+    """Writes sysvol_partners.json atomically with mode 0600."""
+    SYSVOL_PARTNERS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp_file = SYSVOL_PARTNERS_FILE.with_suffix(".tmp")
+    fd = os.open(str(tmp_file), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f, indent=2)
+    os.chmod(str(tmp_file), 0o600)
+    os.replace(str(tmp_file), str(SYSVOL_PARTNERS_FILE))
+
+
+def load_sysvol_state() -> dict:
+    """Loads /var/lib/zclockid/sysvol_state.json (mode 0600) tracking file hashes and tombstones."""
+    if SYSVOL_STATE_FILE.exists():
+        try:
+            with open(SYSVOL_STATE_FILE) as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"files": {}, "tombstones": {}, "mass_delete_tripped": False}
+
+
+def save_sysvol_state(state: dict):
+    """Saves /var/lib/zclockid/sysvol_state.json atomically with mode 0600."""
+    try:
+        SYSVOL_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file = SYSVOL_STATE_FILE.with_suffix(".tmp")
+        fd = os.open(str(tmp_file), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump(state, f, indent=2)
+        os.chmod(str(tmp_file), 0o600)
+        os.replace(str(tmp_file), str(SYSVOL_STATE_FILE))
+    except (PermissionError, OSError):
+        pass
 
 
 def validate_sysvol_path(rel_path: str, safe_root: Path) -> Path:
@@ -176,12 +236,20 @@ def get_sysvol_status():
         except Exception:
             pass
 
+    sys_state = load_sysvol_state()
+    mass_tripped = sys_state.get("mass_delete_tripped", False)
+    if mass_tripped:
+        state["STATUS"] = "ERROR"
+        state["MESSAGE"] = "Mass deletion brake tripped: confirmation required before deletions can proceed."
+
     return {
         "status": state.get("STATUS", "HEALTHY"),
         "last_reset": float(state.get("LAST_RESET", time.time())),
         "message": state.get("MESSAGE", "Operating normally"),
         "path": str(PHYSICAL_SYSVOL_DIR),
         "partners_count": partner_count,
+        "local_cert_fingerprint": get_local_cert_fingerprint(),
+        "mass_delete_tripped": mass_tripped,
         "replication_engine": "ZclockID Native Integrated Peer Mesh"
     }
 
@@ -231,6 +299,7 @@ def list_sysvol_partners():
         res.append({
             "name": p.get("name", p["ip_address"]),
             "ip_address": p["ip_address"],
+            "shared_secret": mask_secret(p.get("shared_secret", "")),
             "cert_fingerprint": p.get("cert_fingerprint"),
             "status": t.get("status", "IN_SYNC"),
             "last_sync": t.get("last_sync", time.time()),
@@ -243,35 +312,34 @@ def list_sysvol_partners():
 @router.post("/partners", dependencies=[Depends(require_role("operator"))])
 def add_sysvol_partner(req: SysvolPartnerRequest):
     """Registers an additional Domain Controller with mutual secret and pinned TLS certificate fingerprint."""
-    SYSVOL_PARTNERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    current = {"partners": []}
-    if SYSVOL_PARTNERS_FILE.exists():
-        try:
-            with open(SYSVOL_PARTNERS_FILE) as f:
-                current = json.load(f)
-        except Exception:
-            pass
+    probe = None
+    try:
+        probe = probe_peer_tls_certificate(req.ip_address)
+    except Exception as e:
+        if not req.cert_fingerprint:
+            raise HTTPException(status_code=502, detail=f"Cannot connect to partner DC {req.ip_address} over TLS: {e}")
 
-    partner_dict = req.model_dump()
+    # If no fingerprint provided and not explicitly confirmed: require admin review
+    if not req.cert_fingerprint and not req.confirm:
+        return {
+            "status": "confirm_required",
+            "message": "Certificate fingerprint probed. Admin confirmation required before saving.",
+            "peer_fingerprint": probe["fingerprint"] if probe else None,
+            "local_fingerprint": get_local_cert_fingerprint(),
+            "partner": {
+                "name": req.name,
+                "ip_address": req.ip_address,
+                "cert_fingerprint": probe["fingerprint"] if probe else None
+            }
+        }
 
-    # If cert_fingerprint is not provided, probe peer automatically
-    if not partner_dict.get("cert_fingerprint"):
-        try:
-            probe = probe_peer_tls_certificate(req.ip_address)
-            partner_dict["cert_fingerprint"] = probe["fingerprint"]
-            partner_dict["cert_pem"] = probe["cert_pem"]
-        except Exception:
-            pass
-    elif not partner_dict.get("cert_pem"):
-        try:
-            probe = probe_peer_tls_certificate(req.ip_address)
-            # Normalize and verify matching fingerprint
-            clean_probe_fp = probe["fingerprint"].replace(":", "").lower()
-            clean_req_fp = partner_dict["cert_fingerprint"].replace(":", "").lower()
-            if clean_probe_fp == clean_req_fp:
-                partner_dict["cert_pem"] = probe["cert_pem"]
-        except Exception:
-            pass
+    partner_dict = {
+        "name": req.name,
+        "ip_address": req.ip_address,
+        "shared_secret": req.shared_secret,
+        "cert_fingerprint": req.cert_fingerprint or (probe["fingerprint"] if probe else None),
+        "cert_pem": probe["cert_pem"] if probe else None
+    }
 
     # Save cert PEM to disk if available
     if partner_dict.get("cert_pem"):
@@ -283,10 +351,17 @@ def add_sysvol_partner(req: SysvolPartnerRequest):
         except Exception:
             pass
 
+    current = {"partners": []}
+    if SYSVOL_PARTNERS_FILE.exists():
+        try:
+            with open(SYSVOL_PARTNERS_FILE) as f:
+                current = json.load(f)
+        except Exception:
+            pass
+
     existing = [p for p in current.get("partners", []) if p["ip_address"] != req.ip_address]
     existing.append(partner_dict)
-    with open(SYSVOL_PARTNERS_FILE, "w") as f:
-        json.dump({"partners": existing}, f, indent=2)
+    write_partners_file_atomic({"partners": existing})
 
     run_cmd(["systemctl", "restart", "zclock-sysvold"])
     log_audit("SYSVOL_PARTNER_ADDED", "admin", req.ip_address, "SUCCESS", {
@@ -295,7 +370,65 @@ def add_sysvol_partner(req: SysvolPartnerRequest):
     })
     return {
         "status": "success",
-        "message": f"Partner DC '{req.name}' ({req.ip_address}) registered with TLS fingerprint pinning."
+        "message": f"Partner DC '{req.name}' ({req.ip_address}) registered with TLS fingerprint pinning.",
+        "cert_fingerprint": partner_dict.get("cert_fingerprint")
+    }
+
+
+@router.post("/partners/{partner_ip}/repin")
+def repin_sysvol_partner(partner_ip: str, req: Optional[SysvolRepinRequest] = None, user: dict = Depends(require_role("fulladmin"))):
+    """Probes and updates partner TLS certificate fingerprint (requires fulladmin)."""
+    if req is None:
+        req = SysvolRepinRequest(confirm=False)
+
+    partners = []
+    if SYSVOL_PARTNERS_FILE.exists():
+        try:
+            with open(SYSVOL_PARTNERS_FILE) as f:
+                partners = json.load(f).get("partners", [])
+        except Exception:
+            pass
+
+    partner = next((p for p in partners if p.get("ip_address") == partner_ip), None)
+    if not partner:
+        raise HTTPException(status_code=404, detail=f"Partner DC {partner_ip} not found.")
+
+    probe = probe_peer_tls_certificate(partner_ip)
+    old_fp = partner.get("cert_fingerprint", "")
+    new_fp = probe.get("fingerprint", "")
+
+    if not req.confirm:
+        return {
+            "status": "confirm_required",
+            "ip_address": partner_ip,
+            "current_fingerprint": old_fp,
+            "new_fingerprint": new_fp,
+            "local_fingerprint": get_local_cert_fingerprint(),
+            "message": "Compare the new fingerprint with the peer DC console before confirming re-pin."
+        }
+
+    partner["cert_fingerprint"] = new_fp
+    partner["cert_pem"] = probe.get("cert_pem")
+
+    if probe.get("cert_pem"):
+        try:
+            SYSVOL_CERTS_DIR.mkdir(parents=True, exist_ok=True)
+            cert_file = SYSVOL_CERTS_DIR / f"partner_{partner_ip}.crt"
+            cert_file.write_text(probe["cert_pem"])
+            os.chmod(cert_file, 0o644)
+        except Exception:
+            pass
+
+    write_partners_file_atomic({"partners": partners})
+    run_cmd(["systemctl", "restart", "zclock-sysvold"])
+    log_audit("SYSVOL_PARTNER_REPINNED", user.get("sub", "admin"), partner_ip, "SUCCESS", {
+        "old_fingerprint": old_fp,
+        "new_fingerprint": new_fp
+    })
+    return {
+        "status": "success",
+        "message": f"Partner DC {partner_ip} TLS certificate fingerprint updated and re-pinned.",
+        "cert_fingerprint": new_fp
     }
 
 
@@ -307,8 +440,7 @@ def delete_sysvol_partner(partner_ip: str):
             with open(SYSVOL_PARTNERS_FILE) as f:
                 current = json.load(f)
             filtered = [p for p in current.get("partners", []) if p["ip_address"] != partner_ip]
-            with open(SYSVOL_PARTNERS_FILE, "w") as f:
-                json.dump({"partners": filtered}, f, indent=2)
+            write_partners_file_atomic({"partners": filtered})
 
             cert_file = SYSVOL_CERTS_DIR / f"partner_{partner_ip}.crt"
             cert_file.unlink(missing_ok=True)
@@ -317,6 +449,17 @@ def delete_sysvol_partner(partner_ip: str):
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     return {"status": "success", "message": f"Partner {partner_ip} removed."}
+
+
+@router.post("/mass-delete/confirm", dependencies=[Depends(require_role("operator"))])
+def confirm_mass_delete():
+    """Resets the mass-delete brake after operator review and triggers synchronization."""
+    sys_state = load_sysvol_state()
+    sys_state["mass_delete_tripped"] = False
+    save_sysvol_state(sys_state)
+    run_cmd(["systemctl", "restart", "zclock-sysvold"])
+    log_audit("SYSVOL_MASS_DELETE_CONFIRMED", "admin", "sysvol", "SUCCESS", {})
+    return {"status": "success", "message": "Mass deletion safety brake cleared. Replication resumed."}
 
 
 @router.post("/sync-now", dependencies=[Depends(require_role("operator"))])
@@ -330,7 +473,7 @@ def trigger_sysvol_sync_now():
 
 @router.get("/manifest", dependencies=[Depends(verify_sysvol_sync_access)])
 def get_sysvol_manifest():
-    """Returns SHA-256 tree of all GPO files and scripts in local Sysvol for authorized peer DC."""
+    """Returns SHA-256 tree of all GPO files and active tombstones in local Sysvol for authorized peer DC."""
     sysvol_dir = str(PHYSICAL_SYSVOL_DIR)
     manifest = {}
     if os.path.exists(sysvol_dir):
@@ -345,7 +488,39 @@ def get_sysvol_manifest():
                     manifest[rel_p] = {"hash": h, "mtime": st.st_mtime, "size": st.st_size}
                 except Exception:
                     pass
-    return {"manifest": manifest, "timestamp": time.time()}
+
+    now = time.time()
+    state = load_sysvol_state()
+    prev_files = state.get("files", {})
+    tombstones = state.get("tombstones", {})
+
+    # Prune tombstones older than 30 days
+    cutoff = now - (30 * 86400)
+    tombstones = {p: t for p, t in tombstones.items() if t.get("deleted_at", 0) > cutoff}
+
+    # Record tombstones for files in last state but missing locally
+    for p, prev_info in prev_files.items():
+        if p not in manifest and p not in tombstones:
+            tombstones[p] = {
+                "rel_path": p,
+                "deleted_at": now,
+                "hash_at_delete": prev_info.get("hash", "")
+            }
+
+    # Remove tombstone if file is present locally
+    for p in manifest:
+        if p in tombstones:
+            del tombstones[p]
+
+    state["files"] = manifest
+    state["tombstones"] = tombstones
+    save_sysvol_state(state)
+
+    return {
+        "manifest": manifest,
+        "tombstones": list(tombstones.values()),
+        "timestamp": now
+    }
 
 
 @router.get("/file", dependencies=[Depends(verify_sysvol_sync_access)])
@@ -362,7 +537,7 @@ def download_sysvol_file(rel_path: str):
 
 @router.post("/file", dependencies=[Depends(verify_sysvol_sync_access)])
 def upload_sysvol_file(req: SysvolFileUploadRequest):
-    """Receives and writes a synchronized GPO file from an authorized partner DC."""
+    """Receives and writes a synchronized GPO file from an authorized partner DC with SHA-256 integrity check."""
     safe_root = PHYSICAL_SYSVOL_DIR.resolve()
     target = validate_sysvol_path(req.rel_path, safe_root)
 
@@ -376,6 +551,13 @@ def upload_sysvol_file(req: SysvolFileUploadRequest):
     if len(content_bytes) > MAX_SYSVOL_UPLOAD_SIZE:
         raise HTTPException(status_code=413, detail="File payload exceeds 50 MB limit.")
 
+    computed_hash = hashlib.sha256(content_bytes).hexdigest()
+    if not req.sha256 or req.sha256.lower() != computed_hash.lower():
+        raise HTTPException(
+            status_code=400,
+            detail=f"SHA-256 integrity mismatch: received {req.sha256}, computed {computed_hash}"
+        )
+
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp_p = str(target) + ".upload_tmp"
     with open(tmp_p, "wb") as fp:
@@ -384,6 +566,12 @@ def upload_sysvol_file(req: SysvolFileUploadRequest):
     if req.mtime:
         try: os.utime(target, (req.mtime, req.mtime))
         except: pass
+
+    # Clear tombstone if file is re-created
+    state = load_sysvol_state()
+    if req.rel_path in state.get("tombstones", {}):
+        del state["tombstones"][req.rel_path]
+        save_sysvol_state(state)
 
     run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=20)
     return {"status": "success", "rel_path": req.rel_path}
@@ -427,7 +615,7 @@ def admin_download_sysvol_file(rel_path: str, user: dict = Depends(require_role(
 
 @router.post("/admin/file")
 def admin_upload_sysvol_file(req: SysvolFileUploadRequest, user: dict = Depends(require_role("fulladmin"))):
-    """Allows full administrators to upload a GPO file to SYSVOL with audit logging."""
+    """Allows full administrators to upload a GPO file to SYSVOL with audit logging and SHA-256 check."""
     safe_root = PHYSICAL_SYSVOL_DIR.resolve()
     target = validate_sysvol_path(req.rel_path, safe_root)
 
@@ -440,6 +628,13 @@ def admin_upload_sysvol_file(req: SysvolFileUploadRequest, user: dict = Depends(
     if len(content_bytes) > MAX_SYSVOL_UPLOAD_SIZE:
         raise HTTPException(status_code=413, detail="File payload exceeds 50 MB limit.")
 
+    computed_hash = hashlib.sha256(content_bytes).hexdigest()
+    if not req.sha256 or req.sha256.lower() != computed_hash.lower():
+        raise HTTPException(
+            status_code=400,
+            detail=f"SHA-256 integrity mismatch: received {req.sha256}, computed {computed_hash}"
+        )
+
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp_p = str(target) + ".admin_tmp"
     with open(tmp_p, "wb") as fp:
@@ -448,6 +643,11 @@ def admin_upload_sysvol_file(req: SysvolFileUploadRequest, user: dict = Depends(
     if req.mtime:
         try: os.utime(target, (req.mtime, req.mtime))
         except: pass
+
+    state = load_sysvol_state()
+    if req.rel_path in state.get("tombstones", {}):
+        del state["tombstones"][req.rel_path]
+        save_sysvol_state(state)
 
     run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=20)
     log_audit("SYSVOL_ADMIN_FILE_WRITE", user.get("sub", "admin"), req.rel_path, "SUCCESS", {})

@@ -127,6 +127,20 @@ EOFBIND
             chmod 600 /etc/zclockid/certs/appliance.key
         fi
 
+        # 5b. Lock down SYSVOL secrets and state file permissions
+        if [ -f /etc/zclockid/sysvol_partners.json ]; then
+            chmod 600 /etc/zclockid/sysvol_partners.json 2>/dev/null || true
+            chown root:root /etc/zclockid/sysvol_partners.json 2>/dev/null || true
+        fi
+        if [ -f /etc/zclockid/sysvol_secret ]; then
+            chmod 600 /etc/zclockid/sysvol_secret 2>/dev/null || true
+            chown root:root /etc/zclockid/sysvol_secret 2>/dev/null || true
+        fi
+        if [ -f /var/lib/zclockid/sysvol_state.json ]; then
+            chmod 600 /var/lib/zclockid/sysvol_state.json 2>/dev/null || true
+            chown root:root /var/lib/zclockid/sysvol_state.json 2>/dev/null || true
+        fi
+
         # 6. Configure Nginx Ingress Reverse Proxy
         if [ -f /etc/nginx/sites-available/zclockid.conf ]; then
             rm -f /etc/nginx/sites-enabled/default >/dev/null 2>&1 || true

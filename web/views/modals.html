@@ -1698,9 +1698,54 @@
                     <i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i>
                     Ensure both Domain Controllers have registered each other with the same secret. The native sync engine will continuously replicate GPOs and auto-reset NTACLs.
                 </div>
+                <div id="sysvol-p-confirm-box" class="hidden bg-amber-950/60 border border-amber-500/50 rounded-lg p-3 text-[11px] space-y-2">
+                    <div class="font-bold text-amber-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Certificate Confirmation Required
+                    </div>
+                    <div class="text-amber-200/90 text-[10px]">
+                        Please verify that the probed peer fingerprint matches the partner DC:
+                    </div>
+                    <div class="p-2 bg-slate-950 rounded font-mono text-[10px] text-indigo-300 break-all" id="sysvol-p-probed-fp"></div>
+                    <div class="text-[10px] text-slate-400">
+                        This DC's local fingerprint: <span class="text-slate-300 font-mono" id="sysvol-p-local-fp"></span>
+                    </div>
+                </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" onclick="closeSysvolPartnerModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitAddSysvolPartner()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Pair & Start Replication</button>
+                    <button id="sysvol-p-submit-btn" type="button" onclick="submitAddSysvolPartner()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Pair & Start Replication</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Re-pin Partner DC TLS Certificate Modal -->
+    <div id="sysvol-repin-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-shield-halved text-amber-400"></i> Re-pin Partner TLS Certificate
+                </h3>
+                <button onclick="closeSysvolRepinModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
+                    <div class="text-slate-400 text-[11px]">Partner DC: <span id="repin-partner-ip-display" class="text-white font-mono font-bold"></span></div>
+                    <div>
+                        <div class="text-[10px] text-slate-500 uppercase">Current Pinned Fingerprint:</div>
+                        <div id="repin-current-fp" class="font-mono text-[11px] text-slate-400 break-all">None</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 uppercase font-semibold">New Probed Peer Fingerprint:</div>
+                        <div id="repin-new-fp" class="font-mono text-[11px] text-indigo-300 break-all font-bold">Probing...</div>
+                    </div>
+                </div>
+                <div class="p-3 bg-amber-950/40 rounded-lg border border-amber-800/40 text-[11px] text-amber-300/90 leading-relaxed">
+                    <i class="fa-solid fa-circle-exclamation text-amber-400 mr-1"></i>
+                    Cross-check the new fingerprint against the partner DC's management console before confirming. This action requires <strong>fulladmin</strong> privilege.
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeSysvolRepinModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button id="repin-confirm-btn" type="button" onclick="confirmRepinSysvolPartner()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Confirm & Re-pin Certificate</button>
                 </div>
             </div>
         </div>

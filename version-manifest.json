@@ -1,12 +1,12 @@
 {
-  "version": "1.4.3",
-  "name": "ZclockID Enterprise v1.4.3",
+  "version": "1.4.4",
+  "name": "ZclockID Enterprise v1.4.4",
   "channel": "stable",
   "release_type": "security",
-  "published_at": "2026-11-16T17:00:00Z",
-  "summary": "Lock down SYSVOL replication with peer IP-secret binding, TLS certificate pinning, and path traversal protection",
-  "notes": "### What's Changed in v1.4.3:\n* **Peer-to-Peer Secret Hardening:** `POST /file`, `GET /file`, and `GET /manifest` accept only the peer sync secret tied strictly to the calling partner IP (via `get_client_ip`). User session tokens and appliance local secrets are rejected on inbound peer replication calls.\n* **Admin UI Separation:** Separate routes added for administrative SYSVOL browsing (`GET /admin/manifest`, `GET/POST /admin/file`) requiring operator (read) and fulladmin (write) with comprehensive audit logging.\n* **TLS Verification & Fingerprint Pinning:** Strict TLS verification enforced across Go and Python daemons (removing `InsecureSkipVerify` and `CERT_NONE`). Domain Controllers pin peer TLS certificate SHA-256 fingerprints and verify on every connection.\n* **Path Traversal Hardening:** Path safety validated strictly via `Path.is_relative_to(safe_root)`, rejecting empty paths, absolute paths, `.tmp` suffixes, and symlinks, with a 50 MB upload limit.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.3_all.deb",
-  "package_name": "zclockid_1.4.3_all.deb",
+  "published_at": "2026-11-16T17:30:00Z",
+  "summary": "SYSVOL replication follow-ups: tombstone deletion propagation, SHA-256 integrity checks, mass-deletion safety brake, and certificate re-pinning",
+  "notes": "### What's Changed in v1.4.4:\n* **Tombstone Deletion Propagation:** Deletions propagate bi-directionally using state-tracked tombstones (`/var/lib/zclockid/sysvol_state.json`) with modified-beats-deleted conflict resolution and 30-day tombstone expiration.\n* **Content Integrity Verification:** Mandatory SHA-256 integrity verification on file downloads and `POST /file`, atomic staging, and 50 MB download limit.\n* **Mass-Deletion Safety Brake:** Automatically suspends replication if a cycle targets >20% or >50 files until confirmed by an operator via Web UI or API.\n* **Certificate Re-pinning & Secret Hardening:** Atomic 0600 file creation for partner secrets, secret masking in GET /partners, and admin-driven TLS certificate re-pinning (`POST /partners/{ip}/repin`).",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.4_all.deb",
+  "package_name": "zclockid_1.4.4_all.deb",
   "min_version_required": "1.0.0"
 }

@@ -39,6 +39,18 @@ type Partner struct {
 	CertPEM         string `json:"cert_pem"`
 }
 
+type Tombstone struct {
+	RelPath      string  `json:"rel_path"`
+	DeletedAt    float64 `json:"deleted_at"`
+	HashAtDelete string  `json:"hash_at_delete"`
+}
+
+type SysvolState struct {
+	Files             map[string]FileInfo  `json:"files"`
+	Tombstones        map[string]Tombstone `json:"tombstones"`
+	MassDeleteTripped bool                 `json:"mass_delete_tripped"`
+}
+
 type PartnersConfig struct {
 	Partners []Partner `json:"partners"`
 }
@@ -54,6 +66,7 @@ type PartnerStatus struct {
 
 type SysvolDaemon struct {
 	sysvolPath      string
+	statePath       string
 	debounceSec     time.Duration
 	resetTimer      *time.Timer
 	resetMutex      sync.Mutex
@@ -77,6 +90,7 @@ func getOrCreateSecret() string {
 
 	for _, p := range secretPaths {
 		if data, err := os.ReadFile(p); err == nil && len(bytes.TrimSpace(data)) > 0 {
+			_ = os.Chmod(p, 0600)
 			return string(bytes.TrimSpace(data))
 		}
 	}
@@ -92,7 +106,154 @@ func getOrCreateSecret() string {
 	return sec
 }
 
-func (d *SysvolDaemon) GetClientForPartner(p Partner) *http.Client {
+func (d *SysvolDaemon) LoadState() SysvolState {
+	st := SysvolState{
+		Files:      make(map[string]FileInfo),
+		Tombstones: make(map[string]Tombstone),
+	}
+	if data, err := os.ReadFile(d.statePath); err == nil {
+		_ = json.Unmarshal(data, &st)
+		if st.Files == nil {
+			st.Files = make(map[string]FileInfo)
+		}
+		if st.Tombstones == nil {
+			st.Tombstones = make(map[string]Tombstone)
+		}
+	}
+	return st
+}
+
+func (d *SysvolDaemon) SaveState(st SysvolState) {
+	_ = os.MkdirAll(filepath.Dir(d.statePath), 0700)
+	data, err := json.MarshalIndent(st, "", "  ")
+	if err != nil {
+		return
+	}
+	tmpPath := d.statePath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err == nil {
+		_ = os.Chmod(tmpPath, 0600)
+		_ = os.Rename(tmpPath, d.statePath)
+	}
+}
+
+func (d *SysvolDaemon) UpdateLocalStateOnScan(localManifest map[string]FileInfo, state *SysvolState) {
+	now := float64(time.Now().Unix())
+
+	// 1. Expire tombstones older than 30 days
+	cutoff := now - (30 * 86400)
+	for p, t := range state.Tombstones {
+		if t.DeletedAt <= cutoff {
+			delete(state.Tombstones, p)
+		}
+	}
+
+	// 2. Detect local deletions compared to state.Files
+	for p, prev := range state.Files {
+		if _, exists := localManifest[p]; !exists {
+			if _, alreadyTomb := state.Tombstones[p]; !alreadyTomb {
+				state.Tombstones[p] = Tombstone{
+					RelPath:      p,
+					DeletedAt:    now,
+					HashAtDelete: prev.Hash,
+				}
+				log.Printf("[zclock-sysvold] Local deletion detected for '%s' (hash: %s)", p, prev.Hash)
+			}
+		}
+	}
+
+	// 3. Remove tombstones for files present locally
+	for p := range localManifest {
+		delete(state.Tombstones, p)
+	}
+
+	state.Files = localManifest
+}
+
+func VerifyHash(content []byte, expectedHash string) bool {
+	h := sha256.Sum256(content)
+	actualHash := hex.EncodeToString(h[:])
+	return strings.EqualFold(actualHash, strings.TrimSpace(expectedHash))
+}
+
+func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombstone, state *SysvolState) (toDelete []string, conflictCount int, tripped bool) {
+	totalFiles := len(localManifest)
+	candidates := make([]string, 0)
+
+	for _, rt := range remoteTombstones {
+		lInfo, exists := localManifest[rt.RelPath]
+		if !exists {
+			if state != nil {
+				if existing, has := state.Tombstones[rt.RelPath]; !has || rt.DeletedAt > existing.DeletedAt {
+					state.Tombstones[rt.RelPath] = rt
+				}
+			}
+			continue
+		}
+
+		if lInfo.Hash == rt.HashAtDelete {
+			candidates = append(candidates, rt.RelPath)
+		} else if lInfo.Mtime > rt.DeletedAt {
+			log.Printf("[zclock-sysvold] Conflict for '%s': locally modified after remote deletion (mtime %.0f > deleted_at %.0f). Keeping local copy.", rt.RelPath, lInfo.Mtime, rt.DeletedAt)
+			conflictCount++
+		} else {
+			candidates = append(candidates, rt.RelPath)
+		}
+	}
+
+	numToDelete := len(candidates)
+	if numToDelete > 50 || (totalFiles > 0 && numToDelete > 1 && float64(numToDelete) > 0.20*float64(totalFiles)) {
+		if state != nil {
+			state.MassDeleteTripped = true
+		}
+		return nil, conflictCount, true
+	}
+
+	return candidates, conflictCount, false
+}
+
+func (d *SysvolDaemon) CleanupEmptyDirs(filePath string) {
+	dir := filepath.Dir(filePath)
+	cleanSysvol := filepath.Clean(d.sysvolPath)
+
+	for {
+		cleanDir := filepath.Clean(dir)
+		if cleanDir == cleanSysvol || !strings.HasPrefix(cleanDir, cleanSysvol) {
+			break
+		}
+
+		relDir, err := filepath.Rel(cleanSysvol, cleanDir)
+		if err != nil || relDir == "." || relDir == "" {
+			break
+		}
+
+		parts := strings.Split(filepath.ToSlash(relDir), "/")
+		// Never remove SYSVOL root, <domain>, <domain>/Policies, or <domain>/scripts
+		if len(parts) <= 1 {
+			break
+		}
+		if len(parts) == 2 && (strings.EqualFold(parts[1], "Policies") || strings.EqualFold(parts[1], "scripts")) {
+			break
+		}
+
+		entries, err := os.ReadDir(cleanDir)
+		if err != nil || len(entries) > 0 {
+			break
+		}
+
+		if err := os.Remove(cleanDir); err != nil {
+			break
+		}
+		log.Printf("[zclock-sysvold] Cleaned up empty directory: %s", relDir)
+		dir = filepath.Dir(cleanDir)
+	}
+}
+
+func (d *SysvolDaemon) GetClientForPartner(p Partner) (*http.Client, error) {
+	expectedFP := strings.ToLower(strings.ReplaceAll(p.CertFingerprint, ":", ""))
+	if expectedFP == "" {
+		return nil, fmt.Errorf("no pinned certificate fingerprint for partner %s: sync refused", p.IPAddress)
+	}
+
 	roots := x509.NewCertPool()
 	if p.CertPEM != "" {
 		roots.AppendCertsFromPEM([]byte(p.CertPEM))
@@ -102,20 +263,16 @@ func (d *SysvolDaemon) GetClientForPartner(p Partner) *http.Client {
 		roots.AppendCertsFromPEM(data)
 	}
 
-	expectedFP := strings.ToLower(strings.ReplaceAll(p.CertFingerprint, ":", ""))
-
 	tlsConfig := &tls.Config{
 		RootCAs: roots,
-		// InsecureSkipVerify is completely removed / false: standard CA/SAN validation occurs,
-		// supplemented by exact SHA-256 fingerprint verification on every connection.
 		VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 			if len(rawCerts) == 0 {
 				return fmt.Errorf("no peer certificates presented by %s", p.IPAddress)
 			}
 			fp := sha256.Sum256(rawCerts[0])
 			fpHex := hex.EncodeToString(fp[:])
-			if expectedFP != "" && fpHex != expectedFP {
-				return fmt.Errorf("TLS certificate fingerprint mismatch for %s: got %s, expected %s", p.IPAddress, fpHex, expectedFP)
+			if fpHex != expectedFP {
+				return fmt.Errorf("certificate changed: re-pin required (got %s, expected %s)", fpHex, expectedFP)
 			}
 			return nil
 		},
@@ -124,12 +281,14 @@ func (d *SysvolDaemon) GetClientForPartner(p Partner) *http.Client {
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
 	}
-	return &http.Client{Transport: tr, Timeout: 25 * time.Second}
+	return &http.Client{Transport: tr, Timeout: 25 * time.Second}, nil
 }
 
 func NewSysvolDaemon(sysvolPath string, debounceSec int) *SysvolDaemon {
+	statePath := getEnv("ZCLOCKID_SYSVOL_STATE", "/var/lib/zclockid/sysvol_state.json")
 	return &SysvolDaemon{
 		sysvolPath:      sysvolPath,
+		statePath:       statePath,
 		debounceSec:     time.Duration(debounceSec) * time.Second,
 		partnerStatuses: make(map[string]PartnerStatus),
 		localSecret:     getOrCreateSecret(),
@@ -251,7 +410,22 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 	baseURL := fmt.Sprintf("https://%s", p.IPAddress)
 	manifestURL := fmt.Sprintf("%s/api/v1/sysvol/manifest", baseURL)
 
-	client := d.GetClientForPartner(p)
+	client, err := d.GetClientForPartner(p)
+	if err != nil {
+		errStr := err.Error()
+		d.statusMutex.Lock()
+		d.partnerStatuses[p.IPAddress] = PartnerStatus{
+			Name:       name,
+			IPAddress:  p.IPAddress,
+			Status:     "ERROR",
+			LastSync:   float64(time.Now().Unix()),
+			FilesCount: 0,
+			Error:      &errStr,
+		}
+		d.statusMutex.Unlock()
+		log.Printf("[zclock-sysvold] Peer %s client error: %v", p.IPAddress, err)
+		return false
+	}
 
 	req, err := http.NewRequest("GET", manifestURL, nil)
 	if err != nil {
@@ -262,11 +436,16 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 	resp, err := client.Do(req)
 	if err != nil {
 		errStr := err.Error()
+		status := "UNREACHABLE"
+		if strings.Contains(errStr, "re-pin required") || strings.Contains(errStr, "fingerprint mismatch") {
+			status = "ERROR"
+			errStr = "certificate changed: re-pin required"
+		}
 		d.statusMutex.Lock()
 		d.partnerStatuses[p.IPAddress] = PartnerStatus{
 			Name:       name,
 			IPAddress:  p.IPAddress,
-			Status:     "UNREACHABLE",
+			Status:     status,
 			LastSync:   float64(time.Now().Unix()),
 			FilesCount: 0,
 			Error:      &errStr,
@@ -292,16 +471,49 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 	}
 
 	var remoteData struct {
-		Manifest map[string]FileInfo `json:"manifest"`
+		Manifest   map[string]FileInfo `json:"manifest"`
+		Tombstones []Tombstone         `json:"tombstones"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&remoteData); err != nil {
 		return false
 	}
 
+	state := d.LoadState()
 	localManifest := d.GetLocalManifest()
+	d.UpdateLocalStateOnScan(localManifest, &state)
 	changed := false
 
-	// 1. Pull remote files that are missing or newer
+	// Build map of remote tombstones
+	remoteTombMap := make(map[string]Tombstone)
+	for _, t := range remoteData.Tombstones {
+		if t.RelPath != "" {
+			remoteTombMap[t.RelPath] = t
+		}
+	}
+
+	// 1. Process deletions via Tombstones
+	candidatesToDelete, _, tripped := MergeTombstones(localManifest, remoteData.Tombstones, &state)
+	if tripped {
+		d.RecordHealth("ERROR", fmt.Sprintf("Mass deletion brake tripped: attempted to delete %d files (>20%% of %d or >50 files). Confirmation required.", len(candidatesToDelete), len(localManifest)))
+		log.Printf("[zclock-sysvold] Mass deletion brake tripped! Deletion aborted.")
+	} else if len(candidatesToDelete) > 0 {
+		for _, relPath := range candidatesToDelete {
+			targetPath := filepath.Join(d.sysvolPath, filepath.Clean(relPath))
+			if err := os.Remove(targetPath); err == nil {
+				log.Printf("[zclock-sysvold] Deleted local file per peer tombstone: %s", relPath)
+				d.CleanupEmptyDirs(targetPath)
+				changed = true
+				delete(localManifest, relPath)
+				delete(state.Files, relPath)
+				if rt, ok := remoteTombMap[relPath]; ok {
+					state.Tombstones[relPath] = rt
+				}
+			}
+		}
+	}
+
+	// 2. Pull remote files that are missing or newer
+	const MaxSysvolFileSize = 50 * 1024 * 1024 // 50 MB
 	for relPath, rInfo := range remoteData.Manifest {
 		cleanRel := filepath.Clean(relPath)
 		if strings.HasPrefix(cleanRel, "..") || filepath.IsAbs(cleanRel) {
@@ -311,6 +523,14 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 		destPath := filepath.Join(d.sysvolPath, cleanRel)
 		if !strings.HasPrefix(destPath, d.sysvolPath) {
 			continue
+		}
+
+		// Never pull a file listed in your own tombstones unless remote copy is newer and hash differs
+		if localTomb, hasTomb := state.Tombstones[relPath]; hasTomb {
+			if !(rInfo.Mtime > localTomb.DeletedAt && rInfo.Hash != localTomb.HashAtDelete) {
+				continue
+			}
+			delete(state.Tombstones, relPath)
 		}
 
 		lInfo, exists := localManifest[relPath]
@@ -325,27 +545,68 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 				_ = os.MkdirAll(filepath.Dir(destPath), 0755)
 
 				tmpPath := destPath + ".tmp"
-				if outF, err := os.Create(tmpPath); err == nil {
-					_, _ = io.Copy(outF, dlResp.Body)
+				if outF, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644); err == nil {
+					hasher := sha256.New()
+					multiOut := io.MultiWriter(outF, hasher)
+					limitedReader := io.LimitReader(dlResp.Body, MaxSysvolFileSize+1)
+					written, cErr := io.Copy(multiOut, limitedReader)
 					outF.Close()
-					_ = os.Rename(tmpPath, destPath)
-					changed = true
+
+					if cErr != nil || written > MaxSysvolFileSize {
+						_ = os.Remove(tmpPath)
+						log.Printf("[zclock-sysvold] File %s exceeds 50 MB cap or download error (%v). Aborting.", relPath, cErr)
+					} else {
+						downloadedHash := hex.EncodeToString(hasher.Sum(nil))
+						if !strings.EqualFold(downloadedHash, rInfo.Hash) {
+							_ = os.Remove(tmpPath)
+							log.Printf("[zclock-sysvold] Content integrity check failed for '%s': got %s, expected %s. Download discarded.", relPath, downloadedHash, rInfo.Hash)
+						} else {
+							if err := os.Rename(tmpPath, destPath); err == nil {
+								if rInfo.Mtime > 0 {
+									sec := int64(rInfo.Mtime)
+									nsec := int64((rInfo.Mtime - float64(sec)) * 1e9)
+									mtime := time.Unix(sec, nsec)
+									_ = os.Chtimes(destPath, mtime, mtime)
+								}
+								delete(state.Tombstones, relPath)
+								changed = true
+							}
+						}
+					}
 				}
 				dlResp.Body.Close()
 			}
 		}
 	}
 
-	// 2. Push local files that are missing or newer remotely
+	// 3. Push local files that are missing or newer remotely
 	for relPath, lInfo := range localManifest {
+		// Do not push if remote partner has a tombstone for this file, unless local file was modified after deletion
+		if rTomb, hasRTomb := remoteTombMap[relPath]; hasRTomb {
+			if !(lInfo.Mtime > rTomb.DeletedAt && lInfo.Hash != rTomb.HashAtDelete) {
+				continue
+			}
+		}
+
+		// Do not push if local state has a tombstone for this file, unless local file was modified after deletion
+		if lTomb, hasLTomb := state.Tombstones[relPath]; hasLTomb {
+			if !(lInfo.Mtime > lTomb.DeletedAt && lInfo.Hash != lTomb.HashAtDelete) {
+				continue
+			}
+		}
+
 		rInfo, exists := remoteData.Manifest[relPath]
 		if !exists || (lInfo.Hash != rInfo.Hash && lInfo.Mtime > rInfo.Mtime) {
-			log.Printf("[zclock-sysvold] Pushing updated file '%s' to %s (%s)...", relPath, name, p.IPAddress)
 			localFilePath := filepath.Join(d.sysvolPath, relPath)
+			if _, statErr := os.Stat(localFilePath); statErr != nil {
+				continue
+			}
+			log.Printf("[zclock-sysvold] Pushing updated file '%s' to %s (%s)...", relPath, name, p.IPAddress)
 			if fileData, err := os.ReadFile(localFilePath); err == nil {
 				pushPayload := map[string]interface{}{
 					"rel_path":       relPath,
 					"content_base64": hex.EncodeToString(fileData),
+					"sha256":         lInfo.Hash,
 					"mtime":          lInfo.Mtime,
 				}
 				jsonPayload, _ := json.Marshal(pushPayload)
@@ -363,13 +624,17 @@ func (d *SysvolDaemon) SyncPartner(p Partner) bool {
 		}
 	}
 
+	// 4. Update local state files snapshot and save
+	state.Files = d.GetLocalManifest()
+	d.SaveState(state)
+
 	d.statusMutex.Lock()
 	d.partnerStatuses[p.IPAddress] = PartnerStatus{
 		Name:       name,
 		IPAddress:  p.IPAddress,
 		Status:     "IN_SYNC",
 		LastSync:   float64(time.Now().Unix()),
-		FilesCount: len(localManifest),
+		FilesCount: len(state.Files),
 		Error:      nil,
 	}
 	d.statusMutex.Unlock()
@@ -404,7 +669,12 @@ func (d *SysvolDaemon) Run(ctx context.Context) {
 	log.Printf("[zclock-sysvold] Starting Go Native Sysvol Guardian on %s (debounce: %v)...", d.sysvolPath, d.debounceSec)
 	d.ExecuteSysvolReset()
 
-	// Initial partner sync & telemetry pass on start
+	// Initial scan & partner sync pass on start
+	initState := d.LoadState()
+	initManifest := d.GetLocalManifest()
+	d.UpdateLocalStateOnScan(initManifest, &initState)
+	d.SaveState(initState)
+
 	partners := d.LoadPartners()
 	for _, p := range partners {
 		d.SyncPartner(p)
@@ -421,16 +691,18 @@ func (d *SysvolDaemon) Run(ctx context.Context) {
 			log.Println("[zclock-sysvold] Daemon loop terminating via context...")
 			return
 		case <-ticker.C:
-			// 1. Check local modification
+			// 1. Scan and detect local file changes & deletions
+			st := d.LoadState()
+			currManifest := d.GetLocalManifest()
+			d.UpdateLocalStateOnScan(currManifest, &st)
+			d.SaveState(st)
+
 			var maxMtime int64 = 0
-			_ = filepath.Walk(d.sysvolPath, func(path string, info os.FileInfo, err error) error {
-				if err == nil && !info.IsDir() {
-					if mt := info.ModTime().UnixNano(); mt > maxMtime {
-						maxMtime = mt
-					}
+			for _, info := range currManifest {
+				if mt := int64(info.Mtime * 1e9); mt > maxMtime {
+					maxMtime = mt
 				}
-				return nil
-			})
+			}
 
 			if lastMtime != 0 && maxMtime > lastMtime {
 				d.ScheduleReset("Local modification in sysvol")

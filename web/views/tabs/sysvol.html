@@ -1,3 +1,17 @@
+                <!-- Mass Deletion Safety Brake Banner (Visible when tripped) -->
+                <div id="sysvol-mass-delete-banner" class="hidden bg-rose-950/60 border border-rose-500/50 rounded-xl p-4 flex items-center justify-between gap-4 text-xs">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-400 text-xl"></i>
+                        <div>
+                            <div class="font-bold text-rose-300">Safety Brake Tripped: High-Volume Sysvol Deletions Suspended</div>
+                            <div class="text-rose-400/80 text-[11px]">A sync cycle targeted more than 20% or &gt;50 files for deletion. Deletions are halted across all peers until manually confirmed by an administrator.</div>
+                        </div>
+                    </div>
+                    <button onclick="confirmMassDelete()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-xs shadow-lg transition flex items-center gap-1.5 shrink-0">
+                        <i class="fa-solid fa-check"></i> Confirm Deletions & Resume
+                    </button>
+                </div>
+
                 <!-- Status & Architecture Card -->
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex items-center justify-between">
@@ -37,6 +51,14 @@
                             <span class="text-slate-500 text-[10px] uppercase">Last NTACL Reconciliation</span>
                             <div id="sysvol-last-reset" class="text-slate-300 font-bold text-xs">-</div>
                         </div>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-[11px] font-mono flex flex-col md:flex-row md:items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500 uppercase text-[10px]">Local DC TLS Fingerprint (SHA-256):</span>
+                            <span id="sysvol-local-fingerprint" class="text-indigo-300 font-semibold select-all">Loading...</span>
+                        </div>
+                        <span class="text-slate-500 text-[10px]">Cross-check against partner DC when pairing</span>
                     </div>
                 </div>
 

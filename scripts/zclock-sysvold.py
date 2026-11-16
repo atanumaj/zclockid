@@ -4,10 +4,11 @@ zclock-sysvold.py - ZclockID Integrated Sysvol Replication & NTACL Self-Healing 
 Features:
 - Native peer-to-peer bi-directional Sysvol file replication across Domain Controllers
 - Computes SHA-256 file manifests and synchronizes over HTTPS with partner DCs
-- Inotify / mtime watcher for instantaneous change detection and outbound push
+- Tombstone-based deletion propagation and mass-delete safety braking
+- Content integrity checks with SHA-256 validation and 50 MB payload cap
 - Automated debounced 'samba-tool ntacl sysvolreset' to guarantee unbroken Windows GPO ACLs
 - Real-time telemetry export to /var/run/zclock-sysvol-sync.json for GUI and SNMP
-- Strict TLS certificate and SHA-256 fingerprint verification (no CERT_NONE)
+- Strict TLS certificate and SHA-256 fingerprint verification (no CERT_NONE, refuse if unpinned)
 """
 
 import os
@@ -22,16 +23,19 @@ import urllib.request
 import urllib.parse
 import ssl
 import socket
+from typing import Optional, Dict, Any, List
 from pathlib import Path
 from threading import Timer, Thread
 
 SYSVOL_PATH = os.environ.get("SYSVOL_PATH", "/var/lib/samba/sysvol")
 DEBOUNCE_SECONDS = int(os.environ.get("DEBOUNCE_SECONDS", "4"))
-HEALTH_STATE_FILE = Path("/var/run/zclock-sysvol.health")
-SYNC_STATUS_FILE = Path("/var/run/zclock-sysvol-sync.json")
-PARTNERS_FILE = Path("/etc/zclockid/sysvol_partners.json")
-LOCAL_SECRET_FILE = Path("/etc/zclockid/sysvol_secret")
-CERTS_DIR = Path("/etc/zclockid/certs")
+HEALTH_STATE_FILE = Path(os.environ.get("ZCLOCKID_SYSVOL_HEALTH", "/var/run/zclock-sysvol.health"))
+SYNC_STATUS_FILE = Path(os.environ.get("ZCLOCKID_SYSVOL_SYNC_STATUS", "/var/run/zclock-sysvol-sync.json"))
+PARTNERS_FILE = Path(os.environ.get("ZCLOCKID_PARTNERS_FILE", "/etc/zclockid/sysvol_partners.json"))
+LOCAL_SECRET_FILE = Path(os.environ.get("ZCLOCKID_SYSVOL_SECRET", "/etc/zclockid/sysvol_secret"))
+CERTS_DIR = Path(os.environ.get("ZCLOCKID_CERTS_DIR", "/etc/zclockid/certs"))
+SYSVOL_STATE_FILE = Path(os.environ.get("ZCLOCKID_SYSVOL_STATE", "/var/lib/zclockid/sysvol_state.json"))
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
 logging.basicConfig(
     level=logging.INFO,
@@ -62,6 +66,10 @@ def get_partner_ssl_context(p: dict) -> ssl.SSLContext:
 
 def verify_partner_tls_fingerprint(p_ip: str, expected_fp: str, cert_pem: str = None) -> bool:
     """Validates that the remote peer presents a certificate matching the pinned SHA-256 fingerprint."""
+    clean_expected = (expected_fp or "").replace(":", "").lower()
+    if not clean_expected:
+        raise ValueError(f"no pinned certificate fingerprint for partner {p_ip}: sync refused")
+
     ctx = get_partner_ssl_context({"ip_address": p_ip, "cert_pem": cert_pem})
     with socket.create_connection((p_ip, 443), timeout=5) as sock:
         with ctx.wrap_socket(sock) as ssock:
@@ -69,9 +77,8 @@ def verify_partner_tls_fingerprint(p_ip: str, expected_fp: str, cert_pem: str = 
             if not der:
                 raise ssl.SSLError(f"No certificate presented by {p_ip}")
             fp = hashlib.sha256(der).hexdigest()
-            clean_expected = (expected_fp or "").replace(":", "").lower()
-            if clean_expected and fp != clean_expected:
-                raise ssl.SSLError(f"Certificate fingerprint mismatch for {p_ip}: got {fp}, expected {clean_expected}")
+            if fp != clean_expected:
+                raise ssl.SSLError(f"certificate changed: re-pin required (got {fp}, expected {clean_expected})")
     return True
 
 
@@ -80,18 +87,122 @@ def get_or_create_local_secret() -> str:
         try:
             with open(LOCAL_SECRET_FILE) as f:
                 sec = f.read().strip()
-                if sec: return sec
+                if sec:
+                    try:
+                        os.chmod(LOCAL_SECRET_FILE, 0o600)
+                    except Exception:
+                        pass
+                    return sec
         except Exception:
             pass
     import secrets
     sec = secrets.token_hex(24)
-    LOCAL_SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(LOCAL_SECRET_FILE, "w") as f:
-        f.write(sec + "\n")
-    os.chmod(LOCAL_SECRET_FILE, 0o600)
+    try:
+        LOCAL_SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOCAL_SECRET_FILE, "w") as f:
+            f.write(sec + "\n")
+        os.chmod(LOCAL_SECRET_FILE, 0o600)
+    except Exception:
+        pass
     return sec
 
-LOCAL_SECRET = get_or_create_local_secret()
+def get_local_secret() -> str:
+    global LOCAL_SECRET
+    if not LOCAL_SECRET:
+        LOCAL_SECRET = get_or_create_local_secret()
+    return LOCAL_SECRET
+
+LOCAL_SECRET = ""
+
+
+def load_sysvol_state(state_file: Optional[Path] = None) -> dict:
+    target_file = state_file or SYSVOL_STATE_FILE
+    if target_file.exists():
+        try:
+            with open(target_file) as f:
+                st = json.load(f)
+                if "files" not in st: st["files"] = {}
+                if "tombstones" not in st: st["tombstones"] = {}
+                return st
+        except Exception:
+            pass
+    return {"files": {}, "tombstones": {}, "mass_delete_tripped": False}
+
+
+def save_sysvol_state(state: dict, state_file: Optional[Path] = None):
+    target_file = state_file or SYSVOL_STATE_FILE
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = target_file.with_suffix(".tmp")
+    fd = os.open(str(tmp_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(state, f, indent=2)
+    os.chmod(str(tmp_path), 0o600)
+    os.replace(str(tmp_path), str(target_file))
+
+
+def cleanup_empty_dirs(sysvol_path: str, file_path: str):
+    """Cleans up empty directories after deletion, never removing root, <domain>, Policies, or scripts."""
+    clean_root = os.path.abspath(sysvol_path)
+    curr = os.path.dirname(os.path.abspath(file_path))
+
+    while curr != clean_root and curr.startswith(clean_root):
+        rel_dir = os.path.relpath(curr, clean_root)
+        if rel_dir in (".", ""):
+            break
+        parts = rel_dir.replace("\\", "/").split("/")
+        if len(parts) <= 1:
+            break
+        if len(parts) == 2 and parts[1].lower() in ("policies", "scripts"):
+            break
+
+        try:
+            if not os.listdir(curr):
+                os.rmdir(curr)
+                logger.info(f"Cleaned up empty directory: {rel_dir}")
+                curr = os.path.dirname(curr)
+            else:
+                break
+        except Exception:
+            break
+
+
+def merge_tombstones(local_manifest: dict, remote_tombstones: list, state: dict) -> tuple:
+    """Merges remote tombstones and evaluates mass-delete brake. Returns (candidates_to_delete, conflict_count, tripped)."""
+    total_files = len(local_manifest)
+    candidates = []
+    conflict_count = 0
+
+    for rt in remote_tombstones:
+        rel_p = rt.get("rel_path")
+        if not rel_p:
+            continue
+        l_info = local_manifest.get(rel_p)
+        if not l_info:
+            if state:
+                existing = state.get("tombstones", {}).get(rel_p)
+                if not existing or rt.get("deleted_at", 0) > existing.get("deleted_at", 0):
+                    state.setdefault("tombstones", {})[rel_p] = rt
+            continue
+
+        h_delete = rt.get("hash_at_delete")
+        d_at = rt.get("deleted_at", 0)
+
+        if l_info.get("hash") == h_delete:
+            candidates.append(rel_p)
+        elif l_info.get("mtime", 0) > d_at:
+            logger.info(f"Conflict for '{rel_p}': modified locally after remote deletion. Keeping local copy.")
+            conflict_count += 1
+        else:
+            candidates.append(rel_p)
+
+    num_to_delete = len(candidates)
+    if num_to_delete > 50 or (total_files > 0 and num_to_delete > 1 and num_to_delete > 0.20 * total_files):
+        if state is not None:
+            state["mass_delete_tripped"] = True
+        return [], conflict_count, True
+
+    return candidates, conflict_count, False
+
 
 class SysvolReconciler:
     def __init__(self, sysvol_path: str, debounce_sec: int = 4):
@@ -163,6 +274,31 @@ class SysvolReconciler:
                     pass
         return manifest
 
+    def update_local_state_on_scan(self, local_manifest: dict, state: dict):
+        now = time.time()
+        prev_files = state.get("files", {})
+        tombstones = state.setdefault("tombstones", {})
+
+        # Expire tombstones older than 30 days
+        cutoff = now - (30 * 86400)
+        state["tombstones"] = {p: t for p, t in tombstones.items() if t.get("deleted_at", 0) > cutoff}
+
+        # Detect local deletions compared to state.files
+        for p, prev in prev_files.items():
+            if p not in local_manifest and p not in state["tombstones"]:
+                state["tombstones"][p] = {
+                    "rel_path": p,
+                    "deleted_at": now,
+                    "hash_at_delete": prev.get("hash", "")
+                }
+                logger.info(f"Local deletion recorded for '{p}'")
+
+        # Clear tombstones for files present locally
+        for p in local_manifest:
+            state["tombstones"].pop(p, None)
+
+        state["files"] = local_manifest
+
     def sync_partner(self, partner: dict) -> bool:
         """Synchronizes file manifests and payloads with a single partner DC over TLS."""
         p_name = partner.get("name", partner.get("ip_address"))
@@ -178,31 +314,64 @@ class SysvolReconciler:
         headers = {"X-Zclock-Sync-Secret": p_secret}
 
         try:
-            # 1. Verify TLS certificate & SHA-256 fingerprint
-            if p_fp:
-                verify_partner_tls_fingerprint(p_ip, p_fp, p_cert_pem)
+            # 1. Verify TLS certificate & SHA-256 fingerprint (must refuse if unpinned)
+            if not p_fp:
+                raise ValueError(f"no pinned certificate fingerprint for partner {p_ip}: sync refused")
 
+            verify_partner_tls_fingerprint(p_ip, p_fp, p_cert_pem)
             ssl_ctx = get_partner_ssl_context(partner)
 
-            # 2. Fetch remote manifest
+            # 2. Fetch remote manifest and tombstones
             manifest_url = f"{url_base}/api/v1/sysvol/manifest"
             req = urllib.request.Request(manifest_url, headers=headers)
             with urllib.request.urlopen(req, context=ssl_ctx, timeout=20) as resp:
                 if resp.status != 200:
                     raise Exception(f"HTTP {resp.status}")
-                data = json.loads(resp.read().decode("utf-8"))
-                remote_manifest = data.get("manifest", {})
+                remote_data = json.loads(resp.read().decode("utf-8"))
+                remote_manifest = remote_data.get("manifest", {})
+                remote_tombstones = remote_data.get("tombstones", [])
 
+            state = load_sysvol_state()
             local_manifest = self.get_local_manifest()
+            self.update_local_state_on_scan(local_manifest, state)
             changed = False
 
-            # 3. Pull remote files that are newer or missing locally
+            remote_tomb_map = {t["rel_path"]: t for t in remote_tombstones if t.get("rel_path")}
+
+            # 3. Process remote tombstones (deletions)
+            to_delete, _, tripped = merge_tombstones(local_manifest, remote_tombstones, state)
+            if tripped:
+                self.record_health("ERROR", time.time(), f"Mass deletion brake tripped: attempted to delete {len(to_delete)} files. Confirmation required.")
+                logger.warning(f"Mass deletion safety brake tripped during sync with {p_name}! Deletion skipped.")
+            elif to_delete:
+                for rel_path in to_delete:
+                    dest_path = os.path.join(self.sysvol_path, os.path.normpath(rel_path))
+                    if os.path.exists(dest_path):
+                        try:
+                            os.remove(dest_path)
+                            logger.info(f"Deleted local file per peer tombstone: {rel_path}")
+                            cleanup_empty_dirs(self.sysvol_path, dest_path)
+                            changed = True
+                            local_manifest.pop(rel_path, None)
+                            state.get("files", {}).pop(rel_path, None)
+                            if rel_path in remote_tomb_map:
+                                state.setdefault("tombstones", {})[rel_path] = remote_tomb_map[rel_path]
+                        except Exception as e:
+                            logger.error(f"Failed to delete {dest_path}: {e}")
+
+            # 4. Pull remote files that are newer or missing locally
             for rel_path, r_info in remote_manifest.items():
-                # Enforce path safety
                 clean_rel = os.path.normpath(rel_path)
                 if clean_rel.startswith("..") or os.path.isabs(clean_rel):
                     logger.warning(f"Path traversal rejected from remote manifest: {rel_path}")
                     continue
+
+                # Never pull if listed in own tombstones unless remote is newer and hash differs
+                local_tomb = state.get("tombstones", {}).get(rel_path)
+                if local_tomb:
+                    if not (r_info.get("mtime", 0) > local_tomb.get("deleted_at", 0) and r_info.get("hash") != local_tomb.get("hash_at_delete")):
+                        continue
+                    state["tombstones"].pop(rel_path, None)
 
                 l_info = local_manifest.get(rel_path)
                 if not l_info or (r_info["hash"] != l_info["hash"] and r_info["mtime"] > l_info["mtime"]):
@@ -210,7 +379,17 @@ class SysvolReconciler:
                     dl_url = f"{url_base}/api/v1/sysvol/file?rel_path={urllib.parse.quote(rel_path)}"
                     dl_req = urllib.request.Request(dl_url, headers=headers)
                     with urllib.request.urlopen(dl_req, context=ssl_ctx, timeout=20) as dl_resp:
-                        file_bytes = dl_resp.read()
+                        file_bytes = dl_resp.read(MAX_FILE_SIZE + 1)
+
+                    if len(file_bytes) > MAX_FILE_SIZE:
+                        logger.error(f"File {rel_path} exceeds 50 MB limit. Aborting download.")
+                        continue
+
+                    # Check SHA-256 integrity
+                    dl_hash = hashlib.sha256(file_bytes).hexdigest()
+                    if dl_hash.lower() != r_info.get("hash", "").lower():
+                        logger.error(f"SHA-256 integrity mismatch for {rel_path}: got {dl_hash}, expected {r_info.get('hash')}")
+                        continue
 
                     dest_path = os.path.join(self.sysvol_path, clean_rel)
                     if not dest_path.startswith(os.path.abspath(self.sysvol_path)):
@@ -221,12 +400,33 @@ class SysvolReconciler:
                     with open(tmp_dest, "wb") as fp:
                         fp.write(file_bytes)
                     os.replace(tmp_dest, dest_path)
+                    if r_info.get("mtime"):
+                        try:
+                            os.utime(dest_path, (r_info["mtime"], r_info["mtime"]))
+                        except Exception:
+                            pass
+                    state.get("tombstones", {}).pop(rel_path, None)
                     changed = True
 
-            # 4. Push local files that are newer or missing remotely
-            for rel_path, l_info in local_manifest.items():
+            # 5. Push local files that are newer or missing remotely
+            for rel_path, l_info in list(local_manifest.items()):
+                # Do not push if remote partner has a tombstone, unless local file was modified after deletion
+                r_tomb = remote_tomb_map.get(rel_path)
+                if r_tomb:
+                    if not (l_info["mtime"] > r_tomb.get("deleted_at", 0) and l_info["hash"] != r_tomb.get("hash_at_delete")):
+                        continue
+
+                # Do not push if local state has a tombstone, unless local file was modified after deletion
+                l_tomb = state.get("tombstones", {}).get(rel_path)
+                if l_tomb:
+                    if not (l_info["mtime"] > l_tomb.get("deleted_at", 0) and l_info["hash"] != l_tomb.get("hash_at_delete")):
+                        continue
+
                 r_info = remote_manifest.get(rel_path)
                 if not r_info or (l_info["hash"] != r_info["hash"] and l_info["mtime"] > r_info["mtime"]):
+                    local_file_path = os.path.join(self.sysvol_path, rel_path)
+                    if not os.path.exists(local_file_path):
+                        continue
                     logger.info(f"Pushing updated file '{rel_path}' to partner {p_name} ({p_ip})...")
                     local_file_path = os.path.join(self.sysvol_path, rel_path)
                     with open(local_file_path, "rb") as fp:
@@ -236,6 +436,7 @@ class SysvolReconciler:
                     payload = json.dumps({
                         "rel_path": rel_path,
                         "content_base64": f_bytes.hex(),
+                        "sha256": l_info["hash"],
                         "mtime": l_info["mtime"]
                     }).encode("utf-8")
                     push_req = urllib.request.Request(
@@ -248,12 +449,16 @@ class SysvolReconciler:
                         pass
                     changed = True
 
+            # Save state
+            state["files"] = self.get_local_manifest()
+            save_sysvol_state(state)
+
             self.partner_statuses[p_ip] = {
                 "name": p_name,
                 "ip_address": p_ip,
                 "status": "IN_SYNC",
                 "last_sync": time.time(),
-                "files_count": len(local_manifest),
+                "files_count": len(state["files"]),
                 "error": None
             }
 
@@ -262,14 +467,23 @@ class SysvolReconciler:
 
             return True
         except Exception as e:
-            logger.warning(f"Replication check failed with partner {p_name} ({p_ip}): {e}")
+            err_msg = str(e)
+            status = "UNREACHABLE"
+            if "re-pin required" in err_msg.lower() or "fingerprint mismatch" in err_msg.lower():
+                status = "ERROR"
+                err_msg = "certificate changed: re-pin required"
+            elif "no pinned certificate fingerprint" in err_msg.lower():
+                status = "ERROR"
+                err_msg = "no pinned certificate fingerprint: sync refused"
+
+            logger.warning(f"Replication failed with partner {p_name} ({p_ip}): {err_msg}")
             self.partner_statuses[p_ip] = {
                 "name": p_name,
                 "ip_address": p_ip,
-                "status": "UNREACHABLE",
+                "status": status,
                 "last_sync": time.time(),
                 "files_count": 0,
-                "error": str(e)
+                "error": err_msg
             }
             return False
 
@@ -288,21 +502,26 @@ class SysvolReconciler:
         """Continuous polling and replication coordinating loop."""
         logger.info(f"Starting Integrated Sysvol Replication Guardian on {self.sysvol_path}...")
         self.execute_sysvolreset()
+
+        init_st = load_sysvol_state()
+        init_m = self.get_local_manifest()
+        self.update_local_state_on_scan(init_m, init_st)
+        save_sysvol_state(init_st)
+
         last_mtime = 0
 
         while self.running:
             try:
+                st = load_sysvol_state()
+                curr_m = self.get_local_manifest()
+                self.update_local_state_on_scan(curr_m, st)
+                save_sysvol_state(st)
+
                 current_max_mtime = 0
-                if os.path.exists(self.sysvol_path):
-                    for root, dirs, files in os.walk(self.sysvol_path):
-                        for item in files:
-                            p = os.path.join(root, item)
-                            try:
-                                mt = os.path.getmtime(p)
-                                if mt > current_max_mtime:
-                                    current_max_mtime = mt
-                            except Exception:
-                                pass
+                for info in curr_m.values():
+                    mt = info.get("mtime", 0)
+                    if mt > current_max_mtime:
+                        current_max_mtime = mt
 
                 if last_mtime != 0 and current_max_mtime > last_mtime:
                     self.schedule_reset(reason="Local modification detected")

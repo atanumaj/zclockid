@@ -1,11 +1,27 @@
         // 6. Sysvol Guardian & Integrated Replication
+        let sysvolPendingAddPartner = null;
+        let currentRepinPartnerIp = null;
+
         async function fetchSysvolStatus() {
             try {
                 const res = await fetch(`${API_BASE}/sysvol/status`);
                 const data = await res.json();
                 const d = new Date(data.last_reset * 1000);
-                document.getElementById('sysvol-last-reset').innerText = d.toLocaleTimeString();
-                document.getElementById('sysvol-partners-count').innerText = `${data.partners_count || 0} Registered Peers`;
+                const lastResetEl = document.getElementById('sysvol-last-reset');
+                if (lastResetEl) lastResetEl.innerText = d.toLocaleTimeString();
+                const countEl = document.getElementById('sysvol-partners-count');
+                if (countEl) countEl.innerText = `${data.partners_count || 0} Registered Peers`;
+                const fpEl = document.getElementById('sysvol-local-fingerprint');
+                if (fpEl) fpEl.innerText = data.local_cert_fingerprint || 'Not Available';
+
+                const bannerEl = document.getElementById('sysvol-mass-delete-banner');
+                if (bannerEl) {
+                    if (data.mass_delete_tripped) {
+                        bannerEl.classList.remove('hidden');
+                    } else {
+                        bannerEl.classList.add('hidden');
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching sysvol status:', err);
             }
@@ -24,6 +40,8 @@
                         const safeStatus = escapeHtml(p.status);
                         const safeD = escapeHtml(d);
                         const safeFilesCount = escapeHtml(p.files_count);
+                        const isError = p.status === 'ERROR';
+                        const statusBadgeClass = p.status === 'IN_SYNC' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : (isError ? 'bg-rose-950 text-rose-400 border border-rose-800' : 'bg-amber-950 text-amber-400 border border-amber-800');
                         return `
                             <tr class="hover:bg-slate-800/30">
                                 <td class="px-4 py-2.5 font-bold text-white flex items-center gap-2">
@@ -31,18 +49,22 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-cyan-300 font-semibold">
                                     <div>${safeIp}</div>
-                                    ${p.cert_fingerprint ? `<div class="text-[9px] text-slate-400 font-mono tracking-tight mt-0.5" title="${escapeHtml(p.cert_fingerprint)}"><i class="fa-solid fa-lock text-emerald-400 text-[8px] mr-1"></i>${escapeHtml(p.cert_fingerprint.substring(0, 23))}...</div>` : ''}
+                                    ${p.cert_fingerprint ? `<div class="text-[9px] text-slate-400 font-mono tracking-tight mt-0.5" title="${escapeHtml(p.cert_fingerprint)}"><i class="fa-solid fa-lock text-emerald-400 text-[8px] mr-1"></i>${escapeHtml(p.cert_fingerprint.substring(0, 23))}...</div>` : '<div class="text-[9px] text-rose-400 font-mono"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Unpinned</div>'}
                                 </td>
                                 <td class="px-4 py-2.5">
-                                    <span class="px-2 py-0.5 rounded text-[10px] ${p.status === 'IN_SYNC' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}">${safeStatus}</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] ${statusBadgeClass}">${safeStatus}</span>
+                                    ${p.error ? `<div class="text-[9px] text-rose-400 mt-1 max-w-xs truncate" title="${escapeHtml(p.error)}">${escapeHtml(p.error)}</div>` : ''}
                                 </td>
                                 <td class="px-4 py-2.5 text-slate-400">${safeD}</td>
                                 <td class="px-4 py-2.5 text-slate-300 font-bold">${safeFilesCount} items</td>
-                                <td class="px-4 py-2.5 text-right space-x-2">
-                                    <button onclick="triggerSysvolSyncNow()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition" title="Sync Peer">
+                                <td class="px-4 py-2.5 text-right space-x-1.5 whitespace-nowrap">
+                                    <button onclick="triggerSysvolSyncNow()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition" title="Sync Peer">
                                         <i class="fa-solid fa-rotate mr-1"></i> Sync
                                     </button>
-                                    <button data-action="delete-sysvol-partner" data-ip="${safeIp}" class="text-slate-500 hover:text-rose-400 transition" title="Remove Peer">
+                                    <button data-action="repin-sysvol-partner" data-ip="${safeIp}" class="px-2 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-800/80 text-amber-300 rounded text-[11px] transition" title="Re-pin TLS Certificate">
+                                        <i class="fa-solid fa-shield-halved mr-1"></i> Re-pin
+                                    </button>
+                                    <button data-action="delete-sysvol-partner" data-ip="${safeIp}" class="text-slate-500 hover:text-rose-400 transition px-1" title="Remove Peer">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                 </td>
@@ -58,10 +80,16 @@
         }
 
         function openSysvolPartnerModal() {
+            sysvolPendingAddPartner = null;
+            const confirmBox = document.getElementById('sysvol-p-confirm-box');
+            if (confirmBox) confirmBox.classList.add('hidden');
+            const submitBtn = document.getElementById('sysvol-p-submit-btn');
+            if (submitBtn) submitBtn.innerText = 'Pair & Start Replication';
             document.getElementById('sysvol-partner-modal').classList.remove('hidden');
             generatePartnerSecret();
         }
         function closeSysvolPartnerModal() {
+            sysvolPendingAddPartner = null;
             document.getElementById('sysvol-partner-modal').classList.add('hidden');
         }
 
@@ -110,21 +138,38 @@
 
             if (!name || !ip || !secret) return alert('Name, IP, and Secret are required.');
 
+            const confirmFlag = Boolean(sysvolPendingAddPartner && sysvolPendingAddPartner.ip_address === ip);
+            const payload = {
+                name: name,
+                ip_address: ip,
+                shared_secret: secret,
+                cert_fingerprint: fingerprint || null,
+                confirm: confirmFlag
+            };
+
             try {
                 const res = await fetch(`${API_BASE}/sysvol/partners`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 
-                        name: name, 
-                        ip_address: ip, 
-                        shared_secret: secret,
-                        cert_fingerprint: fingerprint || null
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (res.ok) {
+                    if (data.status === 'confirm_required') {
+                        sysvolPendingAddPartner = data.partner;
+                        const confirmBox = document.getElementById('sysvol-p-confirm-box');
+                        const probedFpEl = document.getElementById('sysvol-p-probed-fp');
+                        const localFpEl = document.getElementById('sysvol-p-local-fp');
+                        const submitBtn = document.getElementById('sysvol-p-submit-btn');
+                        if (probedFpEl) probedFpEl.innerText = data.peer_fingerprint || 'None';
+                        if (localFpEl) localFpEl.innerText = data.local_fingerprint || 'None';
+                        if (confirmBox) confirmBox.classList.remove('hidden');
+                        if (submitBtn) submitBtn.innerText = 'Confirm & Pair Partner';
+                        return;
+                    }
+
                     closeSysvolPartnerModal();
-                    alert(data.message);
+                    alert(data.message || 'Partner DC paired successfully');
                     fetchSysvolStatus();
                     fetchSysvolPartners();
                 } else {
@@ -173,4 +218,89 @@
                 alert(`Error resetting sysvol: ${err}`);
             }
         }
+
+        async function confirmMassDelete() {
+            if (!confirm('WARNING: Authorize pending mass deletions across Sysvol? This will allow replication to resume.')) return;
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/mass-delete/confirm`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Mass deletion safety brake released.');
+                    fetchSysvolStatus();
+                    fetchSysvolPartners();
+                } else {
+                    alert(`Failed to confirm deletions: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error confirming mass deletions: ${err}`);
+            }
+        }
+
+        function closeSysvolRepinModal() {
+            currentRepinPartnerIp = null;
+            const modal = document.getElementById('sysvol-repin-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function startRepinSysvolPartner(ip) {
+            currentRepinPartnerIp = ip;
+            const modal = document.getElementById('sysvol-repin-modal');
+            const ipDisplay = document.getElementById('repin-partner-ip-display');
+            const currentFpEl = document.getElementById('repin-current-fp');
+            const newFpEl = document.getElementById('repin-new-fp');
+
+            if (ipDisplay) ipDisplay.innerText = ip;
+            if (currentFpEl) currentFpEl.innerText = 'Loading...';
+            if (newFpEl) newFpEl.innerText = 'Probing peer certificate...';
+            if (modal) modal.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/partners/${ip}/repin`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ confirm: false })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    if (currentFpEl) currentFpEl.innerText = data.current_fingerprint || 'None';
+                    if (newFpEl) newFpEl.innerText = data.new_fingerprint || 'None';
+                } else {
+                    alert(`Failed to probe certificate: ${data.detail}`);
+                    closeSysvolRepinModal();
+                }
+            } catch (err) {
+                alert(`Error preparing re-pin: ${err}`);
+                closeSysvolRepinModal();
+            }
+        }
+
+        async function confirmRepinSysvolPartner() {
+            if (!currentRepinPartnerIp) return;
+            try {
+                const res = await fetch(`${API_BASE}/sysvol/partners/${currentRepinPartnerIp}/repin`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ confirm: true })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || 'Partner TLS certificate re-pinned successfully.');
+                    closeSysvolRepinModal();
+                    fetchSysvolStatus();
+                    fetchSysvolPartners();
+                } else {
+                    alert(`Re-pin failed: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error completing re-pin: ${err}`);
+            }
+        }
+
+        window.startRepinSysvolPartner = startRepinSysvolPartner;
+        window.confirmRepinSysvolPartner = confirmRepinSysvolPartner;
+        window.closeSysvolRepinModal = closeSysvolRepinModal;
+        window.confirmMassDelete = confirmMassDelete;
 

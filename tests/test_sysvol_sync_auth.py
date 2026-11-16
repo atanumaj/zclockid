@@ -12,6 +12,7 @@ Verifies that Sysvol replication endpoints (/manifest, /file):
 
 import os
 import json
+import hashlib
 import tempfile
 import sqlite3
 from pathlib import Path
@@ -70,6 +71,7 @@ def sysvol_test_env(tmp_path, monkeypatch):
     monkeypatch.setattr(sysvol_mod, "PHYSICAL_SYSVOL_DIR", sysvol_root)
     monkeypatch.setattr(sysvol_mod, "SYSVOL_PARTNERS_FILE", partners_file)
     monkeypatch.setattr(sysvol_mod, "SYSVOL_LOCAL_SECRET_FILE", local_secret_file)
+    monkeypatch.setattr(sysvol_mod, "SYSVOL_STATE_FILE", tmp_path / "sysvol_state.json")
 
     # Mock samba-tool ntacl sysvolreset execution to prevent calling host system
     monkeypatch.setattr(sysvol_mod, "run_cmd", lambda cmd, **kwargs: (0, "Mock success", ""))
@@ -103,6 +105,7 @@ def test_no_header_returns_401(client, sysvol_test_env):
     payload = {
         "rel_path": "Policies/{GUID-1234}/test.txt",
         "content_base64": "68656c6c6f",
+        "sha256": hashlib.sha256(bytes.fromhex("68656c6c6f")).hexdigest(),
         "mtime": 1700000000.0
     }
     resp = client.post("/api/v1/sysvol/file", json=payload, headers={"X-Real-IP": "192.168.180.43"})
@@ -176,6 +179,7 @@ def test_correct_secret_from_right_ip_returns_200(client, sysvol_test_env):
     payload = {
         "rel_path": "Policies/{GUID-1234}/replicated_file.txt",
         "content_base64": b"hello peer replication".hex(),
+        "sha256": hashlib.sha256(b"hello peer replication").hexdigest(),
         "mtime": 1700000000.0
     }
     resp_upload = client.post("/api/v1/sysvol/file", json=payload, headers=headers)
@@ -227,6 +231,7 @@ def test_readonly_or_operator_session_on_post_file_rejected(client, sysvol_test_
     payload = {
         "rel_path": "Policies/{GUID-1234}/admin_test.txt",
         "content_base64": b"test content".hex(),
+        "sha256": hashlib.sha256(b"test content").hexdigest(),
         "mtime": 1700000000.0
     }
 
@@ -306,6 +311,7 @@ def test_path_traversal_and_file_safety_rejected_with_400(client, sysvol_test_en
         payload = {
             "rel_path": p,
             "content_base64": b"malicious content".hex(),
+            "sha256": hashlib.sha256(b"malicious content").hexdigest(),
             "mtime": 1700000000.0
         }
         resp_post = client.post("/api/v1/sysvol/file", json=payload, headers=headers)
