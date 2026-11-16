@@ -4,14 +4,14 @@ Handles bi-directional GPO file sync, NTACL permission healing (Option A),
 partner mesh pairing, and sha256 manifest verification.
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Header
 from fastapi.responses import PlainTextResponse
 import os
 import time
 import json
 import secrets
 import hashlib
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pathlib import Path
 from api.core.config import (
     CONFIG_DIR,
@@ -19,16 +19,64 @@ from api.core.config import (
     PHYSICAL_SYSVOL_DIR
 )
 from api.services.system_service import run_cmd, log_audit
-from api.routers.auth import require_role
+from api.routers.auth import require_role, get_session_user
 from api.schemas.sysvol_schema import SysvolPartnerRequest, SysvolFileUploadRequest
 
-router = APIRouter(prefix="/api/v1/sysvol", tags=["Sysvol Replication & NTACL"], dependencies=[Depends(require_role("readonly"))])
+router = APIRouter(prefix="/api/v1/sysvol", tags=["Sysvol Replication & NTACL"])
 
 SYSVOL_PARTNERS_FILE = CONFIG_DIR / "sysvol_partners.json"
 SYSVOL_LOCAL_SECRET_FILE = CONFIG_DIR / "sysvol_secret"
 SYSVOL_SYNC_STATUS_FILE = Path("/var/run/zclock-sysvol-sync.json")
 
-@router.get("/status")
+
+def verify_sysvol_sync_access(
+    x_zclock_sync_secret: Optional[str] = Header(None, alias="X-Zclock-Sync-Secret"),
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Authorizes incoming Sysvol replication requests from peer Domain Controllers.
+    Accepts:
+    1. Valid X-Zclock-Sync-Secret header matching local secret or any configured partner secret
+    2. Valid web session Bearer token with at least readonly role (for admin diagnostics/tools)
+    """
+    if x_zclock_sync_secret:
+        clean_secret = x_zclock_sync_secret.strip()
+        # Check against local appliance secret file
+        if SYSVOL_LOCAL_SECRET_FILE.exists():
+            try:
+                local_sec = SYSVOL_LOCAL_SECRET_FILE.read_text().strip()
+                if local_sec and secrets.compare_digest(clean_secret, local_sec):
+                    return True
+            except Exception:
+                pass
+
+        # Check against any partner shared secret in sysvol_partners.json
+        if SYSVOL_PARTNERS_FILE.exists():
+            try:
+                with open(SYSVOL_PARTNERS_FILE) as f:
+                    partners = json.load(f).get("partners", [])
+                    for p in partners:
+                        p_sec = p.get("shared_secret", "").strip()
+                        if p_sec and secrets.compare_digest(clean_secret, p_sec):
+                            return True
+            except Exception:
+                pass
+
+    if authorization:
+        try:
+            user = get_session_user(authorization)
+            if user:
+                return True
+        except HTTPException:
+            pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Sysvol replication access denied: Invalid or missing X-Zclock-Sync-Secret header."
+    )
+
+
+@router.get("/status", dependencies=[Depends(require_role("readonly"))])
 def get_sysvol_status():
     """Returns Sysvol file sync status, NTACL health, and partner replication topology."""
     state = {"STATUS": "HEALTHY", "LAST_RESET": time.time(), "MESSAGE": "Sysvol running with valid NTACLs"}
@@ -56,7 +104,7 @@ def get_sysvol_status():
         "replication_engine": "ZclockID Native Integrated Peer Mesh"
     }
 
-@router.get("/local-secret")
+@router.get("/local-secret", dependencies=[Depends(require_role("operator"))])
 def get_sysvol_local_secret():
     """Returns the local appliance pairing secret used to authorize incoming replication."""
     if not SYSVOL_LOCAL_SECRET_FILE.exists():
@@ -67,7 +115,7 @@ def get_sysvol_local_secret():
     with open(SYSVOL_LOCAL_SECRET_FILE) as f:
         return {"secret": f.read().strip()}
 
-@router.get("/partners")
+@router.get("/partners", dependencies=[Depends(require_role("readonly"))])
 def list_sysvol_partners():
     """Returns list of configured partner Domain Controllers with live synchronization health."""
     partners = []
@@ -101,7 +149,7 @@ def list_sysvol_partners():
         })
     return {"count": len(res), "partners": res}
 
-@router.post("/partners")
+@router.post("/partners", dependencies=[Depends(require_role("operator"))])
 def add_sysvol_partner(req: SysvolPartnerRequest):
     """Registers an additional Domain Controller for integrated peer-to-peer Sysvol sync."""
     SYSVOL_PARTNERS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -122,7 +170,7 @@ def add_sysvol_partner(req: SysvolPartnerRequest):
     log_audit("SYSVOL_PARTNER_ADDED", "admin", req.ip_address, "SUCCESS", {"name": req.name})
     return {"status": "success", "message": f"Partner DC '{req.name}' ({req.ip_address}) registered for Sysvol replication."}
 
-@router.delete("/partners/{partner_ip}")
+@router.delete("/partners/{partner_ip}", dependencies=[Depends(require_role("operator"))])
 def delete_sysvol_partner(partner_ip: str):
     """Unregisters a Domain Controller from the Sysvol replication mesh."""
     if SYSVOL_PARTNERS_FILE.exists():
@@ -137,13 +185,13 @@ def delete_sysvol_partner(partner_ip: str):
             raise HTTPException(status_code=500, detail=str(e))
     return {"status": "success", "message": f"Partner {partner_ip} removed."}
 
-@router.post("/sync-now")
+@router.post("/sync-now", dependencies=[Depends(require_role("operator"))])
 def trigger_sysvol_sync_now():
     """Forces an immediate synchronization cycle across all registered partner DCs."""
     run_cmd(["systemctl", "restart", "zclock-sysvold"])
     return {"status": "success", "message": "Sysvol peer synchronization cycle initiated."}
 
-@router.get("/manifest")
+@router.get("/manifest", dependencies=[Depends(verify_sysvol_sync_access)])
 def get_sysvol_manifest():
     """Returns SHA-256 tree of all GPO files and scripts in local Sysvol."""
     sysvol_dir = str(PHYSICAL_SYSVOL_DIR)
@@ -162,7 +210,7 @@ def get_sysvol_manifest():
                     pass
     return {"manifest": manifest, "timestamp": time.time()}
 
-@router.get("/file")
+@router.get("/file", dependencies=[Depends(verify_sysvol_sync_access)])
 def download_sysvol_file(rel_path: str):
     """Securely streams a file from Sysvol to an authorized partner DC."""
     safe_root = PHYSICAL_SYSVOL_DIR.resolve()
@@ -173,7 +221,7 @@ def download_sysvol_file(rel_path: str):
         content = fp.read()
     return PlainTextResponse(content, media_type="application/octet-stream")
 
-@router.post("/file")
+@router.post("/file", dependencies=[Depends(verify_sysvol_sync_access)])
 def upload_sysvol_file(req: SysvolFileUploadRequest):
     """Receives and writes a synchronized GPO file from a partner DC."""
     safe_root = PHYSICAL_SYSVOL_DIR.resolve()
@@ -194,7 +242,7 @@ def upload_sysvol_file(req: SysvolFileUploadRequest):
     run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=20)
     return {"status": "success", "rel_path": req.rel_path}
 
-@router.post("/reset-ntacl")
+@router.post("/reset-ntacl", dependencies=[Depends(require_role("operator"))])
 def reset_sysvol_ntacl():
     """Forces 'samba-tool ntacl sysvolreset' to restore Windows ACLs across all GPOs."""
     code, stdout, stderr = run_cmd(["samba-tool", "ntacl", "sysvolreset"], timeout=45)
