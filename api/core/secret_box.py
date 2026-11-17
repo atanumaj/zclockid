@@ -12,7 +12,7 @@ import secrets
 from pathlib import Path
 from typing import Tuple, Optional
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from api.core.config import CONFIG_DIR, DB_PATH
+import api.core.config as config_mod
 
 
 class DecryptionError(Exception):
@@ -21,10 +21,19 @@ class DecryptionError(Exception):
 
 
 def get_registration_keys_dir() -> Path:
-    """Returns registration keys directory, ensuring mode 0700."""
-    key_dir = CONFIG_DIR / "registration_keys"
-    key_dir.mkdir(parents=True, exist_ok=True)
+    """
+    Returns registration keys directory, ensuring mode 0700.
+    Looks up the keys folder at call time: ZCLOCKID_REG_KEYS_DIR env var,
+    else api.core.config.CONFIG_DIR / "registration_keys", read through the module.
+    """
+    custom = os.environ.get("ZCLOCKID_REG_KEYS_DIR")
+    if custom:
+        key_dir = Path(custom)
+    else:
+        key_dir = config_mod.CONFIG_DIR / "registration_keys"
+
     try:
+        key_dir.mkdir(parents=True, exist_ok=True)
         os.chmod(str(key_dir), 0o700)
     except Exception:
         pass
@@ -162,9 +171,9 @@ def check_missing_registration_keys() -> int:
     """Returns the count of active pending registrations referencing missing encryption keys."""
     try:
         import sqlite3
-        if not DB_PATH.exists():
+        if not config_mod.DB_PATH.exists():
             return 0
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(config_mod.DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT password_enc FROM self_registrations WHERE status IN ('PENDING_OTP', 'PENDING_APPROVAL') AND password_enc IS NOT NULL")
         rows = cursor.fetchall()

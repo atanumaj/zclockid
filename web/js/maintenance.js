@@ -91,20 +91,38 @@
             document.getElementById('modal-create-backup').classList.add('hidden');
         }
 
+        function toggleBackupPassphraseWarning() {
+            const input = document.getElementById('backup-passphrase-input');
+            const warn = document.getElementById('backup-passphrase-warning');
+            if (input && warn) {
+                if (input.value && input.value.trim().length > 0) {
+                    warn.classList.add('hidden');
+                } else {
+                    warn.classList.remove('hidden');
+                }
+            }
+        }
+
         async function submitCreateBackup(e) {
             e.preventDefault();
             const bType = document.querySelector('input[name="backup_type"]:checked').value;
             const desc = document.getElementById('backup-desc-input').value.trim();
+            const passInput = document.getElementById('backup-passphrase-input');
+            const pass = passInput ? passInput.value : '';
             const btn = document.getElementById('btn-submit-backup');
 
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generating Archive...`;
 
             try {
+                const payload = { backup_type: bType, description: desc };
+                if (pass && pass.length > 0) {
+                    payload.passphrase = pass;
+                }
                 const res = await fetch(`${API_BASE}/backups/create`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ backup_type: bType, description: desc })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (res.ok) {

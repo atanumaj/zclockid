@@ -317,13 +317,15 @@ def read_manifest_from_tar(tar_path: Path) -> Optional[dict]:
         return None
     return None
 
-BACKUP_ENC_MAGIC = b"ZCLOCK_ENC_V1"
+BACKUP_ENC_MAGIC_V1 = b"ZCLOCK_ENC_V1"
+BACKUP_ENC_MAGIC_V2 = b"ZCLOCK_ENC_V2"
+BACKUP_ENC_MAGIC = BACKUP_ENC_MAGIC_V2
 
 def is_backup_encrypted(path: Path) -> bool:
     try:
         with open(path, "rb") as f:
-            header = f.read(len(BACKUP_ENC_MAGIC))
-            return header == BACKUP_ENC_MAGIC
+            header = f.read(len(BACKUP_ENC_MAGIC_V2))
+            return header in (BACKUP_ENC_MAGIC_V1, BACKUP_ENC_MAGIC_V2)
     except Exception:
         return False
 
@@ -331,16 +333,25 @@ def decrypt_backup_archive(src_path: Path, passphrase: Optional[str], dst_path: 
     if not passphrase:
         raise HTTPException(status_code=400, detail="This backup is encrypted. A passphrase is required to inspect or restore it.")
     try:
+        import struct
+        from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
         with open(src_path, "rb") as f:
-            magic = f.read(len(BACKUP_ENC_MAGIC))
+            magic = f.read(len(BACKUP_ENC_MAGIC_V2))
+            if magic == BACKUP_ENC_MAGIC_V1:
+                n, r, p = 2**14, 8, 1
+            elif magic == BACKUP_ENC_MAGIC_V2:
+                param_bytes = f.read(12)
+                n, r, p = struct.unpack(">III", param_bytes)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid encrypted backup magic header.")
+
             salt = f.read(16)
             nonce = f.read(12)
             ciphertext = f.read()
 
-        from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
-        kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1)
+        kdf = Scrypt(salt=salt, length=32, n=n, r=r, p=p)
         key = kdf.derive(passphrase.encode("utf-8"))
         aesgcm = AESGCM(key)
         plaintext = aesgcm.decrypt(nonce, ciphertext, b"zclockid_backup_v1")
@@ -951,13 +962,21 @@ def create_backup(req: BackupCreateRequest):
         # Stage /zclockid/config directory
         cfg_backup_dir = appliance_dir / "config"
         cfg_backup_dir.mkdir(parents=True, exist_ok=True)
-        from api.core.config import CONFIG_DIR
-        if CONFIG_DIR.exists():
-            for item in CONFIG_DIR.iterdir():
+        import api.core.config as core_cfg
+        from api.core.secret_box import get_registration_keys_dir
+        if core_cfg.CONFIG_DIR.exists():
+            for item in core_cfg.CONFIG_DIR.iterdir():
                 if item.is_file():
                     shutil.copy2(item, cfg_backup_dir / item.name)
-                elif item.is_dir() and item.name == "registration_keys":
-                    shutil.copytree(item, cfg_backup_dir / "registration_keys", dirs_exist_ok=True)
+
+        # Include registration_keys ONLY when an encryption passphrase is provided
+        if req.passphrase:
+            reg_keys_dir = get_registration_keys_dir()
+            if reg_keys_dir.exists():
+                shutil.copytree(reg_keys_dir, cfg_backup_dir / "registration_keys", dirs_exist_ok=True)
+            manifest["registration_keys_included"] = True
+        else:
+            manifest["registration_keys_included"] = False
 
         # 2. Stage Configurations across all modules
         cfg_dir = staging_dir / "configs"
@@ -1039,18 +1058,21 @@ def create_backup(req: BackupCreateRequest):
                 tar.add(item, arcname=item.name)
 
         if req.passphrase:
+            import struct
             from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            n, r, p = 2**17, 8, 1
             salt = os.urandom(16)
-            kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1)
+            kdf = Scrypt(salt=salt, length=32, n=n, r=r, p=p)
             key = kdf.derive(req.passphrase.encode("utf-8"))
             aesgcm = AESGCM(key)
             nonce = os.urandom(12)
             with open(temp_tar_path, "rb") as f_in:
                 data = f_in.read()
             ciphertext = aesgcm.encrypt(nonce, data, b"zclockid_backup_v1")
+            header = BACKUP_ENC_MAGIC_V2 + struct.pack(">III", n, r, p)
             with open(dest_tar_path, "wb") as f_out:
-                f_out.write(BACKUP_ENC_MAGIC + salt + nonce + ciphertext)
+                f_out.write(header + salt + nonce + ciphertext)
             dest_tar_path.chmod(0o600)
         else:
             dest_tar_path.chmod(0o600)

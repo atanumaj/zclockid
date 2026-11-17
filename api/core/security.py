@@ -28,7 +28,7 @@ def get_otp_secret_key() -> bytes:
 
     if OTP_SECRET_FILE.exists():
         try:
-            key = OTP_SECRET_FILE.read_bytes().strip()
+            key = OTP_SECRET_FILE.read_bytes()
             if len(key) >= 32:
                 return key
         except Exception:

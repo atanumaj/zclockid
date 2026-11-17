@@ -107,8 +107,26 @@ def init_db(db_path=None):
                     cursor.execute("UPDATE self_registrations SET password_enc = ? WHERE id = ?", (enc_val, r_id))
         except Exception as e:
             pass
-    cursor.execute("UPDATE self_registrations SET password_hash = NULL WHERE password_hash IS NOT NULL")
-    conn.commit()
+    # Count rows needing wipe before clearing
+    cursor.execute("SELECT COUNT(*) FROM self_registrations WHERE password_hash IS NOT NULL")
+    count_to_wipe = cursor.fetchone()[0] or 0
+
+    if count_to_wipe > 0:
+        cursor.execute("UPDATE self_registrations SET password_hash = NULL WHERE password_hash IS NOT NULL")
+        conn.commit()
+
+        # Check if WAL is on, run wal_checkpoint(TRUNCATE), then VACUUM outside any transaction
+        cursor.execute("PRAGMA journal_mode")
+        j_mode = (cursor.fetchone()[0] or "").upper()
+        if j_mode == "WAL":
+            cursor.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+        old_iso = conn.isolation_level
+        conn.isolation_level = None
+        cursor.execute("VACUUM")
+        conn.isolation_level = old_iso
+    else:
+        conn.commit()
 
     # Self-Registration & OTP Policy Settings
     cursor.execute("""

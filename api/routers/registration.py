@@ -409,8 +409,12 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     if require_otp:
         check_and_record_registration_attempt(clean_mobile, client_ip, "submit", max_hourly_mobile=3, max_hourly_ip=20)
 
-    # Only delete unverified attempt from the SAME user with the SAME mobile (never delete APPROVED, REJECTED, or LOCKED)
-    cursor.execute("DELETE FROM self_registrations WHERE status = 'PENDING_OTP' AND username = ? AND mobile = ?", (clean_user, clean_mobile))
+    # Only delete unverified attempt from the SAME user with the SAME mobile, or old terminal stubs (never delete active PENDING_APPROVAL)
+    cursor.execute("""
+        DELETE FROM self_registrations 
+        WHERE (status = 'PENDING_OTP' AND username = ? AND mobile = ?)
+           OR (username = ? AND status IN ('EXPIRED_OTP', 'EXPIRED_APPROVAL', 'REJECTED', 'LOCKED', 'ERROR_REREGISTER'))
+    """, (clean_user, clean_mobile, clean_user))
 
     # Resubmission within 30 days of a rejection gets notes="[PREVIOUSLY REJECTED <date>]"
     cutoff_30d = time.time() - (30 * 86400)
@@ -837,8 +841,13 @@ def force_approval_purge_endpoint(user: dict = Depends(require_role("fulladmin")
     return {"status": "success", "result": res}
 
 @router.post("/registrations/requests/{req_id}/approve")
-def approve_registration_request(req_id: int, action: Optional[SelfRegistrationApprovalAction] = Body(default=None)):
+def approve_registration_request(
+    req_id: int,
+    action: Optional[SelfRegistrationApprovalAction] = Body(default=None),
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Admin approves a pending registration and provisions user in Active Directory."""
+    actor = current_user.get("username") if current_user else "admin"
     if action is None:
         action = SelfRegistrationApprovalAction()
     conn = get_reg_db()
@@ -904,9 +913,9 @@ def approve_registration_request(req_id: int, action: Optional[SelfRegistrationA
 
     cursor.execute("""
         UPDATE self_registrations
-        SET status = 'APPROVED', approved_at = ?, approved_by = 'admin', password_enc = NULL, password_hash = NULL, notes = ?
+        SET status = 'APPROVED', approved_at = ?, approved_by = ?, password_enc = NULL, password_hash = NULL, notes = ?
         WHERE id = ?
-    """, (time.time(), action.notes or "Approved by administrator", req_id))
+    """, (time.time(), actor, action.notes or "Approved by administrator", req_id))
     conn.commit()
     conn.close()
 
@@ -914,13 +923,18 @@ def approve_registration_request(req_id: int, action: Optional[SelfRegistrationA
     dispatch_sms(mobile, msg, settings)
     dispatch_email(email, "Your ZclockID Domain Account Has Been Approved", f"Hello {given_name},\n\nYour registration request has been approved by the system administrator.\n\nAccount: {username}@{domain}\nDomain: {domain}\n\nRegards,\nIdentity & Access Team", settings)
 
-    log_audit("REGISTRATION_APPROVED_BY_ADMIN", username, "active_directory", "SUCCESS", {"mobile": mobile, "email": email, "domain": domain})
+    log_audit("REGISTRATION_APPROVED_BY_ADMIN", actor, username, "SUCCESS", {"mobile": mobile, "email": email, "domain": domain})
 
     return {"status": "success", "message": f"User '{username}' approved and provisioned in Active Directory under domain '{domain}'."}
 
 @router.post("/registrations/requests/{req_id}/reject")
-def reject_registration_request(req_id: int, action: Optional[SelfRegistrationApprovalAction] = Body(default=None)):
+def reject_registration_request(
+    req_id: int,
+    action: Optional[SelfRegistrationApprovalAction] = Body(default=None),
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Admin rejects a pending registration request."""
+    actor = current_user.get("username") if current_user else "admin"
     if action is None:
         action = SelfRegistrationApprovalAction()
     conn = get_reg_db()
@@ -937,9 +951,9 @@ def reject_registration_request(req_id: int, action: Optional[SelfRegistrationAp
 
     cursor.execute("""
         UPDATE self_registrations
-        SET status = 'REJECTED', approved_at = ?, approved_by = 'admin', password_enc = NULL, password_hash = NULL, notes = ?
+        SET status = 'REJECTED', approved_at = ?, approved_by = ?, password_enc = NULL, password_hash = NULL, notes = ?
         WHERE id = ?
-    """, (time.time(), reason, req_id))
+    """, (time.time(), actor, reason, req_id))
     conn.commit()
     conn.close()
 
@@ -948,7 +962,7 @@ def reject_registration_request(req_id: int, action: Optional[SelfRegistrationAp
     dispatch_sms(reg["mobile"], rej_msg, settings)
     dispatch_email(reg["email"], "ZclockID Domain Registration Declined", f"Hello {reg['given_name']},\n\nYour domain registration request for username '{reg['username']}' has been declined by the administrator.\n\nReason: {reason}\n\nRegards,\nIdentity & Access Team", settings)
 
-    log_audit("REGISTRATION_REJECTED", reg["username"], "appliance", "SUCCESS", {"reason": reason})
+    log_audit("REGISTRATION_REJECTED", actor, reg["username"], "SUCCESS", {"reason": reason})
 
     return {"status": "success", "message": f"Registration request for '{reg['username']}' rejected."}
 

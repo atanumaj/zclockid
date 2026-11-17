@@ -1,12 +1,12 @@
 {
-  "version": "1.4.7",
-  "name": "ZclockID Enterprise v1.4.7",
+  "version": "1.4.7.1",
+  "name": "ZclockID Enterprise v1.4.7.1",
   "channel": "stable",
   "release_type": "security",
-  "published_at": "2026-11-17T06:30:00Z",
-  "summary": "Registration password hardening: SecretBox AES-256-GCM envelope encryption, auto-purge with clock guard, and request takeover prevention",
-  "notes": "### What's Changed in v1.4.7:\n* **SecretBox Envelope Encryption:** Passwords in self-registrations are encrypted with AES-256-GCM (v1:<key_id>:<b64(nonce+ct)>) using per-installation 256-bit random keys in CONFIG_DIR/registration_keys/ (0600 mode) with AAD binding reg:{id}:{username}.\n* **Secure Zeroization & Storage:** Passwords are zeroized immediately upon approval, rejection, lock, or expiration, and SQLite PRAGMA secure_delete=ON is enforced across all registration database connections.\n* **Request Takeover Prevention:** Disallows submitting duplicate pending requests or replacing an existing request with a mismatched mobile number (HTTP 409 Conflict).\n* **Configurable Expiry & Approval Purge:** Added configurable OTP expiration (otp_expiry_minutes, 1-30 min) and approval TTL (registration_approval_ttl_days, 1-90 days) with an automated purge service.\n* **Clock Guard Protection:** Safety brake trips if a sudden time jump would expire >20% or >10 pending requests, requiring explicit administrator review or force purge.\n* **Encrypted Backups:** Backup archives include registration keys and support password-derived encryption (Scrypt + AES-256-GCM) with warning banners when keys are missing.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7_all.deb",
-  "package_name": "zclockid_1.4.7_all.deb",
+  "published_at": "2026-11-17T06:45:00Z",
+  "summary": "Fix v1.4.7 regressions: key directory test isolation, passphrase-dependent backup key packaging with Scrypt n=2^17, VACUUM outside transaction with WAL truncate, and audit trail approved_by tracking",
+  "notes": "### What's Changed in v1.4.7.1:\n* **Encryption Key Test Isolation:** `secret_box.py` resolves keys directory dynamically via `ZCLOCKID_REG_KEYS_DIR` or module-level `CONFIG_DIR`, fully isolated from the host `/etc/zclockid`.\n* **Passphrase-Protected Backup Keys:** Unencrypted backups strictly exclude `registration_keys/` and set `registration_keys_included: false`; encrypted backups include keys and upgrade Scrypt KDF to `n=2**17, r=8, p=1` with header-stored parameters.\n* **Transaction-Safe Database VACUUM:** Executes `PRAGMA wal_checkpoint(TRUNCATE)` and runs `VACUUM` outside any transaction only when rows were wiped.\n* **Real Administrator Audit Trail:** `approved_by` records the real authenticated administrator username from `require_role` on approval and rejection.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7.1_all.deb",
+  "package_name": "zclockid_1.4.7.1_all.deb",
   "min_version_required": "1.0.0"
 }

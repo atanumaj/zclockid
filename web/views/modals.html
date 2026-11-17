@@ -739,6 +739,17 @@
                         class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-sans focus:outline-none focus:border-emerald-500 transition">
                 </div>
 
+                <div>
+                    <label class="text-slate-300 block mb-1 font-medium">Archive Encryption Passphrase (Optional)</label>
+                    <input id="backup-passphrase-input" type="password" placeholder="Leave empty for unencrypted backup"
+                        oninput="toggleBackupPassphraseWarning()"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-sans focus:outline-none focus:border-emerald-500 transition">
+                    <p id="backup-passphrase-warning" class="text-[11px] text-amber-400 mt-1.5 flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>Pending registrations won't survive a restore without a passphrase-protected backup.</span>
+                    </p>
+                </div>
+
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
                     <button type="button" onclick="closeCreateBackupModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-submit-backup" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-900/50">

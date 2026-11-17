@@ -56,8 +56,7 @@ def setup_isolated_env(tmp_path, monkeypatch):
     monkeypatch.setattr(core_config, "DB_PATH", test_db)
     monkeypatch.setattr(core_config, "BACKUP_DIR", test_data / "backups")
 
-    monkeypatch.setattr(secret_box, "CONFIG_DIR", test_conf)
-    monkeypatch.setattr(secret_box, "DB_PATH", test_db)
+    monkeypatch.setenv("ZCLOCKID_REG_KEYS_DIR", str(test_conf / "registration_keys"))
     monkeypatch.setattr(reg_purge, "DATA_DIR", test_data)
     monkeypatch.setattr(reg_purge, "DB_PATH", test_db)
     monkeypatch.setattr(reg_purge, "PURGE_LOCK_FILE", test_data / "purge.lock")
@@ -695,3 +694,32 @@ def test_invariant_12_backup_passphrase_roundtrip_and_missing_keys_warning(setup
     restored_key_file.unlink()
     missing_count = secret_box.check_missing_registration_keys()
     assert missing_count == 1
+
+
+def test_invariant_13_unencrypted_backup_contains_no_registration_keys(setup_isolated_env):
+    """Invariant 13: An unencrypted backup leaves registration_keys/ out of archive and sets registration_keys_included: false."""
+    import tarfile
+    import api.routers.system as sys_router
+
+    # Ensure at least one key exists
+    k_id, _ = secret_box.create_new_key()
+    assert (setup_isolated_env["conf"] / "registration_keys" / k_id).exists()
+
+    # Create unencrypted backup
+    create_req = sys_router.BackupCreateRequest(
+        backup_type="config_only",
+        description="Unencrypted backup",
+        passphrase=None
+    )
+    b_resp = sys_router.create_backup(create_req)
+    assert b_resp["status"] == "success"
+    assert b_resp["is_encrypted"] is False
+    assert b_resp["manifest"]["registration_keys_included"] is False
+
+    archive_path = setup_isolated_env["data"] / "backups" / b_resp["filename"]
+    assert archive_path.exists()
+
+    with tarfile.open(archive_path, "r:gz") as tar:
+        names = tar.getnames()
+        for name in names:
+            assert "registration_keys" not in name, f"Found registration_keys entry in unencrypted backup: {name}"
