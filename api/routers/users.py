@@ -18,6 +18,11 @@ from api.core.license import get_license_status
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.services.samba_service import parse_bw_info, format_bw_rate_str, update_user_upn
 from api.services.radius_service import sync_freeradius_policies
+from api.services.password_expiry_service import (
+    get_password_expiry_report,
+    apply_bulk_expiry_policy,
+    get_user_password_info
+)
 from api.routers.auth import require_role
 from api.schemas.user_schema import (
     UserCreateRequest,
@@ -47,7 +52,7 @@ def list_domain_users():
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", str(SAMBA_LDB_PATH),
         "(objectClass=user)",
-        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "info", "userAccountControl", "memberOf", "employeeType", "comment", "description"
+        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber", "department", "info", "userAccountControl", "memberOf", "employeeType", "comment", "description", "pwdLastSet", "msDS-ResultantPSO"
     ], timeout=10)
 
     user_bw_map = {}
@@ -166,6 +171,16 @@ def list_domain_users():
                         u_desc = (current_user.get("description") or "").lower()
                         is_self_reg = (emp_type == "self-registered") or ("ZCLOCKID_SELF_REGISTERED" in u_comment) or ("self-registered" in u_desc)
 
+                        never_exp = bool(uac & 65536)
+                        pso_val = current_user.get("resultant_pso")
+                        pwd_ls = current_user.get("pwd_last_set")
+                        if never_exp:
+                            exp_status = "Never"
+                        elif pwd_ls == 0:
+                            exp_status = "Expired (Must change)"
+                        else:
+                            exp_status = "Active"
+
                         users.append({
                             "username": u,
                             "name": full_name,
@@ -180,6 +195,9 @@ def list_domain_users():
                             "is_built_in": is_built_in,
                             "is_system_hidden": is_system_hidden,
                             "is_self_registered": is_self_reg,
+                            "password_never_expires": never_exp,
+                            "msDS_ResultantPSO": pso_val,
+                            "expires_on": exp_status,
                             "groups": current_user.get("groups", []),
                             "bandwidth_profile_id": p_id,
                             "bandwidth_profile_name": p_name,
@@ -215,6 +233,17 @@ def list_domain_users():
                 current_user["comment"] = line.split(":", 1)[1].strip()
             elif line.startswith("description:"):
                 current_user["description"] = line.split(":", 1)[1].strip()
+            elif line.startswith("pwdLastSet:"):
+                try:
+                    current_user["pwd_last_set"] = int(line.split(":", 1)[1].strip())
+                except:
+                    current_user["pwd_last_set"] = 0
+            elif line.startswith("msDS-ResultantPSO:"):
+                val = line.split(":", 1)[1].strip()
+                for part in val.split(","):
+                    if part.strip().startswith("CN="):
+                        current_user["resultant_pso"] = part.strip()[3:]
+                        break
             elif line.startswith("memberOf:"):
                 dn_val = line.split(":", 1)[1].strip()
                 for part in dn_val.split(","):
@@ -273,6 +302,9 @@ def create_domain_user(req: UserCreateRequest):
     code, stdout, stderr = run_cmd(cmd, timeout=20)
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to create user: {stderr or stdout}")
+
+    if req.password_never_expires:
+        run_cmd(["samba-tool", "user", "setexpiry", req.username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
 
     target_groups = set(req.groups or [])
     if req.target_group and req.target_group != "Domain Users":
@@ -451,6 +483,24 @@ def update_domain_user(username: str, req: UserUpdateRequest):
 
         sync_freeradius_policies()
 
+    if req.password_never_expires is not None:
+        admin_user, admin_pass = get_ad_creds()
+        if req.password_never_expires:
+            run_cmd(["samba-tool", "user", "setexpiry", username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+        else:
+            c_u, o_u, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "userAccountControl"])
+            if c_u == 0:
+                for l in o_u.splitlines():
+                    if l.strip().startswith("userAccountControl:"):
+                        try:
+                            cur_uac = int(l.split(":", 1)[1].strip())
+                            if cur_uac & 65536:
+                                new_uac = cur_uac & ~65536
+                                ldif_uac = f"dn: {dn}\nchangetype: modify\nreplace: userAccountControl\nuserAccountControl: {new_uac}\n-\n"
+                                subprocess.run(["ldbmodify", "-H", str(SAMBA_LDB_PATH)], input=ldif_uac, text=True, capture_output=True)
+                        except Exception as e:
+                            logger.warning(f"Failed to clear DONT_EXPIRE_PASSWORD for {username}: {e}")
+
     log_audit("USER_UPDATED", "admin", username, "SUCCESS", {
         "given_name": req.given_name,
         "surname": req.surname,
@@ -461,6 +511,66 @@ def update_domain_user(username: str, req: UserUpdateRequest):
     })
 
     return {"status": "success", "username": username, "message": f"User '{username}' updated successfully."}
+
+@router.get("/users/expiry-policy/report")
+def get_expiry_report():
+    """Generates password expiry compliance report across Active Directory."""
+    return get_password_expiry_report()
+
+@router.post("/users/expiry-policy/apply")
+def apply_expiry_policy(current_user: dict = Depends(require_role("fulladmin"))):
+    """Bulk action to apply password expiry policy to all eligible users, excluding Administrator and service accounts."""
+    admin_name = current_user.get("username", "admin")
+    return apply_bulk_expiry_policy(admin_name)
+
+@router.get("/users/{username}")
+def get_domain_user_detail(username: str):
+    """Retrieves full user detail including msDS-ResultantPSO and password expiry date."""
+    code, stdout, stderr = run_cmd([
+        "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+        f"(sAMAccountName={username})",
+        "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber",
+        "department", "info", "userAccountControl", "memberOf", "employeeType", "comment", "description",
+        "pwdLastSet", "msDS-ResultantPSO", "accountExpires"
+    ], timeout=10)
+
+    if code != 0 or "sAMAccountName: " not in stdout:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found in Active Directory.")
+
+    info = get_user_password_info(username)
+    user_data = {
+        "username": username,
+        "password_never_expires": info.get("never_expires", False),
+        "msDS_ResultantPSO": info.get("resultant_pso"),
+        "expires_on": info.get("expires_on"),
+        "is_expired": info.get("is_expired", False),
+        "days_remaining": info.get("days_remaining"),
+        "groups": []
+    }
+    for line in stdout.splitlines():
+        line = line.strip()
+        if line.startswith("userPrincipalName:"): user_data["user_principal_name"] = line.split(":", 1)[1].strip()
+        elif line.startswith("givenName:"): user_data["given_name"] = line.split(":", 1)[1].strip()
+        elif line.startswith("sn:"): user_data["surname"] = line.split(":", 1)[1].strip()
+        elif line.startswith("displayName:"): user_data["display_name"] = line.split(":", 1)[1].strip()
+        elif line.startswith("mail:"): user_data["email"] = line.split(":", 1)[1].strip()
+        elif line.startswith("telephoneNumber:"): user_data["mobile"] = line.split(":", 1)[1].strip()
+        elif line.startswith("department:"): user_data["department"] = line.split(":", 1)[1].strip()
+        elif line.startswith("memberOf:"):
+            dn_val = line.split(":", 1)[1].strip()
+            for part in dn_val.split(","):
+                if part.strip().startswith("CN="):
+                    user_data["groups"].append(part.strip()[3:])
+                    break
+        elif line.startswith("userAccountControl:"):
+            try:
+                uac_val = int(line.split(":", 1)[1].strip())
+                user_data["is_disabled"] = bool(uac_val & 2)
+                user_data["status"] = "disabled" if (uac_val & 2) else "active"
+            except Exception:
+                pass
+
+    return user_data
 
 @router.post("/users/{username}/password")
 def set_user_password(username: str, req: UserPasswordReset):

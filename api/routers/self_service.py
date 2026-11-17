@@ -393,17 +393,11 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
         if not is_valid:
             raise HTTPException(status_code=400, detail=msg)
 
-    # Use native Samba user password tool with user's current credentials over localhost SAMR
-    # samba-tool user password -U <username> --password=<old> --newpassword=<new> --ipaddress=127.0.0.1 --use-kerberos=off
-    cmd = [
-        "samba-tool", "user", "password",
-        f"-U{clean_user}",
-        f"--password={req.old_password}",
-        f"--newpassword={req.new_password}",
-        "--ipaddress=127.0.0.1",
-        "--use-kerberos=off"
-    ]
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
+    # Use smbpasswd over localhost SAMR with old\nnew\nnew\n on stdin.
+    # smbpasswd successfully allows changing expired passwords / passwords that must be changed on next login.
+    cmd = ["smbpasswd", "-r", "127.0.0.1", "-U", clean_user, "-s"]
+    input_data = f"{req.old_password}\n{req.new_password}\n{req.new_password}\n"
+    code, stdout, stderr = run_cmd(cmd, timeout=15, input_data=input_data)
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -424,11 +418,17 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
             "message": "Password changed successfully! You can now log in with your new password."
         }
     else:
-        err_msg = stderr.strip() or stdout.strip()
-        if "Authentication failed" in err_msg or "wrong" in err_msg.lower() or "NT_STATUS_WRONG_PASSWORD" in err_msg:
+        err_msg = (stderr.strip() + " " + stdout.strip()).strip()
+        if "Authentication failed" in err_msg or "wrong" in err_msg.lower() or "NT_STATUS_WRONG_PASSWORD" in err_msg or "NT_STATUS_LOGON_FAILURE" in err_msg:
             user_facing_err = "Authentication failed: Current password is incorrect."
-        elif "check_password_restrictions" in err_msg or "NT_STATUS_PASSWORD_RESTRICTION" in err_msg:
+        elif "check_password_restrictions" in err_msg or "NT_STATUS_PASSWORD_RESTRICTION" in err_msg or "violated" in err_msg.lower() or "length criteria" in err_msg.lower():
             user_facing_err = "The new password does not meet domain password policy (minimum password age, history, or complexity restrictions)."
+        elif "NT_STATUS_ACCOUNT_DISABLED" in err_msg:
+            user_facing_err = "This account has been disabled. Please contact an administrator."
+        elif "NT_STATUS_ACCOUNT_LOCKED_OUT" in err_msg:
+            user_facing_err = "This account is locked out. Please contact an administrator."
+        elif "NT_STATUS_ACCOUNT_EXPIRED" in err_msg:
+            user_facing_err = "This account has expired. Please contact an administrator."
         else:
             user_facing_err = f"Password change rejected: {err_msg}"
 

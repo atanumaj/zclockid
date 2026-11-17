@@ -87,7 +87,8 @@ def provision_user_in_ad(
     default_domain: Optional[str] = None,
     default_group: Optional[str] = None,
     default_bandwidth_profile_id: int = 0,
-    is_self_registered: bool = True
+    is_self_registered: bool = True,
+    password_never_expires: bool = False
 ) -> bool:
     # License capacity check
     code_cnt, stdout_cnt, _ = run_cmd([
@@ -130,7 +131,9 @@ def provision_user_in_ad(
             err_out = "The password does not meet Active Directory complexity requirements (minimum 8 characters, containing uppercase, lowercase, numbers, and special symbols)."
         raise HTTPException(status_code=400, detail=f"Failed to create user in Active Directory: {err_out}")
 
-    run_cmd(["samba-tool", "user", "setexpiry", username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+    # Set password-never-expires only if explicitly requested by administrator
+    if password_never_expires:
+        run_cmd(["samba-tool", "user", "setexpiry", username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
 
     # Active Directory Schema Attribute Synchronization via sam.ldb
     try:
@@ -164,6 +167,14 @@ def provision_user_in_ad(
     if default_group and default_group.strip() and default_group.strip().lower() != "domain users":
         grp_cmd = ["samba-tool", "group", "addmembers", default_group.strip(), username, f"-U{admin_user}", f"--password={admin_pass}"]
         run_cmd(grp_cmd, timeout=15)
+
+    # For self-registered users, add to ZclockID-SelfRegistered group and enforce PSO
+    if is_self_registered:
+        try:
+            from api.services.password_expiry_service import add_user_to_selfreg_group
+            add_user_to_selfreg_group(username)
+        except Exception as e:
+            print(f"Warning: could not add {username} to ZclockID-SelfRegistered group: {e}")
 
     return True
 

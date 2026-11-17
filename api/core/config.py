@@ -89,7 +89,7 @@ except Exception:
 
 # Product Metadata & Author Fingerprint
 APP_NAME = "ZclockID Enterprise Management Appliance"
-APP_VERSION = "1.4.7.1"
+APP_VERSION = "1.4.8"
 APP_AUTHOR = "Atanu Majumdar (@atanumaj)"
 APP_COPYRIGHT = "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved."
 APP_REPO = "atanumaj/zclockid"

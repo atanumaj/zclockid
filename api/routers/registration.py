@@ -724,6 +724,8 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
     otp_mins = max(1, min(30, int(otp_mins)))
     appr_days = req.registration_approval_ttl_days if req.registration_approval_ttl_days is not None else 7
     appr_days = max(1, min(90, int(appr_days)))
+    pso_days = req.pso_max_pwd_age_days if req.pso_max_pwd_age_days is not None else 365
+    pso_days = max(30, min(730, int(pso_days)))
 
     conn = get_reg_db()
     cursor = conn.cursor()
@@ -749,6 +751,7 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
             smtp_from = ?,
             otp_expiry_minutes = ?,
             registration_approval_ttl_days = ?,
+            pso_max_pwd_age_days = ?,
             updated_at = ?
         WHERE id = 1
     """, (
@@ -772,10 +775,17 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
         req.smtp_from or f"no-reply@{get_primary_realm().lower()}",
         otp_mins,
         appr_days,
+        pso_days,
         time.time()
     ))
     conn.commit()
     conn.close()
+
+    try:
+        from api.services.password_expiry_service import ensure_selfreg_group_and_pso
+        ensure_selfreg_group_and_pso(pso_days)
+    except Exception as e:
+        logger.warning(f"Failed to update self-registration PSO policy: {e}")
 
     try:
         sync_freeradius_policies()

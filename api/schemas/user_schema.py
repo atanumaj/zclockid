@@ -17,6 +17,7 @@ class UserCreateRequest(BaseModel):
     target_group: Optional[str] = "Domain Users"
     groups: Optional[List[str]] = Field(default_factory=list)
     bandwidth_profile_id: Optional[int] = None
+    password_never_expires: Optional[bool] = False
 
 class UserUpdateRequest(BaseModel):
     given_name: Optional[str] = None
@@ -29,6 +30,7 @@ class UserUpdateRequest(BaseModel):
     new_password: Optional[str] = None
     is_disabled: Optional[bool] = None
     groups: Optional[List[str]] = None
+    password_never_expires: Optional[bool] = None
 
 class UserPasswordReset(BaseModel):
     new_password: str = Field(..., min_length=8, example="NewSecureP@ss2026!")

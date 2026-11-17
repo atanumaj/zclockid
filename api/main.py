@@ -206,3 +206,5 @@ def on_startup():
     poller.start()
     from api.services.registration_purge import start_registration_purge_worker
     start_registration_purge_worker()
+    from api.services.password_expiry_service import start_password_expiry_reminder_worker
+    start_password_expiry_reminder_worker()

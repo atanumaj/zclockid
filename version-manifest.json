@@ -1,12 +1,12 @@
 {
-  "version": "1.4.7.1",
-  "name": "ZclockID Enterprise v1.4.7.1",
+  "version": "1.4.8",
+  "name": "ZclockID Enterprise v1.4.8",
   "channel": "stable",
-  "release_type": "security",
-  "published_at": "2026-11-17T06:45:00Z",
-  "summary": "Fix v1.4.7 regressions: key directory test isolation, passphrase-dependent backup key packaging with Scrypt n=2^17, VACUUM outside transaction with WAL truncate, and audit trail approved_by tracking",
-  "notes": "### What's Changed in v1.4.7.1:\n* **Encryption Key Test Isolation:** `secret_box.py` resolves keys directory dynamically via `ZCLOCKID_REG_KEYS_DIR` or module-level `CONFIG_DIR`, fully isolated from the host `/etc/zclockid`.\n* **Passphrase-Protected Backup Keys:** Unencrypted backups strictly exclude `registration_keys/` and set `registration_keys_included: false`; encrypted backups include keys and upgrade Scrypt KDF to `n=2**17, r=8, p=1` with header-stored parameters.\n* **Transaction-Safe Database VACUUM:** Executes `PRAGMA wal_checkpoint(TRUNCATE)` and runs `VACUUM` outside any transaction only when rows were wiped.\n* **Real Administrator Audit Trail:** `approved_by` records the real authenticated administrator username from `require_role` on approval and rejection.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7.1_all.deb",
-  "package_name": "zclockid_1.4.7.1_all.deb",
+  "release_type": "feature",
+  "published_at": "2026-11-17T08:25:00Z",
+  "summary": "Password expiry policy, PSO for self-registered users, and handling expired passwords at login",
+  "notes": "### What's Changed in v1.4.8:\n* **Password Expiry by Default:** Removed `--noexpiry` on user provisioning; added optional admin 'Password never expires' flag.\n* **PSO for Self-Registered Users:** Automatic group `ZclockID-SelfRegistered` and PSO `ZclockID-SelfReg-PSO` (precedence 10, configurable max-pwd-age 30–730 days) with fallback when domain functional level lacks PSO support.\n* **Expired Password Mapping:** Map `NT_STATUS_PASSWORD_EXPIRED` and `NT_STATUS_PASSWORD_MUST_CHANGE` to 403 `PASSWORD_EXPIRED` without counting failed logins or causing lockouts.\n* **Expired Password Self-Service:** Allow password changes for expired passwords via `smbpasswd -s` over stdin; login page redirects expired users to password change with username prefilled.\n* **Password Expiry Reminders:** Daily idempotency-tracked notifications at 14, 7, and 1 days before password expiry.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.8_all.deb",
+  "package_name": "zclockid_1.4.8_all.deb",
   "min_version_required": "1.0.0"
 }

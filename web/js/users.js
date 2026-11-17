@@ -468,6 +468,8 @@
             const bwId = parseInt(document.getElementById('usr-bw-profile-input') ? document.getElementById('usr-bw-profile-input').value : 0) || 0;
             const checkedGroups = Array.from(document.querySelectorAll("input[name='usr-groups-container-chk']:checked")).map(cb => cb.value);
 
+            const neverExpires = document.getElementById('usr-never-expires-input') ? document.getElementById('usr-never-expires-input').checked : false;
+
             if (!username || !password) return alert('Username and password are required.');
 
             try {
@@ -483,7 +485,8 @@
                         mobile: mobile,
                         department: department,
                         bandwidth_profile_id: bwId,
-                        groups: checkedGroups
+                        groups: checkedGroups,
+                        password_never_expires: neverExpires
                     })
                 });
                 const data = await res.json();
@@ -515,6 +518,16 @@
             document.getElementById('edit-usr-bandwidth-profile').value = u.bandwidth_profile_id || 0;
             document.getElementById('edit-usr-pass').value = '';
 
+            if (document.getElementById('edit-usr-never-expires')) {
+                document.getElementById('edit-usr-never-expires').checked = !!u.password_never_expires;
+            }
+            if (document.getElementById('edit-usr-pso')) {
+                document.getElementById('edit-usr-pso').innerText = u.msDS_ResultantPSO || 'None (Domain Default)';
+            }
+            if (document.getElementById('edit-usr-expiry')) {
+                document.getElementById('edit-usr-expiry').innerText = u.expires_on || 'Active';
+            }
+
             populateGroupCheckboxes('edit-usr-groups-container', u.groups || []);
 
             document.getElementById('edit-user-modal').classList.remove('hidden');
@@ -538,6 +551,7 @@
             const bwId = parseInt(document.getElementById('edit-usr-bandwidth-profile').value) || 0;
             const passVal = document.getElementById('edit-usr-pass').value;
             const checkedGroups = Array.from(document.querySelectorAll("input[name='edit-usr-groups-container-chk']:checked")).map(cb => cb.value);
+            const neverExpires = document.getElementById('edit-usr-never-expires') ? document.getElementById('edit-usr-never-expires').checked : null;
 
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Saving...`;
@@ -556,7 +570,8 @@
                         bandwidth_profile_id: bwId,
                         is_disabled: statusVal === 'disabled',
                         new_password: passVal ? passVal : null,
-                        groups: checkedGroups
+                        groups: checkedGroups,
+                        password_never_expires: neverExpires
                     })
                 });
                 const data = await res.json();
@@ -1199,6 +1214,89 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-check"></i> Update UPN`;
+            }
+        }
+
+        // ==================== Expiry Policy Report & Apply Modal Logic ====================
+        async function openExpiryPolicyModal() {
+            const modal = document.getElementById('expiry-policy-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+
+            const listEl = document.getElementById('exp-eligible-list');
+            if (listEl) listEl.innerHTML = '<div class="text-slate-500 py-2"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Loading expiry report...</div>';
+
+            try {
+                const res = await fetch(`${API_BASE}/users/expiry-policy/report`);
+                const data = await res.json();
+                if (res.ok) {
+                    if (document.getElementById('exp-stat-total')) document.getElementById('exp-stat-total').innerText = data.total_users || 0;
+                    if (document.getElementById('exp-stat-eligible')) document.getElementById('exp-stat-eligible').innerText = data.eligible_count || 0;
+                    if (document.getElementById('exp-stat-compliant')) document.getElementById('exp-stat-compliant').innerText = data.compliant_count || 0;
+                    if (document.getElementById('exp-stat-excluded')) document.getElementById('exp-stat-excluded').innerText = data.excluded_count || 0;
+                    if (document.getElementById('exp-eligible-count-label')) document.getElementById('exp-eligible-count-label').innerText = `${data.eligible_count || 0} accounts`;
+
+                    if (listEl) {
+                        const eligible = data.eligible_users || [];
+                        if (eligible.length === 0) {
+                            listEl.innerHTML = '<div class="text-emerald-400 py-2"><i class="fa-solid fa-circle-check mr-1"></i> All domain user accounts comply with domain password expiry policy!</div>';
+                        } else {
+                            listEl.innerHTML = eligible.map(u => `
+                                <div class="flex items-center justify-between p-1.5 rounded bg-slate-900 border border-slate-800">
+                                    <div class="flex items-center gap-2">
+                                        <i class="fa-solid fa-user text-amber-400 text-[10px]"></i>
+                                        <span class="font-bold text-slate-200">${escapeHtml(u.username)}</span>
+                                        <span class="text-slate-500 text-[10px]">${escapeHtml(u.user_principal_name || '')}</span>
+                                    </div>
+                                    <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-mono">Never Expires (Legacy)</span>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                } else {
+                    if (listEl) listEl.innerHTML = `<div class="text-rose-400 py-2">Failed to load expiry report: ${escapeHtml(data.detail || '')}</div>`;
+                }
+            } catch (err) {
+                if (listEl) listEl.innerHTML = `<div class="text-rose-400 py-2">Error loading expiry report: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function closeExpiryPolicyModal() {
+            const modal = document.getElementById('expiry-policy-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function submitApplyExpiryPolicy() {
+            if (!confirm('Are you sure you want to apply the password expiry policy to all eligible user accounts?\n\nThis will remove the "Password Never Expires" flag from non-service accounts, enforcing domain and PSO expiration rules. Administrator and service accounts will NOT be affected.')) {
+                return;
+            }
+
+            const btn = document.getElementById('btn-apply-expiry-policy');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enforcing Policy...';
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/users/expiry-policy/apply`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(`Password expiry policy successfully enforced!\n\nModified: ${data.modified_count} account(s)\nUsers: ${data.modified_users.join(', ') || 'None'}`);
+                    closeExpiryPolicyModal();
+                    fetchUsers();
+                } else {
+                    alert(`Failed to apply expiry policy: ${data.detail}`);
+                }
+            } catch (err) {
+                alert(`Error applying expiry policy: ${err}`);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-play"></i> Apply Expiry Policy to Eligible Users';
+                }
             }
         }
 

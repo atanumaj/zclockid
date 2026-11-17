@@ -207,6 +207,7 @@ def init_db(db_path=None):
             approval_purge_tripped INTEGER DEFAULT 0,
             approval_purge_pending_count INTEGER DEFAULT 0,
             approval_purge_detected_at REAL DEFAULT 0,
+            pso_max_pwd_age_days INTEGER DEFAULT 365,
             updated_at REAL
         )
     """)
@@ -231,6 +232,22 @@ def init_db(db_path=None):
         cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN approval_purge_pending_count INTEGER DEFAULT 0")
     if "approval_purge_detected_at" not in sreg_cols:
         cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN approval_purge_detected_at REAL DEFAULT 0")
+    if "pso_max_pwd_age_days" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN pso_max_pwd_age_days INTEGER DEFAULT 365")
+
+    # Password Expiry Reminders Table (Tracking 14, 7, 1 day notifications per password cycle)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS password_expiry_reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            threshold_days INTEGER NOT NULL,
+            pwd_last_set REAL NOT NULL,
+            sent_at REAL NOT NULL,
+            channel TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'SENT',
+            UNIQUE(username, threshold_days, pwd_last_set)
+        )
+    """)
 
     cursor.execute("SELECT COUNT(*) FROM self_registration_settings")
     if cursor.fetchone()[0] == 0:

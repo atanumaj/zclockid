@@ -9,6 +9,7 @@ import secrets
 import sqlite3
 import logging
 from fastapi import APIRouter, HTTPException, status, Header, Request, Depends
+from fastapi.responses import JSONResponse
 from typing import Optional
 
 from api.core.config import (
@@ -448,6 +449,42 @@ include "/var/lib/samba/bind-dns/named.conf";
         "log": provision_output[:1000]
     }
 
+def map_smbclient_auth_error(output: str, username: str, client_ip: str, context: str = "web_console") -> Optional[JSONResponse]:
+    """
+    Maps Samba Active Directory authentication error codes to structured responses.
+    - PASSWORD_EXPIRED / MUST_CHANGE -> 403 {"code": "PASSWORD_EXPIRED"}, audit LOGIN_PASSWORD_EXPIRED
+    - ACCOUNT_EXPIRED -> 403 {"code": "ACCOUNT_EXPIRED"}
+    - ACCOUNT_DISABLED -> 403 {"code": "ACCOUNT_DISABLED"}
+    - ACCOUNT_LOCKED_OUT -> 403 {"code": "ACCOUNT_LOCKED_OUT"}
+    - Generic invalid credentials -> None (falls through to 401)
+    """
+    out_upper = output.upper()
+    if "NT_STATUS_PASSWORD_EXPIRED" in out_upper or "NT_STATUS_PASSWORD_MUST_CHANGE" in out_upper or "PASSWORD_EXPIRED" in out_upper or "PASSWORD_MUST_CHANGE" in out_upper:
+        log_audit("LOGIN_PASSWORD_EXPIRED", username, context, "BLOCKED", {"ip": client_ip, "reason": "Password expired / must change"})
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"code": "PASSWORD_EXPIRED", "detail": "Your password has expired. Please change your password."}
+        )
+    if "NT_STATUS_ACCOUNT_EXPIRED" in out_upper or "ACCOUNT_EXPIRED" in out_upper:
+        log_audit("LOGIN_ACCOUNT_EXPIRED", username, context, "BLOCKED", {"ip": client_ip})
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"code": "ACCOUNT_EXPIRED", "detail": "Your account has expired. Please contact an administrator."}
+        )
+    if "NT_STATUS_ACCOUNT_DISABLED" in out_upper or "ACCOUNT_DISABLED" in out_upper:
+        log_audit("LOGIN_ACCOUNT_DISABLED", username, context, "BLOCKED", {"ip": client_ip})
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"code": "ACCOUNT_DISABLED", "detail": "Your account is disabled. Please contact an administrator."}
+        )
+    if "NT_STATUS_ACCOUNT_LOCKED_OUT" in out_upper or "ACCOUNT_LOCKED_OUT" in out_upper:
+        log_audit("LOGIN_ACCOUNT_LOCKED_OUT", username, context, "BLOCKED", {"ip": client_ip})
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"code": "ACCOUNT_LOCKED_OUT", "detail": "Your account is locked out. Please contact an administrator."}
+        )
+    return None
+
 @router.post("/auth/login")
 def login(req: LoginRequest, request: Request):
     client_ip = get_client_ip(request)
@@ -508,11 +545,17 @@ def login(req: LoginRequest, request: Request):
                 stderr=subprocess.PIPE,
                 timeout=5
             )
+            raw_out = (proc.stdout.decode(errors="ignore") if proc.stdout else "") + (proc.stderr.decode(errors="ignore") if proc.stderr else "")
             if proc.returncode == 0:
                 authenticated = True
                 is_local = False
                 from api.routers.rbac import resolve_user_role
                 role, _ = resolve_user_role(req.username, is_local_admin=False)
+            else:
+                resp = map_smbclient_auth_error(raw_out, req.username, client_ip, context="web_console")
+                if resp:
+                    conn.close()
+                    return resp
         except Exception:
             pass
 
@@ -657,7 +700,11 @@ def change_password(req: ChangePasswordRequest, authorization: Optional[str] = H
         env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5
     )
     if proc.returncode != 0:
-        raise HTTPException(status_code=400, detail="Current domain password verification failed.")
+        raw_out = (proc.stdout.decode(errors="ignore") if proc.stdout else "") + (proc.stderr.decode(errors="ignore") if proc.stderr else "")
+        resp = map_smbclient_auth_error(raw_out, username, "127.0.0.1", context="change-password")
+        if resp:
+            return resp
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current domain password verification failed.")
 
     admin_user, admin_pass = get_ad_creds()
     code, stdout, stderr = run_cmd([

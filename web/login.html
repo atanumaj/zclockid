@@ -87,6 +87,17 @@
             })
             .catch(() => {});
 
+        function escapeHtml(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/`/g, '&#96;');
+        }
+
         // Check if redirected from initial setup or session timeout
         if (window.location.search.includes('provisioned=1')) {
             document.getElementById('setup-success-alert').classList.remove('hidden');
@@ -138,7 +149,18 @@
                     localStorage.setItem('zclockid_last_activity', Date.now().toString());
                     window.location.href = '/index.html';
                 } else {
-                    errBox.innerText = data.detail || 'Authentication failed. Please verify credentials.';
+                    if (data.code === 'PASSWORD_EXPIRED') {
+                        const safeUser = encodeURIComponent(payload.username);
+                        errBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> Your password has expired. <a href="/password-reset.html#change?username=${escapeHtml(safeUser)}" class="underline font-bold text-amber-300 hover:text-amber-200 ml-1">Change password &rarr;</a>`;
+                    } else if (data.code === 'ACCOUNT_EXPIRED') {
+                        errBox.innerHTML = `<i class="fa-solid fa-clock mr-1"></i> ${escapeHtml(data.detail || 'Your account has expired. Please contact an administrator.')}`;
+                    } else if (data.code === 'ACCOUNT_DISABLED') {
+                        errBox.innerHTML = `<i class="fa-solid fa-user-slash mr-1"></i> ${escapeHtml(data.detail || 'Your account is disabled. Please contact an administrator.')}`;
+                    } else if (data.code === 'ACCOUNT_LOCKED_OUT') {
+                        errBox.innerHTML = `<i class="fa-solid fa-lock mr-1"></i> ${escapeHtml(data.detail || 'Your account is locked out. Please contact an administrator.')}`;
+                    } else {
+                        errBox.innerText = data.detail || 'Authentication failed. Please verify credentials.';
+                    }
                     errBox.classList.remove('hidden');
                 }
             } catch (err) {

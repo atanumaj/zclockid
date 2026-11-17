@@ -1852,6 +1852,13 @@
                     </select>
                 </div>
 
+                <div class="pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                        <input id="usr-never-expires-input" type="checkbox" class="rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-0">
+                        <span class="text-xs">Password never expires (Exempt from Expiry Policy)</span>
+                    </label>
+                </div>
+
                 <!-- Group Memberships -->
                 <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
                     <div class="flex items-center justify-between">
@@ -1971,12 +1978,95 @@
                     <input id="edit-usr-pass" type="password" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Enter new password to reset">
                 </div>
 
+                <!-- Password Expiry & PSO Information -->
+                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2 text-xs">
+                    <div class="flex items-center justify-between">
+                        <label class="text-slate-300 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock text-amber-400"></i> Password Expiry & PSO Policy
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                            <span class="text-slate-500 block">Resultant PSO:</span>
+                            <span id="edit-usr-pso" class="font-mono text-cyan-300">None (Domain Default)</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block">Password Expires:</span>
+                            <span id="edit-usr-expiry" class="font-mono text-amber-300">Active</span>
+                        </div>
+                    </div>
+                    <div class="pt-1">
+                        <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+                            <input id="edit-usr-never-expires" type="checkbox" class="rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-0">
+                            <span class="text-xs">Password never expires (Exempt from Expiry Policy)</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
                     <button type="button" onclick="closeEditUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs transition">Cancel</button>
                     <button id="btn-submit-edit-user" type="submit" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
                         <i class="fa-solid fa-floppy-disk"></i> Save User Changes
                     </button>
                 </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Password Expiry Policy Report & Bulk Apply Modal -->
+    <div id="expiry-policy-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-clock text-amber-400"></i> Password Expiry Policy Management
+                </h3>
+                <button onclick="closeExpiryPolicyModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <p class="text-slate-400">
+                    Audit and enforce Active Directory password expiration policies. Administrator and service accounts are automatically protected and excluded from expiration.
+                </p>
+                <div class="grid grid-cols-4 gap-2">
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-center">
+                        <div id="exp-stat-total" class="text-base font-bold text-white font-mono">0</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Total Users</div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-center">
+                        <div id="exp-stat-eligible" class="text-base font-bold text-amber-400 font-mono">0</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Never Expires (Legacy)</div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-center">
+                        <div id="exp-stat-compliant" class="text-base font-bold text-emerald-400 font-mono">0</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Policy Active</div>
+                    </div>
+                    <div class="bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-center">
+                        <div id="exp-stat-excluded" class="text-base font-bold text-slate-400 font-mono">0</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Excluded (Admin/Svc)</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-slate-300">Accounts Eligible for Expiry Policy</span>
+                        <span id="exp-eligible-count-label" class="text-[10px] font-mono text-slate-500">0 accounts</span>
+                    </div>
+                    <div id="exp-eligible-list" class="max-h-40 overflow-y-auto space-y-1 font-mono text-[11px] text-slate-300">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center pt-3 border-t border-slate-800">
+                    <span class="text-[11px] text-slate-500 italic">Bulk apply requires Full Administrator privileges.</span>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeExpiryPolicyModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs transition">Close</button>
+                        <button id="btn-apply-expiry-policy" type="button" onclick="submitApplyExpiryPolicy()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-play"></i> Apply Expiry Policy to Eligible Users
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
             </form>
         </div>
     </div>
