@@ -376,16 +376,95 @@ def get_user_password_info(username: str) -> Dict[str, Any]:
     }
 
 
+def get_effective_max_pwd_age(username: Optional[str] = None, resultant_pso: Optional[str] = None) -> int:
+    """Returns effective max password age in days for the user/PSO, or default domain policy."""
+    pso = resultant_pso
+    if not pso and username:
+        try:
+            admin_user, admin_pass = get_ad_creds()
+            c_p, o_p, _ = run_cmd([
+                "samba-tool", "domain", "passwordsettings", "pso", "show-user", username,
+                f"-U{admin_user}", f"--password={admin_pass}"
+            ], timeout=5)
+            if c_p == 0 and "Password information for PSO '" in o_p:
+                start_idx = o_p.find("Password information for PSO '") + len("Password information for PSO '")
+                end_idx = o_p.find("'", start_idx)
+                if end_idx != -1:
+                    pso = o_p[start_idx:end_idx].strip()
+        except Exception:
+            pass
+
+    if pso:
+        if pso == "ZclockID-SelfReg-PSO":
+            try:
+                conn = get_db_conn()
+                cursor = conn.cursor()
+                cursor.execute("SELECT pso_max_pwd_age_days FROM self_registration_settings WHERE id = 1")
+                row = cursor.fetchone()
+                conn.close()
+                if row and row[0]:
+                    return int(row[0])
+            except Exception:
+                pass
+            return 365
+        else:
+            try:
+                c_pso, o_pso, _ = run_cmd([
+                    "samba-tool", "domain", "passwordsettings", "pso", "show", pso
+                ], timeout=5)
+                if c_pso == 0:
+                    for l in o_pso.splitlines():
+                        if "Maximum password age (days):" in l:
+                            return int(l.split(":", 1)[1].strip())
+            except Exception:
+                pass
+
+    # Fallback to domain default password policy
+    try:
+        c_dom, o_dom, _ = run_cmd(["samba-tool", "domain", "passwordsettings", "show"], timeout=5)
+        if c_dom == 0:
+            for l in o_dom.splitlines():
+                if "Maximum password age (days):" in l:
+                    return int(l.split(":", 1)[1].strip())
+    except Exception:
+        pass
+
+    return 42  # Default Active Directory max password age
+
+
+def compute_effective_expiry(pwd_last_set: int, username: Optional[str] = None, resultant_pso: Optional[str] = None, now: Optional[float] = None) -> Tuple[bool, int, Optional[float]]:
+    """
+    Computes whether a password would be expired under effective policy (ignoring DONT_EXPIRE_PASSWORD flag).
+    Returns (will_expire_immediately, max_pwd_age_days, expires_epoch).
+    """
+    if now is None:
+        now = time.time()
+
+    if pwd_last_set == 0:
+        return True, 0, 0.0
+
+    max_pwd_age_days = get_effective_max_pwd_age(username, resultant_pso)
+    if max_pwd_age_days <= 0:
+        return False, max_pwd_age_days, None
+
+    pwd_epoch = (pwd_last_set - 116444736000000000) / 10000000.0
+    expires_epoch = pwd_epoch + (max_pwd_age_days * 86400.0)
+    will_expire = expires_epoch <= now
+    return will_expire, max_pwd_age_days, expires_epoch
+
+
 def get_password_expiry_report() -> Dict[str, Any]:
     """
     Generates report of user password expiry states across Active Directory.
     Identifies accounts with 'never expires' set, eligible accounts to update,
     and excluded service/admin accounts.
+    Also computes whether (pwdLastSet + effective max-pwd-age) is already in the past
+    for each eligible user to report accounts that will immediately expire.
     """
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", str(SAMBA_LDB_PATH),
         "(&(objectClass=user)(!(objectClass=computer)))",
-        "sAMAccountName", "userAccountControl", "pwdLastSet", "userPrincipalName", "isCriticalSystemObject"
+        "sAMAccountName", "userAccountControl", "pwdLastSet", "userPrincipalName", "isCriticalSystemObject", "msDS-ResultantPSO"
     ], timeout=15)
 
     if code != 0:
@@ -394,6 +473,8 @@ def get_password_expiry_report() -> Dict[str, Any]:
             "eligible_count": 0,
             "compliant_count": 0,
             "excluded_count": 0,
+            "immediate_expired_count": 0,
+            "immediate_expired_users": [],
             "eligible_users": [],
             "excluded_users": []
         }
@@ -423,13 +504,21 @@ def get_password_expiry_report() -> Dict[str, Any]:
                 current_u["pwd_last_set"] = 0
         elif line.startswith("isCriticalSystemObject:"):
             current_u["is_critical"] = line.split(":", 1)[1].strip().upper() == "TRUE"
+        elif line.startswith("msDS-ResultantPSO:"):
+            val = line.split(":", 1)[1].strip()
+            for part in val.split(","):
+                if part.strip().startswith("CN="):
+                    current_u["resultant_pso"] = part.strip()[3:]
+                    break
     if current_u.get("username"):
         users_list.append(current_u)
 
     eligible_users = []
     excluded_users = []
+    immediate_expired_users = []
     compliant_count = 0
 
+    now = time.time()
     for u in users_list:
         name = u["username"]
         uac = u.get("uac", 512)
@@ -438,13 +527,23 @@ def get_password_expiry_report() -> Dict[str, Any]:
         if is_service_account(name) or u.get("is_critical"):
             excluded_users.append(name)
         elif has_never_expires:
-            eligible_users.append({
+            pwd_ls = u.get("pwd_last_set", 0)
+            pso_name = u.get("resultant_pso")
+            will_expire, max_age, exp_epoch = compute_effective_expiry(pwd_ls, username=name, resultant_pso=pso_name, now=now)
+
+            user_entry = {
                 "username": name,
                 "user_principal_name": u.get("upn", ""),
                 "never_expires": True,
                 "user_account_control": uac,
-                "pwd_last_set": u.get("pwd_last_set", 0)
-            })
+                "pwd_last_set": pwd_ls,
+                "resultant_pso": pso_name,
+                "effective_max_pwd_age_days": max_age,
+                "will_expire_immediately": will_expire
+            }
+            eligible_users.append(user_entry)
+            if will_expire:
+                immediate_expired_users.append(name)
         else:
             compliant_count += 1
 
@@ -453,6 +552,8 @@ def get_password_expiry_report() -> Dict[str, Any]:
         "eligible_count": len(eligible_users),
         "compliant_count": compliant_count,
         "excluded_count": len(excluded_users),
+        "immediate_expired_count": len(immediate_expired_users),
+        "immediate_expired_users": immediate_expired_users,
         "eligible_users": eligible_users,
         "excluded_users": excluded_users
     }
@@ -466,12 +567,14 @@ def apply_bulk_expiry_policy(admin_user: str) -> Dict[str, Any]:
     """
     report = get_password_expiry_report()
     eligible = report.get("eligible_users", [])
+    immediate_expired_count = report.get("immediate_expired_count", 0)
+    immediate_expired_users = report.get("immediate_expired_users", [])
 
     modified_users = []
     for u in eligible:
         username = u["username"]
         uac = u["user_account_control"]
-        new_uac = uac & ~65536 # Clear DONT_EXPIRE_PASSWORD (65536)
+        new_uac = uac & ~65536  # Clear DONT_EXPIRE_PASSWORD (65536)
 
         # Look up user DN
         c_dn, o_dn, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "dn"], timeout=5)
@@ -486,14 +589,18 @@ def apply_bulk_expiry_policy(admin_user: str) -> Dict[str, Any]:
 
     log_audit("APPLY_EXPIRY_POLICY", admin_user, "active_directory", "SUCCESS", {
         "modified_count": len(modified_users),
-        "modified_users": modified_users
+        "modified_users": modified_users,
+        "immediate_expired_count": immediate_expired_count,
+        "immediate_expired_users": immediate_expired_users
     })
 
     return {
         "status": "success",
         "message": f"Successfully applied password expiry policy to {len(modified_users)} user(s).",
         "modified_count": len(modified_users),
-        "modified_users": modified_users
+        "modified_users": modified_users,
+        "immediate_expired_count": immediate_expired_count,
+        "immediate_expired_users": immediate_expired_users
     }
 
 

@@ -501,3 +501,130 @@ def test_invariant_6_expiry_report_and_bulk_apply_exclude_service_accounts():
         # Administrator and svc_backup must NEVER be modified
         assert "Administrator" not in data_apply["modified_users"]
         assert "svc_backup" not in data_apply["modified_users"]
+
+
+# =============================================================================
+# Invariant 7: Wrong current password returns 400 and keeps session active
+# =============================================================================
+def test_invariant_7_wrong_current_password_returns_400_and_keeps_session():
+    """Verify wrong current password in /auth/change-password returns 400 (not 401), and session row remains active."""
+    client = TestClient(app)
+    token = get_auth_token("fulladmin", "ad_admin_user")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Test wrong current password on AD account
+    mock_proc_bad_pass = MagicMock()
+    mock_proc_bad_pass.returncode = 1
+    mock_proc_bad_pass.stdout = b"session setup failed: NT_STATUS_LOGON_FAILURE\n"
+    mock_proc_bad_pass.stderr = b""
+
+    with patch("subprocess.run", return_value=mock_proc_bad_pass):
+        res = client.post("/api/v1/auth/change-password", headers=headers, json={
+            "current_password": "WrongCurrentPassword123!",
+            "new_password": "BrandNewValidPassword2026!"
+        })
+        # Must return 400 Bad Request, NOT 401 Unauthorized
+        assert res.status_code == 400
+        assert "password verification failed" in res.json().get("detail", "").lower()
+
+        # Session row must still exist in SQLite sessions table
+        import api.core.config as cfg
+        conn = sqlite3.connect(cfg.DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM sessions WHERE token = ?", (token,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        assert count == 1, "Expected session row to still exist after 400 error on change-password"
+
+    # 2. Test 403 error mapping (PASSWORD_EXPIRED) still works and returns 403
+    mock_proc_exp = MagicMock()
+    mock_proc_exp.returncode = 1
+    mock_proc_exp.stdout = b""
+    mock_proc_exp.stderr = b"session setup failed: NT_STATUS_PASSWORD_EXPIRED\n"
+
+    with patch("subprocess.run", return_value=mock_proc_exp):
+        res_exp = client.post("/api/v1/auth/change-password", headers=headers, json={
+            "current_password": "OldExpiredPassword123!",
+            "new_password": "BrandNewValidPassword2026!"
+        })
+        assert res_exp.status_code == 403
+        assert res_exp.json().get("code") == "PASSWORD_EXPIRED"
+
+
+# =============================================================================
+# Invariant 8: Bulk apply immediate expired count and audit
+# =============================================================================
+def test_invariant_8_bulk_apply_immediate_expired_count_and_audit():
+    """Verify bulk apply computes (pwdLastSet + max-pwd-age), reports immediate_expired_count, and logs to audit."""
+    client = TestClient(app)
+    token = get_auth_token("fulladmin")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    now = time.time()
+    # 60 days ago: in FileTime
+    epoch_60d_ago = now - (60 * 86400.0)
+    filetime_60d_ago = int((epoch_60d_ago * 10000000.0) + 116444736000000000)
+
+    # 5 days ago: in FileTime
+    epoch_5d_ago = now - (5 * 86400.0)
+    filetime_5d_ago = int((epoch_5d_ago * 10000000.0) + 116444736000000000)
+
+    # Domain max-pwd-age is 42 days.
+    # user_past: set 60 days ago -> 60 > 42 -> will_expire_immediately = True
+    # user_fresh: set 5 days ago -> 5 < 42 -> will_expire_immediately = False
+    # user_must_change: pwdLastSet = 0 -> will_expire_immediately = True
+    # user_compliant: UAC = 512 -> not eligible
+    fake_ldb_output = (
+        f"sAMAccountName: user_past\nuserAccountControl: 66048\npwdLastSet: {filetime_60d_ago}\n\n"
+        f"sAMAccountName: user_fresh\nuserAccountControl: 66048\npwdLastSet: {filetime_5d_ago}\n\n"
+        f"sAMAccountName: user_must_change\nuserAccountControl: 66048\npwdLastSet: 0\n\n"
+        f"sAMAccountName: user_compliant\nuserAccountControl: 512\npwdLastSet: {filetime_60d_ago}\n\n"
+        "sAMAccountName: Administrator\nuserAccountControl: 66048\n\n"
+    )
+
+    def fake_run_cmd(cmd, timeout=10, input_data=None):
+        cmd_list = list(cmd)
+        if cmd_list[0] == "ldbsearch":
+            if "(sAMAccountName=" in " ".join(cmd_list) and "dn" in cmd_list:
+                for u in ["user_past", "user_fresh", "user_must_change"]:
+                    if f"(sAMAccountName={u})" in " ".join(cmd_list):
+                        return 0, f"dn: CN={u},CN=Users,DC=inet,DC=net\n", ""
+            return 0, fake_ldb_output, ""
+        if "domain" in cmd_list and "passwordsettings" in cmd_list and "show" in cmd_list:
+            return 0, "Maximum password age (days): 42\n", ""
+        return 0, "", ""
+
+    with patch("api.services.password_expiry_service.run_cmd", side_effect=fake_run_cmd):
+        res_rep = client.get("/api/v1/users/expiry-policy/report", headers=headers)
+        assert res_rep.status_code == 200
+        rep_data = res_rep.json()
+
+        assert rep_data["eligible_count"] == 3
+        assert rep_data["immediate_expired_count"] == 2
+        assert set(rep_data["immediate_expired_users"]) == {"user_past", "user_must_change"}
+
+    # Test Bulk Apply
+    with patch("api.services.password_expiry_service.run_cmd", side_effect=fake_run_cmd), \
+         patch("subprocess.run", return_value=MagicMock(returncode=0)):
+
+        res_apply = client.post("/api/v1/users/expiry-policy/apply", headers=headers)
+        assert res_apply.status_code == 200
+        apply_data = res_apply.json()
+        assert apply_data["status"] == "success"
+        assert apply_data["modified_count"] == 3
+        assert apply_data["immediate_expired_count"] == 2
+        assert set(apply_data["immediate_expired_users"]) == {"user_past", "user_must_change"}
+
+        # Verify audit log entry
+        import api.core.config as cfg
+        conn = sqlite3.connect(cfg.DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT details FROM audit_events WHERE event_type = 'APPLY_EXPIRY_POLICY' ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        conn.close()
+        assert row is not None, "Expected APPLY_EXPIRY_POLICY audit log entry"
+        import json
+        audit_details = json.loads(row[0])
+        assert audit_details.get("immediate_expired_count") == 2
+        assert set(audit_details.get("immediate_expired_users", [])) == {"user_past", "user_must_change"}
+

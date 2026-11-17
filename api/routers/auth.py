@@ -704,7 +704,7 @@ def change_password(req: ChangePasswordRequest, authorization: Optional[str] = H
         resp = map_smbclient_auth_error(raw_out, username, "127.0.0.1", context="change-password")
         if resp:
             return resp
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current domain password verification failed.")
+        raise HTTPException(status_code=400, detail="Current domain password verification failed.")
 
     admin_user, admin_pass = get_ad_creds()
     code, stdout, stderr = run_cmd([

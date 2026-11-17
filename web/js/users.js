@@ -1230,11 +1230,28 @@
                 const res = await fetch(`${API_BASE}/users/expiry-policy/report`);
                 const data = await res.json();
                 if (res.ok) {
+                    window._currentExpiryReport = data;
                     if (document.getElementById('exp-stat-total')) document.getElementById('exp-stat-total').innerText = data.total_users || 0;
                     if (document.getElementById('exp-stat-eligible')) document.getElementById('exp-stat-eligible').innerText = data.eligible_count || 0;
                     if (document.getElementById('exp-stat-compliant')) document.getElementById('exp-stat-compliant').innerText = data.compliant_count || 0;
                     if (document.getElementById('exp-stat-excluded')) document.getElementById('exp-stat-excluded').innerText = data.excluded_count || 0;
                     if (document.getElementById('exp-eligible-count-label')) document.getElementById('exp-eligible-count-label').innerText = `${data.eligible_count || 0} accounts`;
+
+                    const immAlert = document.getElementById('exp-immediate-alert');
+                    const immTitle = document.getElementById('exp-immediate-title');
+                    const immList = document.getElementById('exp-immediate-list');
+                    const immCount = data.immediate_expired_count || 0;
+                    const immUsers = data.immediate_expired_users || [];
+
+                    if (immAlert && immTitle && immList) {
+                        if (immCount > 0) {
+                            immTitle.innerText = `${immCount} user${immCount === 1 ? '' : 's'} will be IMMEDIATELY expired and must change password at next login`;
+                            immList.innerText = immUsers.join(', ');
+                            immAlert.classList.remove('hidden');
+                        } else {
+                            immAlert.classList.add('hidden');
+                        }
+                    }
 
                     if (listEl) {
                         const eligible = data.eligible_users || [];
@@ -1248,7 +1265,10 @@
                                         <span class="font-bold text-slate-200">${escapeHtml(u.username)}</span>
                                         <span class="text-slate-500 text-[10px]">${escapeHtml(u.user_principal_name || '')}</span>
                                     </div>
-                                    <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-mono">Never Expires (Legacy)</span>
+                                    <div class="flex items-center gap-1.5 font-mono text-[10px]">
+                                        ${u.will_expire_immediately ? '<span class="px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800 font-bold">Immediately Expired</span>' : ''}
+                                        <span class="px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800">Never Expires</span>
+                                    </div>
                                 </div>
                             `).join('');
                         }
@@ -1267,7 +1287,12 @@
         }
 
         async function submitApplyExpiryPolicy() {
-            if (!confirm('Are you sure you want to apply the password expiry policy to all eligible user accounts?\n\nThis will remove the "Password Never Expires" flag from non-service accounts, enforcing domain and PSO expiration rules. Administrator and service accounts will NOT be affected.')) {
+            const report = window._currentExpiryReport;
+            let confirmMsg = 'Are you sure you want to apply the password expiry policy to all eligible user accounts?\n\nThis will remove the "Password Never Expires" flag from non-service accounts, enforcing domain and PSO expiration rules. Administrator and service accounts will NOT be affected.';
+            if (report && report.immediate_expired_count > 0) {
+                confirmMsg = `${report.immediate_expired_count} user(s) will be IMMEDIATELY expired and must change password at next login:\n${report.immediate_expired_users.join(', ')}\n\n` + confirmMsg;
+            }
+            if (!confirm(confirmMsg)) {
                 return;
             }
 

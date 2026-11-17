@@ -2045,6 +2045,19 @@
                     </div>
                 </div>
 
+                <div id="exp-immediate-alert" class="hidden bg-rose-950/40 border border-rose-800/80 rounded-lg p-3 space-y-1.5">
+                    <div class="flex items-center gap-2 text-rose-300 font-bold">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+                        <span id="exp-immediate-title">0 users will be IMMEDIATELY expired and must change password at next login</span>
+                    </div>
+                    <p class="text-slate-400 text-[11px]">
+                        Their last password change date plus effective maximum password age is already in the past. Removing the exemption will require them to set a new password on their next logon.
+                    </p>
+                    <div id="exp-immediate-list" class="font-mono text-rose-200 text-[11px] break-words">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
                 <div class="bg-slate-950 border border-slate-800 rounded-lg p-3 space-y-2">
                     <div class="flex justify-between items-center">
                         <span class="font-semibold text-slate-300">Accounts Eligible for Expiry Policy</span>
