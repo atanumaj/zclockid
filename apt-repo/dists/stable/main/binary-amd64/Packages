@@ -832,10 +832,10 @@ Architecture: all
 Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.4.7.1_all.deb
-Size: 3238894
-MD5sum: d88bccf6eafcfb5b3a7a72ee23fd8b6d
-SHA1: 26479b0b86a2fc9791be56c840323ff89b2ede90
-SHA256: 0f9efc51c694f69706e61bbd2d191bffbbbdcc8bad22c6eaa90a470e34011d10
+Size: 3239316
+MD5sum: 9a4e7279aadd6d0ce76b1350b975b2bc
+SHA1: 54a9f7e134c62be525c88d9ba928563fabb3e2ca
+SHA256: 8e03bd6ed31e32066d56300aef84f0d9820b3a3cf3ae0b577dd5a1300499b039
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance

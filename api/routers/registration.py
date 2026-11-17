@@ -409,12 +409,12 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     if require_otp:
         check_and_record_registration_attempt(clean_mobile, client_ip, "submit", max_hourly_mobile=3, max_hourly_ip=20)
 
-    # Only delete unverified attempt from the SAME user with the SAME mobile, or old terminal stubs (never delete active PENDING_APPROVAL)
-    cursor.execute("""
-        DELETE FROM self_registrations 
-        WHERE (status = 'PENDING_OTP' AND username = ? AND mobile = ?)
-           OR (username = ? AND status IN ('EXPIRED_OTP', 'EXPIRED_APPROVAL', 'REJECTED', 'LOCKED', 'ERROR_REREGISTER'))
-    """, (clean_user, clean_mobile, clean_user))
+    # Delete unverified attempt from the SAME user with the SAME mobile.
+    # Never delete REJECTED or APPROVED rows. EXPIRED_*, LOCKED, and ERROR_REREGISTER are left to the purge job.
+    cursor.execute(
+        "DELETE FROM self_registrations WHERE status = 'PENDING_OTP' AND username = ? AND mobile = ?",
+        (clean_user, clean_mobile)
+    )
 
     # Resubmission within 30 days of a rejection gets notes="[PREVIOUSLY REJECTED <date>]"
     cutoff_30d = time.time() - (30 * 86400)

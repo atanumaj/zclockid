@@ -6,6 +6,7 @@ Note: Active Directory accounts are stored in Samba sam.ldb, NOT in SQLite (Zero
 
 import sqlite3
 import time
+import re
 from api.core.config import DB_PATH
 
 def get_db_connection():
@@ -53,11 +54,11 @@ def init_db(db_path=None):
     if "user_agent" not in sess_cols:
         cursor.execute("ALTER TABLE sessions ADD COLUMN user_agent TEXT DEFAULT ''")
 
-    # Self-Registration Queue
+    # Self-Registration Queue (without global UNIQUE on username, using partial index for active rows)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS self_registrations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
+            username TEXT NOT NULL,
             email TEXT NOT NULL,
             given_name TEXT,
             surname TEXT,
@@ -72,7 +73,9 @@ def init_db(db_path=None):
             otp_code TEXT,
             otp_expires_at REAL,
             otp_verified INTEGER DEFAULT 0,
+            otp_verified_at REAL,
             password_hash TEXT,
+            password_enc TEXT,
             failed_attempts INTEGER DEFAULT 0
         )
     """)
@@ -93,6 +96,55 @@ def init_db(db_path=None):
     for col_name, col_type in cols_to_add.items():
         if col_name not in existing_cols:
             cursor.execute(f"ALTER TABLE self_registrations ADD COLUMN {col_name} {col_type}")
+
+    # Rebuild table if old inline UNIQUE constraint on username is present
+    cursor.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'self_registrations'")
+    tbl_row = cursor.fetchone()
+    if tbl_row and tbl_row[0]:
+        tbl_sql = tbl_row[0]
+        if re.search(r"\busername\b[^,\)]*\bUNIQUE\b", tbl_sql, re.IGNORECASE) or re.search(r"\bUNIQUE\s*\(\s*username\s*\)", tbl_sql, re.IGNORECASE):
+            cursor.execute("PRAGMA foreign_keys = OFF")
+            cursor.execute("""
+                CREATE TABLE self_registrations_rebuild (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL,
+                    email TEXT NOT NULL,
+                    given_name TEXT,
+                    surname TEXT,
+                    department TEXT,
+                    mobile TEXT,
+                    status TEXT DEFAULT 'PENDING_OTP',
+                    ip_address TEXT,
+                    created_at REAL,
+                    approved_at REAL,
+                    approved_by TEXT,
+                    notes TEXT,
+                    otp_code TEXT,
+                    otp_expires_at REAL,
+                    otp_verified INTEGER DEFAULT 0,
+                    otp_verified_at REAL,
+                    password_hash TEXT,
+                    password_enc TEXT,
+                    failed_attempts INTEGER DEFAULT 0
+                )
+            """)
+            cursor.execute("PRAGMA table_info(self_registrations)")
+            old_c = [c[1] for c in cursor.fetchall()]
+            cursor.execute("PRAGMA table_info(self_registrations_rebuild)")
+            new_c = [c[1] for c in cursor.fetchall()]
+            common_c = [c for c in new_c if c in old_c]
+            cols_joined = ", ".join(common_c)
+            cursor.execute(f"INSERT INTO self_registrations_rebuild ({cols_joined}) SELECT {cols_joined} FROM self_registrations")
+            cursor.execute("DROP TABLE self_registrations")
+            cursor.execute("ALTER TABLE self_registrations_rebuild RENAME TO self_registrations")
+            cursor.execute("PRAGMA foreign_keys = ON")
+
+    # Partial unique index: at most one active (PENDING_OTP or PENDING_APPROVAL) registration per username
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_selfreg_active_username 
+        ON self_registrations(username) 
+        WHERE status IN ('PENDING_OTP', 'PENDING_APPROVAL')
+    """)
 
     # Migrate any existing plaintext passwords into password_enc, then wipe password_hash and VACUUM
     cursor.execute("PRAGMA secure_delete=ON")

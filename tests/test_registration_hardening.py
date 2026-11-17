@@ -723,3 +723,222 @@ def test_invariant_13_unencrypted_backup_contains_no_registration_keys(setup_iso
         names = tar.getnames()
         for name in names:
             assert "registration_keys" not in name, f"Found registration_keys entry in unencrypted backup: {name}"
+
+
+def test_invariant_14_reject_then_resubmit_preserves_old_row_and_adds_prefix(setup_isolated_env):
+    """Reject -> resubmit same username -> 200; new row notes start with [PREVIOUSLY REJECTED; old REJECTED row still exists."""
+    client = TestClient(app)
+    token = _get_admin_token(setup_isolated_env["db"])
+
+    # 1. Submit and verify OTP
+    sub_resp = client.post("/api/v1/self-registration/submit", json={
+        "username": "user_rej_resub",
+        "given_name": "Rej",
+        "surname": "Resub",
+        "email": "rejresub@example.com",
+        "mobile": "+19991112222",
+        "password": "Password123!",
+        "department": "Engineering"
+    })
+    assert sub_resp.status_code == 200
+    reg1_id = sub_resp.json()["registration_id"]
+    otp1 = CAPTURED_OTPS["+19991112222"]
+
+    v_resp = client.post("/api/v1/self-registration/verify-otp", json={
+        "registration_id": reg1_id,
+        "otp_code": otp1
+    })
+    assert v_resp.status_code == 200
+
+    # 2. Reject request
+    rej_resp = client.post(
+        f"/api/v1/registrations/requests/{reg1_id}/reject",
+        json={"notes": "Not authorized at this time"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert rej_resp.status_code == 200
+
+    # Verify old row is REJECTED
+    conn = sqlite3.connect(setup_isolated_env["db"])
+    row1 = conn.execute("SELECT id, status FROM self_registrations WHERE id = ?", (reg1_id,)).fetchone()
+    conn.close()
+    assert row1[1] == "REJECTED"
+
+    # 3. Resubmit same username with same mobile
+    sub_resp2 = client.post("/api/v1/self-registration/submit", json={
+        "username": "user_rej_resub",
+        "given_name": "Rej",
+        "surname": "Resub",
+        "email": "rejresub2@example.com",
+        "mobile": "+19991112222",
+        "password": "Password123!",
+        "department": "Engineering",
+        "justification": "Second attempt with manager approval"
+    })
+    assert sub_resp2.status_code == 200
+    reg2_id = sub_resp2.json()["registration_id"]
+    assert reg2_id != reg1_id
+
+    # 4. Verify database state: old REJECTED row still exists, and new row notes start with [PREVIOUSLY REJECTED
+    conn = sqlite3.connect(setup_isolated_env["db"])
+    rows = conn.execute("SELECT id, status, notes FROM self_registrations WHERE username = 'user_rej_resub' ORDER BY id ASC").fetchall()
+    conn.close()
+
+    assert len(rows) == 2
+    assert rows[0][0] == reg1_id
+    assert rows[0][1] == "REJECTED"
+
+    assert rows[1][0] == reg2_id
+    assert rows[1][1] == "PENDING_OTP"
+    assert rows[1][2].startswith("[PREVIOUSLY REJECTED")
+    assert "Second attempt with manager approval" in rows[1][2]
+
+
+def test_invariant_15_expired_stub_plus_resubmit_no_unique_error(setup_isolated_env):
+    """An expired stub plus a resubmit -> no UNIQUE error."""
+    client = TestClient(app)
+
+    # Insert an expired stub in the database
+    conn = sqlite3.connect(setup_isolated_env["db"])
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO self_registrations (
+            id, username, email, given_name, surname, mobile, status, created_at, approved_at
+        ) VALUES (888, 'user_with_stub', 'stub@example.com', 'Stub', 'User', '+19993334444', 'EXPIRED_OTP', ?, ?)
+    """, (time.time() - 100000, time.time() - 95000))
+    conn.commit()
+    conn.close()
+
+    # Submit registration with same username -> must return 200 without UNIQUE constraint failure
+    sub_resp = client.post("/api/v1/self-registration/submit", json={
+        "username": "user_with_stub",
+        "given_name": "Stub",
+        "surname": "User",
+        "email": "stub_new@example.com",
+        "mobile": "+19993334444",
+        "password": "Password123!",
+        "department": "Engineering"
+    })
+    assert sub_resp.status_code == 200
+    new_id = sub_resp.json()["registration_id"]
+    assert new_id != 888
+
+    # Both rows coexist
+    conn = sqlite3.connect(setup_isolated_env["db"])
+    rows = conn.execute("SELECT id, status FROM self_registrations WHERE username = 'user_with_stub' ORDER BY id ASC").fetchall()
+    conn.close()
+    assert len(rows) == 2
+    assert rows[0] == (888, "EXPIRED_OTP")
+    assert rows[1] == (new_id, "PENDING_OTP")
+
+
+def test_invariant_16_partial_unique_index_blocks_duplicate_active_rows(setup_isolated_env):
+    """Two active rows for the same username are impossible (ux_selfreg_active_username index blocks it)."""
+    conn = sqlite3.connect(setup_isolated_env["db"])
+    cursor = conn.cursor()
+
+    # 1. Insert first active row (PENDING_OTP) -> succeeds
+    cursor.execute("""
+        INSERT INTO self_registrations (
+            username, email, given_name, surname, mobile, status, created_at
+        ) VALUES ('dup_active_user', 'u1@example.com', 'Dup', 'Active', '+111222', 'PENDING_OTP', ?)
+    """, (time.time(),))
+    conn.commit()
+
+    # 2. Attempt second active row for same username (PENDING_APPROVAL) -> must raise IntegrityError
+    with pytest.raises(sqlite3.IntegrityError) as excinfo:
+        cursor.execute("""
+            INSERT INTO self_registrations (
+                username, email, given_name, surname, mobile, status, created_at
+            ) VALUES ('dup_active_user', 'u2@example.com', 'Dup', 'Active', '+111333', 'PENDING_APPROVAL', ?)
+        """, (time.time(),))
+        conn.commit()
+    assert "UNIQUE constraint failed" in str(excinfo.value) or "ux_selfreg_active_username" in str(excinfo.value)
+    conn.rollback()
+
+    # 3. Non-active rows (e.g. APPROVED, REJECTED, EXPIRED_OTP) with same username -> succeed
+    cursor.execute("""
+        INSERT INTO self_registrations (
+            username, email, given_name, surname, mobile, status, created_at
+        ) VALUES ('dup_active_user', 'u3@example.com', 'Dup', 'Active', '+111444', 'REJECTED', ?)
+    """, (time.time(),))
+    cursor.execute("""
+        INSERT INTO self_registrations (
+            username, email, given_name, surname, mobile, status, created_at
+        ) VALUES ('dup_active_user', 'u4@example.com', 'Dup', 'Active', '+111555', 'EXPIRED_OTP', ?)
+    """, (time.time(),))
+    conn.commit()
+    conn.close()
+
+
+def test_invariant_17_migration_rebuilds_table_and_preserves_all_rows_and_ids(tmp_path):
+    """The migration removes the inline UNIQUE constraint while preserving all existing rows and IDs."""
+    test_db = tmp_path / "legacy.db"
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+
+    # Create old legacy table with inline UNIQUE constraint on username
+    cursor.execute("""
+        CREATE TABLE self_registrations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT NOT NULL,
+            given_name TEXT,
+            surname TEXT,
+            department TEXT,
+            mobile TEXT,
+            status TEXT DEFAULT 'PENDING_OTP',
+            ip_address TEXT,
+            created_at REAL,
+            approved_at REAL,
+            approved_by TEXT,
+            notes TEXT,
+            otp_code TEXT,
+            otp_expires_at REAL,
+            otp_verified INTEGER DEFAULT 0,
+            password_hash TEXT,
+            failed_attempts INTEGER DEFAULT 0
+        )
+    """)
+    cursor.execute("""
+        INSERT INTO self_registrations (
+            id, username, email, given_name, surname, mobile, status, created_at
+        ) VALUES (42, 'legacy_user', 'legacy@test.local', 'Legacy', 'User', '+112233', 'REJECTED', 1600000000.0)
+    """)
+    conn.commit()
+    conn.close()
+
+    # Run init_db migration on the legacy database
+    init_db(test_db)
+
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+
+    # 1. Verify row 42 is preserved exactly
+    row = cursor.execute("SELECT id, username, email, status, created_at FROM self_registrations WHERE id = 42").fetchone()
+    assert row == (42, "legacy_user", "legacy@test.local", "REJECTED", 1600000000.0)
+
+    # 2. Verify inline UNIQUE constraint on table DDL is gone
+    cursor.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'self_registrations'")
+    tbl_sql = cursor.fetchone()[0]
+    assert "username text unique" not in tbl_sql.lower()
+
+    # 3. Verify partial index ux_selfreg_active_username exists
+    cursor.execute("SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name = 'ux_selfreg_active_username'")
+    idx = cursor.fetchone()
+    assert idx is not None
+    assert "WHERE status IN ('PENDING_OTP', 'PENDING_APPROVAL')" in idx[1]
+
+    # 4. Verify we can now insert a second row with the same username (e.g. resubmission after rejection)
+    cursor.execute("""
+        INSERT INTO self_registrations (
+            id, username, email, given_name, surname, mobile, status, created_at
+        ) VALUES (43, 'legacy_user', 'legacy2@test.local', 'Legacy', 'User', '+112233', 'PENDING_OTP', 1700000000.0)
+    """)
+    conn.commit()
+
+    rows = cursor.execute("SELECT id, username, status FROM self_registrations WHERE username = 'legacy_user' ORDER BY id ASC").fetchall()
+    assert len(rows) == 2
+    assert rows[0] == (42, "legacy_user", "REJECTED")
+    assert rows[1] == (43, "legacy_user", "PENDING_OTP")
+    conn.close()
