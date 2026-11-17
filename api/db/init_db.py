@@ -85,12 +85,30 @@ def init_db(db_path=None):
         "otp_code": "TEXT",
         "otp_expires_at": "REAL",
         "otp_verified": "INTEGER DEFAULT 0",
+        "otp_verified_at": "REAL",
         "password_hash": "TEXT",
+        "password_enc": "TEXT",
         "failed_attempts": "INTEGER DEFAULT 0"
     }
     for col_name, col_type in cols_to_add.items():
         if col_name not in existing_cols:
             cursor.execute(f"ALTER TABLE self_registrations ADD COLUMN {col_name} {col_type}")
+
+    # Migrate any existing plaintext passwords into password_enc, then wipe password_hash and VACUUM
+    cursor.execute("PRAGMA secure_delete=ON")
+    cursor.execute("SELECT id, username, password_hash FROM self_registrations WHERE password_hash IS NOT NULL AND password_hash NOT IN ('PROVISIONED', 'REJECTED') AND (password_enc IS NULL OR password_enc = '')")
+    rows_to_migrate = cursor.fetchall()
+    if rows_to_migrate:
+        try:
+            from api.core.secret_box import encrypt_registration_password
+            for r_id, u_name, p_plain in rows_to_migrate:
+                if p_plain and p_plain.strip():
+                    enc_val = encrypt_registration_password(r_id, u_name, p_plain.strip())
+                    cursor.execute("UPDATE self_registrations SET password_enc = ? WHERE id = ?", (enc_val, r_id))
+        except Exception as e:
+            pass
+    cursor.execute("UPDATE self_registrations SET password_hash = NULL WHERE password_hash IS NOT NULL")
+    conn.commit()
 
     # Self-Registration & OTP Policy Settings
     cursor.execute("""
@@ -114,6 +132,11 @@ def init_db(db_path=None):
             smtp_user TEXT DEFAULT '',
             smtp_pass TEXT DEFAULT '',
             smtp_from TEXT DEFAULT '',
+            otp_expiry_minutes INTEGER DEFAULT 10,
+            registration_approval_ttl_days INTEGER DEFAULT 7,
+            approval_purge_tripped INTEGER DEFAULT 0,
+            approval_purge_pending_count INTEGER DEFAULT 0,
+            approval_purge_detected_at REAL DEFAULT 0,
             updated_at REAL
         )
     """)
@@ -128,6 +151,16 @@ def init_db(db_path=None):
         cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN use_custom_html INTEGER DEFAULT 0")
     if "custom_html_updated_at" not in sreg_cols:
         cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN custom_html_updated_at REAL")
+    if "otp_expiry_minutes" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN otp_expiry_minutes INTEGER DEFAULT 10")
+    if "registration_approval_ttl_days" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN registration_approval_ttl_days INTEGER DEFAULT 7")
+    if "approval_purge_tripped" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN approval_purge_tripped INTEGER DEFAULT 0")
+    if "approval_purge_pending_count" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN approval_purge_pending_count INTEGER DEFAULT 0")
+    if "approval_purge_detected_at" not in sreg_cols:
+        cursor.execute("ALTER TABLE self_registration_settings ADD COLUMN approval_purge_detected_at REAL DEFAULT 0")
 
     cursor.execute("SELECT COUNT(*) FROM self_registration_settings")
     if cursor.fetchone()[0] == 0:

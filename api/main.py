@@ -204,3 +204,5 @@ def on_startup():
     init_db()
     poller = threading.Thread(target=background_radius_drs_poller, daemon=True)
     poller.start()
+    from api.services.registration_purge import start_registration_purge_worker
+    start_registration_purge_worker()

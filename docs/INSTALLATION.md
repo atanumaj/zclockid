@@ -88,8 +88,8 @@ sudo chown root:root /var/lib/zclockid/updates
 sudo chmod 700 /var/lib/zclockid/updates
 
 # 2. Download package and detached signature from GitHub repository
-sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.6_all.deb" -o /var/lib/zclockid/updates/zclockid_update.deb
-sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.6_all.deb.sig" -o /var/lib/zclockid/updates/zclockid_update.deb.sig
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7_all.deb" -o /var/lib/zclockid/updates/zclockid_update.deb
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7_all.deb.sig" -o /var/lib/zclockid/updates/zclockid_update.deb.sig
 
 # 3. Cryptographically verify package signature using the official keyring
 gpgv --keyring /usr/share/keyrings/zclockid-archive-keyring.gpg /var/lib/zclockid/updates/zclockid_update.deb.sig /var/lib/zclockid/updates/zclockid_update.deb
@@ -115,8 +115,8 @@ sudo mkdir -p /var/lib/zclockid/updates
 sudo chmod 700 /var/lib/zclockid/updates
 
 # 2. Fetch the latest release package and signature
-sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.6_all.deb" -o /var/lib/zclockid/updates/zclockid_update.deb
-sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.6_all.deb.sig" -o /var/lib/zclockid/updates/zclockid_update.deb.sig
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7_all.deb" -o /var/lib/zclockid/updates/zclockid_update.deb
+sudo curl -fsSL "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7_all.deb.sig" -o /var/lib/zclockid/updates/zclockid_update.deb.sig
 
 # 3. Run the automated updater script (fails closed if signature is missing or tampered)
 sudo /opt/zclockid/scripts/zclock-updater.sh /var/lib/zclockid/updates/zclockid_update.deb

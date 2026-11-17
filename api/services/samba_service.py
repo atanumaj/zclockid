@@ -111,7 +111,7 @@ def provision_user_in_ad(
 
     admin_user, admin_pass = get_ad_creds()
     cmd = [
-        "samba-tool", "user", "create", username, password,
+        "samba-tool", "user", "create", username,
         "--use-username-as-cn",
         f"-U{admin_user}", f"--password={admin_pass}"
     ]
@@ -123,7 +123,7 @@ def provision_user_in_ad(
     if is_self_registered:
         cmd.extend(["--description", "Self-Registered via ZclockID Portal"])
 
-    code, stdout, stderr = run_cmd(cmd, timeout=25)
+    code, stdout, stderr = run_cmd(cmd, timeout=25, input_data=f"{password}\n{password}\n")
     if code != 0:
         err_out = (stderr or stdout or "").strip()
         if "check_password_restrictions" in err_out:

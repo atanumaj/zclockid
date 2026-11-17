@@ -4,7 +4,7 @@ Handles self-service user onboarding, mobile OTP dispatch and verification, orga
 and administrator approval queue.
 """
 
-from fastapi import APIRouter, HTTPException, status, Request, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, status, Request, BackgroundTasks, Depends, Body
 import sqlite3
 import time
 import re
@@ -18,10 +18,17 @@ from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, List, Optional
 from api.core.config import DB_PATH
 from api.core.security import validate_ad_password_complexity, hash_otp, verify_otp_hash
+from api.core.secret_box import (
+    encrypt_registration_password,
+    decrypt_registration_password,
+    DecryptionError,
+    check_missing_registration_keys
+)
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.services.security_service import get_client_ip
 from api.services.samba_service import provision_user_in_ad
 from api.services.radius_service import sync_freeradius_policies
+from api.services.registration_purge import run_registration_purge
 from api.schemas.registration_schema import (
     SelfRegistrationSettingsRequest,
     SelfRegistrationSubmitRequest,
@@ -34,6 +41,11 @@ from api.routers.auth import require_role
 
 logger = logging.getLogger("zclockid.registration")
 router = APIRouter(prefix="/api/v1", tags=["Self-Registration & Captive Portal"], dependencies=[Depends(require_role("readonly"))])
+
+def get_reg_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("PRAGMA secure_delete=ON")
+    return conn
 
 def is_sms_gateway_configured(settings: dict) -> bool:
     """Returns True if a real (non-simulated) external SMS gateway is configured."""
@@ -100,7 +112,7 @@ def check_and_record_registration_attempt(mobile: str, client_ip: str, action: s
 
 
 def get_self_registration_settings() -> Dict[str, Any]:
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_reg_db()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM self_registration_settings WHERE id = 1")
@@ -129,6 +141,11 @@ def get_self_registration_settings() -> Dict[str, Any]:
         "smtp_user": "",
         "smtp_pass": "",
         "smtp_from": f"no-reply@{primary_realm}",
+        "otp_expiry_minutes": 10,
+        "registration_approval_ttl_days": 7,
+        "approval_purge_tripped": 0,
+        "approval_purge_pending_count": 0,
+        "approval_purge_detected_at": 0,
         "updated_at": time.time()
     }
 
@@ -303,6 +320,7 @@ def get_public_registration_config():
 
 @router.post("/public/register/initiate")
 @router.post("/registration/submit")
+@router.post("/self-registration/submit")
 def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Request):
     """Submits a new domain account registration. Dispatches mobile OTP if verification enabled."""
     settings = get_self_registration_settings()
@@ -346,8 +364,30 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     if require_otp and not is_sms_gateway_configured(settings):
         raise HTTPException(status_code=503, detail="No verification channel configured.")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_reg_db()
     cursor = conn.cursor()
+
+    # Takeover prevention:
+    # If the username has a PENDING_APPROVAL row, or a PENDING_OTP row with a different mobile -> 409
+    cursor.execute("""
+        SELECT id, mobile, status FROM self_registrations
+        WHERE username = ? AND status IN ('PENDING_APPROVAL', 'PENDING_OTP')
+    """, (clean_user,))
+    active_rows = cursor.fetchall()
+    for row in active_rows:
+        r_mobile, r_status = row[1], row[2]
+        if r_status == 'PENDING_APPROVAL':
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A registration for this username is already in progress"
+            )
+        if r_status == 'PENDING_OTP' and r_mobile != clean_mobile:
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A registration for this username is already in progress"
+            )
 
     # Carry failed_attempts over when the same username or mobile resubmits (last 24 hours only)
     cutoff_24h = time.time() - 86400
@@ -369,22 +409,48 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
     if require_otp:
         check_and_record_registration_attempt(clean_mobile, client_ip, "submit", max_hourly_mobile=3, max_hourly_ip=20)
 
-    cursor.execute("DELETE FROM self_registrations WHERE username = ? OR (mobile = ? AND status = 'PENDING_OTP')", (clean_user, clean_mobile))
+    # Only delete unverified attempt from the SAME user with the SAME mobile (never delete APPROVED, REJECTED, or LOCKED)
+    cursor.execute("DELETE FROM self_registrations WHERE status = 'PENDING_OTP' AND username = ? AND mobile = ?", (clean_user, clean_mobile))
+
+    # Resubmission within 30 days of a rejection gets notes="[PREVIOUSLY REJECTED <date>]"
+    cutoff_30d = time.time() - (30 * 86400)
+    cursor.execute("""
+        SELECT approved_at FROM self_registrations
+        WHERE username = ? AND status = 'REJECTED' AND approved_at > ?
+        ORDER BY approved_at DESC LIMIT 1
+    """, (clean_user, cutoff_30d))
+    prev_rej = cursor.fetchone()
+    prev_rej_prefix = ""
+    if prev_rej and prev_rej[0]:
+        rej_date = time.strftime("%Y-%m-%d", time.gmtime(prev_rej[0]))
+        prev_rej_prefix = f"[PREVIOUSLY REJECTED {rej_date}] "
+
+    user_notes = (req.justification or "").strip()
+    if prev_rej_prefix:
+        user_notes = f"{prev_rej_prefix}{user_notes}".strip()
+
+    otp_mins = int(settings.get("otp_expiry_minutes", 10) or 10)
+    otp_mins = max(1, min(30, otp_mins))
+    now_ts = time.time()
 
     if require_otp:
         otp = f"{secrets.randbelow(900000) + 100000}"
         otp_hashed = hash_otp(otp)
-        expiry = time.time() + 600
+        expiry = now_ts + (otp_mins * 60)
 
         cursor.execute("""
             INSERT INTO self_registrations (
                 username, email, given_name, surname, department, mobile,
-                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes, failed_attempts
-            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, ?, ?, ?)
+                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified,
+                password_hash, password_enc, notes, failed_attempts
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, ?, 0, NULL, NULL, ?, ?)
         """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
-              chosen_dept, clean_mobile, client_ip, time.time(),
-              otp_hashed, expiry, req.password, req.justification or "", carried_failed))
+              chosen_dept, clean_mobile, client_ip, now_ts,
+              otp_hashed, expiry, user_notes, carried_failed))
         reg_id = cursor.lastrowid
+
+        enc_pw = encrypt_registration_password(reg_id, clean_user, req.password)
+        cursor.execute("UPDATE self_registrations SET password_enc = ? WHERE id = ?", (enc_pw, reg_id))
         conn.commit()
         conn.close()
 
@@ -405,12 +471,16 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
         cursor.execute("""
             INSERT INTO self_registrations (
                 username, email, given_name, surname, department, mobile,
-                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified, password_hash, notes, failed_attempts
-            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, NULL, NULL, 0, ?, ?, 0)
+                status, ip_address, created_at, otp_code, otp_expires_at, otp_verified,
+                password_hash, password_enc, notes, failed_attempts
+            ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING_APPROVAL', ?, ?, NULL, NULL, 0, NULL, NULL, ?, 0)
         """, (clean_user, req.email.strip(), req.given_name.strip(), req.surname.strip(),
-              chosen_dept, clean_mobile, client_ip, time.time(),
-              req.password, req.justification or ""))
+              chosen_dept, clean_mobile, client_ip, now_ts,
+              user_notes))
         reg_id = cursor.lastrowid
+
+        enc_pw = encrypt_registration_password(reg_id, clean_user, req.password)
+        cursor.execute("UPDATE self_registrations SET password_enc = ? WHERE id = ?", (enc_pw, reg_id))
         conn.commit()
         conn.close()
 
@@ -428,10 +498,11 @@ def submit_self_registration(req: SelfRegistrationSubmitRequest, request: Reques
         }
 
 @router.post("/public/register/verify-otp")
+@router.post("/self-registration/verify-otp")
 def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_tasks: BackgroundTasks):
     """Verifies mobile OTP code. If valid, automatically provisions and activates user in Samba Active Directory."""
     settings = get_self_registration_settings()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_reg_db()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req.registration_id,))
@@ -463,7 +534,10 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
     if not verify_otp_hash(clean_otp, stored_hash):
         failed_attempts = int(reg["failed_attempts"] or 0) + 1
         new_status = "LOCKED" if failed_attempts >= 5 else "PENDING_OTP"
-        cursor.execute("UPDATE self_registrations SET failed_attempts = ?, status = ? WHERE id = ?", (failed_attempts, new_status, req.registration_id))
+        if failed_attempts >= 5:
+            cursor.execute("UPDATE self_registrations SET failed_attempts = ?, status = 'LOCKED', password_enc = NULL, otp_code = NULL WHERE id = ?", (failed_attempts, req.registration_id))
+        else:
+            cursor.execute("UPDATE self_registrations SET failed_attempts = ?, status = ? WHERE id = ?", (failed_attempts, new_status, req.registration_id))
         conn.commit()
         conn.close()
 
@@ -474,13 +548,51 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
             raise HTTPException(status_code=400, detail=f"Invalid OTP code ({5 - failed_attempts} attempts remaining). Please check your SMS and try again.")
 
     username = reg["username"]
-    password = reg["password_hash"]
     given_name = reg["given_name"] or ""
     surname = reg["surname"] or ""
     email = reg["email"] or ""
     mobile = reg["mobile"] or ""
     dept = reg["department"] or "Engineering"
     domain = settings.get("default_domain") or get_primary_realm().lower()
+
+    now_verified = time.time()
+    auto_approve = bool(settings.get("auto_approve_with_otp", 1))
+
+    if not auto_approve:
+        cursor.execute("""
+            UPDATE self_registrations 
+            SET status = 'PENDING_APPROVAL', otp_verified = 1, otp_verified_at = ?, otp_code = NULL
+            WHERE id = ?
+        """, (now_verified, req.registration_id))
+        conn.commit()
+        conn.close()
+
+        log_audit("REGISTRATION_OTP_VERIFIED_PENDING_APPROVAL", username, "appliance", "SUCCESS", {"mobile": mobile, "email": email, "domain": domain})
+        return {
+            "status": "pending_approval",
+            "username": username,
+            "domain": domain,
+            "auto_approved": False,
+            "message": "Mobile number verified! Your registration is now pending administrator review and approval."
+        }
+
+    # Decrypt password via SecretBox for auto-provisioning
+    try:
+        if not reg["password_enc"]:
+            raise DecryptionError("Missing encrypted password payload")
+        password = decrypt_registration_password(reg["id"], username, reg["password_enc"])
+    except DecryptionError as e:
+        cursor.execute("UPDATE self_registrations SET status = 'ERROR_REREGISTER', password_enc = NULL WHERE id = ?", (req.registration_id,))
+        conn.commit()
+        conn.close()
+        log_audit("REGISTRATION_DECRYPT_FAILED", "system", username, "ERROR", {
+            "reg_id": req.registration_id,
+            "error": str(e)
+        })
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration decryption failed. Please register again."
+        )
 
     try:
         provision_user_in_ad(
@@ -504,9 +616,10 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
 
     cursor.execute("""
         UPDATE self_registrations 
-        SET status = 'VERIFIED_AUTO_PROVISIONED', otp_verified = 1, approved_at = ?, approved_by = 'AUTO_OTP', password_hash = 'PROVISIONED'
+        SET status = 'VERIFIED_AUTO_PROVISIONED', otp_verified = 1, otp_verified_at = ?,
+            approved_at = ?, approved_by = 'AUTO_OTP', password_enc = NULL, password_hash = NULL
         WHERE id = ?
-    """, (time.time(), req.registration_id))
+    """, (now_verified, now_verified, req.registration_id))
     conn.commit()
     conn.close()
 
@@ -531,6 +644,7 @@ def verify_registration_otp(req: SelfRegistrationOtpVerifyRequest, background_ta
     }
 
 @router.post("/public/register/resend-otp")
+@router.post("/self-registration/resend-otp")
 def resend_registration_otp(req: SelfRegistrationResendOtpRequest, request: Request):
     """Generates and resends a new mobile OTP for an existing unverified registration."""
     settings = get_self_registration_settings()
@@ -539,7 +653,7 @@ def resend_registration_otp(req: SelfRegistrationResendOtpRequest, request: Requ
 
     client_ip = get_client_ip(request)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_reg_db()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req.registration_id,))
@@ -561,9 +675,12 @@ def resend_registration_otp(req: SelfRegistrationResendOtpRequest, request: Requ
     # Rate limit check: 3 SMS per hour
     check_and_record_registration_attempt(clean_mobile, client_ip, "resend-otp", max_hourly_mobile=3, max_hourly_ip=20)
 
+    otp_mins = int(settings.get("otp_expiry_minutes", 10) or 10)
+    otp_mins = max(1, min(30, otp_mins))
+
     otp = f"{secrets.randbelow(900000) + 100000}"
     otp_hashed = hash_otp(otp)
-    expiry = time.time() + 600
+    expiry = time.time() + (otp_mins * 60)
 
     cursor.execute("UPDATE self_registrations SET otp_code = ?, otp_expires_at = ? WHERE id = ?", (otp_hashed, expiry, req.registration_id))
     conn.commit()
@@ -599,7 +716,12 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
         raise HTTPException(status_code=400, detail="Organization departments cannot exceed 100 entries.")
     final_depts = ",".join(cleaned_depts) if cleaned_depts else "Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations"
 
-    conn = sqlite3.connect(DB_PATH)
+    otp_mins = req.otp_expiry_minutes if req.otp_expiry_minutes is not None else 10
+    otp_mins = max(1, min(30, int(otp_mins)))
+    appr_days = req.registration_approval_ttl_days if req.registration_approval_ttl_days is not None else 7
+    appr_days = max(1, min(90, int(appr_days)))
+
+    conn = get_reg_db()
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE self_registration_settings SET
@@ -621,6 +743,8 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
             smtp_user = ?,
             smtp_pass = ?,
             smtp_from = ?,
+            otp_expiry_minutes = ?,
+            registration_approval_ttl_days = ?,
             updated_at = ?
         WHERE id = 1
     """, (
@@ -642,6 +766,8 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
         req.smtp_user or "",
         req.smtp_pass or "",
         req.smtp_from or f"no-reply@{get_primary_realm().lower()}",
+        otp_mins,
+        appr_days,
         time.time()
     ))
     conn.commit()
@@ -655,18 +781,20 @@ def update_registration_settings_endpoint(req: SelfRegistrationSettingsRequest):
     log_audit("REGISTRATION_SETTINGS_UPDATED", "admin", "appliance", "SUCCESS", {
         "enabled": req.enabled,
         "require_mobile_otp": req.require_mobile_otp,
-        "sms_provider": req.sms_gateway_type
+        "sms_provider": req.sms_gateway_type,
+        "otp_expiry_minutes": otp_mins,
+        "registration_approval_ttl_days": appr_days
     })
 
     return {"status": "success", "message": "Self-registration and OTP policies updated successfully."}
 
 @router.get("/registrations/requests")
 def list_registration_requests(status_filter: Optional[str] = "all", limit: Optional[int] = None):
-    """Lists self-registration queue entries with status filtering."""
+    """Lists self-registration queue entries with status filtering, badge detection, and key alerts."""
     from api.services.log_retention_service import get_log_retention_settings
     if limit is None or limit <= 0:
         limit = int(get_log_retention_settings().get("self_service_ui_fetch_limit", 500) or 500)
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_reg_db()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -678,17 +806,42 @@ def list_registration_requests(status_filter: Optional[str] = "all", limit: Opti
     rows = cursor.fetchall()
     conn.close()
 
-    requests_list = [dict(r) for r in rows]
+    requests_list = []
+    for r in rows:
+        d = dict(r)
+        d["previously_rejected"] = bool(d.get("notes") and "[PREVIOUSLY REJECTED" in d["notes"])
+        requests_list.append(d)
+
+    missing_keys = check_missing_registration_keys()
+    missing_banner = f"{missing_keys} pending registrations can't be decrypted and will expire" if missing_keys > 0 else None
+
+    settings = get_self_registration_settings()
+    clock_guard_tripped = bool(settings.get("approval_purge_tripped", 0))
+    pending_expired_count = int(settings.get("approval_purge_pending_count", 0) or 0)
+
     return {
         "status": "success",
         "count": len(requests_list),
-        "requests": requests_list
+        "requests": requests_list,
+        "missing_keys_warning": missing_banner,
+        "clock_guard_tripped": clock_guard_tripped,
+        "pending_expired_count": pending_expired_count
     }
 
+@router.post("/registrations/approval-purge/force")
+def force_approval_purge_endpoint(user: dict = Depends(require_role("fulladmin"))):
+    """Forces execution of expired registration approvals even if clock guard tripped (requires fulladmin)."""
+    res = run_registration_purge(force_clock_guard=True)
+    username = user.get("username") or user.get("sub", "admin")
+    log_audit("REGISTRATION_APPROVAL_PURGE_FORCED", username, "appliance", "SUCCESS", res)
+    return {"status": "success", "result": res}
+
 @router.post("/registrations/requests/{req_id}/approve")
-def approve_registration_request(req_id: int, action: SelfRegistrationApprovalAction):
+def approve_registration_request(req_id: int, action: Optional[SelfRegistrationApprovalAction] = Body(default=None)):
     """Admin approves a pending registration and provisions user in Active Directory."""
-    conn = sqlite3.connect(DB_PATH)
+    if action is None:
+        action = SelfRegistrationApprovalAction()
+    conn = get_reg_db()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req_id,))
@@ -705,16 +858,29 @@ def approve_registration_request(req_id: int, action: SelfRegistrationApprovalAc
     settings = get_self_registration_settings()
     domain = action.target_upn_domain or settings.get("default_domain") or get_primary_realm().lower()
     username = reg["username"]
-    password = reg["password_hash"]
     given_name = reg["given_name"] or ""
     surname = reg["surname"] or ""
     email = reg["email"] or ""
     mobile = reg["mobile"] or ""
     dept = reg["department"] or "Engineering"
 
-    if not password or password in ["PROVISIONED", "REJECTED"]:
+    # Decrypt password via SecretBox
+    try:
+        if not reg["password_enc"]:
+            raise DecryptionError("Missing encrypted password payload")
+        password = decrypt_registration_password(reg["id"], username, reg["password_enc"])
+    except DecryptionError as e:
+        cursor.execute("UPDATE self_registrations SET status = 'ERROR_REREGISTER', password_enc = NULL WHERE id = ?", (req_id,))
+        conn.commit()
         conn.close()
-        raise HTTPException(status_code=400, detail="Password credential unavailable for deferred provisioning.")
+        log_audit("REGISTRATION_DECRYPT_FAILED", "system", username, "ERROR", {
+            "reg_id": req_id,
+            "error": str(e)
+        })
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration decryption failed. User cannot be provisioned."
+        )
 
     try:
         provision_user_in_ad(
@@ -738,7 +904,7 @@ def approve_registration_request(req_id: int, action: SelfRegistrationApprovalAc
 
     cursor.execute("""
         UPDATE self_registrations
-        SET status = 'APPROVED', approved_at = ?, approved_by = 'admin', password_hash = 'PROVISIONED', notes = ?
+        SET status = 'APPROVED', approved_at = ?, approved_by = 'admin', password_enc = NULL, password_hash = NULL, notes = ?
         WHERE id = ?
     """, (time.time(), action.notes or "Approved by administrator", req_id))
     conn.commit()
@@ -753,9 +919,11 @@ def approve_registration_request(req_id: int, action: SelfRegistrationApprovalAc
     return {"status": "success", "message": f"User '{username}' approved and provisioned in Active Directory under domain '{domain}'."}
 
 @router.post("/registrations/requests/{req_id}/reject")
-def reject_registration_request(req_id: int, action: SelfRegistrationApprovalAction):
+def reject_registration_request(req_id: int, action: Optional[SelfRegistrationApprovalAction] = Body(default=None)):
     """Admin rejects a pending registration request."""
-    conn = sqlite3.connect(DB_PATH)
+    if action is None:
+        action = SelfRegistrationApprovalAction()
+    conn = get_reg_db()
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM self_registrations WHERE id = ?", (req_id,))
@@ -769,7 +937,7 @@ def reject_registration_request(req_id: int, action: SelfRegistrationApprovalAct
 
     cursor.execute("""
         UPDATE self_registrations
-        SET status = 'REJECTED', approved_at = ?, approved_by = 'admin', password_hash = 'REJECTED', notes = ?
+        SET status = 'REJECTED', approved_at = ?, approved_by = 'admin', password_enc = NULL, password_hash = NULL, notes = ?
         WHERE id = ?
     """, (time.time(), reason, req_id))
     conn.commit()
@@ -787,7 +955,7 @@ def reject_registration_request(req_id: int, action: SelfRegistrationApprovalAct
 @router.delete("/registrations/requests/{req_id}")
 def delete_registration_request(req_id: int):
     """Deletes a registration record from the queue."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_reg_db()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM self_registrations WHERE id = ?", (req_id,))
     conn.commit()

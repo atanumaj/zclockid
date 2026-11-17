@@ -1,12 +1,12 @@
 {
-  "version": "1.4.6",
-  "name": "ZclockID Enterprise v1.4.6",
+  "version": "1.4.7",
+  "name": "ZclockID Enterprise v1.4.7",
   "channel": "stable",
   "release_type": "security",
-  "published_at": "2026-11-16T20:00:00Z",
-  "summary": "SYSVOL replication mass-delete reject restoration: rejection records, peer push restoration with restore flag, state file locking, and zero-candidate approval preservation",
-  "notes": "### What's Changed in v1.4.6:\n* **Mass-Delete Rejection Restoration:** Rejecting pending mass deletion records rejected tombstones and pushes local protected copies back to the partner with `restore: true`.\n* **Peer File Restoration:** `POST /api/v1/sysvol/file` accepts `restore` flag, writing the file and atomically dropping local tombstones under file lock.\n* **Sysvol State File Locking:** Implemented atomic file locking (`flock` on `.lock` file) across both daemons (Go and Python) and API routers to prevent race conditions during concurrent replication and scan cycles.\n* **Zero-Candidate Approval Preservation:** Preserves approved mass-delete records when candidate lists are empty, ensuring approvals are only consumed when deletions actually take place.\n* **Automated Cleanup:** Safely purges rejected tombstone records once the partner confirms receipt and no longer advertises tombstones, or after 30 days.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.6_all.deb",
-  "package_name": "zclockid_1.4.6_all.deb",
+  "published_at": "2026-11-17T06:30:00Z",
+  "summary": "Registration password hardening: SecretBox AES-256-GCM envelope encryption, auto-purge with clock guard, and request takeover prevention",
+  "notes": "### What's Changed in v1.4.7:\n* **SecretBox Envelope Encryption:** Passwords in self-registrations are encrypted with AES-256-GCM (v1:<key_id>:<b64(nonce+ct)>) using per-installation 256-bit random keys in CONFIG_DIR/registration_keys/ (0600 mode) with AAD binding reg:{id}:{username}.\n* **Secure Zeroization & Storage:** Passwords are zeroized immediately upon approval, rejection, lock, or expiration, and SQLite PRAGMA secure_delete=ON is enforced across all registration database connections.\n* **Request Takeover Prevention:** Disallows submitting duplicate pending requests or replacing an existing request with a mismatched mobile number (HTTP 409 Conflict).\n* **Configurable Expiry & Approval Purge:** Added configurable OTP expiration (otp_expiry_minutes, 1-30 min) and approval TTL (registration_approval_ttl_days, 1-90 days) with an automated purge service.\n* **Clock Guard Protection:** Safety brake trips if a sudden time jump would expire >20% or >10 pending requests, requiring explicit administrator review or force purge.\n* **Encrypted Backups:** Backup archives include registration keys and support password-derived encryption (Scrypt + AES-256-GCM) with warning banners when keys are missing.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.7_all.deb",
+  "package_name": "zclockid_1.4.7_all.deb",
   "min_version_required": "1.0.0"
 }

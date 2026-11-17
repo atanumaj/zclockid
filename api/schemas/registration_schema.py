@@ -25,6 +25,8 @@ class SelfRegistrationSettingsRequest(BaseModel):
     smtp_user: Optional[str] = ""
     smtp_pass: Optional[str] = ""
     smtp_from: Optional[str] = "no-reply@example.com"
+    otp_expiry_minutes: Optional[int] = 10
+    registration_approval_ttl_days: Optional[int] = 7
 
 class SelfRegistrationSubmitRequest(BaseModel):
     username: str

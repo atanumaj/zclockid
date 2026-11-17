@@ -304,6 +304,8 @@ def launch_os_update_runner(updater_script: str, mode: str = "all"):
         )
 
 def read_manifest_from_tar(tar_path: Path) -> Optional[dict]:
+    if is_backup_encrypted(tar_path):
+        return None
     try:
         with tarfile.open(tar_path, "r:gz") as tar:
             for member in tar.getmembers():
@@ -314,6 +316,41 @@ def read_manifest_from_tar(tar_path: Path) -> Optional[dict]:
     except Exception:
         return None
     return None
+
+BACKUP_ENC_MAGIC = b"ZCLOCK_ENC_V1"
+
+def is_backup_encrypted(path: Path) -> bool:
+    try:
+        with open(path, "rb") as f:
+            header = f.read(len(BACKUP_ENC_MAGIC))
+            return header == BACKUP_ENC_MAGIC
+    except Exception:
+        return False
+
+def decrypt_backup_archive(src_path: Path, passphrase: Optional[str], dst_path: Path):
+    if not passphrase:
+        raise HTTPException(status_code=400, detail="This backup is encrypted. A passphrase is required to inspect or restore it.")
+    try:
+        with open(src_path, "rb") as f:
+            magic = f.read(len(BACKUP_ENC_MAGIC))
+            salt = f.read(16)
+            nonce = f.read(12)
+            ciphertext = f.read()
+
+        from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1)
+        key = kdf.derive(passphrase.encode("utf-8"))
+        aesgcm = AESGCM(key)
+        plaintext = aesgcm.decrypt(nonce, ciphertext, b"zclockid_backup_v1")
+        with open(dst_path, "wb") as f:
+            f.write(plaintext)
+        dst_path.chmod(0o600)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=400, detail="Failed to decrypt backup: invalid passphrase or corrupted archive.")
 
 
 # ----------------- Dashboard & System Status -----------------
@@ -817,6 +854,7 @@ def list_backups():
     for f in BACKUP_DIR.glob("*.tar.gz"):
         stat = f.stat()
         total_bytes += stat.st_size
+        is_enc = is_backup_encrypted(f)
         manifest = read_manifest_from_tar(f)
 
         b_type = "config_only"
@@ -833,7 +871,8 @@ def list_backups():
             "created_at": manifest.get("created_at") if manifest else datetime.datetime.fromtimestamp(stat.st_mtime).isoformat(),
             "mtime": stat.st_mtime,
             "backup_type": b_type,
-            "description": manifest.get("description", "Appliance backup") if manifest else "Appliance backup archive",
+            "is_encrypted": is_enc,
+            "description": manifest.get("description", "Encrypted appliance backup" if is_enc else "Appliance backup") if manifest else ("Encrypted appliance backup" if is_enc else "Appliance backup archive"),
             "hostname": manifest.get("hostname", os.uname().nodename) if manifest else "unknown",
             "realm": manifest.get("realm", "UNKNOWN") if manifest else "unknown",
             "modules": manifest.get("modules_included", []) if manifest else [],
@@ -917,6 +956,8 @@ def create_backup(req: BackupCreateRequest):
             for item in CONFIG_DIR.iterdir():
                 if item.is_file():
                     shutil.copy2(item, cfg_backup_dir / item.name)
+                elif item.is_dir() and item.name == "registration_keys":
+                    shutil.copytree(item, cfg_backup_dir / "registration_keys", dirs_exist_ok=True)
 
         # 2. Stage Configurations across all modules
         cfg_dir = staging_dir / "configs"
@@ -987,14 +1028,38 @@ def create_backup(req: BackupCreateRequest):
             json.dump(manifest, f, indent=2)
 
         # 5. Compress into .tar.gz
-        with tarfile.open(dest_tar_path, "w:gz") as tar:
+        temp_tar_path = dest_tar_path
+        if req.passphrase:
+            temp_tar_path = staging_dir / "unencrypted.tar.gz"
+
+        with tarfile.open(temp_tar_path, "w:gz") as tar:
             for item in staging_dir.iterdir():
+                if item.name == "unencrypted.tar.gz":
+                    continue
                 tar.add(item, arcname=item.name)
+
+        if req.passphrase:
+            from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            salt = os.urandom(16)
+            kdf = Scrypt(salt=salt, length=32, n=2**14, r=8, p=1)
+            key = kdf.derive(req.passphrase.encode("utf-8"))
+            aesgcm = AESGCM(key)
+            nonce = os.urandom(12)
+            with open(temp_tar_path, "rb") as f_in:
+                data = f_in.read()
+            ciphertext = aesgcm.encrypt(nonce, data, b"zclockid_backup_v1")
+            with open(dest_tar_path, "wb") as f_out:
+                f_out.write(BACKUP_ENC_MAGIC + salt + nonce + ciphertext)
+            dest_tar_path.chmod(0o600)
+        else:
+            dest_tar_path.chmod(0o600)
 
         archive_size = dest_tar_path.stat().st_size
         log_audit("BACKUP_CREATED", "admin", "appliance", "SUCCESS", {
             "filename": archive_name,
             "type": b_type,
+            "is_encrypted": bool(req.passphrase),
             "size_bytes": archive_size
         })
 
@@ -1002,6 +1067,7 @@ def create_backup(req: BackupCreateRequest):
             "status": "success",
             "message": f"Successfully generated {b_type} backup archive '{archive_name}' ({archive_size / (1024*1024):.2f} MB).",
             "filename": archive_name,
+            "is_encrypted": bool(req.passphrase),
             "size_bytes": archive_size,
             "manifest": manifest
         }
@@ -1128,22 +1194,35 @@ def inspect_backup(req: BackupInspectRequest):
     if not target_path.exists():
         raise HTTPException(status_code=404, detail="Backup file not found.")
 
-    manifest = read_manifest_from_tar(target_path)
-    contents = []
-    try:
-        with tarfile.open(target_path, "r:gz") as tar:
-            for m in tar.getmembers()[:60]:
-                contents.append({"name": m.name, "size": m.size, "is_dir": m.isdir()})
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read backup tar: {str(e)}")
+    decrypted_tmp = None
+    inspect_path = target_path
+    if is_backup_encrypted(target_path):
+        import uuid
+        decrypted_tmp = Path(f"/tmp/zclock-inspect-{int(time.time())}-{uuid.uuid4().hex[:8]}.tar.gz")
+        decrypt_backup_archive(target_path, req.passphrase, decrypted_tmp)
+        inspect_path = decrypted_tmp
 
-    return {
-        "status": "success",
-        "filename": safe_name,
-        "size_bytes": target_path.stat().st_size,
-        "manifest": manifest,
-        "contents": contents
-    }
+    try:
+        manifest = read_manifest_from_tar(inspect_path)
+        contents = []
+        try:
+            with tarfile.open(inspect_path, "r:gz") as tar:
+                for m in tar.getmembers()[:60]:
+                    contents.append({"name": m.name, "size": m.size, "is_dir": m.isdir()})
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to read backup tar: {str(e)}")
+
+        return {
+            "status": "success",
+            "filename": safe_name,
+            "size_bytes": target_path.stat().st_size,
+            "is_encrypted": is_backup_encrypted(target_path),
+            "manifest": manifest,
+            "contents": contents
+        }
+    finally:
+        if decrypted_tmp and decrypted_tmp.exists():
+            decrypted_tmp.unlink(missing_ok=True)
 
 @router.post("/api/v1/backups/restore")
 def restore_backup(req: BackupRestoreRequest):
@@ -1157,9 +1236,17 @@ def restore_backup(req: BackupRestoreRequest):
     restore_staging = Path(f"/tmp/zclock-restore-{ts}")
     restore_staging.mkdir(parents=True, exist_ok=True)
     restored_components = []
+    decrypted_tmp = None
 
     try:
-        with tarfile.open(target_path, "r:gz") as tar:
+        tar_to_extract = target_path
+        if is_backup_encrypted(target_path):
+            import uuid
+            decrypted_tmp = Path(f"/tmp/zclock-restore-dec-{ts}-{uuid.uuid4().hex[:8]}.tar.gz")
+            decrypt_backup_archive(target_path, req.passphrase, decrypted_tmp)
+            tar_to_extract = decrypted_tmp
+
+        with tarfile.open(tar_to_extract, "r:gz") as tar:
             tar.extractall(path=restore_staging)
 
         manifest_file = restore_staging / "manifest.json"
@@ -1189,7 +1276,31 @@ def restore_backup(req: BackupRestoreRequest):
             for item in zclock_backup_dir.iterdir():
                 if item.is_file():
                     shutil.copy2(item, CONFIG_DIR / item.name)
+                elif item.is_dir() and item.name == "registration_keys":
+                    dest_keys_dir = CONFIG_DIR / "registration_keys"
+                    dest_keys_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+                    try:
+                        os.chmod(dest_keys_dir, 0o700)
+                    except Exception:
+                        pass
+                    for kf in item.iterdir():
+                        if kf.is_file():
+                            shutil.copy2(kf, dest_keys_dir / kf.name)
+                            try:
+                                os.chmod(dest_keys_dir / kf.name, 0o600)
+                            except Exception:
+                                pass
             restored_components.append(f"Appliance credentials and state ({CONFIG_DIR})")
+
+        # Check missing registration keys for pending registrations
+        warning_banner = None
+        try:
+            from api.core.secret_box import check_missing_registration_keys
+            missing_count = check_missing_registration_keys()
+            if missing_count > 0:
+                warning_banner = f"{missing_count} pending registration{'s' if missing_count > 1 else ''} can't be decrypted and will expire"
+        except Exception:
+            pass
 
         # 3. Restore Module Configurations
         configs_dir = restore_staging / "configs"
@@ -1251,16 +1362,23 @@ def restore_backup(req: BackupRestoreRequest):
             "restored_components": restored_components
         })
 
-        return {
+        resp = {
             "status": "success",
             "message": f"Backup '{safe_name}' restored successfully! {len(restored_components)} components updated.",
             "filename": safe_name,
             "restored_components": restored_components,
             "manifest": manifest
         }
+        if warning_banner:
+            resp["warning"] = warning_banner
+        return resp
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Restore operation failed: {str(e)}")
     finally:
+        if decrypted_tmp and decrypted_tmp.exists():
+            decrypted_tmp.unlink(missing_ok=True)
         if restore_staging.exists():
             shutil.rmtree(restore_staging, ignore_errors=True)
 

@@ -13,9 +13,9 @@ from pathlib import Path
 from api.core.config import SMB_CONF_FILE, DEFAULT_REALM
 from api.db.init_db import get_db_connection
 
-def run_cmd(cmd: List[str], timeout: int = 45) -> Tuple[int, str, str]:
+def run_cmd(cmd: List[str], timeout: int = 45, input_data: Optional[str] = None) -> Tuple[int, str, str]:
     try:
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        res = subprocess.run(cmd, input=input_data, capture_output=True, text=True, timeout=timeout)
         return res.returncode, res.stdout, res.stderr
     except FileNotFoundError:
         return -1, "", f"Command '{cmd[0]}' not installed"

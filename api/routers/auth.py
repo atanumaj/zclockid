@@ -39,6 +39,8 @@ PUBLIC_PATHS = [
     "/api/v1/setup/status",
     "/api/v1/setup/provision",
     "/api/v1/public/register/*",
+    "/api/v1/registration/submit",
+    "/api/v1/self-registration/*",
     "/api/v1/self-service/password/config",
     "/api/v1/self-service/password/change-with-old",
     "/api/v1/self-service/password/request-otp",

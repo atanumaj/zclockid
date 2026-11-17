@@ -16,13 +16,16 @@ class SystemIdentityUpdateRequest(BaseModel):
 class BackupCreateRequest(BaseModel):
     backup_type: str = "config_only"  # config_only or full
     description: Optional[str] = "Manual appliance backup"
+    passphrase: Optional[str] = None
 
 class BackupRestoreRequest(BaseModel):
     filename: str
     skip_ad_restore: Optional[bool] = False
+    passphrase: Optional[str] = None
 
 class BackupInspectRequest(BaseModel):
     filename: str
+    passphrase: Optional[str] = None
 
 class SnmpConfigRequest(BaseModel):
     enabled: bool = True
