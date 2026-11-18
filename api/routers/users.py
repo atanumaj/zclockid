@@ -45,7 +45,8 @@ from api.schemas.user_schema import (
     UserPasswordReset,
     UserUpnUpdateRequest,
     GroupCreateRequest,
-    GroupUpdateRequest
+    GroupUpdateRequest,
+    GroupMemberActionRequest
 )
 
 logger = logging.getLogger("zclockid.users")
@@ -62,11 +63,87 @@ PROTECTED_BUILTIN_GROUPS = {
 
 PRIVILEGED_GROUP_NAMES = {"domain admins", "enterprise admins", "schema admins", "administrators"}
 
+def get_rbac_fulladmin_groups() -> set:
+    """Returns group names explicitly assigned fulladmin role in RBAC mappings."""
+    groups = set()
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT principal_name FROM rbac_mappings WHERE principal_type = 'group' AND LOWER(role) = 'fulladmin'")
+        for r in c.fetchall():
+            if r["principal_name"]:
+                groups.add(r["principal_name"].strip().lower())
+        conn.close()
+    except Exception:
+        pass
+    return groups
+
+def is_privileged_ad_group(group_name: str) -> bool:
+    """
+    Returns True if the group is a privileged group:
+    Domain Admins, Enterprise Admins, Schema Admins, Administrators,
+    plus any group with adminCount=1 or any group mapped to fulladmin in RBAC.
+    Fails closed: if the ldbsearch lookup errors, treats the group as privileged (returns True).
+    """
+    if not group_name:
+        return False
+    clean_name = str(group_name).strip().lower()
+
+    # 1. Built-in privileged group names
+    if clean_name in PRIVILEGED_GROUP_NAMES:
+        return True
+
+    # 2. Groups mapped to fulladmin in RBAC
+    rbac_groups = get_rbac_fulladmin_groups()
+    if clean_name in rbac_groups:
+        return True
+
+    # 3. Check MockSamDB state in mock test environments
+    try:
+        from api.services.samdb_service import get_samdb, MockSamDB
+        db = get_samdb()
+        if isinstance(db, MockSamDB):
+            for gname, gdata in db.groups.items():
+                if gname.strip().lower() == clean_name:
+                    if str(gdata.get("adminCount", 0)) == "1":
+                        return True
+                    return False
+            if not os.path.exists(str(SAMBA_LDB_PATH)):
+                return False
+    except Exception:
+        pass
+
+    # 4. Check live Active Directory sam.ldb for adminCount=1
+    try:
+        clean_g = escape_ldap_filter_value(group_name)
+        code, stdout, stderr = run_cmd([
+            "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+            f"(&(objectClass=group)(sAMAccountName={clean_g}))",
+            "adminCount"
+        ], timeout=5)
+        if code != 0:
+            logger.warning("ldbsearch query failed with code %s for group %s, failing closed as privileged: %s", code, group_name, stderr)
+            return True
+
+        for line in stdout.splitlines():
+            line = line.strip()
+            if line.startswith("adminCount:"):
+                val = line.split(":", 1)[1].strip()
+                if val == "1":
+                    return True
+    except Exception as e:
+        logger.warning("Error checking privileged group status for %s: %s, failing closed", group_name, e)
+        return True
+
+    return False
+
 def is_privileged_ad_user(username: str) -> bool:
     """
     Returns True if user is a privileged account:
     Administrator, krbtgt, Guest, or member of Domain Admins, Enterprise Admins,
-    Schema Admins, or Administrators.
+    Schema Admins, or Administrators, or adminCount=1.
+    Fails closed: if the ldbsearch lookup errors, treats the account as privileged (returns True).
     """
     clean_name = (username or "").lower().strip()
     if clean_name in ("administrator", "krbtgt", "guest"):
@@ -78,52 +155,89 @@ def is_privileged_ad_user(username: str) -> bool:
         db = get_samdb()
         if isinstance(db, MockSamDB):
             for grp_name, gdata in db.groups.items():
-                if grp_name.lower() in PRIVILEGED_GROUP_NAMES:
+                if is_privileged_ad_group(grp_name):
                     members = gdata.get("members", set())
                     if username in members or clean_name in {m.lower() for m in members}:
                         return True
+            if (username in db.users or clean_name in {u.lower() for u in db.users}) and not os.path.exists(str(SAMBA_LDB_PATH)):
+                return False
     except Exception:
         pass
 
     # Check live Active Directory sam.ldb
     try:
         clean_u = escape_ldap_filter_value(username)
-        code, stdout, _ = run_cmd([
+        code, stdout, stderr = run_cmd([
             "ldbsearch", "-H", str(SAMBA_LDB_PATH),
             f"(&(objectClass=user)(sAMAccountName={clean_u}))",
             "memberOf", "adminCount"
         ], timeout=5)
-        if code == 0:
-            for line in stdout.splitlines():
-                line = line.strip()
-                if line.startswith("adminCount:"):
-                    val = line.split(":", 1)[1].strip()
-                    if val == "1":
-                        return True
-                elif line.startswith("memberOf:"):
-                    line_lower = line.lower()
-                    for pg in PRIVILEGED_GROUP_NAMES:
-                        if f"cn={pg}," in line_lower or line_lower.endswith(f"cn={pg}"):
-                            return True
+        if code != 0:
+            logger.warning("ldbsearch query failed with code %s for %s, failing closed as privileged: %s", code, username, stderr)
+            return True
 
-            # Nested group membership query
-            realm = get_primary_realm()
-            if realm:
-                b_dn = ",".join([f"DC={p}" for p in realm.split(".") if p])
-                nested_filter = (
-                    f"(&(objectClass=user)(sAMAccountName={clean_u})"
-                    f"(|(memberOf:1.2.840.113556.1.4.1941:=CN=Domain Admins,CN=Users,{b_dn})"
-                    f"(memberOf:1.2.840.113556.1.4.1941:=CN=Enterprise Admins,CN=Users,{b_dn})"
-                    f"(memberOf:1.2.840.113556.1.4.1941:=CN=Schema Admins,CN=Users,{b_dn})"
-                    f"(memberOf:1.2.840.113556.1.4.1941:=CN=Administrators,CN=Builtin,{b_dn})))"
-                )
-                c_n, out_n, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), nested_filter, "dn"], timeout=5)
-                if c_n == 0 and "dn: " in out_n:
+        for line in stdout.splitlines():
+            line = line.strip()
+            if line.startswith("adminCount:"):
+                val = line.split(":", 1)[1].strip()
+                if val == "1":
                     return True
+            elif line.startswith("memberOf:"):
+                line_lower = line.lower()
+                for pg in PRIVILEGED_GROUP_NAMES:
+                    if f"cn={pg}," in line_lower or line_lower.endswith(f"cn={pg}"):
+                        return True
+
+        # Nested group membership query
+        realm = get_primary_realm()
+        if realm:
+            b_dn = ",".join([f"DC={p}" for p in realm.split(".") if p])
+            nested_filter = (
+                f"(&(objectClass=user)(sAMAccountName={clean_u})"
+                f"(|(memberOf:1.2.840.113556.1.4.1941:=CN=Domain Admins,CN=Users,{b_dn})"
+                f"(memberOf:1.2.840.113556.1.4.1941:=CN=Enterprise Admins,CN=Users,{b_dn})"
+                f"(memberOf:1.2.840.113556.1.4.1941:=CN=Schema Admins,CN=Users,{b_dn})"
+                f"(memberOf:1.2.840.113556.1.4.1941:=CN=Administrators,CN=Builtin,{b_dn})))"
+            )
+            c_n, out_n, err_n = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), nested_filter, "dn"], timeout=5)
+            if c_n != 0:
+                logger.warning("ldbsearch nested query failed with code %s for %s, failing closed as privileged: %s", c_n, username, err_n)
+                return True
+            if "dn: " in out_n:
+                return True
     except Exception as e:
-        logger.warning("Error checking privileged account status for %s: %s", username, e)
+        logger.warning("Error checking privileged account status for %s: %s, failing closed", username, e)
+        return True
 
     return False
+
+def get_user_groups(username: str) -> set:
+    """Returns the set of Active Directory group names the user currently belongs to."""
+    clean_u = (username or "").strip().lower()
+    groups = set()
+    try:
+        from api.services.samdb_service import get_samdb, MockSamDB
+        db = get_samdb()
+        if isinstance(db, MockSamDB):
+            for grp, gdata in db.groups.items():
+                mems = {m.lower() for m in gdata.get("members", set())}
+                if clean_u in mems:
+                    groups.add(grp)
+            if groups or not os.path.exists(str(SAMBA_LDB_PATH)):
+                return groups
+    except Exception:
+        pass
+
+    c_m, o_m, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={escape_ldap_filter_value(username)})", "memberOf"])
+    if c_m == 0:
+        for l in o_m.splitlines():
+            if l.startswith("memberOf:"):
+                dn_val = l.split(":", 1)[1].strip()
+                for part in dn_val.split(","):
+                    if part.strip().startswith("CN="):
+                        groups.add(part.strip()[3:])
+                        break
+    return groups
 
 @router.get("/users")
 def list_domain_users():
@@ -341,8 +455,30 @@ def list_domain_users():
     return {"count": len(users), "users": users}
 
 @router.post("/users", status_code=status.HTTP_201_CREATED)
-def create_domain_user(req: UserCreateRequest):
+def create_domain_user(
+    req: UserCreateRequest,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Creates a new Active Directory domain user with complexity validation and schema attributes."""
+    actor = current_user.get("username", "admin") if current_user else "admin"
+    user_role = (current_user.get("role") or "").lower() if current_user else "admin"
+
+    target_groups = set(req.groups or [])
+    if req.target_group and req.target_group.strip().lower() != "domain users":
+        target_groups.add(req.target_group.strip())
+
+    if user_role != "fulladmin":
+        for grp in target_groups:
+            if is_privileged_ad_group(grp):
+                log_audit("PRIVILEGED_GROUP_MODIFICATION_BLOCKED", actor, grp, "FAILURE", {
+                    "target_user": req.username,
+                    "action": "add_member_on_create",
+                    "reason": "Operators are not permitted to add members to privileged groups"
+                })
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Adding users to privileged group '{grp}' requires the fulladmin role."
+                )
     # License capacity check (Free tier up to 200 users; license required above 200 users)
     code_cnt, stdout_cnt, _ = run_cmd([
         "ldbsearch", "-H", str(SAMBA_LDB_PATH),
@@ -446,34 +582,93 @@ def update_domain_user(
 ):
     """Updates user attributes, password, status, and bandwidth tier."""
     user_role = (current_user.get("role") or "").lower() if current_user else "admin"
+    actor = current_user.get("username", "admin") if current_user else "admin"
+
     if user_role != "fulladmin" and is_privileged_ad_user(username):
         if req.new_password:
+            log_audit("PRIVILEGED_ACCOUNT_MODIFICATION_BLOCKED", actor, username, "FAILURE", {"action": "reset_password"})
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Resetting password on privileged accounts requires the fulladmin role."
             )
         if req.is_disabled is not None:
+            log_audit("PRIVILEGED_ACCOUNT_MODIFICATION_BLOCKED", actor, username, "FAILURE", {"action": "toggle_status"})
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Enabling or disabling privileged accounts requires the fulladmin role."
             )
         if req.password_never_expires is not None:
+            log_audit("PRIVILEGED_ACCOUNT_MODIFICATION_BLOCKED", actor, username, "FAILURE", {"action": "modify_password_expiry"})
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Modifying password expiry settings on privileged accounts requires the fulladmin role."
             )
+        if req.groups is not None:
+            log_audit("PRIVILEGED_GROUP_MODIFICATION_BLOCKED", actor, username, "FAILURE", {
+                "action": "modify_privileged_account_groups",
+                "reason": "Operators are not permitted to modify group memberships of privileged accounts"
+            })
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Modifying group memberships on privileged accounts requires the fulladmin role."
+            )
 
-    clean_u = escape_ldap_filter_value(username)
-    code, stdout, stderr = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={clean_u})", "dn"])
-    if code != 0:
-        raise HTTPException(status_code=500, detail=f"Failed to query SAM LDB: {stderr}")
+    # Privileged group add/remove checks for operators
+    if req.groups is not None:
+        current_user_groups = get_user_groups(username)
+        current_map = {g.lower(): g for g in current_user_groups}
+        desired_map = {g.lower(): g for g in req.groups if g}
+
+        to_add_keys = set(desired_map.keys()) - set(current_map.keys())
+        to_remove_keys = set(current_map.keys()) - set(desired_map.keys())
+
+        if user_role != "fulladmin":
+            for k in to_add_keys:
+                grp_name = desired_map[k]
+                if is_privileged_ad_group(grp_name):
+                    log_audit("PRIVILEGED_GROUP_MODIFICATION_BLOCKED", actor, grp_name, "FAILURE", {
+                        "target_user": username,
+                        "action": "add_member",
+                        "reason": "Operators are not permitted to add members to privileged groups"
+                    })
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Adding users to privileged group '{grp_name}' requires the fulladmin role."
+                    )
+            for k in to_remove_keys:
+                grp_name = current_map[k]
+                if is_privileged_ad_group(grp_name):
+                    log_audit("PRIVILEGED_GROUP_MODIFICATION_BLOCKED", actor, grp_name, "FAILURE", {
+                        "target_user": username,
+                        "action": "remove_member",
+                        "reason": "Operators are not permitted to remove members from privileged groups"
+                    })
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Removing users from privileged group '{grp_name}' requires the fulladmin role."
+                    )
+
     dn = None
-    for line in stdout.splitlines():
-        if line.startswith("dn: "):
-            dn = line[4:].strip()
-            break
+    try:
+        from api.services.samdb_service import get_samdb, MockSamDB
+        db = get_samdb()
+        if isinstance(db, MockSamDB):
+            if username in db.users or any(u.lower() == username.lower() for u in db.users):
+                dn = f"CN={username},CN=Users,DC=example,DC=com"
+    except Exception:
+        pass
+
     if not dn:
-        raise HTTPException(status_code=404, detail=f"User '{username}' not found in Active Directory.")
+        clean_u = escape_ldap_filter_value(username)
+        code, stdout, stderr = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={clean_u})", "dn"])
+        if code != 0:
+            raise HTTPException(status_code=500, detail=f"Failed to query SAM LDB: {stderr}")
+        for line in stdout.splitlines():
+            if line.startswith("dn: "):
+                dn = line[4:].strip()
+                break
+        if not dn:
+            raise HTTPException(status_code=404, detail=f"User '{username}' not found in Active Directory.")
 
     bw_info_tag = None
     if req.bandwidth_profile_id is not None:
@@ -569,34 +764,28 @@ def update_domain_user(
             logger.warning(f"Failed to update user bandwidth profile: {e}")
 
     if req.groups is not None:
-        c_m, o_m, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={escape_ldap_filter_value(username)})", "memberOf"])
-        current_user_groups = set()
-        if c_m == 0:
-            for l in o_m.splitlines():
-                if l.startswith("memberOf:"):
-                    dn_val = l.split(":", 1)[1].strip()
-                    for part in dn_val.split(","):
-                        if part.strip().startswith("CN="):
-                            current_user_groups.add(part.strip()[3:])
-                            break
+        current_user_groups = get_user_groups(username)
+        current_map = {g.lower(): g for g in current_user_groups}
+        desired_map = {g.lower(): g for g in req.groups if g}
 
-        desired_groups = set(req.groups)
-        to_add = desired_groups - current_user_groups
-        to_remove = current_user_groups - desired_groups
+        to_add_keys = set(desired_map.keys()) - set(current_map.keys())
+        to_remove_keys = set(current_map.keys()) - set(desired_map.keys())
 
-        for grp in to_add:
+        for k in to_add_keys:
+            grp = desired_map[k]
             if grp and grp.lower() != "domain users":
                 try:
                     samdb_add_group_member(grp, username)
                 except Exception as e:
-                    print(f"Failed to add {username} to {grp}: {e}")
+                    logger.warning(f"Failed to add {username} to {grp}: {e}")
 
-        for grp in to_remove:
+        for k in to_remove_keys:
+            grp = current_map[k]
             if grp and grp.lower() not in ["domain users", "domain guests"]:
                 try:
                     samdb_remove_group_member(grp, username)
                 except Exception as e:
-                    print(f"Failed to remove {username} from {grp}: {e}")
+                    logger.warning(f"Failed to remove {username} from {grp}: {e}")
 
         sync_freeradius_policies()
 
@@ -1011,9 +1200,91 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
     log_audit("GROUP_UPDATED", "admin", group_name, "SUCCESS", {"bandwidth_profile_id": req.bandwidth_profile_id})
     return {"status": "success", "group_name": group_name, "message": f"Group '{group_name}' updated successfully."}
 
+@router.post("/groups/{group_name}/members")
+def add_group_member_endpoint(
+    group_name: str,
+    req: GroupMemberActionRequest,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
+    """Adds a member to an Active Directory Security Group."""
+    actor = current_user.get("username", "admin") if current_user else "admin"
+    user_role = (current_user.get("role") or "").lower() if current_user else "admin"
+
+    if user_role != "fulladmin" and is_privileged_ad_group(group_name):
+        log_audit("PRIVILEGED_GROUP_MODIFICATION_BLOCKED", actor, group_name, "FAILURE", {
+            "target_user": req.username,
+            "action": "add_member",
+            "reason": "Operators are not permitted to add members to privileged groups"
+        })
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Adding members to privileged group '{group_name}' requires the fulladmin role."
+        )
+
+    try:
+        samdb_add_group_member(group_name, req.username)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to add user to group: {e}")
+
+    sync_freeradius_policies()
+    log_audit("GROUP_MEMBER_ADDED", actor, group_name, "SUCCESS", {"member": req.username})
+    return {"status": "success", "message": f"User '{req.username}' added to group '{group_name}'."}
+
+
+@router.delete("/groups/{group_name}/members/{username}")
+def remove_group_member_endpoint(
+    group_name: str,
+    username: str,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
+    """Removes a member from an Active Directory Security Group."""
+    actor = current_user.get("username", "admin") if current_user else "admin"
+    user_role = (current_user.get("role") or "").lower() if current_user else "admin"
+
+    if user_role != "fulladmin" and is_privileged_ad_group(group_name):
+        log_audit("PRIVILEGED_GROUP_MODIFICATION_BLOCKED", actor, group_name, "FAILURE", {
+            "target_user": username,
+            "action": "remove_member",
+            "reason": "Operators are not permitted to remove members from privileged groups"
+        })
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Removing members from privileged group '{group_name}' requires the fulladmin role."
+        )
+
+    try:
+        samdb_remove_group_member(group_name, username)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to remove user from group: {e}")
+
+    sync_freeradius_policies()
+    log_audit("GROUP_MEMBER_REMOVED", actor, group_name, "SUCCESS", {"member": username})
+    return {"status": "success", "message": f"User '{username}' removed from group '{group_name}'."}
+
+
 @router.delete("/groups/{group_name}")
-def delete_domain_group(group_name: str):
+def delete_domain_group(
+    group_name: str,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Deletes an Active Directory Security Group."""
+    actor = current_user.get("username", "admin") if current_user else "admin"
+    user_role = (current_user.get("role") or "").lower() if current_user else "admin"
+
+    if user_role != "fulladmin" and is_privileged_ad_group(group_name):
+        log_audit("PRIVILEGED_GROUP_MODIFICATION_BLOCKED", actor, group_name, "FAILURE", {
+            "action": "delete_group",
+            "reason": "Operators are not permitted to delete privileged groups"
+        })
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Deleting privileged group '{group_name}' requires the fulladmin role."
+        )
+
     if group_name.lower() in PROTECTED_BUILTIN_GROUPS or ("cn=builtin" in group_name.lower()):
         raise HTTPException(status_code=400, detail=f"Cannot delete protected built-in Active Directory group '{group_name}'.")
 

@@ -48,3 +48,7 @@ class GroupUpdateRequest(BaseModel):
     description: Optional[str] = None
     bandwidth_profile_id: Optional[int] = None
 
+class GroupMemberActionRequest(BaseModel):
+    username: str = Field(..., example="john.doe")
+
+

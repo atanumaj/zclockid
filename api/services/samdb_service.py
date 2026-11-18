@@ -140,13 +140,21 @@ class MockSamDB:
 
     def add_remove_group_members(self, group, members, add_members_operation=True, **kwargs):
         self.calls.append(("add_remove_group_members", group, members, add_members_operation))
-        if group not in self.groups:
-            self.groups[group] = {"description": "", "members": set()}
+        target_group = group
+        for existing in self.groups:
+            if existing.lower() == group.lower():
+                target_group = existing
+                break
+        if target_group not in self.groups:
+            self.groups[target_group] = {"description": "", "members": set()}
         for m in members:
             if add_members_operation:
-                self.groups[group]["members"].add(m)
+                self.groups[target_group]["members"].add(m)
             else:
-                self.groups[group]["members"].discard(m)
+                to_discard = {x for x in self.groups[target_group]["members"] if x.lower() == m.lower()}
+                for x in to_discard:
+                    self.groups[target_group]["members"].discard(x)
+                self.groups[target_group]["members"].discard(m)
 
 
 _global_mock_samdb = MockSamDB()

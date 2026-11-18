@@ -1,12 +1,12 @@
 {
-  "version": "1.4.9.1",
-  "name": "ZclockID Enterprise v1.4.9.1",
+  "version": "1.4.9.2",
+  "name": "ZclockID Enterprise v1.4.9.2",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-18T13:30:00Z",
-  "summary": "Fix fail-open in samdb_service, escape LDAP filter values with ldb.binary_encode, block privileged account edits for operator role, and secure temporary auth files in /run/zclockid",
-  "notes": "### What's Changed in v1.4.9.1:\n* **Fail-Closed SamDB:** `get_samdb()` fails closed with HTTP 503 if Samba AD service or bindings are unavailable; `MockSamDB` is restricted strictly to test runs. Registration approval preserves `PENDING_APPROVAL` status and `password_enc` upon provisioning failure.\n* **LDAP Filter Escaping:** All username and group filters sanitized via `ldb.binary_encode()` per RFC 4515 to prevent wildcard injection.\n* **Role Privileges Hardening:** Modifying privileged accounts (Administrator, krbtgt, Guest, Domain Admins members) restricted exclusively to `fulladmin`; operator role blocked with HTTP 403.\n* **Credential Isolation:** Temporary authentication files placed in root-only `0700` directory (`/run/zclockid`) and purged upon API startup.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.9.1_all.deb",
-  "package_name": "zclockid_1.4.9.1_all.deb",
+  "published_at": "2026-11-18T14:15:00Z",
+  "summary": "Close privileged-group privilege escalation: block operators from adding or removing members of privileged groups, fail closed on ldbsearch lookups",
+  "notes": "### What's Changed in v1.4.9.2:\n* **Privileged Group Escalation Prevention:** Operators are prohibited from adding or removing members of privileged groups (`Domain Admins`, `Enterprise Admins`, `Schema Admins`, `Administrators`, groups with `adminCount=1`, or groups mapped to `fulladmin` in RBAC). Enforced across `POST /users`, `PUT /users/{username}`, and group-membership endpoints (`/groups/{group_name}/members`). Operator attempts receive HTTP 403 and are logged in audit events.\n* **Fail-Closed Privilege Lookups:** `is_privileged_ad_user()` and `is_privileged_ad_group()` fail closed—if directory queries error, accounts and groups are treated as privileged.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.9.2_all.deb",
+  "package_name": "zclockid_1.4.9.2_all.deb",
   "min_version_required": "1.0.0"
 }
