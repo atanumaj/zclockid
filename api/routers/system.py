@@ -42,6 +42,7 @@ from api.services.system_service import (
     get_appliance_version
 )
 from api.services.samba_service import get_ad_creds
+from api.services.samdb_service import run_samba_tool_authenticated
 from api.schemas.system_schema import (
     ServiceActionRequest,
     SystemIdentityUpdateRequest,
@@ -1025,15 +1026,13 @@ def create_backup(req: BackupCreateRequest):
 
         # 3. If Full Disaster Recovery Backup: include Active Directory database & Sysvol
         if b_type == "full":
-            admin_user, admin_pass = get_ad_creds()
             ad_staging = staging_dir / "ad"
             ad_staging.mkdir(parents=True, exist_ok=True)
 
-            code, stdout, stderr = run_cmd([
-                "samba-tool", "domain", "backup", "online",
+            code, stdout, stderr = run_samba_tool_authenticated([
+                "domain", "backup", "online",
                 "--server=127.0.0.1",
-                f"--targetdir={str(ad_staging)}",
-                f"-U{admin_user}", f"--password={admin_pass}"
+                f"--targetdir={str(ad_staging)}"
             ], timeout=60)
 
             if code != 0:

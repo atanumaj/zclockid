@@ -12,6 +12,7 @@ from api.core.config import SAMBA_LDB_PATH, DEFAULT_REALM
 from api.core.security import get_ad_creds, validate_ad_password_complexity
 from api.core.license import get_license_status
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.services.samdb_service import samdb_newuser, samdb_setexpiry, samdb_add_group_member
 
 def update_user_upn(username: str, new_upn: str) -> str:
     code, stdout, stderr = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "dn"])
@@ -110,30 +111,30 @@ def provision_user_in_ad(
             detail=f"User subscription limit reached ({current_count}/{max_u} users). An active ZclockID Enterprise license (zclockid.lic) is required to manage additional users. Please upload your license file under Security & Management > License."
         )
 
-    admin_user, admin_pass = get_ad_creds()
-    cmd = [
-        "samba-tool", "user", "create", username,
-        "--use-username-as-cn",
-        f"-U{admin_user}", f"--password={admin_pass}"
-    ]
-    if given_name: cmd.extend(["--given-name", given_name])
-    if surname: cmd.extend(["--surname", surname])
-    if email: cmd.extend(["--mail-address", email])
-    if mobile: cmd.extend(["--telephone-number", mobile])
-    if department: cmd.extend(["--department", department])
-    if is_self_registered:
-        cmd.extend(["--description", "Self-Registered via ZclockID Portal"])
-
-    code, stdout, stderr = run_cmd(cmd, timeout=25, input_data=f"{password}\n{password}\n")
-    if code != 0:
-        err_out = (stderr or stdout or "").strip()
-        if "check_password_restrictions" in err_out:
+    try:
+        desc = "Self-Registered via ZclockID Portal" if is_self_registered else None
+        samdb_newuser(
+            username=username,
+            password=password,
+            given_name=given_name,
+            surname=surname,
+            email=email,
+            mobile=mobile,
+            department=department,
+            description=desc
+        )
+    except Exception as e:
+        err_out = str(e)
+        if "check_password_restrictions" in err_out or "Constraint violation" in err_out:
             err_out = "The password does not meet Active Directory complexity requirements (minimum 8 characters, containing uppercase, lowercase, numbers, and special symbols)."
         raise HTTPException(status_code=400, detail=f"Failed to create user in Active Directory: {err_out}")
 
     # Set password-never-expires only if explicitly requested by administrator
     if password_never_expires:
-        run_cmd(["samba-tool", "user", "setexpiry", username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+        try:
+            samdb_setexpiry(username, noexpiry=True)
+        except Exception as e:
+            print(f"Failed to set noexpiry on {username}: {e}")
 
     # Active Directory Schema Attribute Synchronization via sam.ldb
     try:
@@ -165,8 +166,10 @@ def provision_user_in_ad(
 
     # Add to default security group
     if default_group and default_group.strip() and default_group.strip().lower() != "domain users":
-        grp_cmd = ["samba-tool", "group", "addmembers", default_group.strip(), username, f"-U{admin_user}", f"--password={admin_pass}"]
-        run_cmd(grp_cmd, timeout=15)
+        try:
+            samdb_add_group_member(default_group.strip(), username)
+        except Exception as e:
+            print(f"Warning: Failed to add {username} to {default_group}: {e}")
 
     # For self-registered users, add to ZclockID-SelfRegistered group and enforce PSO
     if is_self_registered:

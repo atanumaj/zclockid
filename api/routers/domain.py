@@ -12,6 +12,7 @@ from pathlib import Path
 from api.core.config import SAMBA_LDB_PATH, SMB_CONF_FILE, DEFAULT_REALM
 from api.core.security import get_ad_creds
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.services.samdb_service import run_samba_tool_authenticated
 from api.routers.auth import require_role
 from api.schemas.domain_schema import (
     FunctionalLevelRaiseRequest,
@@ -54,10 +55,8 @@ def parse_fl_string(val: str) -> str:
 @router.get("/functional-level")
 def get_functional_level():
     """Returns the current Domain and Forest functional levels, lowest DC level, and supported versions."""
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd([
-        "samba-tool", "domain", "level", "show",
-        f"-U{admin_user}", f"--password={admin_pass}"
+    code, stdout, stderr = run_samba_tool_authenticated([
+        "domain", "level", "show"
     ], timeout=10)
 
     forest_raw = "2016"
@@ -139,13 +138,12 @@ def raise_functional_level(req: FunctionalLevelRaiseRequest):
             run_cmd(["systemctl", "restart", "samba-ad-dc"], timeout=15)
             time.sleep(1.5)
 
-    cmd = [
-        "samba-tool", "domain", "level", "raise",
+    args = [
+        "domain", "level", "raise",
         f"--domain-level={d_level}",
-        f"--forest-level={f_level}",
-        f"-U{admin_user}", f"--password={admin_pass}"
+        f"--forest-level={f_level}"
     ]
-    code, stdout, stderr = run_cmd(cmd, timeout=20)
+    code, stdout, stderr = run_samba_tool_authenticated(args, timeout=20)
     output = (stdout + "\n" + stderr).strip()
 
     if code != 0 and "already at" not in output.lower():
@@ -337,16 +335,15 @@ def delete_upn_suffix(suffix: str):
 @router.post("/fsmo/transfer")
 def transfer_fsmo_role(req: FsmoTransferRequest):
     """Transfers or seizes an Active Directory FSMO role."""
-    admin_user, admin_pass = get_ad_creds()
     action = "seize" if req.force_seize else "transfer"
-    cmd = ["samba-tool", "fsmo", action, f"--role={req.role}", f"-U{admin_user}", f"--password={admin_pass}"]
+    args = ["fsmo", action, f"--role={req.role}"]
     if req.target_server and req.target_server.strip():
         srv = req.target_server.strip()
         if not srv.startswith("ldap://"):
             srv = f"ldap://{srv}"
-        cmd.extend(["-H", srv])
+        args.extend(["-H", srv])
 
-    code, stdout, stderr = run_cmd(cmd, timeout=45)
+    code, stdout, stderr = run_samba_tool_authenticated(args, timeout=45)
     if code != 0:
         raise HTTPException(status_code=500, detail=f"FSMO {action} failed: {stderr or stdout}")
 

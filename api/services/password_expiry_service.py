@@ -19,6 +19,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from api.core.config import DB_PATH, DATA_DIR, SAMBA_LDB_PATH, DEFAULT_REALM
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.core.security import get_ad_creds
+from api.services.samdb_service import samdb_newgroup, samdb_add_group_member, run_samba_tool_authenticated
 
 logger = logging.getLogger("zclockid.password_expiry")
 REMINDER_LOCK_FILE = DATA_DIR / "password_expiry_reminders.lock"
@@ -78,16 +79,12 @@ def ensure_selfreg_group_and_pso(max_pwd_age_days: Optional[int] = None) -> Dict
             "(&(objectClass=group)(sAMAccountName=ZclockID-SelfRegistered))", "dn"
         ], timeout=8)
         if code != 0 or "dn: " not in stdout:
-            c_grp, o_grp, e_grp = run_cmd([
-                "samba-tool", "group", "add", "ZclockID-SelfRegistered",
-                "--description=ZclockID Self-Registered Users",
-                f"-U{admin_user}", f"--password={admin_pass}"
-            ], timeout=15)
-            if c_grp == 0:
+            try:
+                samdb_newgroup("ZclockID-SelfRegistered", description="ZclockID Self-Registered Users")
                 group_created = True
                 logger.info("Created Active Directory group 'ZclockID-SelfRegistered'.")
-            else:
-                logger.warning("Could not create group ZclockID-SelfRegistered: %s", e_grp or o_grp)
+            except Exception as e_grp:
+                logger.warning("Could not create group ZclockID-SelfRegistered: %s", e_grp)
     except Exception as e:
         logger.warning("Error checking/creating ZclockID-SelfRegistered group: %s", e)
 
@@ -107,11 +104,11 @@ def ensure_selfreg_group_and_pso(max_pwd_age_days: Optional[int] = None) -> Dict
                 if not line:
                     if current_user:
                         if not any("ZclockID-SelfRegistered" in m for m in memberships):
-                            run_cmd([
-                                "samba-tool", "group", "addmembers", "ZclockID-SelfRegistered", current_user,
-                                f"-U{admin_user}", f"--password={admin_pass}"
-                            ], timeout=10)
-                            backfilled_count += 1
+                            try:
+                                samdb_add_group_member("ZclockID-SelfRegistered", current_user)
+                                backfilled_count += 1
+                            except Exception as e_add:
+                                logger.warning("Failed to add %s to ZclockID-SelfRegistered: %s", current_user, e_add)
                     current_user = None
                     memberships = []
                     continue
@@ -120,11 +117,11 @@ def ensure_selfreg_group_and_pso(max_pwd_age_days: Optional[int] = None) -> Dict
                 elif line.startswith("memberOf:"):
                     memberships.append(line.split(":", 1)[1].strip())
             if current_user and not any("ZclockID-SelfRegistered" in m for m in memberships):
-                run_cmd([
-                    "samba-tool", "group", "addmembers", "ZclockID-SelfRegistered", current_user,
-                    f"-U{admin_user}", f"--password={admin_pass}"
-                ], timeout=10)
-                backfilled_count += 1
+                try:
+                    samdb_add_group_member("ZclockID-SelfRegistered", current_user)
+                    backfilled_count += 1
+                except Exception as e_add:
+                    logger.warning("Failed to add %s to ZclockID-SelfRegistered: %s", current_user, e_add)
     except Exception as e:
         logger.warning("Error backfilling users into ZclockID-SelfRegistered: %s", e)
 
@@ -132,25 +129,22 @@ def ensure_selfreg_group_and_pso(max_pwd_age_days: Optional[int] = None) -> Dict
     pso_status = "ok"
     try:
         # Check if PSO exists
-        c_show, o_show, e_show = run_cmd([
-            "samba-tool", "domain", "passwordsettings", "pso", "show", "ZclockID-SelfReg-PSO",
-            f"-U{admin_user}", f"--password={admin_pass}"
+        c_show, o_show, e_show = run_samba_tool_authenticated([
+            "domain", "passwordsettings", "pso", "show", "ZclockID-SelfReg-PSO"
         ], timeout=10)
 
         if c_show == 0:
             # Update max-pwd-age
-            run_cmd([
-                "samba-tool", "domain", "passwordsettings", "pso", "set", "ZclockID-SelfReg-PSO",
-                f"--max-pwd-age={max_pwd_age_days}",
-                f"-U{admin_user}", f"--password={admin_pass}"
+            run_samba_tool_authenticated([
+                "domain", "passwordsettings", "pso", "set", "ZclockID-SelfReg-PSO",
+                f"--max-pwd-age={max_pwd_age_days}"
             ], timeout=15)
         else:
             # Create PSO: precedence 10, max-pwd-age
-            c_create, o_create, e_create = run_cmd([
-                "samba-tool", "domain", "passwordsettings", "pso", "create", "ZclockID-SelfReg-PSO",
+            c_create, o_create, e_create = run_samba_tool_authenticated([
+                "domain", "passwordsettings", "pso", "create", "ZclockID-SelfReg-PSO",
                 "10",
-                f"--max-pwd-age={max_pwd_age_days}",
-                f"-U{admin_user}", f"--password={admin_pass}"
+                f"--max-pwd-age={max_pwd_age_days}"
             ], timeout=15)
             err_msg = (e_create or o_create or "").lower()
             if c_create != 0:
@@ -166,10 +160,9 @@ def ensure_selfreg_group_and_pso(max_pwd_age_days: Optional[int] = None) -> Dict
                     logger.warning("Failed to create PSO ZclockID-SelfReg-PSO: %s", e_create or o_create)
 
         # Apply PSO to group ZclockID-SelfRegistered
-        c_app, o_app, e_app = run_cmd([
-            "samba-tool", "domain", "passwordsettings", "pso", "apply", "ZclockID-SelfReg-PSO",
-            "ZclockID-SelfRegistered",
-            f"-U{admin_user}", f"--password={admin_pass}"
+        c_app, o_app, e_app = run_samba_tool_authenticated([
+            "domain", "passwordsettings", "pso", "apply", "ZclockID-SelfReg-PSO",
+            "ZclockID-SelfRegistered"
         ], timeout=15)
         if c_app != 0:
             err_app = (e_app or o_app or "").lower()
@@ -201,14 +194,10 @@ def ensure_selfreg_group_and_pso(max_pwd_age_days: Optional[int] = None) -> Dict
 
 def add_user_to_selfreg_group(username: str) -> bool:
     """Adds a self-registered user to ZclockID-SelfRegistered group and ensures PSO applies."""
-    admin_user, admin_pass = get_ad_creds()
     try:
         ensure_selfreg_group_and_pso()
-        code, stdout, stderr = run_cmd([
-            "samba-tool", "group", "addmembers", "ZclockID-SelfRegistered", username,
-            f"-U{admin_user}", f"--password={admin_pass}"
-        ], timeout=10)
-        return code == 0
+        samdb_add_group_member("ZclockID-SelfRegistered", username)
+        return True
     except Exception as e:
         logger.warning("Failed to add user %s to ZclockID-SelfRegistered: %s", username, e)
         return False
@@ -266,10 +255,8 @@ def get_user_password_info(username: str) -> Dict[str, Any]:
     # If resultant_pso was not returned by ldbsearch, try samba-tool domain passwordsettings pso show-user
     if not resultant_pso:
         try:
-            admin_user, admin_pass = get_ad_creds()
-            c_p, o_p, _ = run_cmd([
-                "samba-tool", "domain", "passwordsettings", "pso", "show-user", clean_user,
-                f"-U{admin_user}", f"--password={admin_pass}"
+            c_p, o_p, _ = run_samba_tool_authenticated([
+                "domain", "passwordsettings", "pso", "show-user", clean_user
             ], timeout=5)
             if c_p == 0 and "Password information for PSO '" in o_p:
                 start_idx = o_p.find("Password information for PSO '") + len("Password information for PSO '")
@@ -381,10 +368,8 @@ def get_effective_max_pwd_age(username: Optional[str] = None, resultant_pso: Opt
     pso = resultant_pso
     if not pso and username:
         try:
-            admin_user, admin_pass = get_ad_creds()
-            c_p, o_p, _ = run_cmd([
-                "samba-tool", "domain", "passwordsettings", "pso", "show-user", username,
-                f"-U{admin_user}", f"--password={admin_pass}"
+            c_p, o_p, _ = run_samba_tool_authenticated([
+                "domain", "passwordsettings", "pso", "show-user", username
             ], timeout=5)
             if c_p == 0 and "Password information for PSO '" in o_p:
                 start_idx = o_p.find("Password information for PSO '") + len("Password information for PSO '")

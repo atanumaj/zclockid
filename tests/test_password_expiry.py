@@ -107,7 +107,10 @@ def test_invariant_1_no_noexpiry_call_by_default():
             return 0, "sAMAccountName: admin\n", ""
         return 0, "", ""
 
-    with patch("api.services.samba_service.run_cmd", side_effect=fake_run_cmd), \
+    expiry_calls = []
+    with patch("api.services.samba_service.samdb_setexpiry", side_effect=lambda u, **kw: expiry_calls.append((u, kw))), \
+         patch("api.services.samba_service.samdb_newuser", return_value=None), \
+         patch("api.services.samba_service.run_cmd", side_effect=fake_run_cmd), \
          patch("api.services.samba_service.get_license_status", return_value={"can_create_user": True, "max_users": 200}), \
          patch("api.services.samba_service.get_ad_creds", return_value=("Administrator", "AdminP@ss2026!")), \
          patch("api.services.samba_service.update_user_upn", return_value=True), \
@@ -126,12 +129,11 @@ def test_invariant_1_no_noexpiry_call_by_default():
             password_never_expires=False
         )
 
-        # Assert no call with '--noexpiry'
-        noexpiry_calls = [c for c in commands_run if "--noexpiry" in c]
-        assert len(noexpiry_calls) == 0, f"Expected no '--noexpiry' call, but found: {noexpiry_calls}"
+        # Assert no call to setexpiry
+        assert len(expiry_calls) == 0, f"Expected no setexpiry call, but found: {expiry_calls}"
 
         # 2. Provisioning with password_never_expires = True
-        commands_run.clear()
+        expiry_calls.clear()
         provision_user_in_ad(
             username="test_user_never",
             password="SecureP@ssw0rd2026!",
@@ -144,9 +146,8 @@ def test_invariant_1_no_noexpiry_call_by_default():
             password_never_expires=True
         )
 
-        noexpiry_calls = [c for c in commands_run if "--noexpiry" in c]
-        assert len(noexpiry_calls) == 1, "Expected exactly 1 '--noexpiry' call when password_never_expires=True"
-        assert noexpiry_calls[0][1:4] == ["user", "setexpiry", "test_user_never"]
+        assert len(expiry_calls) == 1, "Expected exactly 1 setexpiry call when password_never_expires=True"
+        assert expiry_calls[0] == ("test_user_never", {"noexpiry": True})
 
 
 # =============================================================================
@@ -154,21 +155,29 @@ def test_invariant_1_no_noexpiry_call_by_default():
 # =============================================================================
 def test_invariant_2_group_membership_and_pso_applied():
     """Verify group ZclockID-SelfRegistered and PSO ZclockID-SelfReg-PSO are created and applied."""
-    commands_run = []
+    grp_new_calls = []
+    grp_add_calls = []
+    pso_calls = []
+
+    def fake_run_samba_tool(args, timeout=30):
+        pso_calls.append(list(args))
+        if "pso" in args and "show" in args:
+            return 1, "", "PSO does not exist"
+        return 0, "", ""
 
     def fake_run_cmd(cmd, timeout=10, input_data=None):
         cmd_list = list(cmd)
-        commands_run.append(cmd_list)
         if cmd_list[0] == "ldbsearch":
             if "ZclockID-SelfRegistered" in " ".join(cmd_list):
                 return 1, "", "not found"
             # Return one self-registered user to backfill
             return 0, "sAMAccountName: legacy_selfreg_user\n\n", ""
-        if "pso" in cmd_list and "show" in cmd_list:
-            return 1, "", "PSO does not exist"
         return 0, "", ""
 
-    with patch("api.services.password_expiry_service.run_cmd", side_effect=fake_run_cmd), \
+    with patch("api.services.password_expiry_service.samdb_newgroup", side_effect=lambda g, **kw: grp_new_calls.append(g)), \
+         patch("api.services.password_expiry_service.samdb_add_group_member", side_effect=lambda g, u: grp_add_calls.append((g, u))), \
+         patch("api.services.password_expiry_service.run_samba_tool_authenticated", side_effect=fake_run_samba_tool), \
+         patch("api.services.password_expiry_service.run_cmd", side_effect=fake_run_cmd), \
          patch("api.services.password_expiry_service.get_ad_creds", return_value=("Administrator", "AdminP@ss2026!")):
 
         res = ensure_selfreg_group_and_pso(max_pwd_age_days=180)
@@ -176,41 +185,44 @@ def test_invariant_2_group_membership_and_pso_applied():
         assert res["pso"] == "ZclockID-SelfReg-PSO"
         assert res["max_pwd_age_days"] == 180
 
-        # Verify group add command was called
-        grp_add_calls = [c for c in commands_run if "group" in c and "add" in c and "ZclockID-SelfRegistered" in c]
-        assert len(grp_add_calls) >= 1
+        # Verify group add was called
+        assert "ZclockID-SelfRegistered" in grp_new_calls
 
         # Verify legacy user was backfilled
-        backfill_calls = [c for c in commands_run if "group" in c and "addmembers" in c and "legacy_selfreg_user" in c]
-        assert len(backfill_calls) >= 1
+        assert any(u == "legacy_selfreg_user" for g, u in grp_add_calls)
 
         # Verify PSO was created with precedence 10 and max-pwd-age 180
-        pso_create_calls = [c for c in commands_run if "pso" in c and "create" in c and "ZclockID-SelfReg-PSO" in c]
+        pso_create_calls = [c for c in pso_calls if "pso" in c and "create" in c and "ZclockID-SelfReg-PSO" in c]
         assert len(pso_create_calls) >= 1
         assert "10" in pso_create_calls[0]
         assert "--max-pwd-age=180" in pso_create_calls[0]
 
         # Verify PSO was applied to ZclockID-SelfRegistered
-        pso_apply_calls = [c for c in commands_run if "pso" in c and "apply" in c and "ZclockID-SelfReg-PSO" in c]
+        pso_apply_calls = [c for c in pso_calls if "pso" in c and "apply" in c and "ZclockID-SelfReg-PSO" in c]
         assert len(pso_apply_calls) >= 1
         assert "ZclockID-SelfRegistered" in pso_apply_calls[0]
 
 
 def test_invariant_2b_domain_functional_level_warning_never_fails_creation():
     """If the domain functional level doesn't support PSOs, logs warning but does not fail account creation."""
+    def fake_run_samba_tool(args, timeout=30):
+        if "pso" in args and "show" in args:
+            return 1, "", "PSO does not exist"
+        if "pso" in args and "create" in args:
+            return 1, "", "ERROR: The domain functional level does not support Password Settings Objects."
+        return 0, "", ""
+
     def fake_run_cmd(cmd, timeout=10, input_data=None):
         cmd_list = list(cmd)
-        if "pso" in cmd_list and "show" in cmd_list:
-            return 1, "", "PSO does not exist"
-        if "pso" in cmd_list and "create" in cmd_list:
-            return 1, "", "ERROR: The domain functional level does not support Password Settings Objects."
         if cmd_list[0] == "ldbsearch":
             return 0, "sAMAccountName: admin\n", ""
         return 0, "", ""
 
-    with patch("api.services.password_expiry_service.run_cmd", side_effect=fake_run_cmd), \
+    with patch("api.services.password_expiry_service.run_samba_tool_authenticated", side_effect=fake_run_samba_tool), \
+         patch("api.services.password_expiry_service.run_cmd", side_effect=fake_run_cmd), \
          patch("api.services.password_expiry_service.get_ad_creds", return_value=("Administrator", "AdminP@ss2026!")), \
          patch("api.services.samba_service.run_cmd", side_effect=fake_run_cmd), \
+         patch("api.services.samba_service.samdb_newuser", return_value=None), \
          patch("api.services.samba_service.get_license_status", return_value={"can_create_user": True, "max_users": 200}), \
          patch("api.services.samba_service.get_ad_creds", return_value=("Administrator", "AdminP@ss2026!")):
 

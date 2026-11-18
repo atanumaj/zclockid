@@ -20,6 +20,7 @@ from api.core.config import (
 )
 from api.core.security import hash_password, verify_password, get_ad_creds
 from api.services.system_service import run_cmd, log_audit
+from api.services.samdb_service import samdb_setpassword, temporary_auth_file
 from api.services.security_service import get_client_ip, get_security_settings
 from api.schemas.auth_schema import (
     SetupProvisionRequest,
@@ -317,13 +318,17 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
             "--server-role=dc",
             "--dns-backend=BIND9_DLZ",
             f"--host-name={current_hostname}",
-            f"--adminpass={req.ad_admin_password}",
             "--use-rfc2307"
         ]
         code, stdout, stderr = run_cmd(cmd, timeout=180)
         provision_output = stdout + stderr
         if code != 0 and "not installed" not in stderr:
             raise HTTPException(status_code=500, detail=f"Samba AD provisioning failed: {stderr or stdout}")
+        if req.ad_admin_password:
+            try:
+                samdb_setpassword("Administrator", req.ad_admin_password)
+            except Exception as e:
+                logging.getLogger("uvicorn.error").warning(f"Failed to set Administrator password after provision: {e}")
     else:
         # Join Existing Forest (ADC / BDC Mode)
         if not partner_ip:
@@ -363,18 +368,18 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
             logging.getLogger("uvicorn.error").warning(f"Failed to write initial krb5.conf: {e}")
 
         # C. Execute samba-tool domain join with --server pointing to Primary DC
-        cmd = [
-            "samba-tool", "domain", "join",
-            realm, "DC",
-            f"-U{req.ad_admin_user or 'Administrator'}",
-            f"--password={req.ad_admin_password}",
-            f"--server={partner_ip}",
-            "--dns-backend=BIND9_DLZ"
-        ]
-        code, stdout, stderr = run_cmd(cmd, timeout=300)
-        provision_output = stdout + stderr
-        if code != 0 and "not installed" not in stderr:
-            raise HTTPException(status_code=500, detail=f"Joining domain failed: {stderr or stdout}")
+        with temporary_auth_file(username=req.ad_admin_user or 'Administrator', password=req.ad_admin_password) as authfile:
+            cmd = [
+                "samba-tool", "domain", "join",
+                realm, "DC",
+                f"-A{authfile}",
+                f"--server={partner_ip}",
+                "--dns-backend=BIND9_DLZ"
+            ]
+            code, stdout, stderr = run_cmd(cmd, timeout=300)
+            provision_output = stdout + stderr
+            if code != 0 and "not installed" not in stderr:
+                raise HTTPException(status_code=500, detail=f"Joining domain failed: {stderr or stdout}")
 
     # 4. Configure BIND9 with Samba DLZ include
     named_conf_local = "/etc/bind/named.conf.local"
@@ -706,14 +711,10 @@ def change_password(req: ChangePasswordRequest, authorization: Optional[str] = H
             return resp
         raise HTTPException(status_code=400, detail="Current domain password verification failed.")
 
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd([
-        "samba-tool", "user", "setpassword", username,
-        f"--newpassword={req.new_password}",
-        f"-U{admin_user}", f"--password={admin_pass}"
-    ], timeout=15)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to set Active Directory password: {stderr or stdout}")
+    try:
+        samdb_setpassword(username, req.new_password)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to set Active Directory password: {e}")
 
     log_audit("AD_USER_PASSWORD_CHANGED", username, username, "SUCCESS", {})
     return {"status": "success", "message": f"Active Directory password for '{username}' updated successfully."}

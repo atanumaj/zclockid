@@ -23,6 +23,19 @@ from api.services.password_expiry_service import (
     apply_bulk_expiry_policy,
     get_user_password_info
 )
+from api.services.samdb_service import (
+    samdb_newuser,
+    samdb_setpassword,
+    samdb_setexpiry,
+    samdb_enable_account,
+    samdb_disable_account,
+    samdb_deleteuser,
+    samdb_newgroup,
+    samdb_deletegroup,
+    samdb_add_group_member,
+    samdb_remove_group_member,
+    run_samba_tool_authenticated
+)
 from api.routers.auth import require_role
 from api.schemas.user_schema import (
     UserCreateRequest,
@@ -287,31 +300,37 @@ def create_domain_user(req: UserCreateRequest):
     if not is_valid:
         raise HTTPException(status_code=400, detail=err_msg)
 
-    admin_user, admin_pass = get_ad_creds()
-    cmd = [
-        "samba-tool", "user", "create", req.username, req.password,
-        "--use-username-as-cn",
-        f"-U{admin_user}", f"--password={admin_pass}"
-    ]
-    if req.given_name: cmd.extend(["--given-name", req.given_name])
-    if req.surname: cmd.extend(["--surname", req.surname])
-    if req.email: cmd.extend(["--mail-address", req.email])
-    if req.mobile: cmd.extend(["--telephone-number", req.mobile])
-    if req.department: cmd.extend(["--department", req.department])
-
-    code, stdout, stderr = run_cmd(cmd, timeout=20)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to create user: {stderr or stdout}")
+    try:
+        samdb_newuser(
+            username=req.username,
+            password=req.password,
+            given_name=req.given_name,
+            surname=req.surname,
+            email=req.email,
+            mobile=req.mobile,
+            department=req.department
+        )
+    except Exception as e:
+        err_out = str(e)
+        if "check_password_restrictions" in err_out or "Constraint violation" in err_out:
+            err_out = "The password does not meet Active Directory complexity requirements (minimum 8 characters, containing uppercase, lowercase, numbers, and special symbols)."
+        raise HTTPException(status_code=400, detail=f"Failed to create user: {err_out}")
 
     if req.password_never_expires:
-        run_cmd(["samba-tool", "user", "setexpiry", req.username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+        try:
+            samdb_setexpiry(req.username, noexpiry=True)
+        except Exception as e:
+            print(f"Failed to set noexpiry on {req.username}: {e}")
 
     target_groups = set(req.groups or [])
     if req.target_group and req.target_group != "Domain Users":
         target_groups.add(req.target_group)
     for grp in target_groups:
         if grp and grp.lower() != "domain users":
-            run_cmd(["samba-tool", "group", "addmembers", grp, req.username, f"-U{admin_user}", f"--password={admin_pass}"])
+            try:
+                samdb_add_group_member(grp, req.username)
+            except Exception as e:
+                print(f"Failed to add {req.username} to group {grp}: {e}")
 
     if target_groups:
         sync_freeradius_policies()
@@ -418,25 +437,21 @@ def update_domain_user(username: str, req: UserUpdateRequest):
         if proc.returncode != 0:
             raise HTTPException(status_code=400, detail=f"Failed to update user attributes: {proc.stderr}")
 
-    admin_user, admin_pass = get_ad_creds()
-
     if req.new_password:
-        p_code, p_out, p_err = run_cmd([
-            "samba-tool", "user", "setpassword", username,
-            f"--newpassword={req.new_password}",
-            f"-U{admin_user}", f"--password={admin_pass}"
-        ], timeout=15)
-        if p_code != 0:
-            raise HTTPException(status_code=400, detail=f"Failed to reset password: {p_err or p_out}")
+        try:
+            samdb_setpassword(username, req.new_password)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to reset password: {e}")
 
     if req.is_disabled is not None:
-        action = "disable" if req.is_disabled else "enable"
-        s_code, s_out, s_err = run_cmd([
-            "samba-tool", "user", action, username,
-            f"-U{admin_user}", f"--password={admin_pass}"
-        ], timeout=15)
-        if s_code != 0:
-            raise HTTPException(status_code=400, detail=f"Failed to {action} user: {s_err or s_out}")
+        try:
+            if req.is_disabled:
+                samdb_disable_account(username)
+            else:
+                samdb_enable_account(username)
+        except Exception as e:
+            action = "disable" if req.is_disabled else "enable"
+            raise HTTPException(status_code=400, detail=f"Failed to {action} user: {e}")
 
     if req.bandwidth_profile_id is not None:
         try:
@@ -475,18 +490,26 @@ def update_domain_user(username: str, req: UserUpdateRequest):
 
         for grp in to_add:
             if grp and grp.lower() != "domain users":
-                run_cmd(["samba-tool", "group", "addmembers", grp, username, f"-U{admin_user}", f"--password={admin_pass}"])
+                try:
+                    samdb_add_group_member(grp, username)
+                except Exception as e:
+                    print(f"Failed to add {username} to {grp}: {e}")
 
         for grp in to_remove:
             if grp and grp.lower() not in ["domain users", "domain guests"]:
-                run_cmd(["samba-tool", "group", "removemembers", grp, username, f"-U{admin_user}", f"--password={admin_pass}"])
+                try:
+                    samdb_remove_group_member(grp, username)
+                except Exception as e:
+                    print(f"Failed to remove {username} from {grp}: {e}")
 
         sync_freeradius_policies()
 
     if req.password_never_expires is not None:
-        admin_user, admin_pass = get_ad_creds()
         if req.password_never_expires:
-            run_cmd(["samba-tool", "user", "setexpiry", username, "--noexpiry", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+            try:
+                samdb_setexpiry(username, noexpiry=True)
+            except Exception as e:
+                print(f"Failed to set noexpiry on {username}: {e}")
         else:
             c_u, o_u, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "userAccountControl"])
             if c_u == 0:
@@ -575,31 +598,30 @@ def get_domain_user_detail(username: str):
 @router.post("/users/{username}/password")
 def set_user_password(username: str, req: UserPasswordReset):
     """Resets user password in Active Directory."""
-    admin_user, admin_pass = get_ad_creds()
-    cmd = ["samba-tool", "user", "setpassword", username, f"--newpassword={req.new_password}", f"-U{admin_user}", f"--password={admin_pass}"]
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to set password: {stderr or stdout}")
+    try:
+        samdb_setpassword(username, req.new_password)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to set password: {e}")
     log_audit("USER_PASSWORD_RESET", "admin", username, "SUCCESS", {})
     return {"status": "success", "message": f"Password updated for {username}."}
 
 @router.post("/users/{username}/disable")
 def disable_user(username: str):
     """Disables an Active Directory user account."""
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd(["samba-tool", "user", "disable", username, f"-U{admin_user}", f"--password={admin_pass}"])
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to disable user: {stderr}")
+    try:
+        samdb_disable_account(username)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to disable user: {e}")
     log_audit("USER_DISABLED", "admin", username, "SUCCESS", {})
     return {"status": "success", "message": f"User {username} disabled."}
 
 @router.post("/users/{username}/enable")
 def enable_user(username: str):
     """Enables an Active Directory user account."""
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd(["samba-tool", "user", "enable", username, f"-U{admin_user}", f"--password={admin_pass}"])
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to enable user: {stderr}")
+    try:
+        samdb_enable_account(username)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to enable user: {e}")
     log_audit("USER_ENABLED", "admin", username, "SUCCESS", {})
     return {"status": "success", "message": f"User {username} enabled."}
 
@@ -609,10 +631,10 @@ def delete_domain_user(username: str):
     if username.lower() in ["administrator", "guest", "krbtgt"]:
         raise HTTPException(status_code=400, detail=f"Cannot delete critical system account '{username}'.")
 
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd(["samba-tool", "user", "delete", username, f"-U{admin_user}", f"--password={admin_pass}"], timeout=15)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to delete user: {stderr or stdout}")
+    try:
+        samdb_deleteuser(username)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to delete user: {e}")
 
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -735,12 +757,10 @@ def list_domain_groups():
 @router.post("/groups")
 def create_domain_group(req: GroupCreateRequest):
     """Creates a new Active Directory Security Group and assigns optional Bandwidth policy."""
-    admin_user, admin_pass = get_ad_creds()
-    cmd = ["samba-tool", "group", "add", req.group_name, f"-U{admin_user}", f"--password={admin_pass}"]
-    if req.description: cmd.extend(["--description", req.description])
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to create group: {stderr or stdout}")
+    try:
+        samdb_newgroup(group_name=req.group_name, description=req.description)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to create group: {e}")
 
     if req.bandwidth_profile_id and req.bandwidth_profile_id > 0:
         try:
@@ -852,10 +872,10 @@ def delete_domain_group(group_name: str):
     if group_name.lower() in PROTECTED_BUILTIN_GROUPS or ("cn=builtin" in group_name.lower()):
         raise HTTPException(status_code=400, detail=f"Cannot delete protected built-in Active Directory group '{group_name}'.")
 
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd(["samba-tool", "group", "delete", group_name, f"-U{admin_user}", f"--password={admin_pass}"], timeout=15)
-    if code != 0:
-        raise HTTPException(status_code=400, detail=f"Failed to delete group: {stderr or stdout}")
+    try:
+        samdb_deletegroup(group_name)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to delete group: {e}")
 
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -949,8 +969,7 @@ def delete_domain_computer(computer_name: str):
     if "ou=domain controllers" in o_d.lower() or computer_name.upper() in ["ZCLOCKID-DC", "ZCLOCKID"]:
         raise HTTPException(status_code=400, detail="Cannot delete Domain Controller computer accounts.")
 
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd(["samba-tool", "computer", "delete", computer_name, f"-U{admin_user}", f"--password={admin_pass}"], timeout=15)
+    code, stdout, stderr = run_samba_tool_authenticated(["computer", "delete", computer_name], timeout=15)
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to delete computer: {stderr or stdout}")
 

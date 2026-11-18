@@ -24,6 +24,7 @@ from fastapi.responses import PlainTextResponse
 from api.core.config import DB_PATH, SAMBA_LDB_PATH, DATA_DIR, WEB_DIR
 from api.core.security import get_ad_creds, validate_ad_password_complexity, hash_otp, verify_otp_hash
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.services.samdb_service import samdb_setpassword
 from api.services.security_service import get_client_ip
 from api.routers.registration import dispatch_sms, dispatch_email
 from api.schemas.self_service_schema import (
@@ -722,19 +723,11 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
             conn.close()
             raise HTTPException(status_code=400, detail=msg)
 
-    # Use administrative credentials to set the password
-    admin_user, admin_pass = get_ad_creds()
-    cmd = [
-        "samba-tool", "user", "setpassword",
-        canonical_user,
-        f"--newpassword={req.new_password}",
-        f"-U{admin_user}",
-        f"--password={admin_pass}"
-    ]
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
-
-    if code != 0:
-        err_msg = stderr.strip() or stdout.strip()
+    # Use in-process SamDB to set the password without CLI arguments
+    try:
+        samdb_setpassword(canonical_user, req.new_password)
+    except Exception as e:
+        err_msg = str(e)
         cursor.execute("""
             UPDATE self_service_password_logs 
             SET status = 'FAILED', notes = ? 

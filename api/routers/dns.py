@@ -22,6 +22,7 @@ import dns.rcode
 from api.core.config import BIND_OPTIONS_FILE, SMB_CONF_FILE
 from api.core.security import get_ad_creds
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
+from api.services.samdb_service import run_samba_tool_authenticated
 from api.schemas.dns_schema import (
     DnsRecordRequest,
     DnsRecordUpdateRequest,
@@ -338,8 +339,7 @@ def flush_dns_cache_endpoint(req: Optional[DnsCacheFlushRequest] = None):
 @router.get("/zones")
 def list_dns_zones():
     """Lists all Active Directory integrated DNS zones."""
-    admin_user, admin_pass = get_ad_creds()
-    code, stdout, stderr = run_cmd(["samba-tool", "dns", "zonelist", "127.0.0.1", f"-U{admin_user}", f"--password={admin_pass}"], timeout=10)
+    code, stdout, stderr = run_samba_tool_authenticated(["dns", "zonelist", "127.0.0.1"], timeout=10)
     zones = []
     if code == 0:
         for line in stdout.splitlines():
@@ -354,9 +354,7 @@ def list_dns_zones():
 @router.post("/zones")
 def create_dns_zone(req: DnsZoneCreateRequest):
     """Creates a new Active Directory integrated DNS forward or reverse lookup zone."""
-    admin_user, admin_pass = get_ad_creds()
-    cmd = ["samba-tool", "dns", "zonecreate", "127.0.0.1", req.zone_name.strip().lower(), f"-U{admin_user}", f"--password={admin_pass}"]
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
+    code, stdout, stderr = run_samba_tool_authenticated(["dns", "zonecreate", "127.0.0.1", req.zone_name.strip().lower()], timeout=15)
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to create zone: {stderr or stdout}")
     log_audit("DNS_ZONE_CREATED", "admin", req.zone_name, "SUCCESS", {})
@@ -487,9 +485,8 @@ def get_dns_records(zone: Optional[str] = None, refresh: bool = False):
             continue
         visited.add(node)
 
-        code, stdout, _ = run_cmd([
-            "samba-tool", "dns", "query", "127.0.0.1", zone, node, "ALL",
-            f"-U{admin_user}", f"--password={admin_pass}"
+        code, stdout, _ = run_samba_tool_authenticated([
+            "dns", "query", "127.0.0.1", zone, node, "ALL"
         ], timeout=8)
 
         if code != 0:
@@ -689,8 +686,9 @@ def add_dns_record(req: DnsRecordRequest):
         logger.warning(f"In-process RPC DNS add failed ({e}), falling back to CLI")
 
     if not added_via_rpc:
-        cmd = ["samba-tool", "dns", "add", "127.0.0.1", req.zone, req.record_name, rtype, data_str, f"-U{admin_user}", f"--password={admin_pass}"]
-        code, stdout, stderr = run_cmd(cmd, timeout=15)
+        code, stdout, stderr = run_samba_tool_authenticated([
+            "dns", "add", "127.0.0.1", req.zone, req.record_name, rtype, data_str
+        ], timeout=15)
         if code != 0:
             raise HTTPException(status_code=400, detail=f"Failed to add DNS record: {stderr or stdout}")
 
@@ -771,8 +769,9 @@ def update_dns_record(req: DnsRecordUpdateRequest):
         logger.warning(f"In-process RPC DNS update failed ({e}), falling back to CLI")
 
     if not updated_via_rpc:
-        cmd = ["samba-tool", "dns", "update", "127.0.0.1", req.zone, req.record_name, rtype, old_clean, new_data_str, f"-U{admin_user}", f"--password={admin_pass}"]
-        code, stdout, stderr = run_cmd(cmd, timeout=15)
+        code, stdout, stderr = run_samba_tool_authenticated([
+            "dns", "update", "127.0.0.1", req.zone, req.record_name, rtype, old_clean, new_data_str
+        ], timeout=15)
         if code != 0:
             raise HTTPException(status_code=400, detail=f"Failed to update DNS record: {stderr or stdout}")
 
@@ -791,7 +790,6 @@ def delete_dns_record(zone: str, record_name: str, record_type: str, record_data
             detail=f"Protected System Record: Active Directory & Kerberos service records ('{record_name}') cannot be deleted. Only custom records may be deleted."
         )
 
-    admin_user, admin_pass = get_ad_creds()
     clean_data = record_data.strip()
     rtype = record_type.upper()
     if rtype == "SRV" and "(" in clean_data:
@@ -808,8 +806,9 @@ def delete_dns_record(zone: str, record_name: str, record_type: str, record_data
     elif rtype == "TXT" and "," in clean_data and not clean_data.startswith('"'):
         clean_data = clean_data.replace(",", " ")
 
-    cmd = ["samba-tool", "dns", "delete", "127.0.0.1", zone, record_name, rtype, clean_data, f"-U{admin_user}", f"--password={admin_pass}"]
-    code, stdout, stderr = run_cmd(cmd, timeout=15)
+    code, stdout, stderr = run_samba_tool_authenticated([
+        "dns", "delete", "127.0.0.1", zone, record_name, rtype, clean_data
+    ], timeout=15)
     if code != 0:
         raise HTTPException(status_code=400, detail=f"Failed to delete DNS record: {stderr or stdout}")
 

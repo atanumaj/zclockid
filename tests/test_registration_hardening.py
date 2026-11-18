@@ -544,14 +544,14 @@ def test_invariant_9_tampered_ciphertext_sets_error_reregister(setup_isolated_en
 def test_invariant_10_password_never_in_run_cmd_argv(monkeypatch):
     """Invariant 10: Password never appears in run_cmd arguments during AD account provisioning."""
     captured_cmds = []
-    captured_inputs = []
+    samdb_user_calls = []
 
     def mock_run_cmd(cmd, timeout=30, input_data=None):
         captured_cmds.append(cmd)
-        captured_inputs.append(input_data)
         return (0, "User created successfully", "")
 
     monkeypatch.setattr(samba_svc, "run_cmd", mock_run_cmd)
+    monkeypatch.setattr(samba_svc, "samdb_newuser", lambda **kw: samdb_user_calls.append(kw))
 
     test_pw = "VeryConfidentialADPassword2026!"
     ok = samba_svc.provision_user_in_ad(
@@ -570,8 +570,10 @@ def test_invariant_10_password_never_in_run_cmd_argv(monkeypatch):
         cmd_str = " ".join(cmd)
         assert test_pw not in cmd_str, f"Password leaked in argv: {cmd_str}"
 
-    # Verify test_pw was passed cleanly via input_data stdin
-    assert any(captured_input and test_pw in captured_input for captured_input in captured_inputs)
+    # Verify user was created in-process via SamDB without CLI arguments
+    assert len(samdb_user_calls) == 1
+    assert samdb_user_calls[0]["username"] == "ad_user_inv10"
+    assert samdb_user_calls[0]["password"] == test_pw
 
 
 def test_invariant_11_takeover_prevention(setup_isolated_env):

@@ -533,6 +533,7 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
             orig_lookup = ss_mod.lookup_ad_user
             orig_run_cmd = ss_mod.run_cmd
             orig_creds = ss_mod.get_ad_creds
+            orig_setpw = getattr(ss_mod, "samdb_setpassword", None)
 
             ss_mod.get_ad_creds = lambda: ("Administrator", "MockPass123!")
             ss_mod.lookup_ad_user = lambda u: {
@@ -544,7 +545,9 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 "is_privileged": False
             }
             executed_cmds = []
+            setpassword_calls = []
             ss_mod.run_cmd = lambda cmd, **kwargs: (executed_cmds.append(cmd) or (0, "Password changed successfully", ""))
+            ss_mod.samdb_setpassword = lambda u, p: setpassword_calls.append((u, p))
 
             try:
                 # 1. Insert stored row for 'johndoe'
@@ -571,7 +574,7 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 })
                 assert res_caps.status_code == 200, f"Failed with uppercase username: {res_caps.text}"
                 assert res_caps.json().get("status") == "success"
-                assert executed_cmds[-1][0:4] == ["samba-tool", "user", "setpassword", "johndoe"]
+                assert setpassword_calls[-1] == ("johndoe", "NewSecretPass123!")
 
                 # 2. Call verify with email "johndoe@example.com"
                 code_2 = "654321"
@@ -596,7 +599,7 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 })
                 assert res_email.status_code == 200, f"Failed with email: {res_email.text}"
                 assert res_email.json().get("status") == "success"
-                assert executed_cmds[-1][0:4] == ["samba-tool", "user", "setpassword", "johndoe"]
+                assert setpassword_calls[-1] == ("johndoe", "NewSecretPass123!")
 
                 # 3. Call verify with UPN "johndoe@CORP.LOCAL"
                 code_3 = "789123"
@@ -621,12 +624,14 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 })
                 assert res_upn.status_code == 200, f"Failed with UPN: {res_upn.text}"
                 assert res_upn.json().get("status") == "success"
-                assert executed_cmds[-1][0:4] == ["samba-tool", "user", "setpassword", "johndoe"]
+                assert setpassword_calls[-1] == ("johndoe", "NewSecretPass123!")
 
             finally:
                 ss_mod.lookup_ad_user = orig_lookup
                 ss_mod.run_cmd = orig_run_cmd
                 ss_mod.get_ad_creds = orig_creds
+                if orig_setpw:
+                    ss_mod.samdb_setpassword = orig_setpw
         finally:
             _restore_environment(orig)
 

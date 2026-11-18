@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from api.core.config import CONFIG_DIR, DATA_DIR, DEFAULT_REALM
 from api.routers.auth import get_session_user, require_role
 from api.services.system_service import get_primary_realm, run_cmd, log_audit
+from api.services.samdb_service import samdb_newuser
 from api.schemas.federation_schema import (
     KeycloakFederationConfigResponse,
     KeytabGenerateRequest,
@@ -144,12 +145,9 @@ def generate_kerberos_keytab(req: KeytabGenerateRequest, user: dict = Depends(ge
     if check_user_code != 0:
         # Create user account with a random secure password
         temp_pass = f"Zc!{int(time.time())}#Adm"
-        create_code, _, create_err = run_cmd([
-            "samba-tool", "user", "create", account, temp_pass,
-            f"--description=Keycloak SSO Service Account"
-        ], timeout=8)
-        if create_code != 0:
-            # If account couldn't be created, check if user exists under different case
+        try:
+            samdb_newuser(username=account, password=temp_pass, description="Keycloak SSO Service Account")
+        except Exception:
             pass
 
     # 2. Add SPN to service account
