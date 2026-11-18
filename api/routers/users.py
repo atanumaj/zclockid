@@ -34,7 +34,9 @@ from api.services.samdb_service import (
     samdb_deletegroup,
     samdb_add_group_member,
     samdb_remove_group_member,
-    run_samba_tool_authenticated
+    run_samba_tool_authenticated,
+    escape_ldap_filter_value,
+    SamDBUnavailableError
 )
 from api.routers.auth import require_role
 from api.schemas.user_schema import (
@@ -57,6 +59,71 @@ PROTECTED_BUILTIN_GROUPS = {
     "read-only domain controllers", "enterprise read-only domain controllers",
     "dnsupdateproxy", "dnsadmins"
 }
+
+PRIVILEGED_GROUP_NAMES = {"domain admins", "enterprise admins", "schema admins", "administrators"}
+
+def is_privileged_ad_user(username: str) -> bool:
+    """
+    Returns True if user is a privileged account:
+    Administrator, krbtgt, Guest, or member of Domain Admins, Enterprise Admins,
+    Schema Admins, or Administrators.
+    """
+    clean_name = (username or "").lower().strip()
+    if clean_name in ("administrator", "krbtgt", "guest"):
+        return True
+
+    # Check MockSamDB state in mock test environments
+    try:
+        from api.services.samdb_service import get_samdb, MockSamDB
+        db = get_samdb()
+        if isinstance(db, MockSamDB):
+            for grp_name, gdata in db.groups.items():
+                if grp_name.lower() in PRIVILEGED_GROUP_NAMES:
+                    members = gdata.get("members", set())
+                    if username in members or clean_name in {m.lower() for m in members}:
+                        return True
+    except Exception:
+        pass
+
+    # Check live Active Directory sam.ldb
+    try:
+        clean_u = escape_ldap_filter_value(username)
+        code, stdout, _ = run_cmd([
+            "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+            f"(&(objectClass=user)(sAMAccountName={clean_u}))",
+            "memberOf", "adminCount"
+        ], timeout=5)
+        if code == 0:
+            for line in stdout.splitlines():
+                line = line.strip()
+                if line.startswith("adminCount:"):
+                    val = line.split(":", 1)[1].strip()
+                    if val == "1":
+                        return True
+                elif line.startswith("memberOf:"):
+                    line_lower = line.lower()
+                    for pg in PRIVILEGED_GROUP_NAMES:
+                        if f"cn={pg}," in line_lower or line_lower.endswith(f"cn={pg}"):
+                            return True
+
+            # Nested group membership query
+            realm = get_primary_realm()
+            if realm:
+                b_dn = ",".join([f"DC={p}" for p in realm.split(".") if p])
+                nested_filter = (
+                    f"(&(objectClass=user)(sAMAccountName={clean_u})"
+                    f"(|(memberOf:1.2.840.113556.1.4.1941:=CN=Domain Admins,CN=Users,{b_dn})"
+                    f"(memberOf:1.2.840.113556.1.4.1941:=CN=Enterprise Admins,CN=Users,{b_dn})"
+                    f"(memberOf:1.2.840.113556.1.4.1941:=CN=Schema Admins,CN=Users,{b_dn})"
+                    f"(memberOf:1.2.840.113556.1.4.1941:=CN=Administrators,CN=Builtin,{b_dn})))"
+                )
+                c_n, out_n, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), nested_filter, "dn"], timeout=5)
+                if c_n == 0 and "dn: " in out_n:
+                    return True
+    except Exception as e:
+        logger.warning("Error checking privileged account status for %s: %s", username, e)
+
+    return False
 
 @router.get("/users")
 def list_domain_users():
@@ -310,6 +377,8 @@ def create_domain_user(req: UserCreateRequest):
             mobile=req.mobile,
             department=req.department
         )
+    except HTTPException:
+        raise
     except Exception as e:
         err_out = str(e)
         if "check_password_restrictions" in err_out or "Constraint violation" in err_out:
@@ -370,9 +439,32 @@ def create_domain_user(req: UserCreateRequest):
     return {"status": "success", "username": req.username, "message": f"User {req.username} provisioned successfully."}
 
 @router.put("/users/{username}")
-def update_domain_user(username: str, req: UserUpdateRequest):
+def update_domain_user(
+    username: str,
+    req: UserUpdateRequest,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Updates user attributes, password, status, and bandwidth tier."""
-    code, stdout, stderr = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "dn"])
+    user_role = (current_user.get("role") or "").lower() if current_user else "admin"
+    if user_role != "fulladmin" and is_privileged_ad_user(username):
+        if req.new_password:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Resetting password on privileged accounts requires the fulladmin role."
+            )
+        if req.is_disabled is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Enabling or disabling privileged accounts requires the fulladmin role."
+            )
+        if req.password_never_expires is not None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Modifying password expiry settings on privileged accounts requires the fulladmin role."
+            )
+
+    clean_u = escape_ldap_filter_value(username)
+    code, stdout, stderr = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={clean_u})", "dn"])
     if code != 0:
         raise HTTPException(status_code=500, detail=f"Failed to query SAM LDB: {stderr}")
     dn = None
@@ -440,6 +532,8 @@ def update_domain_user(username: str, req: UserUpdateRequest):
     if req.new_password:
         try:
             samdb_setpassword(username, req.new_password)
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to reset password: {e}")
 
@@ -449,6 +543,8 @@ def update_domain_user(username: str, req: UserUpdateRequest):
                 samdb_disable_account(username)
             else:
                 samdb_enable_account(username)
+        except HTTPException:
+            raise
         except Exception as e:
             action = "disable" if req.is_disabled else "enable"
             raise HTTPException(status_code=400, detail=f"Failed to {action} user: {e}")
@@ -473,7 +569,7 @@ def update_domain_user(username: str, req: UserUpdateRequest):
             logger.warning(f"Failed to update user bandwidth profile: {e}")
 
     if req.groups is not None:
-        c_m, o_m, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "memberOf"])
+        c_m, o_m, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={escape_ldap_filter_value(username)})", "memberOf"])
         current_user_groups = set()
         if c_m == 0:
             for l in o_m.splitlines():
@@ -511,7 +607,7 @@ def update_domain_user(username: str, req: UserUpdateRequest):
             except Exception as e:
                 print(f"Failed to set noexpiry on {username}: {e}")
         else:
-            c_u, o_u, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "userAccountControl"])
+            c_u, o_u, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={escape_ldap_filter_value(username)})", "userAccountControl"])
             if c_u == 0:
                 for l in o_u.splitlines():
                     if l.strip().startswith("userAccountControl:"):
@@ -549,9 +645,10 @@ def apply_expiry_policy(current_user: dict = Depends(require_role("fulladmin")))
 @router.get("/users/{username}")
 def get_domain_user_detail(username: str):
     """Retrieves full user detail including msDS-ResultantPSO and password expiry date."""
+    clean_u = escape_ldap_filter_value(username)
     code, stdout, stderr = run_cmd([
         "ldbsearch", "-H", str(SAMBA_LDB_PATH),
-        f"(sAMAccountName={username})",
+        f"(sAMAccountName={clean_u})",
         "sAMAccountName", "userPrincipalName", "givenName", "sn", "displayName", "mail", "telephoneNumber",
         "department", "info", "userAccountControl", "memberOf", "employeeType", "comment", "description",
         "pwdLastSet", "msDS-ResultantPSO", "accountExpires"
@@ -596,43 +693,87 @@ def get_domain_user_detail(username: str):
     return user_data
 
 @router.post("/users/{username}/password")
-def set_user_password(username: str, req: UserPasswordReset):
+def set_user_password(
+    username: str,
+    req: UserPasswordReset,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Resets user password in Active Directory."""
+    if (current_user.get("role") or "").lower() != "fulladmin" and is_privileged_ad_user(username):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Modifying privileged Active Directory accounts requires the fulladmin role."
+        )
     try:
         samdb_setpassword(username, req.new_password)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to set password: {e}")
-    log_audit("USER_PASSWORD_RESET", "admin", username, "SUCCESS", {})
+    actor = current_user.get("username", "admin")
+    log_audit("USER_PASSWORD_RESET", actor, username, "SUCCESS", {})
     return {"status": "success", "message": f"Password updated for {username}."}
 
 @router.post("/users/{username}/disable")
-def disable_user(username: str):
+def disable_user(
+    username: str,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Disables an Active Directory user account."""
+    if (current_user.get("role") or "").lower() != "fulladmin" and is_privileged_ad_user(username):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Modifying privileged Active Directory accounts requires the fulladmin role."
+        )
     try:
         samdb_disable_account(username)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to disable user: {e}")
-    log_audit("USER_DISABLED", "admin", username, "SUCCESS", {})
+    actor = current_user.get("username", "admin")
+    log_audit("USER_DISABLED", actor, username, "SUCCESS", {})
     return {"status": "success", "message": f"User {username} disabled."}
 
 @router.post("/users/{username}/enable")
-def enable_user(username: str):
+def enable_user(
+    username: str,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Enables an Active Directory user account."""
+    if (current_user.get("role") or "").lower() != "fulladmin" and is_privileged_ad_user(username):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Modifying privileged Active Directory accounts requires the fulladmin role."
+        )
     try:
         samdb_enable_account(username)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to enable user: {e}")
-    log_audit("USER_ENABLED", "admin", username, "SUCCESS", {})
+    actor = current_user.get("username", "admin")
+    log_audit("USER_ENABLED", actor, username, "SUCCESS", {})
     return {"status": "success", "message": f"User {username} enabled."}
 
 @router.delete("/users/{username}")
-def delete_domain_user(username: str):
+def delete_domain_user(
+    username: str,
+    current_user: dict = Depends(require_role("operator", "fulladmin"))
+):
     """Permanently deletes a user account from Active Directory."""
     if username.lower() in ["administrator", "guest", "krbtgt"]:
         raise HTTPException(status_code=400, detail=f"Cannot delete critical system account '{username}'.")
+    if (current_user.get("role") or "").lower() != "fulladmin" and is_privileged_ad_user(username):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Modifying privileged Active Directory accounts requires the fulladmin role."
+        )
 
     try:
         samdb_deleteuser(username)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to delete user: {e}")
 
@@ -759,6 +900,8 @@ def create_domain_group(req: GroupCreateRequest):
     """Creates a new Active Directory Security Group and assigns optional Bandwidth policy."""
     try:
         samdb_newgroup(group_name=req.group_name, description=req.description)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to create group: {e}")
 
@@ -772,7 +915,8 @@ def create_domain_group(req: GroupCreateRequest):
             if p_row:
                 p = dict(p_row)
                 bw_tag = f"ZCLOCKID_BW:{p['name']};down={p['download_mbps']};up={p['upload_mbps']};sess={p.get('session_timeout_mins', 120)};idle={p.get('idle_timeout_mins', 30)};quota={p.get('daily_quota_mb', 0)}"
-                c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(&(objectClass=group)(sAMAccountName={req.group_name}))", "dn"])
+                clean_req_grp = escape_ldap_filter_value(req.group_name)
+                c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(&(objectClass=group)(sAMAccountName={clean_req_grp}))", "dn"])
                 if c_d == 0 and "dn: " in o_d:
                     for l in o_d.splitlines():
                         if l.startswith("dn: "):
@@ -793,7 +937,8 @@ def create_domain_group(req: GroupCreateRequest):
 @router.put("/groups/{group_name}")
 def update_domain_group(group_name: str, req: GroupUpdateRequest):
     """Updates Active Directory Security Group description and assigned Bandwidth policy."""
-    c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(&(objectClass=group)(sAMAccountName={group_name}))", "dn"])
+    clean_grp = escape_ldap_filter_value(group_name)
+    c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(&(objectClass=group)(sAMAccountName={clean_grp}))", "dn"])
     if c_d != 0 or "dn: " not in o_d:
         raise HTTPException(status_code=404, detail=f"Group '{group_name}' not found in Active Directory.")
 
@@ -874,6 +1019,8 @@ def delete_domain_group(group_name: str):
 
     try:
         samdb_deletegroup(group_name)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to delete group: {e}")
 
@@ -962,7 +1109,8 @@ def list_domain_computers():
 @router.delete("/computers/{computer_name}")
 def delete_domain_computer(computer_name: str):
     """Deletes a computer account from Active Directory."""
-    c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(&(objectClass=computer)(sAMAccountName={computer_name}$))", "dn"])
+    clean_comp = escape_ldap_filter_value(computer_name)
+    c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(&(objectClass=computer)(sAMAccountName={clean_comp}$))", "dn"])
     if c_d != 0 or "dn: " not in o_d:
         raise HTTPException(status_code=404, detail=f"Computer account '{computer_name}' not found.")
 

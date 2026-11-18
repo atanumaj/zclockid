@@ -1,12 +1,12 @@
 {
-  "version": "1.4.9",
-  "name": "ZclockID Enterprise v1.4.8.1",
+  "version": "1.4.9.1",
+  "name": "ZclockID Enterprise v1.4.9.1",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-17T19:15:00Z",
-  "summary": "Fix change-password wrong password 400 response code and show immediately expired users count in bulk expiry apply",
-  "notes": "### What's Changed in v1.4.8.1:\n* **Change Password Error Handling:** Fixed `/auth/change-password` returning 401 on wrong current password; now returns 400 Bad Request to prevent session token invalidation in the web management console.\n* **Bulk Expiry Policy Audit & Warning:** Pre-computes whether `(pwdLastSet + effective max-pwd-age)` is in the past for eligible accounts, displaying `immediate_expired_count` and usernames in the confirm modal, report API, and `APPLY_EXPIRY_POLICY` audit log.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.8.1_all.deb",
-  "package_name": "zclockid_1.4.8.1_all.deb",
+  "published_at": "2026-11-18T13:30:00Z",
+  "summary": "Fix fail-open in samdb_service, escape LDAP filter values with ldb.binary_encode, block privileged account edits for operator role, and secure temporary auth files in /run/zclockid",
+  "notes": "### What's Changed in v1.4.9.1:\n* **Fail-Closed SamDB:** `get_samdb()` fails closed with HTTP 503 if Samba AD service or bindings are unavailable; `MockSamDB` is restricted strictly to test runs. Registration approval preserves `PENDING_APPROVAL` status and `password_enc` upon provisioning failure.\n* **LDAP Filter Escaping:** All username and group filters sanitized via `ldb.binary_encode()` per RFC 4515 to prevent wildcard injection.\n* **Role Privileges Hardening:** Modifying privileged accounts (Administrator, krbtgt, Guest, Domain Admins members) restricted exclusively to `fulladmin`; operator role blocked with HTTP 403.\n* **Credential Isolation:** Temporary authentication files placed in root-only `0700` directory (`/run/zclockid`) and purged upon API startup.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.9.1_all.deb",
+  "package_name": "zclockid_1.4.9.1_all.deb",
   "min_version_required": "1.0.0"
 }

@@ -25,6 +25,13 @@ _TEST_DATA_DIR = os.path.join(tempfile.gettempdir(), "zclockid-test-data")
 os.makedirs(_TEST_DATA_DIR, mode=0o700, exist_ok=True)
 os.environ.setdefault("ZCLOCKID_DATA_DIR", _TEST_DATA_DIR)
 
+_TEST_AUTH_DIR = os.path.join(tempfile.gettempdir(), "zclockid-test-auth")
+os.makedirs(_TEST_AUTH_DIR, mode=0o700, exist_ok=True)
+os.environ.setdefault("ZCLOCKID_AUTH_DIR", _TEST_AUTH_DIR)
+
+# Enable MockSamDB explicitly for testing in environments without native Samba
+os.environ.setdefault("ZCLOCKID_SAMDB_MOCK", "1")
+
 
 def _snapshot_etc_zclockid():
     p = Path("/etc/zclockid")

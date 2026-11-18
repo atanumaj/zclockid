@@ -12,10 +12,11 @@ from api.core.config import SAMBA_LDB_PATH, DEFAULT_REALM
 from api.core.security import get_ad_creds, validate_ad_password_complexity
 from api.core.license import get_license_status
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
-from api.services.samdb_service import samdb_newuser, samdb_setexpiry, samdb_add_group_member
+from api.services.samdb_service import samdb_newuser, samdb_setexpiry, samdb_add_group_member, escape_ldap_filter_value
 
 def update_user_upn(username: str, new_upn: str) -> str:
-    code, stdout, stderr = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "dn"])
+    clean_u = escape_ldap_filter_value(username)
+    code, stdout, stderr = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={clean_u})", "dn"])
     if code != 0:
         raise Exception(f"Failed to query SAM LDB: {stderr}")
     dn = None
@@ -138,7 +139,8 @@ def provision_user_in_ad(
 
     # Active Directory Schema Attribute Synchronization via sam.ldb
     try:
-        c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "dn"])
+        clean_u = escape_ldap_filter_value(username)
+        c_d, o_d, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={clean_u})", "dn"])
         if c_d == 0 and "dn: " in o_d:
             u_dn = [l[4:].strip() for l in o_d.splitlines() if l.startswith("dn: ")][0]
             mod_lines = [f"dn: {u_dn}", "changetype: modify"]

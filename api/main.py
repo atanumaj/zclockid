@@ -202,6 +202,10 @@ def background_radius_drs_poller():
 @app.on_event("startup")
 def on_startup():
     init_db()
+    from api.services.samdb_service import cleanup_stale_auth_files
+    stale_cleaned = cleanup_stale_auth_files()
+    if stale_cleaned > 0:
+        logger.info("Cleaned up %d stale auth files at startup.", stale_cleaned)
     poller = threading.Thread(target=background_radius_drs_poller, daemon=True)
     poller.start()
     from api.services.registration_purge import start_registration_purge_worker

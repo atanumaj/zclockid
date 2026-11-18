@@ -19,7 +19,12 @@ from typing import Dict, Any, List, Optional, Tuple
 from api.core.config import DB_PATH, DATA_DIR, SAMBA_LDB_PATH, DEFAULT_REALM
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.core.security import get_ad_creds
-from api.services.samdb_service import samdb_newgroup, samdb_add_group_member, run_samba_tool_authenticated
+from api.services.samdb_service import (
+    samdb_newgroup,
+    samdb_add_group_member,
+    run_samba_tool_authenticated,
+    escape_ldap_filter_value
+)
 
 logger = logging.getLogger("zclockid.password_expiry")
 REMINDER_LOCK_FILE = DATA_DIR / "password_expiry_reminders.lock"
@@ -214,7 +219,7 @@ def get_user_password_info(username: str) -> Dict[str, Any]:
       days_remaining: float or None
       pwd_last_set: int (FileTime)
     """
-    clean_user = username.strip()
+    clean_user = escape_ldap_filter_value(username.strip())
     code, stdout, _ = run_cmd([
         "ldbsearch", "-H", str(SAMBA_LDB_PATH),
         f"(sAMAccountName={clean_user})",
@@ -562,7 +567,8 @@ def apply_bulk_expiry_policy(admin_user: str) -> Dict[str, Any]:
         new_uac = uac & ~65536  # Clear DONT_EXPIRE_PASSWORD (65536)
 
         # Look up user DN
-        c_dn, o_dn, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={username})", "dn"], timeout=5)
+        clean_u = escape_ldap_filter_value(username)
+        c_dn, o_dn, _ = run_cmd(["ldbsearch", "-H", str(SAMBA_LDB_PATH), f"(sAMAccountName={clean_u})", "dn"], timeout=5)
         if c_dn == 0 and "dn: " in o_dn:
             u_dn = [l[4:].strip() for l in o_dn.splitlines() if l.startswith("dn: ")][0]
             ldif = f"dn: {u_dn}\nchangetype: modify\nreplace: userAccountControl\nuserAccountControl: {new_uac}\n-\n"
