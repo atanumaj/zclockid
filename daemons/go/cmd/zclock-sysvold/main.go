@@ -240,10 +240,10 @@ func MergeTombstones(localManifest map[string]FileInfo, remoteTombstones []Tombs
 			continue
 		}
 
-		// Skip any remote tombstone whose (rel_path, deleted_at) matches an entry in rejected_tombstones for that partner
+		// Skip any remote tombstone whose (rel_path, deleted_at) matches an entry in rejected_tombstones regardless of which partner relays it
 		if state != nil && state.RejectedTombstones != nil {
 			if rej, hasRej := state.RejectedTombstones[rt.RelPath]; hasRej {
-				if (partnerIP == "" || rej.PartnerIP == "" || rej.PartnerIP == partnerIP) && math.Abs(rej.DeletedAt-rt.DeletedAt) < 0.001 {
+				if math.Abs(rej.DeletedAt-rt.DeletedAt) < 0.001 {
 					continue
 				}
 			}

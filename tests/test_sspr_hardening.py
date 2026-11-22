@@ -19,6 +19,7 @@ Validates security hardening for Self-Service Password Reset and Self-Registrati
 
 import os
 import re
+import secrets
 import time
 import tempfile
 import sqlite3
@@ -38,7 +39,7 @@ import api.routers.auth as auth_mod
 import api.routers.self_service as ss_mod
 import api.routers.registration as reg_mod
 import api.services.security_service as sec_svc
-from api.core.security import hash_otp, verify_otp_hash
+from api.core.security import hash_otp, verify_otp_hash, hash_reset_token, verify_reset_token_hash
 
 
 if pytest is not None:
@@ -202,12 +203,14 @@ def test_lock_after_5_wrong_codes():
             # Insert an active reset request with hashed OTP '123456'
             real_otp = "123456"
             hashed = hash_otp(real_otp)
+            reset_token = secrets.token_urlsafe(32)
+            reset_token_hash = hash_reset_token(reset_token)
             cursor.execute("""
                 INSERT INTO self_service_password_logs (
                     username, method, recipient, otp_code, otp_expires_at, status,
-                    ip_address, user_agent, created_at, failed_attempts
-                ) VALUES ('victim_user', 'EMAIL_OTP', 'registered email', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
-            """, (hashed, time.time() + 600, time.time()))
+                    ip_address, user_agent, created_at, failed_attempts, reset_token_hash
+                ) VALUES ('victim_user', 'EMAIL_OTP', 'registered email', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0, ?)
+            """, (hashed, time.time() + 600, time.time(), reset_token_hash))
             reset_id = cursor.lastrowid
             conn.commit()
             conn.close()
@@ -216,7 +219,7 @@ def test_lock_after_5_wrong_codes():
             for i in range(1, 5):
                 res = client.post("/api/v1/self-service/password/verify-and-reset", json={
                     "username": "victim_user",
-                    "reset_id": reset_id,
+                    "reset_token": reset_token,
                     "otp_code": f"00000{i}",
                     "new_password": "ValidNewPassword123!"
                 })
@@ -226,7 +229,7 @@ def test_lock_after_5_wrong_codes():
             # 5th wrong code: must lock the request
             res_5 = client.post("/api/v1/self-service/password/verify-and-reset", json={
                 "username": "victim_user",
-                "reset_id": reset_id,
+                "reset_token": reset_token,
                 "otp_code": "999999",
                 "new_password": "ValidNewPassword123!"
             })
@@ -236,7 +239,7 @@ def test_lock_after_5_wrong_codes():
             # 6th attempt (even with CORRECT code): must refuse because status is LOCKED
             res_locked = client.post("/api/v1/self-service/password/verify-and-reset", json={
                 "username": "victim_user",
-                "reset_id": reset_id,
+                "reset_token": reset_token,
                 "otp_code": real_otp,
                 "new_password": "ValidNewPassword123!"
             })
@@ -328,12 +331,14 @@ def test_administrator_and_privileged_accounts_refused():
             cursor = conn.cursor()
             real_admin_otp = "123456"
             admin_otp_hash = hash_otp(real_admin_otp)
+            admin_token = secrets.token_urlsafe(32)
+            admin_token_hash = hash_reset_token(admin_token)
             cursor.execute("""
                 INSERT INTO self_service_password_logs (
                     username, method, recipient, otp_code, otp_expires_at, status,
-                    ip_address, user_agent, created_at, failed_attempts
-                ) VALUES ('Administrator', 'EMAIL_OTP', 'admin@corp.local', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
-            """, (admin_otp_hash, time.time() + 600, time.time()))
+                    ip_address, user_agent, created_at, failed_attempts, reset_token_hash
+                ) VALUES ('Administrator', 'EMAIL_OTP', 'admin@corp.local', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0, ?)
+            """, (admin_otp_hash, time.time() + 600, time.time(), admin_token_hash))
             admin_reset_id = cursor.lastrowid
             conn.commit()
             conn.close()
@@ -341,7 +346,7 @@ def test_administrator_and_privileged_accounts_refused():
             # Wrong code -> 400 (not 403)
             res_wrong = client.post("/api/v1/self-service/password/verify-and-reset", json={
                 "username": "Administrator",
-                "reset_id": admin_reset_id,
+                "reset_token": admin_token,
                 "otp_code": "000000",
                 "new_password": "NewValidPassword123!"
             })
@@ -350,7 +355,7 @@ def test_administrator_and_privileged_accounts_refused():
             # Valid code -> post-verification privilege check triggers 403
             res_admin_reset = client.post("/api/v1/self-service/password/verify-and-reset", json={
                 "username": "Administrator",
-                "reset_id": admin_reset_id,
+                "reset_token": admin_token,
                 "otp_code": real_admin_otp,
                 "new_password": "NewValidPassword123!"
             })
@@ -462,9 +467,11 @@ def test_identical_responses_for_existing_and_nonexistent_users():
                 assert data_exist["message"] == data_nonexist["message"]
                 assert data_exist["recipient_masked"] == data_nonexist["recipient_masked"] == "registered email"
 
-                # Ensure reset_id is present in both without disclosing existence
-                assert isinstance(data_exist["reset_id"], int)
-                assert isinstance(data_nonexist["reset_id"], int)
+                # Ensure reset_id is NOT returned and reset_token of identical shape is returned
+                assert "reset_id" not in data_exist
+                assert "reset_id" not in data_nonexist
+                assert isinstance(data_exist["reset_token"], str) and len(data_exist["reset_token"]) >= 32
+                assert isinstance(data_nonexist["reset_token"], str) and len(data_nonexist["reset_token"]) >= 32
 
             finally:
                 ss_mod.lookup_ad_user = orig_lookup
@@ -553,14 +560,16 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 # 1. Insert stored row for 'johndoe'
                 code_1 = "123456"
                 hash_1 = hash_otp(code_1)
+                token_1 = secrets.token_urlsafe(32)
+                hash_tok_1 = hash_reset_token(token_1)
                 conn = sqlite3.connect(db_file)
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO self_service_password_logs (
                         username, method, recipient, otp_code, otp_expires_at, status,
-                        ip_address, user_agent, created_at, failed_attempts
-                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
-                """, (hash_1, time.time() + 600, time.time()))
+                        ip_address, user_agent, created_at, failed_attempts, reset_token_hash
+                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0, ?)
+                """, (hash_1, time.time() + 600, time.time(), hash_tok_1))
                 reset_id_1 = cursor.lastrowid
                 conn.commit()
                 conn.close()
@@ -568,7 +577,7 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 # Call verify with uppercase username "JOHNDOE"
                 res_caps = client.post("/api/v1/self-service/password/verify-and-reset", json={
                     "username": "JOHNDOE",
-                    "reset_id": reset_id_1,
+                    "reset_token": token_1,
                     "otp_code": code_1,
                     "new_password": "NewSecretPass123!"
                 })
@@ -579,21 +588,23 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 # 2. Call verify with email "johndoe@example.com"
                 code_2 = "654321"
                 hash_2 = hash_otp(code_2)
+                token_2 = secrets.token_urlsafe(32)
+                hash_tok_2 = hash_reset_token(token_2)
                 conn = sqlite3.connect(db_file)
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO self_service_password_logs (
                         username, method, recipient, otp_code, otp_expires_at, status,
-                        ip_address, user_agent, created_at, failed_attempts
-                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
-                """, (hash_2, time.time() + 600, time.time()))
+                        ip_address, user_agent, created_at, failed_attempts, reset_token_hash
+                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0, ?)
+                """, (hash_2, time.time() + 600, time.time(), hash_tok_2))
                 reset_id_2 = cursor.lastrowid
                 conn.commit()
                 conn.close()
 
                 res_email = client.post("/api/v1/self-service/password/verify-and-reset", json={
                     "username": "johndoe@example.com",
-                    "reset_id": reset_id_2,
+                    "reset_token": token_2,
                     "otp_code": code_2,
                     "new_password": "NewSecretPass123!"
                 })
@@ -604,24 +615,29 @@ def test_verify_accepts_email_upn_and_case_insensitive_username():
                 # 3. Call verify with UPN "johndoe@CORP.LOCAL"
                 code_3 = "789123"
                 hash_3 = hash_otp(code_3)
+                token_3 = secrets.token_urlsafe(32)
+                hash_tok_3 = hash_reset_token(token_3)
                 conn = sqlite3.connect(db_file)
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO self_service_password_logs (
                         username, method, recipient, otp_code, otp_expires_at, status,
-                        ip_address, user_agent, created_at, failed_attempts
-                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0)
-                """, (hash_3, time.time() + 600, time.time()))
+                        ip_address, user_agent, created_at, failed_attempts, reset_token_hash
+                    ) VALUES ('johndoe', 'EMAIL_OTP', 'johndoe@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0, ?)
+                """, (hash_3, time.time() + 600, time.time(), hash_tok_3))
                 reset_id_3 = cursor.lastrowid
                 conn.commit()
                 conn.close()
 
                 res_upn = client.post("/api/v1/self-service/password/verify-and-reset", json={
                     "username": "johndoe@CORP.LOCAL",
-                    "reset_id": reset_id_3,
+                    "reset_token": token_3,
                     "otp_code": code_3,
                     "new_password": "NewSecretPass123!"
                 })
+                assert res_upn.status_code == 200, f"Failed with UPN: {res_upn.text}"
+                assert res_upn.json().get("status") == "success"
+                assert setpassword_calls[-1] == ("johndoe", "NewSecretPass123!")
                 assert res_upn.status_code == 200, f"Failed with UPN: {res_upn.text}"
                 assert res_upn.json().get("status") == "success"
                 assert setpassword_calls[-1] == ("johndoe", "NewSecretPass123!")
@@ -676,25 +692,25 @@ def test_fake_request_ineligible_user_indistinguishable_from_real_user():
                 # 1. Request OTP for real user
                 r_real = client.post("/api/v1/self-service/password/request-otp", json={"username": "real_user", "channel": "email"})
                 assert r_real.status_code == 200
-                reset_id_real = r_real.json()["reset_id"]
+                token_real = r_real.json()["reset_token"]
 
                 # 2. Request OTP for ineligible/nonexistent user
                 r_fake = client.post("/api/v1/self-service/password/request-otp", json={"username": "fake_user", "channel": "email"})
                 assert r_fake.status_code == 200
-                reset_id_fake = r_fake.json()["reset_id"]
+                token_fake = r_fake.json()["reset_token"]
 
                 # Compare verify responses for attempts 1 through 4
                 for attempt in range(1, 5):
                     wrong_code = f"88888{attempt}"
                     res_real = client.post("/api/v1/self-service/password/verify-and-reset", json={
                         "username": "real_user",
-                        "reset_id": reset_id_real,
+                        "reset_token": token_real,
                         "otp_code": wrong_code,
                         "new_password": "NewPassword123!"
                     })
                     res_fake = client.post("/api/v1/self-service/password/verify-and-reset", json={
                         "username": "fake_user",
-                        "reset_id": reset_id_fake,
+                        "reset_token": token_fake,
                         "otp_code": wrong_code,
                         "new_password": "NewPassword123!"
                     })
@@ -707,13 +723,13 @@ def test_fake_request_ineligible_user_indistinguishable_from_real_user():
                 # 5th attempt: both must lock with identical message
                 res_real_5 = client.post("/api/v1/self-service/password/verify-and-reset", json={
                     "username": "real_user",
-                    "reset_id": reset_id_real,
+                    "reset_token": token_real,
                     "otp_code": "000000",
                     "new_password": "NewPassword123!"
                 })
                 res_fake_5 = client.post("/api/v1/self-service/password/verify-and-reset", json={
                     "username": "fake_user",
-                    "reset_id": reset_id_fake,
+                    "reset_token": token_fake,
                     "otp_code": "000000",
                     "new_password": "NewPassword123!"
                 })
@@ -726,9 +742,9 @@ def test_fake_request_ineligible_user_indistinguishable_from_real_user():
                 # Verify database records for both
                 conn = sqlite3.connect(db_file)
                 cursor = conn.cursor()
-                cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE id = ?", (reset_id_real,))
+                cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE reset_token_hash = ?", (hash_reset_token(token_real),))
                 row_real = cursor.fetchone()
-                cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE id = ?", (reset_id_fake,))
+                cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE reset_token_hash = ?", (hash_reset_token(token_fake),))
                 row_fake = cursor.fetchone()
                 conn.close()
 
@@ -987,6 +1003,91 @@ def test_public_password_config_reports_only_configured_channels():
             cfg3 = r3.json()
             assert cfg3["allow_email_reset"] is True
             assert cfg3["allow_otp_reset"] is True
+        finally:
+            _restore_environment(orig)
+
+
+def test_guessing_or_incrementing_ids_cannot_lock_reset():
+    """v1.5.3: Guessing or incrementing IDs cannot lock someone else's pending reset; 5 wrong codes with the right token still lock it."""
+    with tempfile.TemporaryDirectory() as td:
+        tmp_dir = Path(td)
+        db_file, _, orig = _setup_test_environment(tmp_dir)
+        try:
+            client = TestClient(app, raise_server_exceptions=False, client=("127.0.0.1", 50000))
+
+            # Setup a pending reset for victim_user
+            victim_token = secrets.token_urlsafe(32)
+            victim_token_hash = hash_reset_token(victim_token)
+            victim_otp = "123456"
+            victim_otp_hash = hash_otp(victim_otp)
+
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO self_service_password_logs (
+                    username, method, recipient, otp_code, otp_expires_at, status,
+                    ip_address, user_agent, created_at, failed_attempts, reset_token_hash
+                ) VALUES ('victim_user', 'EMAIL_OTP', 'victim@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', 'pytest', ?, 0, ?)
+            """, (victim_otp_hash, time.time() + 600, time.time(), victim_token_hash))
+            victim_db_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            # Attacker tries to attack by guessing / incrementing reset_id (1, 2, 3...)
+            for guess_id in range(1, 10):
+                r_guess_id = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "reset_id": guess_id,
+                    "otp_code": "000000",
+                    "new_password": "AttackerPassword123!"
+                })
+                # reset_id is rejected and reset_token is required -> 400 or 422
+                assert r_guess_id.status_code in (400, 422)
+
+            # Attacker tries to attack by sending guessed random tokens
+            for _ in range(5):
+                random_guessed_token = secrets.token_urlsafe(32)
+                r_guess_tok = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "reset_token": random_guessed_token,
+                    "otp_code": "000000",
+                    "new_password": "AttackerPassword123!"
+                })
+                assert r_guess_tok.status_code == 404
+
+            # Verify victim's pending reset is completely untouched in database
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE id = ?", (victim_db_id,))
+            row = cursor.fetchone()
+            conn.close()
+            assert row[0] == "PENDING_OTP"
+            assert row[1] == 0, f"Victim failed_attempts should still be 0, got {row[1]}"
+
+            # Now, with the RIGHT reset_token, submitting 5 wrong codes locks it
+            for i in range(1, 5):
+                r_wrong = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                    "reset_token": victim_token,
+                    "otp_code": f"99999{i}",
+                    "new_password": "NewSecretPassword123!"
+                })
+                assert r_wrong.status_code == 400
+                assert "attempts remaining" in r_wrong.json().get("detail", "").lower()
+
+            r_lock = client.post("/api/v1/self-service/password/verify-and-reset", json={
+                "reset_token": victim_token,
+                "otp_code": "000000",
+                "new_password": "NewSecretPassword123!"
+            })
+            assert r_lock.status_code == 400
+            assert "locked" in r_lock.json().get("detail", "").lower()
+
+            # Verify victim's pending reset is now LOCKED with 5 failed attempts
+            conn = sqlite3.connect(db_file)
+            cursor = conn.cursor()
+            cursor.execute("SELECT status, failed_attempts FROM self_service_password_logs WHERE id = ?", (victim_db_id,))
+            row_locked = cursor.fetchone()
+            conn.close()
+            assert row_locked[0] == "LOCKED"
+            assert row_locked[1] == 5
         finally:
             _restore_environment(orig)
 

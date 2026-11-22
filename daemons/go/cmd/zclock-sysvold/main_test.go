@@ -540,3 +540,57 @@ func TestCleanupEmptyDirs(t *testing.T) {
 		t.Errorf("Protected domain root directory was incorrectly removed!")
 	}
 }
+
+func TestMergeTombstones_ThreeNodeRelayRejectKeepsFile(t *testing.T) {
+	// Three-node simulation: A deletes, B rejects (restore), C relays A's tombstone to B -> B keeps the file
+	now := float64(time.Now().Unix())
+	delTime := now - 60
+	filePath := "cybertechie.net/scripts/logon.bat"
+	fileHash := "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+
+	// Node B's local manifest has the file
+	localManifest := map[string]FileInfo{
+		filePath: {
+			Hash:  fileHash,
+			Mtime: delTime - 100,
+			Size:  256,
+		},
+	}
+
+	// Node A (10.0.0.1) deleted the file at delTime.
+	// Node B previously received Node A's deletion and rejected it (restoring the file).
+	// This recorded a rejection entry under B's RejectedTombstones:
+	state := &SysvolState{
+		Files:      make(map[string]FileInfo),
+		Tombstones: make(map[string]Tombstone),
+		RejectedTombstones: map[string]RejectedTombstone{
+			filePath: {
+				DeletedAt: delTime,
+				PartnerIP: "10.0.0.1", // Originated by Node A
+			},
+		},
+	}
+
+	// Node C (10.0.0.3) now relays Node A's original tombstone to Node B (with PartnerIP = "10.0.0.3")
+	tombstoneFromC := []Tombstone{
+		{
+			RelPath:      filePath,
+			DeletedAt:    delTime,
+			HashAtDelete: fileHash,
+		},
+	}
+
+	// Node B runs MergeTombstones with partnerIP="10.0.0.3" (Node C)
+	toDelete, conflicts, tripped := MergeTombstones(localManifest, tombstoneFromC, state, "10.0.0.3", nil)
+
+	// Since Node B rejected this deletion (rel_path and deleted_at match), Node C's relay must be skipped
+	if len(toDelete) != 0 {
+		t.Fatalf("Expected 0 files to delete (B should keep file despite C relaying), got: %v", toDelete)
+	}
+	if tripped {
+		t.Fatalf("Expected tripped=false, got tripped=true")
+	}
+	if conflicts != 0 {
+		t.Fatalf("Expected 0 conflicts, got %d", conflicts)
+	}
+}

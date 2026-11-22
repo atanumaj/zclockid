@@ -331,7 +331,8 @@ def init_db(db_path=None):
             created_at REAL,
             completed_at REAL,
             notes TEXT,
-            failed_attempts INTEGER DEFAULT 0
+            failed_attempts INTEGER DEFAULT 0,
+            reset_token_hash TEXT
         )
     """)
 
@@ -340,6 +341,9 @@ def init_db(db_path=None):
     existing_sspr_cols = [row[1] for row in cursor.fetchall()]
     if "failed_attempts" not in existing_sspr_cols:
         cursor.execute("ALTER TABLE self_service_password_logs ADD COLUMN failed_attempts INTEGER DEFAULT 0")
+    if "reset_token_hash" not in existing_sspr_cols:
+        cursor.execute("ALTER TABLE self_service_password_logs ADD COLUMN reset_token_hash TEXT")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sspr_logs_token_hash ON self_service_password_logs(reset_token_hash)")
 
     # SSPR Rate Limiting Attempts
     cursor.execute("""

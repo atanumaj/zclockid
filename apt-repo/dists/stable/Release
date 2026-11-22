@@ -5,19 +5,19 @@ Codename: stable
 Architectures: amd64 all
 Components: main
 Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
-Date: Sun, 22 Nov 2026 17:30:34 UTC
+Date: Sun, 22 Nov 2026 18:01:20 UTC
 MD5Sum:
- 07be8fac6f496bfefa4f29c3cd323f50 71783 main/binary-amd64/Packages
- f31450c9a34ca93ee8c76840cc8388fb 6750 main/binary-amd64/Packages.gz
- 07be8fac6f496bfefa4f29c3cd323f50 71783 main/binary-all/Packages
- f31450c9a34ca93ee8c76840cc8388fb 6750 main/binary-all/Packages.gz
+ 45453503fdb390287adcff92b1b29799 73065 main/binary-amd64/Packages
+ 5a12db0b8b3384a782d87f7f7953a29e 6853 main/binary-amd64/Packages.gz
+ 45453503fdb390287adcff92b1b29799 73065 main/binary-all/Packages
+ 5a12db0b8b3384a782d87f7f7953a29e 6853 main/binary-all/Packages.gz
 SHA1:
- 59eb8109d12881bfc871df2c05bbf0098c93d312 71783 main/binary-amd64/Packages
- eb6be310e5f096da71d2111f7cbe1ca7a9272fb8 6750 main/binary-amd64/Packages.gz
- 59eb8109d12881bfc871df2c05bbf0098c93d312 71783 main/binary-all/Packages
- eb6be310e5f096da71d2111f7cbe1ca7a9272fb8 6750 main/binary-all/Packages.gz
+ b0c2f6d534227a13ccd86dd4e7d47f582097764c 73065 main/binary-amd64/Packages
+ 7c59da641e5542b0af080d9b2463d2f8a8579cef 6853 main/binary-amd64/Packages.gz
+ b0c2f6d534227a13ccd86dd4e7d47f582097764c 73065 main/binary-all/Packages
+ 7c59da641e5542b0af080d9b2463d2f8a8579cef 6853 main/binary-all/Packages.gz
 SHA256:
- fef4a3bf5c18926dd8871b34335fadd2d1f088bb11fe3ec91391bcd67560b982 71783 main/binary-amd64/Packages
- f8f73ec60a83a9e2bd2dc71ab3d42a73bd5dacc2a2c6d5740e5737f4e5e94f6c 6750 main/binary-amd64/Packages.gz
- fef4a3bf5c18926dd8871b34335fadd2d1f088bb11fe3ec91391bcd67560b982 71783 main/binary-all/Packages
- f8f73ec60a83a9e2bd2dc71ab3d42a73bd5dacc2a2c6d5740e5737f4e5e94f6c 6750 main/binary-all/Packages.gz
+ 55f5e225372c683462c869943ef14a85c337768b4978056020ba4fa8ee1e278c 73065 main/binary-amd64/Packages
+ 3d5702ccba3397f5def77a48590d09c6800b1557dcc5a5bc16d184cbfd0305ac 6853 main/binary-amd64/Packages.gz
+ 55f5e225372c683462c869943ef14a85c337768b4978056020ba4fa8ee1e278c 73065 main/binary-all/Packages
+ 3d5702ccba3397f5def77a48590d09c6800b1557dcc5a5bc16d184cbfd0305ac 6853 main/binary-all/Packages.gz

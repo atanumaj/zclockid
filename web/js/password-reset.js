@@ -10,7 +10,7 @@ function escapeHtml(s) {
         }
 
         let currentMethod = 'old';
-        let activeResetId = null;
+        let activeResetToken = null;
         let activeUsername = null;
         let portalConfig = null;
 
@@ -252,7 +252,7 @@ function escapeHtml(s) {
                     throw new Error(data.detail || 'Failed to dispatch verification code.');
                 }
 
-                activeResetId = data.reset_id;
+                activeResetToken = data.reset_token;
                 activeUsername = data.username;
 
                 document.getElementById('verify-account-name').innerText = data.username;
@@ -303,7 +303,7 @@ function escapeHtml(s) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        reset_id: activeResetId,
+                        reset_token: activeResetToken,
                         username: activeUsername,
                         otp_code: otpCode,
                         new_password: newPassword

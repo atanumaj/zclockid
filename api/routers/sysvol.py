@@ -334,8 +334,12 @@ def list_sysvol_partners():
 
 
 @router.post("/partners")
-def add_sysvol_partner(req: SysvolPartnerRequest, user: dict = Depends(require_role("operator"))):
-    """Registers an additional Domain Controller with mutual secret and pinned TLS certificate fingerprint."""
+def add_sysvol_partner(req: SysvolPartnerRequest, user: dict = Depends(require_role("fulladmin"))):
+    """Registers an additional Domain Controller with mutual secret and pinned TLS certificate fingerprint (requires fulladmin)."""
+    # confirm=true without cert_fingerprint is rejected
+    if req.confirm and not req.cert_fingerprint:
+        raise HTTPException(status_code=400, detail="Missing required 'cert_fingerprint' when confirm is true.")
+
     probe = None
     try:
         probe = probe_peer_tls_certificate(req.ip_address)
@@ -357,11 +361,24 @@ def add_sysvol_partner(req: SysvolPartnerRequest, user: dict = Depends(require_r
             }
         }
 
+    # Saving requires cert_fingerprint = the value the admin was shown
+    if not req.cert_fingerprint:
+        raise HTTPException(status_code=400, detail="Missing required 'cert_fingerprint'.")
+
+    submitted_fp = req.cert_fingerprint.strip().upper()
+    if probe and probe.get("fingerprint"):
+        probed_fp = probe["fingerprint"].strip().upper()
+        if probed_fp != submitted_fp:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Certificate fingerprint mismatch: probed peer fingerprint is '{probed_fp}', but submitted fingerprint is '{submitted_fp}'. Partner not saved."
+            )
+
     partner_dict = {
         "name": req.name,
         "ip_address": req.ip_address,
         "shared_secret": req.shared_secret,
-        "cert_fingerprint": req.cert_fingerprint or (probe["fingerprint"] if probe else None),
+        "cert_fingerprint": req.cert_fingerprint,
         "cert_pem": probe["cert_pem"] if probe else None
     }
 

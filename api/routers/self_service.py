@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status, UploadF
 from fastapi.responses import PlainTextResponse
 
 from api.core.config import DB_PATH, SAMBA_LDB_PATH, DATA_DIR, WEB_DIR
-from api.core.security import get_ad_creds, validate_ad_password_complexity, hash_otp, verify_otp_hash
+from api.core.security import get_ad_creds, validate_ad_password_complexity, hash_otp, verify_otp_hash, hash_reset_token, verify_reset_token_hash
 from api.services.system_service import run_cmd, log_audit, get_primary_realm
 from api.services.samdb_service import samdb_setpassword
 from api.services.security_service import get_client_ip
@@ -523,12 +523,14 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
         unusable_hash = hash_otp(unusable_otp)
         expiry_min = int(settings.get("otp_expiry_minutes", 10))
         expires_at = time.time() + (expiry_min * 60)
+        reset_token = secrets.token_urlsafe(32)
+        token_hash = hash_reset_token(reset_token)
 
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
-                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
-            ) VALUES (?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, ?, 0)
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts, reset_token_hash
+            ) VALUES (?, ?, ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, ?, 0, ?)
         """, (
             clean_user,
             "EMAIL_OTP" if channel == "email" else "SMS_OTP",
@@ -538,9 +540,9 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
             client_ip,
             request.headers.get("User-Agent", ""),
             time.time(),
-            f"[INELIGIBLE] {ineligible_reason}"
+            f"[INELIGIBLE] {ineligible_reason}",
+            token_hash
         ))
-        dummy_id = cursor.lastrowid
         conn.commit()
         conn.close()
 
@@ -554,7 +556,7 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
 
         return {
             "status": "otp_sent",
-            "reset_id": dummy_id,
+            "reset_token": reset_token,
             "username": clean_user,
             "channel": channel,
             "recipient_masked": generic_recipient,
@@ -567,16 +569,17 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
     otp_hashed = hash_otp(otp)
     expiry_min = int(settings.get("otp_expiry_minutes", 10))
     expires_at = time.time() + (expiry_min * 60)
+    reset_token = secrets.token_urlsafe(32)
+    token_hash = hash_reset_token(reset_token)
 
     if channel == "email":
         user_email = user_info["email"]
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
-                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
-            ) VALUES (?, 'EMAIL_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered email', 0)
-        """, (real_username, user_email, otp_hashed, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time()))
-        reset_id = cursor.lastrowid
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts, reset_token_hash
+            ) VALUES (?, 'EMAIL_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered email', 0, ?)
+        """, (real_username, user_email, otp_hashed, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time(), token_hash))
         conn.commit()
         conn.close()
 
@@ -587,7 +590,7 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
 
         return {
             "status": "otp_sent",
-            "reset_id": reset_id,
+            "reset_token": reset_token,
             "username": clean_user,
             "channel": "email",
             "recipient_masked": generic_recipient,
@@ -598,10 +601,9 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
         cursor.execute("""
             INSERT INTO self_service_password_logs (
                 username, method, recipient, otp_code, otp_expires_at, status,
-                ip_address, user_agent, created_at, completed_at, notes, failed_attempts
-            ) VALUES (?, 'SMS_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered mobile', 0)
-        """, (real_username, user_mobile, otp_hashed, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time()))
-        reset_id = cursor.lastrowid
+                ip_address, user_agent, created_at, completed_at, notes, failed_attempts, reset_token_hash
+            ) VALUES (?, 'SMS_OTP', ?, ?, ?, 'PENDING_OTP', ?, ?, ?, NULL, 'Verification code dispatched to registered mobile', 0, ?)
+        """, (real_username, user_mobile, otp_hashed, expires_at, client_ip, request.headers.get("User-Agent", ""), time.time(), token_hash))
         conn.commit()
         conn.close()
 
@@ -612,7 +614,7 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
 
         return {
             "status": "otp_sent",
-            "reset_id": reset_id,
+            "reset_token": reset_token,
             "username": clean_user,
             "channel": "sms",
             "recipient_masked": generic_recipient,
@@ -623,28 +625,37 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
 @router.post("/password/verify-and-reset")
 def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Request):
     """Verifies the dispatched OTP code and resets the user's password in Active Directory."""
+    if req.reset_id is not None:
+        raise HTTPException(status_code=400, detail="reset_id is no longer accepted. Please use reset_token.")
+
     settings = get_sspr_settings()
     if not settings.get("enabled", 1):
         raise HTTPException(status_code=403, detail="Self Service Password Reset is currently disabled by administrator.")
 
     client_ip = get_client_ip(request)
     clean_otp = (req.otp_code or "").strip()
+    provided_token = (req.reset_token or "").strip()
+    if not provided_token:
+        raise HTTPException(status_code=400, detail="Missing required reset_token.")
+
+    provided_token_hash = hash_reset_token(provided_token)
 
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # Look up by reset_id ONLY and take username from the stored row
+    # Look up by reset_token_hash ONLY and take username from the stored row
     cursor.execute("""
         SELECT * FROM self_service_password_logs 
-        WHERE id = ?
-    """, (req.reset_id,))
+        WHERE reset_token_hash = ?
+    """, (provided_token_hash,))
     log_entry = cursor.fetchone()
 
-    if not log_entry:
+    if not log_entry or not secrets.compare_digest(log_entry["reset_token_hash"] or "", provided_token_hash):
         conn.close()
         raise HTTPException(status_code=404, detail="Invalid password reset request identifier.")
 
+    log_id = log_entry["id"]
     target_user = log_entry["username"]
 
     # Enforce daily attempt limit per username and per client IP across SSPR
@@ -664,7 +675,7 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
         raise HTTPException(status_code=400, detail="This reset request has already been used or has expired.")
 
     if time.time() > log_entry["otp_expires_at"]:
-        cursor.execute("UPDATE self_service_password_logs SET status = 'EXPIRED' WHERE id = ?", (req.reset_id,))
+        cursor.execute("UPDATE self_service_password_logs SET status = 'EXPIRED' WHERE id = ?", (log_id,))
         conn.commit()
         conn.close()
         raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new code.")
@@ -678,15 +689,15 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
             UPDATE self_service_password_logs 
             SET failed_attempts = ?, status = ?, notes = notes || ' | Incorrect OTP attempt'
             WHERE id = ?
-        """, (failed_attempts, new_status, req.reset_id))
+        """, (failed_attempts, new_status, log_id))
         conn.commit()
         conn.close()
 
         if failed_attempts >= 5:
-            log_audit("SSPR_REQUEST_LOCKED", target_user, "sspr", "LOCKED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
+            log_audit("SSPR_REQUEST_LOCKED", target_user, "sspr", "LOCKED", {"reset_id": log_id, "ip": client_ip, "attempts": failed_attempts})
             raise HTTPException(status_code=400, detail="Too many failed verification attempts. This request has been locked.")
         else:
-            log_audit("SSPR_OTP_FAILED", target_user, "sspr", "FAILED", {"reset_id": req.reset_id, "ip": client_ip, "attempts": failed_attempts})
+            log_audit("SSPR_OTP_FAILED", target_user, "sspr", "FAILED", {"reset_id": log_id, "ip": client_ip, "attempts": failed_attempts})
             raise HTTPException(status_code=400, detail=f"Invalid verification code entered ({5 - failed_attempts} attempts remaining). Please try again.")
 
     # Ineligible fake request check (unusable OTP would never match, but safety check)
@@ -732,7 +743,7 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
             UPDATE self_service_password_logs 
             SET status = 'FAILED', notes = ? 
             WHERE id = ?
-        """, (f"Active Directory reset failed: {err_msg}", req.reset_id))
+        """, (f"Active Directory reset failed: {err_msg}", log_id))
         conn.commit()
         conn.close()
         raise HTTPException(status_code=400, detail=f"Failed to set new password in Active Directory: {err_msg}")
@@ -742,11 +753,13 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
         UPDATE self_service_password_logs 
         SET status = 'COMPLETED', completed_at = ?, notes = 'Password reset completed via OTP'
         WHERE id = ?
-    """, (time.time(), req.reset_id))
+    """, (time.time(), log_id))
     conn.commit()
     conn.close()
 
     log_audit("SSPR_PASSWORD_RESET_SUCCESS", canonical_user, "active_directory", "SUCCESS", {"method": log_entry["method"], "ip": client_ip})
+
+
 
     return {
         "status": "success",

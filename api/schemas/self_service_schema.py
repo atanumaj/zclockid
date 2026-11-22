@@ -16,10 +16,11 @@ class PasswordResetOtpRequest(BaseModel):
     channel: str = Field(..., pattern="^(email|sms)$")
 
 class PasswordResetVerifyRequest(BaseModel):
-    reset_id: int
-    username: str
+    reset_token: str = Field(..., min_length=16, description="Random 32-byte URL-safe reset token returned by request-otp")
     otp_code: str = Field(..., min_length=4, max_length=10)
     new_password: str = Field(..., min_length=6)
+    username: Optional[str] = None
+    reset_id: Optional[object] = Field(None, description="Deprecated; rejected if supplied")
 
 class PasswordResetSettingsUpdate(BaseModel):
     enabled: bool = True

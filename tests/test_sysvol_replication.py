@@ -331,7 +331,7 @@ def test_invariant_7_partners_file_mode_0600(client, sysvol_nodes, auth_sessions
         "probe_peer_tls_certificate",
         lambda ip, port=443: {"ip_address": ip, "fingerprint": "11:22:33:44:55", "cert_pem": "MOCK_PEM"}
     )
-    headers = {"Authorization": f"Bearer {auth_sessions_db['operator']}"}
+    headers = {"Authorization": f"Bearer {auth_sessions_db['fulladmin']}"}
     payload = {
         "name": "DC-Secured",
         "ip_address": "192.168.180.44",
@@ -345,6 +345,47 @@ def test_invariant_7_partners_file_mode_0600(client, sysvol_nodes, auth_sessions
     partners_file = sysvol_nodes["partners_file"]
     mode = os.stat(partners_file).st_mode & 0o777
     assert mode == 0o600
+
+
+def test_sysvol_partner_role_and_fingerprint_validation(client, sysvol_nodes, auth_sessions_db, monkeypatch):
+    """v1.5.3: SYSVOL pairing requires fulladmin, confirm without fingerprint returns 400, mismatch returns 409."""
+    monkeypatch.setattr(
+        sysvol_mod,
+        "probe_peer_tls_certificate",
+        lambda ip, port=443: {"ip_address": ip, "fingerprint": "11:22:33:44:55", "cert_pem": "MOCK_PEM"}
+    )
+    # 1. Operator role gets 403
+    op_headers = {"Authorization": f"Bearer {auth_sessions_db['operator']}"}
+    res_op = client.post("/api/v1/sysvol/partners", json={
+        "name": "DC-FailRole",
+        "ip_address": "192.168.180.45",
+        "shared_secret": "pair_key_op",
+        "cert_fingerprint": "11:22:33:44:55",
+        "confirm": True
+    }, headers=op_headers)
+    assert res_op.status_code == 403, f"Expected 403 for operator, got {res_op.status_code}"
+
+    # 2. confirm=True without cert_fingerprint returns 400
+    admin_headers = {"Authorization": f"Bearer {auth_sessions_db['fulladmin']}"}
+    res_no_fp = client.post("/api/v1/sysvol/partners", json={
+        "name": "DC-NoFp",
+        "ip_address": "192.168.180.45",
+        "shared_secret": "pair_key_admin",
+        "cert_fingerprint": None,
+        "confirm": True
+    }, headers=admin_headers)
+    assert res_no_fp.status_code == 400, f"Expected 400 for confirm without cert_fingerprint, got {res_no_fp.status_code}"
+
+    # 3. Fingerprint mismatch between probe (11:22:33:44:55) and submitted (AA:BB:CC:DD:EE) returns 409
+    res_mismatch = client.post("/api/v1/sysvol/partners", json={
+        "name": "DC-Mismatch",
+        "ip_address": "192.168.180.45",
+        "shared_secret": "pair_key_admin",
+        "cert_fingerprint": "AA:BB:CC:DD:EE",
+        "confirm": True
+    }, headers=admin_headers)
+    assert res_mismatch.status_code == 409, f"Expected 409 for fingerprint mismatch, got {res_mismatch.status_code}"
+    assert "mismatch" in res_mismatch.json()["detail"].lower()
 
 
 def test_invariant_8_get_partners_secret_is_masked(client, sysvol_nodes, auth_sessions_db):

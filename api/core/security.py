@@ -67,6 +67,20 @@ def verify_otp_hash(provided_code: str, stored_hash: str) -> bool:
     computed = hash_otp(provided_code)
     return secrets.compare_digest(computed, stored_hash)
 
+
+def hash_reset_token(token: str) -> str:
+    """Computes HMAC-SHA256 hex digest of an SSPR reset token using server secret key."""
+    key = get_otp_secret_key()
+    return hmac.new(key, token.strip().encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def verify_reset_token_hash(token: str, stored_hash: str) -> bool:
+    """Verifies a reset token against stored HMAC-SHA256 hash using secrets.compare_digest."""
+    if not token or not stored_hash:
+        return False
+    computed = hash_reset_token(token)
+    return secrets.compare_digest(computed, stored_hash)
+
 def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     if not salt:
         salt = secrets.token_hex(16)

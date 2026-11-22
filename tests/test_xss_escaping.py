@@ -3,6 +3,7 @@ Tests for v1.3.8/v1.3.9 XSS escaping, interim CSP headers, action delegation uni
 """
 import os
 import re
+import secrets
 import sqlite3
 import subprocess
 import time
@@ -17,7 +18,7 @@ import api.core.config as config
 import api.routers.registration as reg_mod
 import api.routers.self_service as ss_mod
 import api.services.security_service as sec_svc
-from api.core.security import hash_otp
+from api.core.security import hash_otp, hash_reset_token
 try:
     from tests.test_sspr_hardening import _setup_test_environment, _restore_environment
 except ImportError:
@@ -210,12 +211,14 @@ def test_sspr_no_early_privilege_check_on_verify(tmp_path, monkeypatch):
         hashed = hash_otp(real_code)
         target_user = "Administrator"
         expires_at = time.time() + 600
+        token = secrets.token_urlsafe(32)
+        token_hash = hash_reset_token(token)
 
         conn = sqlite3.connect(db_file)
         conn.execute(
-            "INSERT INTO self_service_password_logs (id, username, method, recipient, otp_code, otp_expires_at, status, ip_address, user_agent, created_at, notes, failed_attempts) "
-            "VALUES (?, ?, 'EMAIL_OTP', 'admin@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', '', ?, '', 0)",
-            (reset_id, target_user, hashed, expires_at, time.time())
+            "INSERT INTO self_service_password_logs (id, username, method, recipient, otp_code, otp_expires_at, status, ip_address, user_agent, created_at, notes, failed_attempts, reset_token_hash) "
+            "VALUES (?, ?, 'EMAIL_OTP', 'admin@example.com', ?, ?, 'PENDING_OTP', '127.0.0.1', '', ?, '', 0, ?)",
+            (reset_id, target_user, hashed, expires_at, time.time(), token_hash)
         )
         conn.commit()
         conn.close()
@@ -225,7 +228,7 @@ def test_sspr_no_early_privilege_check_on_verify(tmp_path, monkeypatch):
 
         # Send wrong OTP: should fail with Invalid verification code entered, NOT 403
         payload = {
-            "reset_id": reset_id,
+            "reset_token": token,
             "username": target_user,
             "otp_code": "000000",
             "new_password": "NewSecretPassword123!"

@@ -134,11 +134,15 @@
             const name = document.getElementById('sysvol-p-name-input').value.trim();
             const ip = document.getElementById('sysvol-p-ip-input').value.trim();
             const secret = document.getElementById('sysvol-p-secret-input').value.trim();
-            const fingerprint = document.getElementById('sysvol-p-fingerprint-input').value.trim();
+            let fingerprint = document.getElementById('sysvol-p-fingerprint-input').value.trim();
 
             if (!name || !ip || !secret) return alert('Name, IP, and Secret are required.');
 
             const confirmFlag = Boolean(sysvolPendingAddPartner && sysvolPendingAddPartner.ip_address === ip);
+            if (confirmFlag && !fingerprint && sysvolPendingAddPartner && sysvolPendingAddPartner.cert_fingerprint) {
+                fingerprint = sysvolPendingAddPartner.cert_fingerprint;
+            }
+
             const payload = {
                 name: name,
                 ip_address: ip,
@@ -163,6 +167,9 @@
                         const submitBtn = document.getElementById('sysvol-p-submit-btn');
                         if (probedFpEl) probedFpEl.innerText = data.peer_fingerprint || 'None';
                         if (localFpEl) localFpEl.innerText = data.local_fingerprint || 'None';
+                        if (data.peer_fingerprint) {
+                            document.getElementById('sysvol-p-fingerprint-input').value = data.peer_fingerprint;
+                        }
                         if (confirmBox) confirmBox.classList.remove('hidden');
                         if (submitBtn) submitBtn.innerText = 'Confirm & Pair Partner';
                         return;
@@ -173,7 +180,7 @@
                     fetchSysvolStatus();
                     fetchSysvolPartners();
                 } else {
-                    alert(`Failed to add partner DC: ${data.detail}`);
+                    alert(`Failed to add partner DC (${res.status}): ${data.detail || 'Request failed'}`);
                 }
             } catch (err) {
                 alert(`Error pairing partner: ${err}`);
