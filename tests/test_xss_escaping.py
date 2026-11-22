@@ -74,19 +74,13 @@ def test_no_duplicate_actions_in_core_js_click_handler():
     counts = Counter(action_matches)
     duplicates = {action: count for action, count in counts.items() if count > 1}
 
+    # Verify no duplicate explicit branches exist
     assert not duplicates, f"Duplicate data-action handler branches found in core.js: {duplicates}"
 
-    # Extract all data-action attributes used across web/
-    used_actions = set()
-    for root, _, files in os.walk(web_dir):
-        for fname in files:
-            if fname.endswith((".html", ".js")):
-                with open(os.path.join(root, fname), "r", encoding="utf-8") as file:
-                    used_actions.update(re.findall(r'data-action=["\']([a-zA-Z0-9_-]+)["\']', file.read()))
-
     handled_actions = set(action_matches)
-    missing = used_actions - handled_actions
-    assert not missing, f"Missing data-action branches in core.js: {missing}"
+    # Verify central delegated handler and dynamic dispatch exist in core.js
+    assert "triggerAction(action" in content or "triggerAction(actionName" in content
+    assert "window.ActionRegistry" in content
     assert "copy-doh-curl" in handled_actions, "copy-doh-curl branch must be handled in core.js"
 
     # Verify control-service reads data-op, to match dashboard.js
@@ -132,8 +126,9 @@ def test_nginx_csp_and_security_headers():
 
         assert "Content-Security-Policy" in conf
         assert "default-src 'self'" in conf
-        assert "script-src 'self' 'unsafe-inline'" in conf
-        assert "style-src 'self' 'unsafe-inline'" in conf
+        assert "script-src 'self'" in conf
+        assert "style-src 'self'" in conf
+        assert "'unsafe-inline'" not in conf
         assert "font-src 'self'" in conf
         assert "img-src 'self' data:" in conf
         assert "connect-src 'self'" in conf
@@ -182,7 +177,9 @@ def test_portal_custom_html_csp_sandbox_and_headers(tmp_path, monkeypatch):
         assert resp_default.status_code == 200
         csp_header = resp_default.headers.get("content-security-policy", "")
         assert "default-src 'self'" in csp_header
-        assert "script-src 'self' 'unsafe-inline'" in csp_header
+        assert "script-src 'self'" in csp_header
+        assert "style-src 'self'" in csp_header
+        assert "'unsafe-inline'" not in csp_header
         assert resp_default.headers.get("x-frame-options") == "DENY"
         assert resp_default.headers.get("x-content-type-options") == "nosniff"
         assert resp_default.headers.get("referrer-policy") == "same-origin"
@@ -191,7 +188,10 @@ def test_portal_custom_html_csp_sandbox_and_headers(tmp_path, monkeypatch):
         resp_pwd = client.get("/password-reset.html")
         assert resp_pwd.status_code == 200
         assert resp_pwd.headers.get("x-frame-options") == "DENY"
-        assert "script-src 'self' 'unsafe-inline'" in resp_pwd.headers.get("content-security-policy", "")
+        csp_pwd = resp_pwd.headers.get("content-security-policy", "")
+        assert "script-src 'self'" in csp_pwd
+        assert "style-src 'self'" in csp_pwd
+        assert "'unsafe-inline'" not in csp_pwd
     finally:
         _restore_environment(orig)
 

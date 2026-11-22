@@ -396,16 +396,20 @@
                     toggleSmtpFields();
 
                     const modeEl = document.getElementById('reg-stat-mode');
-                    if (!s.enabled) {
-                        modeEl.innerHTML = '<span class="text-rose-400 font-semibold"><i class="fa-solid fa-ban"></i> Portal Disabled</span>';
-                    } else if (s.require_mobile_otp) {
-                        modeEl.innerHTML = '<span class="text-cyan-400 font-semibold"><i class="fa-solid fa-mobile-screen"></i> Mobile OTP Active (Auto-Approve)</span>';
-                    } else {
-                        modeEl.innerHTML = '<span class="text-amber-400 font-semibold"><i class="fa-solid fa-user-clock"></i> Manual Admin Approval</span>';
+                    if (modeEl) {
+                        if (!s.enabled) {
+                            modeEl.innerHTML = '<span class="text-rose-400 font-semibold"><i class="fa-solid fa-ban"></i> Portal Disabled</span>';
+                        } else if (s.require_mobile_otp) {
+                            modeEl.innerHTML = '<span class="text-cyan-400 font-semibold"><i class="fa-solid fa-mobile-screen"></i> Mobile OTP Active (Auto-Approve)</span>';
+                        } else {
+                            modeEl.innerHTML = '<span class="text-amber-400 font-semibold"><i class="fa-solid fa-user-clock"></i> Manual Admin Approval</span>';
+                        }
                     }
 
-                    document.getElementById('reg-stat-sms').innerText = (s.sms_gateway_type || 'simulated').toUpperCase();
-                    document.getElementById('reg-queue-domain').innerText = s.default_domain || (currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : '--');
+                    const regStatSms = document.getElementById('reg-stat-sms');
+                    if (regStatSms) regStatSms.innerText = (s.sms_gateway_type || 'simulated').toUpperCase();
+                    const regQueueDom = document.getElementById('reg-queue-domain');
+                    if (regQueueDom) regQueueDom.innerText = s.default_domain || (currentSystemIdentity?.realm ? currentSystemIdentity.realm.toLowerCase() : '--');
 
                     // Populate organization departments tag manager
                     const rawDepts = s.allowed_departments || 'Engineering,IT Operations,Finance,Human Resources,Sales & Marketing,Operations';

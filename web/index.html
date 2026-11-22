@@ -11,14 +11,7 @@
     <!-- Chart.js (Self-Hosted) -->
     <script src="vendor/chart.js/chart.min.js"></script>
     <!-- Early Theme Loader -->
-    <script>
-        (function() {
-            if (localStorage.getItem('zclock_theme') === 'light') {
-                document.documentElement.classList.add('light-theme');
-            }
-        })();
-    </script>
-
+    <script src="js/theme-init.js"></script>
     <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased">
@@ -47,22 +40,22 @@
             </div>
                         <!-- Theme Selector (Dark / Soft Light) -->
             <div class="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 font-sans" id="theme-selector-container">
-                <button id="theme-btn-dark" onclick="setAppTheme('dark')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition text-indigo-400 bg-slate-800 border border-indigo-500/30 shadow-sm" title="Dark Theme">
+                <button id="theme-btn-dark" data-action="setAppTheme" data-theme="dark" class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition text-indigo-400 bg-slate-800 border border-indigo-500/30 shadow-sm" title="Dark Theme">
                     <i class="fa-solid fa-moon text-xs"></i>
                     <span class="hidden md:inline">Dark</span>
                 </button>
-                <button id="theme-btn-light" onclick="setAppTheme('light')" class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-slate-200" title="Soft Light Theme">
+                <button id="theme-btn-light" data-action="setAppTheme" data-theme="light" class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-slate-200" title="Soft Light Theme">
                     <i class="fa-solid fa-sun text-xs text-amber-400"></i>
                     <span class="hidden md:inline">Light</span>
                 </button>
             </div>
-            <button onclick="openProfileModal()" class="flex items-center gap-2 px-3 py-1 bg-slate-950 hover:bg-slate-850 rounded-lg border border-slate-800 hover:border-indigo-500/50 transition text-left group cursor-pointer" title="Manage Profile & Security">
+            <button data-action="openProfileModal" class="flex items-center gap-2 px-3 py-1 bg-slate-950 hover:bg-slate-850 rounded-lg border border-slate-800 hover:border-indigo-500/50 transition text-left group cursor-pointer" title="Manage Profile & Security">
                 <i class="fa-solid fa-user-shield text-indigo-400 group-hover:text-indigo-300"></i>
                 <span id="header-user" class="text-slate-200 font-semibold font-sans">admin</span>
                 <span id="header-role-badge" class="px-1.5 py-0.5 text-[10px] rounded bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-mono">fulladmin</span>
                 <i class="fa-solid fa-gear text-[11px] text-slate-500 group-hover:text-indigo-400 ml-0.5 transition"></i>
             </button>
-            <button onclick="logout()" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 transition flex items-center gap-1.5">
+            <button data-action="logout" class="px-2.5 py-1 text-slate-400 hover:text-rose-400 transition flex items-center gap-1.5">
                 <i class="fa-solid fa-right-from-bracket"></i>
                 <span class="hidden md:inline font-sans text-xs">Logout</span>
             </button>
@@ -73,36 +66,36 @@
         <!-- Sidebar Navigation -->
         <aside class="w-72 border-r border-slate-800 bg-slate-900/50 flex flex-col justify-between p-4 shrink-0 overflow-y-auto custom-scroll">
             <nav class="space-y-1 text-xs font-medium">
-                <button onclick="showTab('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-indigo-500/40 text-indigo-300 bg-indigo-600/20 font-semibold shadow-sm transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="dashboard" id="nav-dashboard" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-indigo-500/40 text-indigo-300 bg-indigo-600/20 font-semibold shadow-sm transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-gauge-high w-4 shrink-0"></i> <span>Dashboard</span>
                 </button>
-                <button onclick="showTab('domain')" id="nav-domain" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="domain" id="nav-domain" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-network-wired w-4 shrink-0"></i> <span>Domain & Forest Config</span>
                 </button>
-                <button onclick="showTab('ntp')" id="nav-ntp" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="ntp" id="nav-ntp" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-clock w-4 shrink-0"></i> <span>NTP Time Server</span>
                 </button>
-                <button onclick="showTab('users')" id="nav-users" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="users" id="nav-users" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-users-gear w-4 shrink-0"></i> <span>Users, Groups & Computers</span>
                 </button>
-                <button onclick="showTab('dns')" id="nav-dns" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="dns" id="nav-dns" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-server w-4 shrink-0"></i> <span>DNS & Kerberos SRV</span>
                 </button>
-                <button onclick="showTab('radius')" id="nav-radius" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="radius" id="nav-radius" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-tower-broadcast w-4 shrink-0"></i> <span>Radius</span>
                 </button>
-                <button onclick="showTab('sysvol')" id="nav-sysvol" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="sysvol" id="nav-sysvol" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-folder-tree w-4 shrink-0"></i> <span>Sysvol Guardian</span>
                 </button>
-                <button onclick="showTab('azure')" id="nav-azure" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="azure" id="nav-azure" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-cloud w-4 shrink-0"></i> <span>Azure Cloud Sync</span>
                 </button>
-                <button onclick="showTab('registrations')" id="nav-registrations" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                <button data-action="showTab" data-tab="registrations" id="nav-registrations" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                     <i class="fa-solid fa-users-viewfinder w-4 shrink-0"></i> <span>Self Services</span>
                 </button>
-                <button onclick="showTab('syslog'); switchLogsSubTab('compliance');" id="nav-reports" class="hidden"></button>
+                <button data-action="showTab" data-tab="syslog" data-subtab="compliance" id="nav-reports" class="hidden"></button>
                 <!-- Collapsible Security & Management Section -->
-                <button type="button" onclick="toggleSecurityNavGroup()" id="nav-group-security-btn" class="w-full flex items-center justify-between pt-3 pb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition text-left cursor-pointer group select-none whitespace-nowrap">
+                <button type="button" data-action="toggleSecurityNavGroup" id="nav-group-security-btn" class="w-full flex items-center justify-between pt-3 pb-1.5 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-slate-300 transition text-left cursor-pointer group select-none whitespace-nowrap">
                     <span class="flex items-center gap-1.5">
                         <i class="fa-solid fa-shield-halved text-[10px] text-amber-500/80 group-hover:text-amber-400 shrink-0"></i>
                         <span>Security & Management</span>
@@ -110,31 +103,31 @@
                     <i id="nav-group-security-chevron" class="fa-solid fa-chevron-down text-[9px] text-slate-500 group-hover:text-slate-300 transition-transform duration-200 shrink-0"></i>
                 </button>
                 <div id="nav-group-security-items" class="space-y-1 pl-1">
-                    <button onclick="showTab('rbac')" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="rbac" id="nav-rbac" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-user-shield w-4 text-amber-400 shrink-0"></i> <span>Access Control & RBAC</span>
                     </button>
-                    <button onclick="showTab('apikeys')" id="nav-apikeys" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="apikeys" id="nav-apikeys" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-key w-4 text-yellow-400 shrink-0"></i> <span>API Keys & Tokens</span>
                     </button>
-                    <button onclick="showTab('certs')" id="nav-certs" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="certs" id="nav-certs" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-certificate w-4 text-teal-400 shrink-0"></i> <span>SSL/TLS Certificates</span>
                     </button>
-                    <button onclick="showTab('syslog')" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="syslog" id="nav-syslog" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-file-shield w-4 text-sky-400 shrink-0"></i> <span>Compliance & Live Logs</span>
                     </button>
-                    <button onclick="showTab('federation')" id="nav-federation" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="federation" id="nav-federation" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-id-badge w-4 text-purple-400 shrink-0"></i> <span>IAM & Keycloak SSO</span>
                     </button>
-                    <button onclick="showTab('backup')" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="backup" id="nav-backup" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-box-archive w-4 text-emerald-400 shrink-0"></i> <span>Backup & Restore</span>
                     </button>
-                    <button onclick="showTab('snmp')" id="nav-snmp" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="snmp" id="nav-snmp" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-satellite-dish w-4 text-cyan-400 shrink-0"></i> <span>SNMP & Telemetry</span>
                     </button>
-                    <button onclick="showTab('license')" id="nav-license" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="license" id="nav-license" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-stamp w-4 text-amber-400 shrink-0"></i> <span>License & Subscription</span>
                     </button>
-                    <button onclick="showTab('update')" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
+                    <button data-action="showTab" data-tab="update" id="nav-update" class="w-full flex items-center gap-3 px-3.5 py-2 rounded-lg border border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 font-medium transition text-left whitespace-nowrap">
                         <i class="fa-solid fa-arrows-rotate w-4 text-violet-400 shrink-0"></i> <span>Software Updates</span>
                         <span id="nav-update-badge" class="hidden ml-auto px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-violet-600 text-white animate-pulse shrink-0">UPDATE</span>
                     </button>
@@ -150,7 +143,7 @@
                     <span>UPTIME:</span>
                     <span id="appliance-uptime" class="text-slate-400">0h 0m</span>
                 </div>
-                <div class="pt-2 text-center cursor-pointer group" onclick="showTab('update')">
+                <div class="pt-2 text-center cursor-pointer group" data-action="showTab" data-tab="update">
                     <span class="text-[10px] text-slate-500 group-hover:text-violet-400 transition flex items-center justify-center gap-1.5">
                         <i class="fa-solid fa-circle-check text-emerald-500 text-[8px]" id="appliance-version-dot"></i>
                         <span id="appliance-version-label">ZclockID v1.4.7.1</span>

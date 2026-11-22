@@ -8,10 +8,10 @@
                         <p class="text-xs text-slate-400 mt-0.5">Issue and revoke cryptographically secure API tokens (<code class="text-yellow-400">zck_live_...</code>) for automated scrapers, CI/CD, and monitoring integrations.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="fetchApiKeys()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="fetchApiKeys" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-arrows-rotate"></i> Refresh Keys
                         </button>
-                        <button onclick="openApiKeyCreateModal()" class="px-3.5 py-2 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold text-xs rounded-lg shadow-lg shadow-yellow-600/30 transition flex items-center gap-1.5">
+                        <button data-action="openApiKeyCreateModal" class="px-3.5 py-2 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold text-xs rounded-lg shadow-lg shadow-yellow-600/30 transition flex items-center gap-1.5">
                             <i class="fa-solid fa-key"></i> Generate New Key
                         </button>
                     </div>

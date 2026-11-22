@@ -369,28 +369,28 @@
             if (actionsDiv) {
                 if (tabName === 'mappings') {
                     actionsDiv.innerHTML = `
-                        <button onclick="fetchRbacMappings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="fetchRbacMappings" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-arrows-rotate"></i> Refresh
                         </button>
-                        <button onclick="openRbacMappingModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
+                        <button data-action="openRbacMappingModal" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold rounded-lg shadow-lg shadow-amber-600/30 transition flex items-center gap-1.5">
                             <i class="fa-solid fa-plus"></i> Add Role Mapping
                         </button>
                     `;
                 } else if (tabName === 'sessions') {
                     actionsDiv.innerHTML = `
-                        <button onclick="fetchActiveSessions()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="fetchActiveSessions" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-arrows-rotate"></i> Refresh Sessions
                         </button>
                     `;
                 } else if (tabName === 'hardening') {
                     actionsDiv.innerHTML = `
-                        <button onclick="fetchSecuritySettings(); fetchFirewallStatus();" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="refreshHardening" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-arrows-rotate"></i> Refresh Hardening & Firewall
                         </button>
                     `;
                 } else {
                     actionsDiv.innerHTML = `
-                        <button onclick="fetchSecuritySettings()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="fetchSecuritySettings" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-arrows-rotate"></i> Reload Baseline
                         </button>
                     `;

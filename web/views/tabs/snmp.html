@@ -6,7 +6,7 @@
                         <p class="text-xs text-slate-400 mt-1">Configure SNMP daemon parameters, access control lists, and monitor Active Directory enterprise MIB telemetry OIDs.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="fetchSnmpStatus(); fetchSnmpConfig();" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                        <button data-action="refreshSnmp" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
                             <i class="fa-solid fa-rotate"></i> Refresh
                         </button>
                     </div>
@@ -75,7 +75,7 @@
                                 <span class="text-[11px] font-mono text-slate-500">/etc/snmp/snmpd.conf</span>
                             </div>
 
-                            <form id="form-snmp-config" onsubmit="saveSnmpConfig(event)" class="space-y-4 text-xs">
+                            <form id="form-snmp-config" data-on-submit="saveSnmpConfig" class="space-y-4 text-xs">
                                 <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800">
                                     <div>
                                         <div class="font-semibold text-slate-200">Enable SNMP Daemon</div>
@@ -155,7 +155,7 @@
                                 <span class="text-[11px] font-mono text-slate-500">SNMP v2c</span>
                             </div>
 
-                            <form onsubmit="executeSnmpTestQuery(event)" class="space-y-4 text-xs">
+                            <form data-on-submit="executeSnmpTestQuery" class="space-y-4 text-xs">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="text-slate-300 block mb-1 font-medium">Target Host / IP</label>
@@ -183,11 +183,11 @@
                                 <!-- Preset Quick Buttons -->
                                 <div class="flex flex-wrap gap-1.5 pt-1">
                                     <span class="text-[10px] text-slate-500 self-center mr-1">Presets:</span>
-                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">All Telemetry (.99999.1)</button>
-                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1.1')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">AD Health (.1.1)</button>
-                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1.2')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">DRS Repl (.1.2)</button>
-                                    <button type="button" onclick="setQueryOid('.1.3.6.1.4.1.99999.1.3')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">SMB Sessions (.1.3)</button>
-                                    <button type="button" onclick="setQueryOid('.1.3.6.1.2.1.1.1.0')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-mono transition">sysDescr (.1.1.0)</button>
+                                    <button type="button" data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1" data-run-test="false" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">All Telemetry (.99999.1)</button>
+                                    <button type="button" data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.1" data-run-test="false" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">AD Health (.1.1)</button>
+                                    <button type="button" data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.2" data-run-test="false" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">DRS Repl (.1.2)</button>
+                                    <button type="button" data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.3" data-run-test="false" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded text-[10px] font-mono transition">SMB Sessions (.1.3)</button>
+                                    <button type="button" data-action="setQueryOid" data-oid=".1.3.6.1.2.1.1.1.0" data-run-test="false" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-mono transition">sysDescr (.1.1.0)</button>
                                 </div>
                             </form>
                         </div>
@@ -234,7 +234,7 @@
                                     <td class="px-4 py-3 font-sans text-slate-300">Active Directory Domain Controller daemon operational state</td>
                                     <td class="px-4 py-3 text-slate-400">systemctl is-active samba-ad-dc</td>
                                     <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">"HEALTHY"</span> / <span class="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px]">"CRITICAL"</span></td>
-                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.1'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                    <td class="px-4 py-3 text-right"><button data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.1" data-run-test="true" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
                                 </tr>
                                 <tr class="hover:bg-slate-800/20">
                                     <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.2</td>
@@ -242,7 +242,7 @@
                                     <td class="px-4 py-3 font-sans text-slate-300">Total consecutive DRS directory partition replication failures</td>
                                     <td class="px-4 py-3 text-slate-400">samba-tool drs showrepl</td>
                                     <td class="px-4 py-3"><span class="text-slate-300">Integer (0 = in sync)</span></td>
-                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.2'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                    <td class="px-4 py-3 text-right"><button data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.2" data-run-test="true" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
                                 </tr>
                                 <tr class="hover:bg-slate-800/20">
                                     <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.3</td>
@@ -250,7 +250,7 @@
                                     <td class="px-4 py-3 font-sans text-slate-300">Active client SMB / CIFS session count connected to DC</td>
                                     <td class="px-4 py-3 text-slate-400">smbstatus -b</td>
                                     <td class="px-4 py-3"><span class="text-slate-300">Integer count</span></td>
-                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.3'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                    <td class="px-4 py-3 text-right"><button data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.3" data-run-test="true" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
                                 </tr>
                                 <tr class="hover:bg-slate-800/20">
                                     <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.4</td>
@@ -258,7 +258,7 @@
                                     <td class="px-4 py-3 font-sans text-slate-300">Sysvol share Windows NTACL filesystem security descriptor check</td>
                                     <td class="px-4 py-3 text-slate-400">samba-tool ntacl sysvolcheck</td>
                                     <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">"HEALTHY"</span> / <span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 text-[10px]">"ACL_MISMATCH"</span></td>
-                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.4'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                    <td class="px-4 py-3 text-right"><button data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.4" data-run-test="true" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
                                 </tr>
                                 <tr class="hover:bg-slate-800/20">
                                     <td class="px-4 py-3 text-cyan-400">.1.3.6.1.4.1.99999.1.5</td>
@@ -266,7 +266,7 @@
                                     <td class="px-4 py-3 font-sans text-slate-300">FreeRADIUS 802.1X / WPA Enterprise authentication service status</td>
                                     <td class="px-4 py-3 text-slate-400">systemctl is-active freeradius</td>
                                     <td class="px-4 py-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">"ACTIVE"</span> / <span class="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[10px]">"INACTIVE"</span></td>
-                                    <td class="px-4 py-3 text-right"><button onclick="setQueryOid('.1.3.6.1.4.1.99999.1.5'); document.getElementById('btn-run-snmp-test').click();" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
+                                    <td class="px-4 py-3 text-right"><button data-action="setQueryOid" data-oid=".1.3.6.1.4.1.99999.1.5" data-run-test="true" class="text-cyan-400 hover:text-cyan-300 text-xs"><i class="fa-solid fa-play"></i> Query</button></td>
                                 </tr>
                             </tbody>
                         </table>

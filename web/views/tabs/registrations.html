@@ -1,12 +1,12 @@
                 <!-- Subtab Navigation Bar -->
                 <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                     <div class="flex items-center gap-2">
-                        <button type="button" id="btn-subtab-registration" onclick="switchSelfServiceSubtab('registration')"
+                        <button type="button" id="btn-subtab-registration" data-action="switchSelfServiceSubtab" data-subtab="registration"
                             class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-sm shadow-indigo-600/30">
                             <i class="fa-solid fa-user-plus text-xs"></i>
                             <span>Self Registration</span>
                         </button>
-                        <button type="button" id="btn-subtab-password" onclick="switchSelfServiceSubtab('password')"
+                        <button type="button" id="btn-subtab-password" data-action="switchSelfServiceSubtab" data-subtab="password"
                             class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60">
                             <i class="fa-solid fa-key text-xs"></i>
                             <span>Self Service Password</span>
@@ -30,19 +30,19 @@
                             <p class="text-xs text-slate-400 mt-1">Configure mobile OTP verification, automatic provisioning, and review pending domain signup requests.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <button onclick="copyRegistrationLink()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public portal link">
+                            <button data-action="copyRegistrationLink" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public portal link">
                                 <i class="fa-solid fa-copy text-indigo-400"></i> Copy Portal Link
                             </button>
                             <a href="/register.html" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal
                             </a>
-                            <button onclick="openRegistrationSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
+                            <button data-action="openRegistrationSettingsModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
                                 <i class="fa-solid fa-sliders text-cyan-400"></i> Settings
                             </button>
-                            <button onclick="exportRegistrationLogs()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Export registrations CSV">
+                            <button data-action="exportRegistrationLogs" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Export registrations CSV">
                                 <i class="fa-solid fa-file-csv text-emerald-400"></i> Export CSV
                             </button>
-                            <button onclick="fetchRegistrations()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                            <button data-action="fetchRegistrations" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-rotate"></i> Refresh
                             </button>
                         </div>
@@ -99,17 +99,17 @@
                             <!-- Status Filters -->
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="text-xs font-bold text-white mr-1">Status:</span>
-                                <button onclick="setRegStatusFilter('all')" id="reg-filter-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
-                                <button onclick="setRegStatusFilter('PENDING_APPROVAL')" id="reg-filter-PENDING_APPROVAL" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending Approval</button>
-                                <button onclick="setRegStatusFilter('PENDING_OTP')" id="reg-filter-PENDING_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending OTP</button>
-                                <button onclick="setRegStatusFilter('VERIFIED_AUTO_PROVISIONED')" id="reg-filter-VERIFIED_AUTO_PROVISIONED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Auto-Provisioned</button>
-                                <button onclick="setRegStatusFilter('APPROVED')" id="reg-filter-APPROVED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Approved</button>
+                                <button data-action="setRegStatusFilter" data-status="all" id="reg-filter-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
+                                <button data-action="setRegStatusFilter" data-status="PENDING_APPROVAL" id="reg-filter-PENDING_APPROVAL" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending Approval</button>
+                                <button data-action="setRegStatusFilter" data-status="PENDING_OTP" id="reg-filter-PENDING_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Pending OTP</button>
+                                <button data-action="setRegStatusFilter" data-status="VERIFIED_AUTO_PROVISIONED" id="reg-filter-VERIFIED_AUTO_PROVISIONED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Auto-Provisioned</button>
+                                <button data-action="setRegStatusFilter" data-status="APPROVED" id="reg-filter-APPROVED" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Approved</button>
                             </div>
 
                             <!-- Search, Month, and Page Size -->
                             <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto">
                                 <!-- Month Filter -->
-                                <select id="reg-filter-month" onchange="onRegMonthChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
+                                <select id="reg-filter-month" data-on-change="onRegMonthChange" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
                                     <option value="">All Months</option>
                                     <!-- Populated dynamically -->
                                 </select>
@@ -117,14 +117,14 @@
                                 <!-- Live Search Input -->
                                 <div class="relative flex-1 sm:w-60">
                                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-                                    <input type="text" id="reg-search-input" oninput="onRegSearchInput()" placeholder="Search username, name, phone..."
+                                    <input type="text" id="reg-search-input" data-on-input="onRegSearchInput" placeholder="Search username, name, phone..."
                                         class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono">
                                 </div>
 
                                 <!-- Page Size Selector -->
                                 <div class="flex items-center gap-1.5 text-xs text-slate-400">
                                     <span class="text-[11px]">Show:</span>
-                                    <select id="reg-page-size" onchange="onRegPageSizeChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono focus:border-indigo-500 focus:outline-none">
+                                    <select id="reg-page-size" data-on-change="onRegPageSizeChange" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono focus:border-indigo-500 focus:outline-none">
                                         <option value="10">10</option>
                                         <option value="25" selected>25</option>
                                         <option value="50">50</option>
@@ -161,11 +161,11 @@
                                 Showing 0 of 0 entries
                             </div>
                             <div class="flex items-center gap-1.5" id="reg-pagination-controls">
-                                <button type="button" id="reg-btn-prev" onclick="goToRegPage(regCurrentPage - 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                <button type="button" id="reg-btn-prev" data-action="goToRegPage" data-direction="prev" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
                                     <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                 </button>
                                 <div id="reg-page-numbers" class="flex items-center gap-1"></div>
-                                <button type="button" id="reg-btn-next" onclick="goToRegPage(regCurrentPage + 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                <button type="button" id="reg-btn-next" data-action="goToRegPage" data-direction="next" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
                                     Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
                                 </button>
                             </div>
@@ -186,19 +186,19 @@
                             <p class="text-xs text-slate-400 mt-1">Audit password change operations, monitor OTP verification requests, and configure recovery policies.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <button onclick="copyPasswordResetLink()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public SSPR portal link">
+                            <button data-action="copyPasswordResetLink" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Copy public SSPR portal link">
                                 <i class="fa-solid fa-copy text-indigo-400"></i> Copy Portal Link
                             </button>
                             <a href="/password-reset.html" target="_blank" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Portal
                             </a>
-                            <button onclick="openSspprSettingsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
+                            <button data-action="openSspprSettingsModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60">
                                 <i class="fa-solid fa-sliders text-cyan-400"></i> Settings
                             </button>
-                            <button onclick="exportSspprLogs()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Export SSPR logs CSV">
+                            <button data-action="exportSspprLogs" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5 border border-slate-700/60" title="Export SSPR logs CSV">
                                 <i class="fa-solid fa-file-csv text-emerald-400"></i> Export CSV
                             </button>
-                            <button onclick="fetchSspprLogs()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
+                            <button data-action="fetchSspprLogs" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-rotate"></i> Refresh
                             </button>
                         </div>
@@ -253,16 +253,16 @@
                             <!-- Method Filters -->
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="text-xs font-bold text-white mr-1">Method:</span>
-                                <button onclick="setSspprMethodFilter('all')" id="sspr-method-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
-                                <button onclick="setSspprMethodFilter('OLD_PASSWORD')" id="sspr-method-OLD_PASSWORD" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Current Password</button>
-                                <button onclick="setSspprMethodFilter('EMAIL_OTP')" id="sspr-method-EMAIL_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Email OTP</button>
-                                <button onclick="setSspprMethodFilter('SMS_OTP')" id="sspr-method-SMS_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">SMS OTP</button>
+                                <button data-action="setSspprMethodFilter" data-method="all" id="sspr-method-all" class="px-2.5 py-1 rounded-md text-[11px] font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">All</button>
+                                <button data-action="setSspprMethodFilter" data-method="OLD_PASSWORD" id="sspr-method-OLD_PASSWORD" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Current Password</button>
+                                <button data-action="setSspprMethodFilter" data-method="EMAIL_OTP" id="sspr-method-EMAIL_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">Email OTP</button>
+                                <button data-action="setSspprMethodFilter" data-method="SMS_OTP" id="sspr-method-SMS_OTP" class="px-2.5 py-1 rounded-md text-[11px] text-slate-400 hover:text-white hover:bg-slate-800">SMS OTP</button>
                             </div>
 
                             <!-- Search, Month, Status and Page Size -->
                             <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto">
                                 <!-- Status Filter -->
-                                <select id="sspr-filter-status" onchange="onSspprStatusChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
+                                <select id="sspr-filter-status" data-on-change="onSspprStatusChange" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
                                     <option value="all">All Statuses</option>
                                     <option value="COMPLETED">Completed</option>
                                     <option value="PENDING_OTP">Pending OTP</option>
@@ -271,7 +271,7 @@
                                 </select>
 
                                 <!-- Month Filter -->
-                                <select id="sspr-filter-month" onchange="onSspprMonthChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
+                                <select id="sspr-filter-month" data-on-change="onSspprMonthChange" class="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 font-mono focus:border-indigo-500 focus:outline-none">
                                     <option value="">All Months</option>
                                     <!-- Populated dynamically -->
                                 </select>
@@ -279,14 +279,14 @@
                                 <!-- Live Search Input -->
                                 <div class="relative flex-1 sm:w-60">
                                     <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
-                                    <input type="text" id="sspr-search-input" oninput="onSspprSearchInput()" placeholder="Search username, IP, recipient..."
+                                    <input type="text" id="sspr-search-input" data-on-input="onSspprSearchInput" placeholder="Search username, IP, recipient..."
                                         class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono">
                                 </div>
 
                                 <!-- Page Size Selector -->
                                 <div class="flex items-center gap-1.5 text-xs text-slate-400">
                                     <span class="text-[11px]">Show:</span>
-                                    <select id="sspr-page-size" onchange="onSspprPageSizeChange()" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono focus:border-indigo-500 focus:outline-none">
+                                    <select id="sspr-page-size" data-on-change="onSspprPageSizeChange" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-xs text-slate-200 font-mono focus:border-indigo-500 focus:outline-none">
                                         <option value="10">10</option>
                                         <option value="25" selected>25</option>
                                         <option value="50">50</option>
@@ -323,11 +323,11 @@
                                 Showing 0 of 0 entries
                             </div>
                             <div class="flex items-center gap-1.5" id="sspr-pagination-controls">
-                                <button type="button" id="sspr-btn-prev" onclick="goToSspprPage(ssprCurrentPage - 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                <button type="button" id="sspr-btn-prev" data-action="goToSspprPage" data-direction="prev" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
                                     <i class="fa-solid fa-chevron-left text-[10px]"></i> Prev
                                 </button>
                                 <div id="sspr-page-numbers" class="flex items-center gap-1"></div>
-                                <button type="button" id="sspr-btn-next" onclick="goToSspprPage(ssprCurrentPage + 1)" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
+                                <button type="button" id="sspr-btn-next" data-action="goToSspprPage" data-direction="next" class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs disabled:opacity-40 disabled:cursor-not-allowed">
                                     Next <i class="fa-solid fa-chevron-right text-[10px]"></i>
                                 </button>
                             </div>

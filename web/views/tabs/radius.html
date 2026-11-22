@@ -3,17 +3,17 @@
                     <div class="flex items-center gap-3">
                         <!-- Primary Mode Switcher (General vs Advance) -->
                         <div class="inline-flex p-1 bg-slate-950 border border-slate-800 rounded-xl">
-                            <button onclick="switchRadiusMainTab('general')" id="rad-main-tab-general" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 transition">
+                            <button data-action="switchRadiusMainTab" data-main-tab="general" id="rad-main-tab-general" class="px-4 py-2 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 flex items-center gap-2 transition">
                                 <i class="fa-solid fa-tower-broadcast"></i> General
                             </button>
-                            <button onclick="switchRadiusMainTab('advance')" id="rad-main-tab-advance" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition">
+                            <button data-action="switchRadiusMainTab" data-main-tab="advance" id="rad-main-tab-advance" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-slate-200 border border-transparent flex items-center gap-2 transition">
                                 <i class="fa-solid fa-gears"></i> Advance
                             </button>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <button onclick="controlService('freeradius', 'restart')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="controlService" data-service="freeradius" data-op="restart" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-rotate text-amber-400"></i> Restart FreeRADIUS
                         </button>
                     </div>
@@ -21,32 +21,32 @@
 
                 <!-- Sub-Navigation for General -->
                 <div id="rad-subnav-general" class="flex flex-wrap items-center gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80">
-                    <button onclick="switchRadiusSubTab('clients')" id="rad-tab-clients" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="clients" id="rad-tab-clients" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600/20 text-amber-400 border border-amber-500/30 transition flex items-center gap-1.5">
                         <i class="fa-solid fa-network-wired"></i> NAS Clients & APs
                     </button>
-                    <button onclick="switchRadiusSubTab('bandwidth')" id="rad-tab-bandwidth" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="bandwidth" id="rad-tab-bandwidth" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                         <i class="fa-solid fa-gauge-high"></i> Bandwidth & Rate Limits
                     </button>
-                    <button onclick="switchRadiusSubTab('eap')" id="rad-tab-eap" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="eap" id="rad-tab-eap" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                         <i class="fa-solid fa-shield-halved"></i> EAP & Certificates
                     </button>
-                    <button onclick="switchRadiusSubTab('accounting')" id="rad-tab-accounting" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="accounting" id="rad-tab-accounting" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                         <i class="fa-solid fa-chart-line"></i> Live Sessions & Acct
                     </button>
                 </div>
 
                 <!-- Sub-Navigation for Advance -->
                 <div id="rad-subnav-advance" class="flex flex-wrap items-center gap-2 bg-slate-900/60 p-2 rounded-xl border border-slate-800/80 hidden">
-                    <button onclick="switchRadiusSubTab('mab')" id="rad-tab-mab" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="mab" id="rad-tab-mab" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 transition flex items-center gap-1.5">
                         <i class="fa-solid fa-print"></i> MAB (MAC Bypass)
                     </button>
-                    <button onclick="switchRadiusSubTab('custom')" id="rad-tab-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="custom" id="rad-tab-custom" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                         <i class="fa-solid fa-code-branch"></i> Custom Attributes (VSA)
                     </button>
-                    <button onclick="switchRadiusSubTab('settings')" id="rad-tab-settings" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="settings" id="rad-tab-settings" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                         <i class="fa-solid fa-sliders"></i> Engine Parameters & Logging
                     </button>
-                    <button onclick="switchRadiusSubTab('config')" id="rad-tab-config" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
+                    <button data-action="switchRadiusSubTab" data-subtab="config" id="rad-tab-config" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition flex items-center gap-1.5">
                         <i class="fa-solid fa-file-code"></i> View Raw Config
                     </button>
                 </div>
@@ -61,7 +61,7 @@
                                 </h3>
                                 <p class="text-xs text-slate-400">Switches and wireless access points allowed to authenticate 802.1X supplicants against Samba AD</p>
                             </div>
-                            <button onclick="openRadiusModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button data-action="openRadiusModal" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-plus"></i> Add NAS Client
                             </button>
                         </div>
@@ -95,7 +95,7 @@
                                 </h3>
                                 <p class="text-xs text-slate-400">Enforces per-user upload/download speeds, session timeouts, and data quotas across pfSense, MikroTik Hotspot, and TP-Link Omada</p>
                             </div>
-                            <button onclick="openAddBandwidthModal()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button data-action="openAddBandwidthModal" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-plus"></i> Add Bandwidth Tier
                             </button>
                         </div>
@@ -154,7 +154,7 @@
                                 <h3 class="text-sm font-semibold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-certificate text-amber-400"></i> FreeRADIUS Server TLS Certificate
                                 </h3>
-                                <button onclick="renewRadiusCert()" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold transition flex items-center gap-1">
+                                <button data-action="renewRadiusCert" class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded text-xs font-semibold transition flex items-center gap-1">
                                     <i class="fa-solid fa-rotate"></i> Re-issue Cert
                                 </button>
                             </div>
@@ -179,7 +179,7 @@
                                 </h3>
                                 <p class="text-xs text-slate-400">Real-time session tracker, client MAC bindings, and bandwidth consumption</p>
                             </div>
-                            <button onclick="fetchRadiusSessions()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button data-action="fetchRadiusSessions" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-rotate"></i> Refresh Sessions
                             </button>
                         </div>
@@ -216,7 +216,7 @@
                                 </h3>
                                 <p class="text-xs text-slate-400">Allows IoT devices, printers, IP phones, and cameras without 802.1X supplicants to access assigned VLANs</p>
                             </div>
-                            <button onclick="openMabModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button data-action="openMabModal" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-plus"></i> Register MAB Device
                             </button>
                         </div>
@@ -251,7 +251,7 @@
                                 </h3>
                                 <p class="text-xs text-slate-400">Inject granular RADIUS check/reply items (Cisco-AVPair, Session-Timeout, Mikrotik-Rate-Limit) globally or per-group</p>
                             </div>
-                            <button onclick="openCustomAttrModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button data-action="openCustomAttrModal" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-plus"></i> Add Custom Attribute
                             </button>
                         </div>
@@ -323,7 +323,7 @@
                         </div>
 
                         <div class="pt-2">
-                            <button onclick="saveRadiusSettings()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition">
+                            <button data-action="saveRadiusSettings" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition">
                                 Save RADIUS Engine Parameters
                             </button>
                         </div>
@@ -342,12 +342,12 @@
                             </div>
                             <div class="flex items-center gap-2">
                                 <div class="flex bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
-                                    <button onclick="loadRawRadiusConfig('clients')" id="rad-cfgfile-clients" class="px-2.5 py-1 rounded bg-amber-600/20 text-amber-400 font-semibold font-mono">clients.conf</button>
-                                    <button onclick="loadRawRadiusConfig('authorize')" id="rad-cfgfile-authorize" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">authorize</button>
-                                    <button onclick="loadRawRadiusConfig('mschap')" id="rad-cfgfile-mschap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">mschap</button>
-                                    <button onclick="loadRawRadiusConfig('eap')" id="rad-cfgfile-eap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">eap.conf</button>
+                                    <button data-action="loadRawRadiusConfig" data-cfg="clients" id="rad-cfgfile-clients" class="px-2.5 py-1 rounded bg-amber-600/20 text-amber-400 font-semibold font-mono">clients.conf</button>
+                                    <button data-action="loadRawRadiusConfig" data-cfg="authorize" id="rad-cfgfile-authorize" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">authorize</button>
+                                    <button data-action="loadRawRadiusConfig" data-cfg="mschap" id="rad-cfgfile-mschap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">mschap</button>
+                                    <button data-action="loadRawRadiusConfig" data-cfg="eap" id="rad-cfgfile-eap" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono">eap.conf</button>
                                 </div>
-                                <button onclick="copyRawConfigToClipboard()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition flex items-center gap-1.5 border border-slate-700">
+                                <button data-action="copyRawConfigToClipboard" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition flex items-center gap-1.5 border border-slate-700">
                                     <i class="fa-solid fa-copy"></i> Copy
                                 </button>
                             </div>

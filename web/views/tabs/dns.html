@@ -7,7 +7,7 @@
                             </h3>
                             <p class="text-xs text-slate-400">Real-time resolution tests for domain controllers, KDC authentication, and dynamic DNS</p>
                         </div>
-                        <button onclick="runDnsDiagnostics()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                        <button data-action="runDnsDiagnostics" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-stethoscope"></i> Run Diagnostic Test
                         </button>
                     </div>
@@ -46,10 +46,10 @@
                             <p class="text-xs text-slate-400">RFC 8484 encrypted DNS queries over TLS 443 with BIND 9.20 HTTP/2 and Active Directory DLZ</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="openDohClientGuideModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button data-action="openDohClientGuideModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-book text-sky-400"></i> Client Setup Guide
                             </button>
-                            <button onclick="toggleDohTester()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
+                            <button data-action="toggleDohTester" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
                                 <i class="fa-solid fa-magnifying-glass"></i> Test DoH Query
                             </button>
                         </div>
@@ -116,7 +116,7 @@
                                 </select>
                             </div>
                             <div class="sm:col-span-2 flex items-end">
-                                <button type="button" onclick="executeDohTestQuery()" id="btn-run-doh-test" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
+                                <button type="button" data-action="executeDohTestQuery" id="btn-run-doh-test" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5">
                                     <i class="fa-solid fa-play"></i> Resolve
                                 </button>
                             </div>
@@ -141,16 +141,16 @@
                             <p class="text-xs text-slate-400">Manage recursive upstream nameservers, domain-specific conditional forwarders, host overrides, and DNS cache.</p>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <button onclick="openForwardersModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <button data-action="openForwardersModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
                                 <i class="fa-solid fa-sliders"></i> Global Forwarders
                             </button>
-                            <button onclick="openAddDomainForwarderModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <button data-action="openAddDomainForwarderModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
                                 <i class="fa-solid fa-plus"></i> Domain Forwarder
                             </button>
-                            <button onclick="openAddHostOverrideModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                            <button data-action="openAddHostOverrideModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
                                 <i class="fa-solid fa-plus"></i> Host Override
                             </button>
-                            <button onclick="flushDnsCache()" id="btn-flush-dns-cache" class="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-rose-800/60" title="Flush all cached DNS records from BIND9 memory">
+                            <button data-action="flushDnsCache" id="btn-flush-dns-cache" class="px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-rose-800/60" title="Flush all cached DNS records from BIND9 memory">
                                 <i class="fa-solid fa-broom"></i> Flush Cache
                             </button>
                         </div>
@@ -241,10 +241,10 @@
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div class="flex flex-wrap items-center gap-3">
-                            <select id="dns-zone-select" onchange="fetchDnsRecords()" class="bg-slate-950 border border-slate-800 text-xs text-white rounded-lg px-3 py-1.5 font-mono focus:outline-none focus:border-indigo-500">
+                            <select id="dns-zone-select" data-on-change="fetchDnsRecords" class="bg-slate-950 border border-slate-800 text-xs text-white rounded-lg px-3 py-1.5 font-mono focus:outline-none focus:border-indigo-500">
                                 <option value="">Select Zone...</option>
                             </select>
-                            <button onclick="openNewZoneModal()" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition" title="Create New Zone">
+                            <button data-action="openNewZoneModal" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition" title="Create New Zone">
                                 <i class="fa-solid fa-plus"></i> New Zone
                             </button>
                             <span id="dns-record-count-badge" class="px-2.5 py-1 bg-slate-950 text-indigo-300 border border-slate-800 rounded-lg font-mono text-xs">
@@ -253,11 +253,11 @@
                         </div>
                         <div class="flex items-center gap-3">
                             <div class="relative">
-                                <input id="dns-search-input" onkeyup="filterDnsRecordsSearch()" type="text" placeholder="Search any record or IP..."
+                                <input id="dns-search-input" data-on-input="filterDnsRecordsSearch" type="text" placeholder="Search any record or IP..."
                                     class="bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500 transition w-44 sm:w-64">
                                 <i class="fa-solid fa-search absolute left-2.5 top-2.5 text-slate-500 text-[11px]"></i>
                             </div>
-                            <button onclick="openDnsModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap shadow-sm shadow-indigo-900/50">
+                            <button data-action="openDnsModal" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap shadow-sm shadow-indigo-900/50">
                                 <i class="fa-solid fa-plus"></i> Add Record
                             </button>
                         </div>

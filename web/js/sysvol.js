@@ -58,7 +58,7 @@
                                 <td class="px-4 py-2.5 text-slate-400">${safeD}</td>
                                 <td class="px-4 py-2.5 text-slate-300 font-bold">${safeFilesCount} items</td>
                                 <td class="px-4 py-2.5 text-right space-x-1.5 whitespace-nowrap">
-                                    <button onclick="triggerSysvolSyncNow()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition" title="Sync Peer">
+                                    <button data-action="triggerSysvolSyncNow" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[11px] transition" title="Sync Peer">
                                         <i class="fa-solid fa-rotate mr-1"></i> Sync
                                     </button>
                                     <button data-action="repin-sysvol-partner" data-ip="${safeIp}" class="px-2 py-1 bg-amber-950/80 hover:bg-amber-900 border border-amber-800/80 text-amber-300 rounded text-[11px] transition" title="Re-pin TLS Certificate">

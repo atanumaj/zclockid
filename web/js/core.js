@@ -47,8 +47,13 @@
         })();
 
         // ==================== AUTHENTICATION GUARD & CLIENT SECURITY ====================
+        const isPublicPage = window.location.pathname.endsWith('/login.html') ||
+                             window.location.pathname.endsWith('/register.html') ||
+                             window.location.pathname.endsWith('/password-reset.html') ||
+                             window.location.pathname.endsWith('/setup.html');
+
         const initialAuthToken = localStorage.getItem('zclockid_token');
-        if (!initialAuthToken) {
+        if (!isPublicPage && !initialAuthToken) {
             fetch('/api/v1/setup/status')
                 .then(r => r.json())
                 .then(d => {
@@ -100,7 +105,7 @@
             }
 
             const response = await originalFetch.call(this, resource, options);
-            if (response.status === 401) {
+            if (!isPublicPage && response.status === 401) {
                 if (!urlStr.includes('/auth/login') && !urlStr.includes('/setup/status') && !urlStr.includes('/self-service/password/config') && !urlStr.includes('/public/register/')) {
                     console.warn("Session token expired or invalid (HTTP 401). Redirecting to login.");
                     localStorage.removeItem('zclockid_token');
@@ -123,6 +128,7 @@
 
         // Evaluate idle duration every 10 seconds
         setInterval(() => {
+            if (isPublicPage) return;
             const idleMin = parseInt(localStorage.getItem('zclockid_idle_timeout_min') || '15', 10);
             if (idleMin > 0) {
                 const storedLast = parseInt(localStorage.getItem('zclockid_last_activity') || lastUserActivity.toString(), 10);
@@ -566,193 +572,235 @@
             }).join('');
         }
 
-        // ==================== GLOBAL EVENT DELEGATION FOR DATA-ACTION BUTTONS ====================
+        // ==================== GLOBAL EVENT DELEGATION SYSTEM (CSP STRICT) ====================
+        window.ActionRegistry = window.ActionRegistry || {};
+
+        function triggerAction(actionName, el, event, eventType) {
+            if (!actionName) return;
+
+            if (el && el.dataset.stopPropagation === 'true') {
+                event.stopPropagation();
+            }
+
+            // 1. Check registry
+            if (window.ActionRegistry[actionName]) {
+                window.ActionRegistry[actionName](el, event, eventType);
+                return;
+            }
+
+            // 2. Direct / camelCase on window
+            const camel = actionName.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
+            const fn = window[actionName] || window[camel];
+            if (typeof fn === 'function') {
+                if (eventType === 'submit') {
+                    fn(event);
+                } else if (el && el.dataset.tab) {
+                    fn(el.dataset.tab);
+                    if (el.dataset.subtab && typeof window.switchLogsSubTab === 'function') {
+                        window.switchLogsSubTab(el.dataset.subtab);
+                    }
+                } else if (el && el.dataset.step) {
+                    fn(parseInt(el.dataset.step, 10));
+                } else if (el && el.dataset.theme) {
+                    fn(el.dataset.theme);
+                } else if (el && el.dataset.method) {
+                    fn(el.dataset.method);
+                } else if (el && el.dataset.subtab) {
+                    fn(el.dataset.subtab);
+                } else if (el && el.dataset.mainTab) {
+                    fn(el.dataset.mainTab);
+                } else if (el && el.dataset.logType) {
+                    fn(el.dataset.logType);
+                } else if (el && el.dataset.status) {
+                    fn(el.dataset.status);
+                } else if (el && el.dataset.col) {
+                    fn(el.dataset.col);
+                } else if (el && el.dataset.type && (actionName.includes('Portal') || actionName.includes('Template') || actionName.includes('Security') || actionName.includes('Sms'))) {
+                    fn(el.dataset.type);
+                } else if (el && el.dataset.fieldId && el.dataset.iconId) {
+                    fn(el.dataset.fieldId, el.dataset.iconId);
+                } else if (el && el.dataset.service && el.dataset.op) {
+                    fn(el.dataset.service, el.dataset.op);
+                } else if (el && el.dataset.service && el.dataset.title) {
+                    fn(el.dataset.service, el.dataset.title);
+                } else if (el && el.dataset.service) {
+                    fn(el.dataset.service);
+                } else if (el && el.dataset.actionName) {
+                    fn(el.dataset.actionName);
+                } else if (el && el.dataset.param) {
+                    fn(el.dataset.param);
+                } else if (el && el.dataset.fileType) {
+                    fn(el.dataset.fileType);
+                } else if (el && el.dataset.text && el.dataset.msg) {
+                    fn(el.dataset.text, el.dataset.msg);
+                } else if (el && el.dataset.p1 && el.dataset.p2 && el.dataset.rules) {
+                    fn(el.dataset.p1, el.dataset.p2, el.dataset.rules);
+                } else if (el && el.dataset.cfg) {
+                    fn(el.dataset.cfg);
+                } else if (el && el.dataset.cat) {
+                    fn(el.dataset.cat);
+                } else if (el && el.dataset.direction) {
+                    const delta = el.dataset.direction === 'prev' ? -1 : 1;
+                    if (actionName.includes('Reg') && typeof window.regCurrentPage === 'number') {
+                        fn(window.regCurrentPage + delta);
+                    } else if (typeof window.ssprCurrentPage === 'number') {
+                        fn(window.ssprCurrentPage + delta);
+                    } else {
+                        fn(el.dataset.direction);
+                    }
+                } else if (eventType === 'change' && (el.type === 'checkbox' || el.type === 'radio')) {
+                    fn(el.checked);
+                } else {
+                    fn(el, event);
+                }
+                return;
+            }
+
+            console.warn(`[ActionRegistry] Unhandled action: ${actionName}`);
+        }
+
+        // Built-in Action Handlers
+        Object.assign(window.ActionRegistry, {
+            'trigger-file-click': (el) => {
+                const target = document.getElementById(el.dataset.target);
+                if (target) target.click();
+            },
+            'sync-input-value': (el) => {
+                const target = document.getElementById(el.dataset.target);
+                if (target) target.value = el.value;
+            },
+            'stop-propagation': (el, e) => {
+                e.stopPropagation();
+            },
+            'setQueryOid': (el) => {
+                if (window.setQueryOid) window.setQueryOid(el.dataset.oid);
+                if (el.dataset.runTest === 'true') {
+                    const btn = document.getElementById('btn-run-snmp-test');
+                    if (btn) btn.click();
+                }
+            },
+            'refreshSnmp': () => {
+                if (window.fetchSnmpStatus) window.fetchSnmpStatus();
+                if (window.fetchSnmpConfig) window.fetchSnmpConfig();
+            },
+            'refreshHardening': () => {
+                if (window.fetchSecuritySettings) window.fetchSecuritySettings();
+                if (window.fetchFirewallStatus) window.fetchFirewallStatus();
+            },
+            'go-to-page': (el) => {
+                const fnName = el.dataset.pageFn;
+                const page = parseInt(el.dataset.page, 10);
+                if (typeof window[fnName] === 'function') window[fnName](page);
+            },
+            'download-backup': (el) => typeof window.downloadBackup === 'function' && window.downloadBackup(el.dataset.filename),
+            'inspect-backup': (el) => typeof window.inspectBackup === 'function' && window.inspectBackup(el.dataset.filename),
+            'confirm-restore-backup': (el) => typeof window.confirmRestoreBackup === 'function' && window.confirmRestoreBackup(el.dataset.filename),
+            'delete-backup': (el) => typeof window.deleteBackup === 'function' && window.deleteBackup(el.dataset.filename),
+            'remove-reg-dept': (el) => typeof window.removeRegistrationDepartment === 'function' && window.removeRegistrationDepartment(el.dataset.dept),
+            'approve-registration': (el) => typeof window.approveRegistration === 'function' && window.approveRegistration(parseInt(el.dataset.id, 10), el.dataset.username),
+            'reject-registration': (el) => typeof window.rejectRegistration === 'function' && window.rejectRegistration(parseInt(el.dataset.id, 10), el.dataset.username),
+            'change-reg-upn': (el) => typeof window.openChangeUpnModal === 'function' && window.openChangeUpnModal(el.dataset.username),
+            'delete-registration': (el) => typeof window.deleteRegistration === 'function' && window.deleteRegistration(parseInt(el.dataset.id, 10), el.dataset.username),
+            'toggle-radius-secret': (el) => typeof window.toggleSecretDisplay === 'function' && window.toggleSecretDisplay(parseInt(el.dataset.idx, 10), el.dataset.secret),
+            'copy-radius-secret': (el) => typeof window.copyToClipboard === 'function' && window.copyToClipboard(el.dataset.secret),
+            'delete-radius-client': (el) => typeof window.deleteRadiusClient === 'function' && window.deleteRadiusClient(el.dataset.name),
+            'disconnect-radius-session': (el) => typeof window.disconnectSession === 'function' && window.disconnectSession(el.dataset.sessionId),
+            'edit-bandwidth-profile': (el) => typeof window.openEditBandwidthModal === 'function' && window.openEditBandwidthModal(parseInt(el.dataset.id, 10)),
+            'delete-bandwidth-profile': (el) => typeof window.deleteBandwidthProfile === 'function' && window.deleteBandwidthProfile(parseInt(el.dataset.id, 10), el.dataset.name),
+            'delete-mab-device': (el) => typeof window.deleteMabDevice === 'function' && window.deleteMabDevice(parseInt(el.dataset.id, 10)),
+            'delete-custom-attr': (el) => typeof window.deleteCustomAttr === 'function' && window.deleteCustomAttr(parseInt(el.dataset.id, 10)),
+            'delete-rbac-mapping': (el) => typeof window.deleteRbacMapping === 'function' && window.deleteRbacMapping(parseInt(el.dataset.id, 10), el.dataset.principal),
+            'terminate-session': (el) => typeof window.terminateSession === 'function' && window.terminateSession(el.dataset.token),
+            'toggle-fw-rule': (el) => typeof window.toggleFwRuleState === 'function' && window.toggleFwRuleState(parseInt(el.dataset.id, 10), el.dataset.enable === 'true'),
+            'edit-fw-rule': (el) => typeof window.editFirewallRule === 'function' && window.editFirewallRule(parseInt(el.dataset.id, 10)),
+            'delete-fw-rule': (el) => typeof window.deleteFirewallRule === 'function' && window.deleteFirewallRule(parseInt(el.dataset.id, 10)),
+            'revoke-api-key': (el) => typeof window.revokeApiKey === 'function' && window.revokeApiKey(parseInt(el.dataset.id, 10), el.dataset.name),
+            'copy-portal-asset': (el) => typeof window.copyPortalAssetUrl === 'function' && window.copyPortalAssetUrl(el.dataset.url),
+            'delete-portal-asset': (el) => typeof window.deletePortalAsset === 'function' && window.deletePortalAsset(el.dataset.name, el.dataset.type),
+            'delete-sysvol-partner': (el) => typeof window.deleteSysvolPartner === 'function' && window.deleteSysvolPartner(el.dataset.ip),
+            'repin-sysvol-partner': (el) => typeof window.startRepinSysvolPartner === 'function' && window.startRepinSysvolPartner(el.dataset.ip),
+            'edit-user': (el) => typeof window.openEditUserModal === 'function' && window.openEditUserModal(el.dataset.username),
+            'delete-user': (el) => typeof window.deleteUser === 'function' && window.deleteUser(el.dataset.username),
+            'edit-group': (el) => typeof window.openEditGroupModal === 'function' && window.openEditGroupModal(el.dataset.group),
+            'delete-group': (el) => typeof window.deleteGroup === 'function' && window.deleteGroup(el.dataset.group),
+            'delete-computer': (el) => typeof window.deleteComputer === 'function' && window.deleteComputer(el.dataset.computer),
+            'delete-forwarder': (el) => typeof window.deleteDomainForwarder === 'function' && window.deleteDomainForwarder(el.dataset.domain),
+            'delete-override': (el) => typeof window.deleteHostOverride === 'function' && window.deleteHostOverride(el.dataset.fqdn, el.dataset.type),
+            'edit-dns-record': (el) => typeof window.openEditDnsModal === 'function' && window.openEditDnsModal(el.dataset.zone, el.dataset.name, el.dataset.type, el.dataset.data, parseInt(el.dataset.ttl, 10)),
+            'delete-dns-record': (el) => typeof window.deleteDnsRecord === 'function' && window.deleteDnsRecord(el.dataset.zone, el.dataset.name, el.dataset.type, el.dataset.data),
+            'delete-upn-suffix': (el) => typeof window.deleteUpnSuffix === 'function' && window.deleteUpnSuffix(el.dataset.suffix),
+            'copy-doh-ip': () => {
+                const url = `https://${window.location.hostname}/dns-query`;
+                if (typeof window.copyToClipboard === 'function') window.copyToClipboard(url, 'IP DoH URL copied!');
+            },
+            'copy-doh-fqdn': () => {
+                const el = document.getElementById('doh-display-fqdn') || document.getElementById('doh-guide-fqdn-url');
+                const url = el?.textContent?.trim() || `https://${window.location.hostname}/dns-query`;
+                if (typeof window.copyToClipboard === 'function') window.copyToClipboard(url, 'FQDN DoH URL copied!');
+            },
+            'copy-doh-curl': () => {
+                const el = document.getElementById('doh-guide-curl-cmd');
+                const cmd = el?.textContent?.trim() || '';
+                if (typeof window.copyToClipboard === 'function') window.copyToClipboard(cmd, 'cURL command copied!');
+            }
+        });
+
+        // 1. Click Listener (Delegated)
         document.addEventListener('click', function(e) {
             const btn = e.target.closest('[data-action]');
             if (!btn) return;
+            if (btn.tagName === 'A' && (btn.getAttribute('href') === '#' || !btn.getAttribute('href'))) {
+                e.preventDefault();
+            }
             const action = btn.dataset.action;
-            if (action === 'go-to-page') {
-                const fnName = btn.dataset.pageFn;
-                const page = parseInt(btn.dataset.page, 10);
-                if (typeof window[fnName] === 'function') {
-                    window[fnName](page);
-                }
-            } else if (action === 'download-backup') {
-                if (typeof window.downloadBackup === 'function') {
-                    window.downloadBackup(btn.dataset.filename);
-                }
-            } else if (action === 'inspect-backup') {
-                if (typeof window.inspectBackup === 'function') {
-                    window.inspectBackup(btn.dataset.filename);
-                }
-            } else if (action === 'confirm-restore-backup') {
-                if (typeof window.confirmRestoreBackup === 'function') {
-                    window.confirmRestoreBackup(btn.dataset.filename);
-                }
-            } else if (action === 'delete-backup') {
-                if (typeof window.deleteBackup === 'function') {
-                    window.deleteBackup(btn.dataset.filename);
-                }
-            } else if (action === 'remove-reg-dept') {
-                if (typeof window.removeRegistrationDepartment === 'function') {
-                    window.removeRegistrationDepartment(btn.dataset.dept);
-                }
-            } else if (action === 'approve-registration') {
-                if (typeof window.approveRegistration === 'function') {
-                    window.approveRegistration(parseInt(btn.dataset.id, 10), btn.dataset.username);
-                }
-            } else if (action === 'reject-registration') {
-                if (typeof window.rejectRegistration === 'function') {
-                    window.rejectRegistration(parseInt(btn.dataset.id, 10), btn.dataset.username);
-                }
-            } else if (action === 'change-reg-upn') {
-                if (typeof window.openChangeUpnModal === 'function') {
-                    window.openChangeUpnModal(btn.dataset.username);
-                }
-            } else if (action === 'delete-registration') {
-                if (typeof window.deleteRegistration === 'function') {
-                    window.deleteRegistration(parseInt(btn.dataset.id, 10), btn.dataset.username);
-                }
-            } else if (action === 'toggle-radius-secret') {
-                if (typeof window.toggleSecretDisplay === 'function') {
-                    window.toggleSecretDisplay(parseInt(btn.dataset.idx, 10), btn.dataset.secret);
-                }
-            } else if (action === 'copy-radius-secret') {
-                if (typeof window.copyToClipboard === 'function') {
-                    window.copyToClipboard(btn.dataset.secret);
-                }
-            } else if (action === 'delete-radius-client') {
-                if (typeof window.deleteRadiusClient === 'function') {
-                    window.deleteRadiusClient(btn.dataset.name);
-                }
-            } else if (action === 'disconnect-radius-session') {
-                if (typeof window.disconnectSession === 'function') {
-                    window.disconnectSession(btn.dataset.sessionId);
-                }
-            } else if (action === 'edit-bandwidth-profile') {
-                if (typeof window.openEditBandwidthModal === 'function') {
-                    window.openEditBandwidthModal(parseInt(btn.dataset.id, 10));
-                }
-            } else if (action === 'delete-bandwidth-profile') {
-                if (typeof window.deleteBandwidthProfile === 'function') {
-                    window.deleteBandwidthProfile(parseInt(btn.dataset.id, 10), btn.dataset.name);
-                }
-            } else if (action === 'delete-mab-device') {
-                if (typeof window.deleteMabDevice === 'function') {
-                    window.deleteMabDevice(parseInt(btn.dataset.id, 10));
-                }
-            } else if (action === 'delete-custom-attr') {
-                if (typeof window.deleteCustomAttr === 'function') {
-                    window.deleteCustomAttr(parseInt(btn.dataset.id, 10));
-                }
-            } else if (action === 'delete-rbac-mapping') {
-                if (typeof window.deleteRbacMapping === 'function') {
-                    window.deleteRbacMapping(parseInt(btn.dataset.id, 10), btn.dataset.principal);
-                }
-            } else if (action === 'terminate-session') {
-                if (typeof window.terminateSession === 'function') {
-                    window.terminateSession(btn.dataset.token);
-                }
-            } else if (action === 'toggle-fw-rule') {
-                if (typeof window.toggleFwRuleState === 'function') {
-                    window.toggleFwRuleState(parseInt(btn.dataset.id, 10), btn.dataset.enable === 'true');
-                }
-            } else if (action === 'edit-fw-rule') {
-                if (typeof window.editFirewallRule === 'function') {
-                    window.editFirewallRule(parseInt(btn.dataset.id, 10));
-                }
-            } else if (action === 'delete-fw-rule') {
-                if (typeof window.deleteFirewallRule === 'function') {
-                    window.deleteFirewallRule(parseInt(btn.dataset.id, 10));
-                }
-            } else if (action === 'revoke-api-key') {
-                if (typeof window.revokeApiKey === 'function') {
-                    window.revokeApiKey(parseInt(btn.dataset.id, 10), btn.dataset.name);
-                }
-            } else if (action === 'copy-portal-asset') {
-                if (typeof window.copyPortalAssetUrl === 'function') {
-                    window.copyPortalAssetUrl(btn.dataset.url);
-                }
-            } else if (action === 'delete-portal-asset') {
-                if (typeof window.deletePortalAsset === 'function') {
-                    window.deletePortalAsset(btn.dataset.name, btn.dataset.type);
-                }
-            } else if (action === 'delete-sysvol-partner') {
-                if (typeof window.deleteSysvolPartner === 'function') {
-                    window.deleteSysvolPartner(btn.dataset.ip);
-                }
-            } else if (action === 'repin-sysvol-partner') {
-                if (typeof window.startRepinSysvolPartner === 'function') {
-                    window.startRepinSysvolPartner(btn.dataset.ip);
-                }
-            } else if (action === 'edit-user') {
-                if (typeof window.openEditUserModal === 'function') {
-                    window.openEditUserModal(btn.dataset.username);
-                }
-            } else if (action === 'delete-user') {
-                if (typeof window.deleteUser === 'function') {
-                    window.deleteUser(btn.dataset.username);
-                }
-            } else if (action === 'edit-group') {
-                if (typeof window.openEditGroupModal === 'function') {
-                    window.openEditGroupModal(btn.dataset.group);
-                }
-            } else if (action === 'delete-group') {
-                if (typeof window.deleteGroup === 'function') {
-                    window.deleteGroup(btn.dataset.group);
-                }
-            } else if (action === 'delete-computer') {
-                if (typeof window.deleteComputer === 'function') {
-                    window.deleteComputer(btn.dataset.computer);
-                }
-            } else if (action === 'control-service') {
+            if (action === 'control-service') {
                 if (typeof window.controlService === 'function') {
                     window.controlService(btn.dataset.service, btn.dataset.op);
-                }
-            } else if (action === 'open-service-modal') {
-                if (typeof window.openServiceControlModal === 'function') {
-                    window.openServiceControlModal(btn.dataset.service);
-                }
-            } else if (action === 'open-log-viewer') {
-                if (typeof window.openLogViewer === 'function') {
-                    window.openLogViewer(btn.dataset.service, btn.dataset.title);
-                }
-            } else if (action === 'delete-forwarder') {
-                if (typeof window.deleteDomainForwarder === 'function') {
-                    window.deleteDomainForwarder(btn.dataset.domain);
-                }
-            } else if (action === 'delete-override') {
-                if (typeof window.deleteHostOverride === 'function') {
-                    window.deleteHostOverride(btn.dataset.fqdn, btn.dataset.type);
-                }
-            } else if (action === 'edit-dns-record') {
-                if (typeof window.openEditDnsModal === 'function') {
-                    window.openEditDnsModal(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data, parseInt(btn.dataset.ttl, 10));
-                }
-            } else if (action === 'delete-dns-record') {
-                if (typeof window.deleteDnsRecord === 'function') {
-                    window.deleteDnsRecord(btn.dataset.zone, btn.dataset.name, btn.dataset.type, btn.dataset.data);
-                }
-            } else if (action === 'delete-upn-suffix') {
-                if (typeof window.deleteUpnSuffix === 'function') {
-                    window.deleteUpnSuffix(btn.dataset.suffix);
-                }
-            } else if (action === 'copy-doh-ip') {
-                const url = `https://${window.location.hostname}/dns-query`;
-                if (typeof window.copyToClipboard === 'function') {
-                    window.copyToClipboard(url, 'IP DoH URL copied!');
-                }
-            } else if (action === 'copy-doh-fqdn') {
-                const el = document.getElementById('doh-display-fqdn') || document.getElementById('doh-guide-fqdn-url');
-                const url = el?.textContent?.trim() || `https://${window.location.hostname}/dns-query`;
-                if (typeof window.copyToClipboard === 'function') {
-                    window.copyToClipboard(url, 'FQDN DoH URL copied!');
                 }
             } else if (action === 'copy-doh-curl') {
                 const el = document.getElementById('doh-guide-curl-cmd');
                 const cmd = el?.textContent?.trim() || '';
                 if (typeof window.copyToClipboard === 'function') {
                     window.copyToClipboard(cmd, 'cURL command copied!');
+                }
+            } else {
+                triggerAction(action, btn, e, 'click');
+            }
+        });
+
+        // 2. Change Listener (Delegated)
+        document.addEventListener('change', function(e) {
+            const target = e.target.closest('[data-on-change]');
+            if (target) {
+                triggerAction(target.dataset.onChange, target, e, 'change');
+            }
+        });
+
+        // 3. Input Listener (Delegated)
+        document.addEventListener('input', function(e) {
+            const target = e.target.closest('[data-on-input]');
+            if (target) {
+                triggerAction(target.dataset.onInput, target, e, 'input');
+            }
+        });
+
+        // 4. Submit Listener (Delegated)
+        document.addEventListener('submit', function(e) {
+            const target = e.target.closest('form[data-on-submit]') || e.target.closest('[data-on-submit]');
+            if (target) {
+                e.preventDefault();
+                triggerAction(target.dataset.onSubmit, target, e, 'submit');
+            }
+        });
+
+        // 5. Keydown Listener (Delegated)
+        document.addEventListener('keydown', function(e) {
+            const target = e.target.closest('[data-on-keydown]');
+            if (target) {
+                const requiredKey = target.dataset.key || 'Enter';
+                if (e.key === requiredKey) {
+                    e.preventDefault();
+                    triggerAction(target.dataset.onKeydown, target, e, 'keydown');
                 }
             }
         });

@@ -9,10 +9,10 @@
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="downloadActiveLicense()" id="btn-download-license" class="hidden px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="downloadActiveLicense" id="btn-download-license" class="hidden px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-download"></i> Download License
                         </button>
-                        <button onclick="fetchLicenseStatus()" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-amber-600/30">
+                        <button data-action="fetchLicenseStatus" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-amber-600/30">
                             <i class="fa-solid fa-arrows-rotate"></i> Refresh Status
                         </button>
                     </div>
@@ -44,7 +44,7 @@
                                 <span class="text-slate-400 text-xs">/ <span id="lic-card-max-users" class="font-bold text-slate-200">200</span> Users</span>
                             </div>
                             <div class="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
-                                <div id="lic-card-progress" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                <div id="lic-card-progress" class="bg-emerald-500 h-1.5 rounded-full transition-all duration-300 w-0"></div>
                             </div>
                             <div id="lic-card-remaining" class="text-[11px] text-slate-400 mt-1.5 font-mono">200 slots remaining</div>
                         </div>
@@ -124,7 +124,7 @@
 
                         <!-- Remove License Button -->
                         <div id="lic-remove-container" class="hidden pt-3 border-t border-slate-800">
-                            <button onclick="confirmAndRemoveLicense()" class="w-full px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2">
+                            <button data-action="confirmAndRemoveLicense" class="w-full px-4 py-2 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-trash-can"></i> Remove License (Revert to Free Tier)
                             </button>
                         </div>
@@ -140,8 +140,8 @@
                         </p>
 
                         <!-- Drag and Drop Dropzone -->
-                        <div id="lic-dropzone" onclick="document.getElementById('lic-file-input').click()" class="border-2 border-dashed border-slate-700 hover:border-amber-500/60 rounded-xl p-6 text-center cursor-pointer transition bg-slate-950/40 hover:bg-slate-800/30">
-                            <input type="file" id="lic-file-input" accept=".lic,.txt" class="hidden" onchange="handleLicenseFileSelect(event)">
+                        <div id="lic-dropzone" data-action="trigger-file-click" data-target="lic-file-input" class="border-2 border-dashed border-slate-700 hover:border-amber-500/60 rounded-xl p-6 text-center cursor-pointer transition bg-slate-950/40 hover:bg-slate-800/30">
+                            <input type="file" id="lic-file-input" accept=".lic,.txt" class="hidden" data-on-change="handleLicenseFileSelect">
                             <div class="flex flex-col items-center gap-2">
                                 <div class="w-12 h-12 rounded-full bg-amber-600/20 text-amber-400 flex items-center justify-center text-xl">
                                     <i class="fa-solid fa-certificate"></i>
@@ -160,13 +160,13 @@
                                 <span id="lic-selected-file-name" class="text-xs font-mono text-slate-200 truncate"></span>
                                 <span id="lic-selected-file-size" class="text-[10px] text-slate-400"></span>
                             </div>
-                            <button onclick="clearSelectedLicenseFile()" class="text-slate-400 hover:text-rose-400 text-xs">
+                            <button data-action="clearSelectedLicenseFile" class="text-slate-400 hover:text-rose-400 text-xs">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>
 
                         <!-- Upload Action Button -->
-                        <button onclick="submitLicenseUpload()" id="btn-submit-license-upload" disabled class="w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm shadow-amber-600/30">
+                        <button data-action="submitLicenseUpload" id="btn-submit-license-upload" disabled class="w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm shadow-amber-600/30">
                             <i class="fa-solid fa-shield-halved"></i> Validate & Activate License
                         </button>
 

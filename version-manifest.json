@@ -1,12 +1,12 @@
 {
-  "version": "1.5.1",
-  "name": "ZclockID Enterprise v1.5.1",
+  "version": "1.5.2",
+  "name": "ZclockID Enterprise v1.5.2",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-22T20:50:00Z",
-  "summary": "Self-host all web assets (Tailwind, Font Awesome, Google Fonts, Chart.js), tighten Content Security Policy to 'self', transitive privileged group checks, and SNMP audit masking",
-  "notes": "### What's Changed in v1.5.1:\n* **Self-Hosted Web Assets:** Eliminated all external asset dependencies across all pages (`index.html`, `login.html`, `register.html`, `password-reset.html`, `setup.html`). Tailwind CSS is pre-compiled at build time via the pinned standalone CLI (SHA-256 verified) without Node.js on the appliance. Font Awesome 6.4.0, Google Fonts (Plus Jakarta Sans, JetBrains Mono, Inter), and Chart.js v4.6.1 are fully vendored under `web/vendor/` with cryptographic checksums recorded in `VENDOR.md`.\n* **Tightened Content Security Policy:** Enforces strict `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` across Nginx and FastAPI portal handlers with zero external domains.\n* **Transitive Privileged Group Protection:** `is_privileged_ad_group()` recursively identifies nested groups in `Domain Admins`, `Enterprise Admins`, `Schema Admins`, and `Administrators` using LDAP matching rule `memberOf:1.2.840.113556.1.4.1941:=<DN>`, failing closed upon query error.\n* **Archive Security Guard:** `safe_extract_tar()` requires Python 3.12+ `tarfile.data_filter` and raises HTTP 400 if unavailable.\n* **SNMP Audit Masking:** Masks community strings and accurately logs the authenticated administrator actor in `SNMP_CONFIG_UPDATED` audit events.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.5.1_all.deb",
-  "package_name": "zclockid_1.5.1_all.deb",
+  "published_at": "2026-11-22T22:30:00Z",
+  "summary": "CSP Phase 2: Complete removal of 'unsafe-inline' from script-src and style-src, central event delegation, and external asset extraction",
+  "notes": "### What's Changed in v1.5.2:\n* **CSP Hardening Phase 2:** Completely removed `'unsafe-inline'` from `script-src` and `style-src` across Nginx reverse proxy configurations and FastAPI dynamic portal endpoints.\n* **Central Delegated Event Handling:** Eliminated all 499 inline `on*=` event handlers from HTML templates and JS string templates. Replaced with delegated `data-action`, `data-on-change`, `data-on-input`, `data-on-submit`, and `data-on-keydown` event listeners in `web/js/core.js` using `data-*` attributes without `eval()` or `new Function()`.\n* **Extracted Scripts and Styles:** Migrated inline `<script>` and `<style>` blocks across `index.html`, `login.html`, `register.html`, `password-reset.html`, and `setup.html` into dedicated external JavaScript and CSS files.\n* **Automated Security & CSP Smoke Testing:** Enhanced `tests/xss_scan.sh` and Playwright `tests/csp_smoke.py` validating 0 CSP violations, 0 page errors, and 0 console errors across all 19 web console tabs, all modals, and portal submissions.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.5.2_all.deb",
+  "package_name": "zclockid_1.5.2_all.deb",
   "min_version_required": "1.0.0"
 }

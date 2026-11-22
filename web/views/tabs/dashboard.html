@@ -48,7 +48,7 @@
                             <span id="meter-cpu" class="font-mono text-indigo-400 font-bold">0%</span>
                         </div>
                         <div class="w-full bg-slate-800 rounded-full h-2">
-                            <div id="bar-cpu" class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width: 5%"></div>
+                            <div id="bar-cpu" class="bg-indigo-600 h-2 rounded-full transition-all duration-500 w-[5%]"></div>
                         </div>
                     </div>
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
@@ -57,7 +57,7 @@
                             <span id="meter-mem" class="font-mono text-emerald-400 font-bold">0 MB</span>
                         </div>
                         <div class="w-full bg-slate-800 rounded-full h-2">
-                            <div id="bar-mem" class="bg-emerald-600 h-2 rounded-full transition-all duration-500" style="width: 20%"></div>
+                            <div id="bar-mem" class="bg-emerald-600 h-2 rounded-full transition-all duration-500 w-1/5"></div>
                         </div>
                     </div>
                     <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-3">
@@ -66,7 +66,7 @@
                             <span id="meter-disk" class="font-mono text-cyan-400 font-bold">0 GB</span>
                         </div>
                         <div class="w-full bg-slate-800 rounded-full h-2">
-                            <div id="bar-disk" class="bg-cyan-600 h-2 rounded-full transition-all duration-500" style="width: 10%"></div>
+                            <div id="bar-disk" class="bg-cyan-600 h-2 rounded-full transition-all duration-500 w-[10%]"></div>
                         </div>
                     </div>
                 </div>
@@ -107,7 +107,7 @@
                                 <span class="text-slate-400 text-[10px] block uppercase font-sans">Active Sessions</span>
                                 <span id="auth-metric-sessions" class="font-bold text-amber-400 text-xs">--</span>
                             </div>
-                            <button onclick="fetchAuthStats24h()" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition border border-slate-700" title="Refresh Graph">
+                            <button data-action="fetchAuthStats24h" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition border border-slate-700" title="Refresh Graph">
                                 <i class="fa-solid fa-arrows-rotate"></i>
                             </button>
                         </div>
@@ -141,7 +141,7 @@
 
                 <!-- Microsoft RSAT (Remote Server Administration Tools) Integration & Quick Guide -->
                 <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 md:p-6 transition-all">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none" onclick="toggleRsatGuide()">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none" data-action="toggleRsatGuide">
                         <div class="flex items-center gap-3">
                             <div class="h-10 w-10 rounded-xl bg-sky-600/20 border border-sky-500/30 flex items-center justify-center text-sky-400 text-lg shrink-0">
                                 <i class="fa-brands fa-windows"></i>
@@ -154,12 +154,12 @@
                                 <p class="text-xs text-slate-400">Manage ZclockID Samba AD DC natively from your Windows workstation using official Microsoft MMC consoles</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+                        <div class="flex items-center gap-2" data-action="stop-propagation">
                             <a href="https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/remote-server-administration-tools" target="_blank" rel="noopener noreferrer"
                                 class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Docs
                             </a>
-                            <button type="button" onclick="toggleRsatGuide()"
+                            <button type="button" data-action="toggleRsatGuide"
                                 class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700" id="rsat-guide-toggle-btn">
                                 <span id="rsat-guide-toggle-text">Collapse Guide</span>
                                 <i id="rsat-guide-chevron" class="fa-solid fa-chevron-up text-xs transition-transform duration-200"></i>
@@ -185,7 +185,7 @@
                             </div>
                             <div class="flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
                                 <span class="text-slate-500">GUI: Settings &rarr; Optional features &rarr; RSAT</span>
-                                <button type="button" onclick="copyToClipboard('Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online', 'Copied RSAT PowerShell install command!')"
+                                <button type="button" data-action="copyToClipboard" data-text="Get-WindowsCapability -Name RSAT* -Online | Add-WindowsCapability -Online" data-msg="Copied RSAT PowerShell install command!"
                                     class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] transition flex items-center gap-1">
                                     <i class="fa-regular fa-copy"></i> Copy Command
                                 </button>
@@ -233,7 +233,7 @@
                                         <i class="fa-solid fa-users text-indigo-400 text-xs"></i>
                                         <span class="text-slate-300">AD Users & Computers</span>
                                     </div>
-                                    <button type="button" onclick="copyToClipboard('dsa.msc', 'Copied dsa.msc')"
+                                    <button type="button" data-action="copyToClipboard" data-text="dsa.msc" data-msg="Copied dsa.msc"
                                         class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
                                         <code>dsa.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
                                     </button>
@@ -243,7 +243,7 @@
                                         <i class="fa-solid fa-sliders text-emerald-400 text-xs"></i>
                                         <span class="text-slate-300">Group Policy (GPMC)</span>
                                     </div>
-                                    <button type="button" onclick="copyToClipboard('gpmc.msc', 'Copied gpmc.msc')"
+                                    <button type="button" data-action="copyToClipboard" data-text="gpmc.msc" data-msg="Copied gpmc.msc"
                                         class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
                                         <code>gpmc.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
                                     </button>
@@ -253,7 +253,7 @@
                                         <i class="fa-solid fa-server text-sky-400 text-xs"></i>
                                         <span class="text-slate-300">DNS Manager Console</span>
                                     </div>
-                                    <button type="button" onclick="copyToClipboard('dnsmgmt.msc', 'Copied dnsmgmt.msc')"
+                                    <button type="button" data-action="copyToClipboard" data-text="dnsmgmt.msc" data-msg="Copied dnsmgmt.msc"
                                         class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
                                         <code>dnsmgmt.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
                                     </button>
@@ -263,7 +263,7 @@
                                         <i class="fa-solid fa-sitemap text-amber-400 text-xs"></i>
                                         <span class="text-slate-300">AD Sites & Services</span>
                                     </div>
-                                    <button type="button" onclick="copyToClipboard('dssite.msc', 'Copied dssite.msc')"
+                                    <button type="button" data-action="copyToClipboard" data-text="dssite.msc" data-msg="Copied dssite.msc"
                                         class="font-mono text-cyan-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-slate-800 hover:text-white hover:border-cyan-700 transition flex items-center gap-1" title="Copy command">
                                         <code>dssite.msc</code> <i class="fa-regular fa-copy text-[9px]"></i>
                                     </button>
@@ -289,10 +289,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <button onclick="checkForSystemUpdates()" id="btn-dash-check-updates" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                        <button data-action="checkForSystemUpdates" id="btn-dash-check-updates" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
                             <i class="fa-solid fa-magnifying-glass text-slate-400"></i> Check Updates
                         </button>
-                        <button onclick="showTab('update')" class="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-violet-600/30">
+                        <button data-action="showTab" data-tab="update" class="px-3.5 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-sm shadow-violet-600/30">
                             <i class="fa-solid fa-cloud-arrow-down"></i> Update Center
                         </button>
                     </div>
@@ -308,7 +308,7 @@
                             <p class="text-xs text-slate-400">Live process metrics, port bindings, runtime controls (Start, Stop, Restart, Reload), and boot autostart configuration</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="fetchSystemStatus()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+                            <button data-action="fetchSystemStatus" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-rotate"></i> Refresh Metrics
                             </button>
                         </div>
@@ -323,7 +323,7 @@
                                         <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
                                         <span id="enabled-samba-ad-dc" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-indigo-400 transition" onclick="openServiceControlModal('samba-ad-dc')">Samba AD DC</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-indigo-400 transition" data-action="openServiceControlModal" data-service="samba-ad-dc">Samba AD DC</h4>
                                 </div>
                                 <span id="badge-samba-ad-dc" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -333,16 +333,16 @@
                                 <div class="flex justify-between"><span>Ports:</span> <span class="text-indigo-300 truncate max-w-[170px]" title="53, 88, 135, 139, 389, 445, 464, 636, 3268">53, 88, 135, 389, 445...</span></div>
                             </div>
                             <div id="actions-samba-ad-dc" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('samba-ad-dc', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="samba-ad-dc" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('samba-ad-dc', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="samba-ad-dc" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('samba-ad-dc')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="samba-ad-dc" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('samba-ad-dc', 'Samba Active Directory')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="samba-ad-dc" data-title="Samba Active Directory" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -356,7 +356,7 @@
                                         <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
                                         <span id="enabled-bind9" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" onclick="openServiceControlModal('bind9')">BIND9 DLZ & DoH</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" data-action="openServiceControlModal" data-service="bind9">BIND9 DLZ & DoH</h4>
                                 </div>
                                 <span id="badge-bind9" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -366,16 +366,16 @@
                                 <div class="flex justify-between"><span>Ports:</span> <span class="text-cyan-300">53 (DNS), 8053 (DoH)</span></div>
                             </div>
                             <div id="actions-bind9" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('bind9', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="bind9" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('bind9', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="bind9" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('bind9')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="bind9" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('bind9', 'BIND9 DNS Engine')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="bind9" data-title="BIND9 DNS Engine" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -389,7 +389,7 @@
                                         <span class="text-[9px] text-amber-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-800/40">INFRA ENGINE</span>
                                         <span id="enabled-freeradius" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-amber-400 transition" onclick="openServiceControlModal('freeradius')">FreeRADIUS 3</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-amber-400 transition" data-action="openServiceControlModal" data-service="freeradius">FreeRADIUS 3</h4>
                                 </div>
                                 <span id="badge-freeradius" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -399,16 +399,16 @@
                                 <div class="flex justify-between"><span>Ports:</span> <span class="text-amber-300">1812 (Auth), 1813 (Acct)</span></div>
                             </div>
                             <div id="actions-freeradius" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('freeradius', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="freeradius" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('freeradius', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="freeradius" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('freeradius')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="freeradius" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('freeradius', 'FreeRADIUS 802.1X')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="freeradius" data-title="FreeRADIUS 802.1X" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -422,7 +422,7 @@
                                         <span class="text-[9px] text-sky-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-sky-950/60 border border-sky-800/40">INFRA ENGINE</span>
                                         <span id="enabled-chrony" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-sky-400 transition" onclick="openServiceControlModal('chrony')">Chrony NTP Server</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-sky-400 transition" data-action="openServiceControlModal" data-service="chrony">Chrony NTP Server</h4>
                                 </div>
                                 <span id="badge-chrony" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -432,16 +432,16 @@
                                 <div class="flex justify-between"><span>Ports:</span> <span class="text-sky-300">123 (UDP Authenticated)</span></div>
                             </div>
                             <div id="actions-chrony" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('chrony', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="chrony" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('chrony', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="chrony" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('chrony')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="chrony" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('chrony', 'Chrony NTP Service')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="chrony" data-title="Chrony NTP Service" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -455,7 +455,7 @@
                                         <span class="text-[9px] text-violet-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-violet-950/60 border border-violet-800/40">ZCLOCK CORE</span>
                                         <span id="enabled-zclock-sysvold" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" onclick="openServiceControlModal('zclock-sysvold')">zclock-sysvold</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" data-action="openServiceControlModal" data-service="zclock-sysvold">zclock-sysvold</h4>
                                 </div>
                                 <span id="badge-zclock-sysvold" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -465,16 +465,16 @@
                                 <div class="flex justify-between"><span>Path:</span> <span class="text-violet-300">/var/lib/samba/sysvol</span></div>
                             </div>
                             <div id="actions-zclock-sysvold" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('zclock-sysvold', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="zclock-sysvold" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('zclock-sysvold', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="zclock-sysvold" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('zclock-sysvold')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="zclock-sysvold" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('zclock-sysvold', 'Sysvol NTACL Guardian')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="zclock-sysvold" data-title="Sysvol NTACL Guardian" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -488,7 +488,7 @@
                                         <span class="text-[9px] text-violet-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-violet-950/60 border border-violet-800/40">ZCLOCK CORE</span>
                                         <span id="enabled-zclock-azuresync" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-amber-950 text-amber-400 border border-amber-800">BOOT: OFF</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" onclick="openServiceControlModal('zclock-azuresync')">zclock-azuresync</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" data-action="openServiceControlModal" data-service="zclock-azuresync">zclock-azuresync</h4>
                                 </div>
                                 <span id="badge-zclock-azuresync" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-900 text-slate-400 border border-slate-700">INACTIVE</span>
                             </div>
@@ -498,16 +498,16 @@
                                 <div class="flex justify-between"><span>Cloud:</span> <span class="text-violet-300">Microsoft Entra ID</span></div>
                             </div>
                             <div id="actions-zclock-azuresync" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('zclock-azuresync', 'start')" class="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/30">
+                                <button data-action="controlService" data-service="zclock-azuresync" data-op="start" class="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/30">
                                     <i class="fa-solid fa-play"></i> Start
                                 </button>
-                                <button onclick="controlService('zclock-azuresync', 'restart')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-semibold transition" title="Restart Service">
+                                <button data-action="controlService" data-service="zclock-azuresync" data-op="restart" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-semibold transition" title="Restart Service">
                                     <i class="fa-solid fa-arrows-rotate"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('zclock-azuresync')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="zclock-azuresync" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('zclock-azuresync', 'Azure Cloud Sync')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="zclock-azuresync" data-title="Azure Cloud Sync" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -521,7 +521,7 @@
                                         <span class="text-[9px] text-violet-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-violet-950/60 border border-violet-800/40">ZCLOCK CORE</span>
                                         <span id="enabled-zclock-api" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" onclick="openServiceControlModal('zclock-api')">zclock-api</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-violet-400 transition" data-action="openServiceControlModal" data-service="zclock-api">zclock-api</h4>
                                 </div>
                                 <span id="badge-zclock-api" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -531,16 +531,16 @@
                                 <div class="flex justify-between"><span>Ports:</span> <span class="text-violet-300">8000 (FastAPI Engine)</span></div>
                             </div>
                             <div id="actions-zclock-api" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('zclock-api', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="zclock-api" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('zclock-api', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="zclock-api" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('zclock-api')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="zclock-api" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('zclock-api', 'ZclockID REST API')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="zclock-api" data-title="ZclockID REST API" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -554,7 +554,7 @@
                                         <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
                                         <span id="enabled-nginx" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" onclick="openServiceControlModal('nginx')">Nginx Multiplexer</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" data-action="openServiceControlModal" data-service="nginx">Nginx Multiplexer</h4>
                                 </div>
                                 <span id="badge-nginx" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -564,16 +564,16 @@
                                 <div class="flex justify-between"><span>Ports:</span> <span class="text-cyan-300">80, 443 (HTTP/2 TLS)</span></div>
                             </div>
                             <div id="actions-nginx" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('nginx', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="nginx" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('nginx', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="nginx" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('nginx')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="nginx" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('nginx', 'Nginx Ingress Proxy')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="nginx" data-title="Nginx Ingress Proxy" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>
@@ -587,7 +587,7 @@
                                         <span class="text-[9px] text-cyan-400 font-mono uppercase font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-800/40">INFRA ENGINE</span>
                                         <span id="enabled-snmpd" class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">BOOT: ON</span>
                                     </div>
-                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" onclick="openServiceControlModal('snmpd')">SNMP Daemon</h4>
+                                    <h4 class="text-xs font-bold text-white mt-1 cursor-pointer hover:text-cyan-400 transition" data-action="openServiceControlModal" data-service="snmpd">SNMP Daemon</h4>
                                 </div>
                                 <span id="badge-snmpd" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">ACTIVE</span>
                             </div>
@@ -597,16 +597,16 @@
                                 <div class="flex justify-between"><span>Ports:</span> <span class="text-cyan-300">161 (UDP)</span></div>
                             </div>
                             <div id="actions-snmpd" class="pt-2 border-t border-slate-800/80 flex items-center gap-1.5">
-                                <button onclick="controlService('snmpd', 'restart')" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                <button data-action="controlService" data-service="snmpd" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                     <i class="fa-solid fa-arrows-rotate"></i> Restart
                                 </button>
-                                <button onclick="controlService('snmpd', 'stop')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                <button data-action="controlService" data-service="snmpd" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                     <i class="fa-solid fa-stop"></i>
                                 </button>
-                                <button onclick="openServiceControlModal('snmpd')" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                <button data-action="openServiceControlModal" data-service="snmpd" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                     <i class="fa-solid fa-sliders"></i>
                                 </button>
-                                <button onclick="openLogViewer('snmpd', 'SNMP Telemetry')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                <button data-action="openLogViewer" data-service="snmpd" data-title="SNMP Telemetry" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                     <i class="fa-solid fa-terminal"></i>
                                 </button>
                             </div>

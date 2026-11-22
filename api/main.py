@@ -158,7 +158,7 @@ def _serve_portal_html(table_name: str, filename: str):
         "X-Frame-Options": "DENY",
         "Content-Security-Policy": (
             "sandbox allow-forms allow-scripts" if use_custom else
-            "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+            "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
         )
     }
 

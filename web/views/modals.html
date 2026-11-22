@@ -10,7 +10,7 @@
                         <span class="text-[10px] font-mono text-slate-400" id="modal-srv-unit">systemd.service</span>
                     </div>
                 </div>
-                <button onclick="closeServiceControlModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeServiceControlModal" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="p-5 space-y-4 text-xs font-mono">
@@ -53,32 +53,32 @@
                 <div class="space-y-2 pt-2">
                     <span class="text-slate-400 text-[10px] font-sans uppercase font-bold tracking-wider">Engine Lifecycle Controls</span>
                     <div class="grid grid-cols-2 gap-2 text-xs">
-                        <button onclick="executeModalServiceAction('start')" class="py-2 px-3 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                        <button data-action="executeModalServiceAction" data-action-name="start" class="py-2 px-3 bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-play"></i> Start Service
                         </button>
-                        <button onclick="executeModalServiceAction('stop')" class="py-2 px-3 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                        <button data-action="executeModalServiceAction" data-action-name="stop" class="py-2 px-3 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-stop"></i> Stop Service
                         </button>
-                        <button onclick="executeModalServiceAction('restart')" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                        <button data-action="executeModalServiceAction" data-action-name="restart" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-arrows-rotate"></i> Restart Service
                         </button>
-                        <button onclick="executeModalServiceAction('reload')" class="py-2 px-3 bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                        <button data-action="executeModalServiceAction" data-action-name="reload" class="py-2 px-3 bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-bolt"></i> Reload Config
                         </button>
-                        <button onclick="executeModalServiceAction('enable')" class="py-2 px-3 bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                        <button data-action="executeModalServiceAction" data-action-name="enable" class="py-2 px-3 bg-cyan-600/20 hover:bg-cyan-600 text-cyan-300 hover:text-white border border-cyan-500/30 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-check"></i> Enable at Boot
                         </button>
-                        <button onclick="executeModalServiceAction('disable')" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
+                        <button data-action="executeModalServiceAction" data-action-name="disable" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 rounded-lg font-bold transition flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-ban"></i> Disable at Boot
                         </button>
                     </div>
                 </div>
 
                 <div class="pt-2 border-t border-slate-800 flex justify-between items-center">
-                    <button onclick="openLogFromModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
+                    <button data-action="openLogFromModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-indigo-300 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border border-slate-700">
                         <i class="fa-solid fa-terminal"></i> View Live Logs
                     </button>
-                    <button onclick="closeServiceControlModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
+                    <button data-action="closeServiceControlModal" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
                         Close
                     </button>
                 </div>
@@ -94,10 +94,10 @@
                     <i class="fa-solid fa-sliders text-indigo-400"></i>
                     <h3 class="text-sm font-bold text-white">Self-Registration & OTP Verification Settings</h3>
                 </div>
-                <button onclick="closeRegistrationSettingsModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeRegistrationSettingsModal" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <form onsubmit="saveRegistrationSettings(event)" class="p-5 flex-1 overflow-y-auto custom-scroll space-y-5 text-xs">
+            <form data-on-submit="saveRegistrationSettings" class="p-5 flex-1 overflow-y-auto custom-scroll space-y-5 text-xs">
                 <!-- Registration & Approval Switches -->
                 <div class="space-y-3">
                     <div class="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800">
@@ -176,9 +176,9 @@
 
                     <div class="flex gap-2">
                         <input type="text" id="reg-new-dept-input" placeholder="Enter department name (e.g. DevOps, Legal, Sales)"
-                            onkeydown="if(event.key==='Enter'){event.preventDefault();addRegistrationDepartment();}"
+                            data-on-keydown="addRegistrationDepartment" data-key="Enter"
                             class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none font-sans">
-                        <button type="button" onclick="addRegistrationDepartment()"
+                        <button type="button" data-action="addRegistrationDepartment"
                             class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-plus"></i> Add
                         </button>
@@ -190,7 +190,7 @@
 
                     <div class="flex justify-between items-center text-[10px] text-slate-500 pt-1">
                         <span>Click <i class="fa-solid fa-xmark text-slate-400"></i> to remove a department. Max limit: 100.</span>
-                        <button type="button" onclick="resetDefaultRegistrationDepartments()" class="text-indigo-400 hover:underline">Reset to Default List</button>
+                        <button type="button" data-action="resetDefaultRegistrationDepartments" class="text-indigo-400 hover:underline">Reset to Default List</button>
                     </div>
                 </div>
 
@@ -204,7 +204,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="text-slate-300 block mb-1 font-medium">SMS Provider Type</label>
-                            <select id="reg-cfg-sms-type" onchange="toggleSmsProviderFields()" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                            <select id="reg-cfg-sms-type" data-on-change="toggleSmsProviderFields" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
                                 <option value="simulated">Simulated / Local Appliance Log (Development / Lab)</option>
                                 <option value="webhook">Custom Webhook / HTTP GET or POST API</option>
                                 <option value="twilio">Twilio Messaging API</option>
@@ -243,7 +243,7 @@
                     <div class="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <input type="text" id="reg-test-sms-mobile" placeholder="Test Mobile (+919582889339)"
                             class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
-                        <button type="button" onclick="sendTestSms('reg')" id="btn-reg-test-sms"
+                        <button type="button" data-action="sendTestSms" data-type="reg" id="btn-reg-test-sms"
                             class="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 whitespace-nowrap">
                             <i class="fa-solid fa-paper-plane"></i> Send Test SMS
                         </button>
@@ -258,7 +258,7 @@
                             <div class="text-[11px] text-slate-400">Send confirmation and approval emails to user's registered corporate email</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="reg-cfg-smtp-enabled" onchange="toggleSmtpFields()" class="sr-only peer">
+                            <input type="checkbox" id="reg-cfg-smtp-enabled" data-on-change="toggleSmtpFields" class="sr-only peer">
                             <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                         </label>
                     </div>
@@ -314,14 +314,14 @@
                             <div class="text-[10px] text-slate-400" id="reg-portal-file-meta">No custom HTML uploaded yet</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="reg-cfg-use-custom-html" onchange="toggleCustomPortal('registration')" class="sr-only peer">
+                            <input type="checkbox" id="reg-cfg-use-custom-html" data-on-change="toggleCustomPortal" data-type="registration" class="sr-only peer">
                             <div class="w-9 h-5 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                         </label>
                     </div>
 
                     <!-- Step 1: Download Example Template -->
                     <div class="flex flex-wrap items-center gap-2">
-                        <button type="button" onclick="downloadExamplePortalTemplate('registration')"
+                        <button type="button" data-action="downloadExamplePortalTemplate" data-type="registration"
                             class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-download"></i> Download Example HTML Template
                         </button>
@@ -329,7 +329,7 @@
                             class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Preview Portal
                         </a>
-                        <button type="button" id="btn-reg-portal-reset" onclick="resetCustomPortalHtml('registration')"
+                        <button type="button" id="btn-reg-portal-reset" data-action="resetCustomPortalHtml" data-type="registration"
                             class="hidden px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-rotate-left"></i> Reset to Default
                         </button>
@@ -344,7 +344,7 @@
                         <div class="flex flex-col sm:flex-row gap-2">
                             <input type="file" id="reg-portal-asset-file" accept=".png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.css"
                                 class="flex-1 text-[11px] text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-cyan-300 hover:file:bg-slate-700 bg-slate-950 border border-slate-800 rounded-lg p-1">
-                            <button type="button" onclick="uploadPortalAsset('registration')" id="btn-reg-upload-asset"
+                            <button type="button" data-action="uploadPortalAsset" data-type="registration" id="btn-reg-upload-asset"
                                 class="px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-[11px] font-semibold transition whitespace-nowrap">
                                 <i class="fa-solid fa-upload mr-1"></i> Upload Asset
                             </button>
@@ -358,7 +358,7 @@
                         <div class="flex flex-col sm:flex-row gap-2">
                             <input type="file" id="reg-portal-html-file" accept=".html,.htm"
                                 class="flex-1 text-[11px] text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-purple-300 hover:file:bg-slate-700 bg-slate-950 border border-slate-800 rounded-lg p-1">
-                            <button type="button" onclick="uploadCustomPortalHtml('registration')" id="btn-reg-upload-html"
+                            <button type="button" data-action="uploadCustomPortalHtml" data-type="registration" id="btn-reg-upload-html"
                                 class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[11px] font-semibold transition whitespace-nowrap shadow-sm">
                                 <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Upload & Activate HTML
                             </button>
@@ -367,7 +367,7 @@
                 </div>
 
                 <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
-                    <button type="button" onclick="closeRegistrationSettingsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeRegistrationSettingsModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-save-reg-settings" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
                         <i class="fa-solid fa-floppy-disk"></i> Save Settings
                     </button>
@@ -384,10 +384,10 @@
                     <i class="fa-solid fa-key text-indigo-400"></i>
                     <h3 class="text-sm font-bold text-white">Self-Service Password Reset Policy & Recovery Settings</h3>
                 </div>
-                <button onclick="closeSspprSettingsModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeSspprSettingsModal" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <form onsubmit="saveSspprSettings(event)" class="p-5 flex-1 overflow-y-auto custom-scroll space-y-5 text-xs">
+            <form data-on-submit="saveSspprSettings" class="p-5 flex-1 overflow-y-auto custom-scroll space-y-5 text-xs">
                 <!-- Master Toggle -->
                 <div class="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800">
                     <div>
@@ -492,7 +492,7 @@
                             <div class="text-[11px] text-slate-400">Send password reset OTP codes and completion notices to user's registered email</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="sspr-cfg-smtp-enabled" onchange="toggleSspprSmtpFields()" class="sr-only peer">
+                            <input type="checkbox" id="sspr-cfg-smtp-enabled" data-on-change="toggleSspprSmtpFields" class="sr-only peer">
                             <div class="w-11 h-6 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                         </label>
                     </div>
@@ -540,7 +540,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="text-slate-300 block mb-1 font-medium">SMS Provider Type</label>
-                            <select id="sspr-cfg-sms-type" onchange="toggleSspprSmsFields()" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
+                            <select id="sspr-cfg-sms-type" data-on-change="toggleSspprSmsFields" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 text-xs focus:border-cyan-500 focus:outline-none">
                                 <option value="simulated">Simulated / Local Appliance Log (Development / Lab)</option>
                                 <option value="webhook">Custom Webhook / HTTP GET or POST API</option>
                                 <option value="twilio">Twilio Messaging API</option>
@@ -579,7 +579,7 @@
                     <div class="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <input type="text" id="sspr-test-sms-mobile" placeholder="Test Mobile (+919582889339)"
                             class="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-2 text-slate-200 font-mono text-xs focus:border-cyan-500 focus:outline-none">
-                        <button type="button" onclick="sendTestSms('sspr')" id="btn-sspr-test-sms"
+                        <button type="button" data-action="sendTestSms" data-type="sspr" id="btn-sspr-test-sms"
                             class="px-3 py-2 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 whitespace-nowrap">
                             <i class="fa-solid fa-paper-plane"></i> Send Test SMS
                         </button>
@@ -604,14 +604,14 @@
                             <div class="text-[10px] text-slate-400" id="sspr-portal-file-meta">No custom HTML uploaded yet</div>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="sspr-cfg-use-custom-html" onchange="toggleCustomPortal('password')" class="sr-only peer">
+                            <input type="checkbox" id="sspr-cfg-use-custom-html" data-on-change="toggleCustomPortal" data-type="password" class="sr-only peer">
                             <div class="w-9 h-5 toggle-switch-track peer-focus:outline-none rounded-full peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
                         </label>
                     </div>
 
                     <!-- Step 1: Download Example Template -->
                     <div class="flex flex-wrap items-center gap-2">
-                        <button type="button" onclick="downloadExamplePortalTemplate('password')"
+                        <button type="button" data-action="downloadExamplePortalTemplate" data-type="password"
                             class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-download"></i> Download Example HTML Template
                         </button>
@@ -619,7 +619,7 @@
                             class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Preview Portal
                         </a>
-                        <button type="button" id="btn-sspr-portal-reset" onclick="resetCustomPortalHtml('password')"
+                        <button type="button" id="btn-sspr-portal-reset" data-action="resetCustomPortalHtml" data-type="password"
                             class="hidden px-3 py-1.5 bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5">
                             <i class="fa-solid fa-rotate-left"></i> Reset to Default
                         </button>
@@ -634,7 +634,7 @@
                         <div class="flex flex-col sm:flex-row gap-2">
                             <input type="file" id="sspr-portal-asset-file" accept=".png,.jpg,.jpeg,.gif,.svg,.webp,.ico,.css"
                                 class="flex-1 text-[11px] text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-cyan-300 hover:file:bg-slate-700 bg-slate-950 border border-slate-800 rounded-lg p-1">
-                            <button type="button" onclick="uploadPortalAsset('password')" id="btn-sspr-upload-asset"
+                            <button type="button" data-action="uploadPortalAsset" data-type="password" id="btn-sspr-upload-asset"
                                 class="px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg text-[11px] font-semibold transition whitespace-nowrap">
                                 <i class="fa-solid fa-upload mr-1"></i> Upload Asset
                             </button>
@@ -648,7 +648,7 @@
                         <div class="flex flex-col sm:flex-row gap-2">
                             <input type="file" id="sspr-portal-html-file" accept=".html,.htm"
                                 class="flex-1 text-[11px] text-slate-300 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-slate-800 file:text-purple-300 hover:file:bg-slate-700 bg-slate-950 border border-slate-800 rounded-lg p-1">
-                            <button type="button" onclick="uploadCustomPortalHtml('password')" id="btn-sspr-upload-html"
+                            <button type="button" data-action="uploadCustomPortalHtml" data-type="password" id="btn-sspr-upload-html"
                                 class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[11px] font-semibold transition whitespace-nowrap shadow-sm">
                                 <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Upload & Activate HTML
                             </button>
@@ -657,7 +657,7 @@
                 </div>
 
                 <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
-                    <button type="button" onclick="closeSspprSettingsModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeSspprSettingsModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-save-sspr-settings" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
                         <i class="fa-solid fa-floppy-disk"></i> Save SSPR Settings
                     </button>
@@ -673,9 +673,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-at text-amber-400"></i> Change UserPrincipalName (UPN)
                 </h3>
-                <button onclick="closeChangeUpnModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeChangeUpnModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="submitChangeUpn(event)" class="space-y-4 text-xs">
+            <form data-on-submit="submitChangeUpn" class="space-y-4 text-xs">
                 <div>
                     <label class="text-slate-400 block mb-1">Target Active Directory User</label>
                     <input type="text" id="upn-modal-username" readonly
@@ -694,7 +694,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeChangeUpnModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeChangeUpnModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-submit-change-upn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-amber-900/50">
                         <i class="fa-solid fa-check"></i> Update UPN
                     </button>
@@ -710,9 +710,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-box-archive text-emerald-400"></i> Create Appliance Backup Archive
                 </h3>
-                <button onclick="closeCreateBackupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeCreateBackupModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="submitCreateBackup(event)" class="space-y-4 text-xs">
+            <form data-on-submit="submitCreateBackup" class="space-y-4 text-xs">
                 <div>
                     <label class="text-slate-300 block mb-2 font-medium">Backup Scope & Type</label>
                     <div class="grid grid-cols-1 gap-2.5">
@@ -742,7 +742,7 @@
                 <div>
                     <label class="text-slate-300 block mb-1 font-medium">Archive Encryption Passphrase (Optional)</label>
                     <input id="backup-passphrase-input" type="password" placeholder="Leave empty for unencrypted backup"
-                        oninput="toggleBackupPassphraseWarning()"
+                        data-on-input="toggleBackupPassphraseWarning"
                         class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-sans focus:outline-none focus:border-emerald-500 transition">
                     <p id="backup-passphrase-warning" class="text-[11px] text-amber-400 mt-1.5 flex items-center gap-1.5">
                         <i class="fa-solid fa-triangle-exclamation"></i>
@@ -751,7 +751,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeCreateBackupModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeCreateBackupModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-submit-backup" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-emerald-900/50">
                         <i class="fa-solid fa-box-archive"></i> Generate Backup Archive
                     </button>
@@ -767,9 +767,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-upload text-sky-400"></i> Upload Backup Archive
                 </h3>
-                <button onclick="closeUploadBackupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeUploadBackupModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="submitUploadBackup(event)" class="space-y-4 text-xs">
+            <form data-on-submit="submitUploadBackup" class="space-y-4 text-xs">
                 <div>
                     <label class="text-slate-300 block mb-1 font-medium">Select Backup File (.tar.gz, .zip, .tgz, .tar, .gz)</label>
                     <input type="file" id="backup-file-upload" accept=".gz,.tar.gz,.tgz,.zip,.tar,application/gzip,application/x-gzip,application/x-tar,application/zip,application/octet-stream,*/*" required
@@ -778,7 +778,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeUploadBackupModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeUploadBackupModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-submit-upload" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-sky-900/50">
                         <i class="fa-solid fa-upload"></i> Upload & Verify
                     </button>
@@ -795,7 +795,7 @@
                     <i class="fa-solid fa-magnifying-glass text-indigo-400"></i>
                     <h3 id="inspect-modal-title" class="text-sm font-bold text-white font-mono">Backup Manifest Inspector</h3>
                 </div>
-                <button onclick="closeInspectBackupModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeInspectBackupModal" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="p-4 flex-1 overflow-y-auto custom-scroll space-y-4 text-xs font-mono">
                 <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5" id="inspect-meta-grid">
@@ -811,7 +811,7 @@
                 </div>
             </div>
             <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-end">
-                <button onclick="closeInspectBackupModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Close</button>
+                <button data-action="closeInspectBackupModal" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Close</button>
             </div>
         </div>
     </div>
@@ -823,7 +823,7 @@
                 <h3 class="text-sm font-bold text-rose-400 flex items-center gap-2">
                     <i class="fa-solid fa-triangle-exclamation"></i> Confirm Appliance Restoration
                 </h3>
-                <button onclick="closeRestoreModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeRestoreModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3.5 text-xs">
                 <div class="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl space-y-1 text-[11px] text-rose-300">
@@ -854,8 +854,8 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeRestoreModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
-                    <button type="button" onclick="executeRestore()" id="btn-run-restore" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-rose-900/50">
+                    <button type="button" data-action="closeRestoreModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="executeRestore" id="btn-run-restore" class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-rose-900/50">
                         <i class="fa-solid fa-rotate-left"></i> Restore Appliance Now
                     </button>
                 </div>
@@ -872,17 +872,17 @@
                     <h3 id="log-modal-title" class="text-sm font-bold text-white font-mono">Service Logs</h3>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button onclick="refreshActiveLogs()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded font-semibold transition flex items-center gap-1">
+                    <button data-action="refreshActiveLogs" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded font-semibold transition flex items-center gap-1">
                         <i class="fa-solid fa-rotate"></i> Refresh
                     </button>
-                    <button onclick="closeLogModal()" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                    <button data-action="closeLogModal" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
             <div class="p-4 flex-1 overflow-y-auto custom-scroll bg-black/90">
                 <pre id="log-modal-body" class="text-[11px] font-mono text-emerald-400 whitespace-pre-wrap break-all">Loading logs...</pre>
             </div>
             <div class="p-3 border-t border-slate-800 bg-slate-950 flex justify-end">
-                <button onclick="closeLogModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Close</button>
+                <button data-action="closeLogModal" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs">Close</button>
             </div>
         </div>
     </div>
@@ -892,7 +892,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-route text-cyan-400"></i> Configure Upstream DNS Forwarders</h3>
-                <button onclick="closeForwardersModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeForwardersModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -907,8 +907,8 @@
                     </select>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeForwardersModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="saveForwarders()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Apply & Reload BIND9</button>
+                    <button type="button" data-action="closeForwardersModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="saveForwarders" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Apply & Reload BIND9</button>
                 </div>
             </div>
         </div>
@@ -921,9 +921,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-map-pin text-indigo-400"></i> Add DNS Host Override
                 </h3>
-                <button onclick="closeAddHostOverrideModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeAddHostOverrideModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="submitAddHostOverride(event)" class="space-y-3 text-xs">
+            <form data-on-submit="submitAddHostOverride" class="space-y-3 text-xs">
                 <div>
                     <label class="text-slate-400 block mb-1 font-medium">Fully Qualified Domain Name (FQDN)</label>
                     <input id="override-fqdn" type="text" required placeholder="e.g. vpn.example.com or nas.organization.net" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-indigo-500">
@@ -932,7 +932,7 @@
                 <div class="grid grid-cols-3 gap-2">
                     <div>
                         <label class="text-slate-400 block mb-1 font-medium">Type</label>
-                        <select id="override-type" onchange="onOverrideTypeChange()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-400 font-mono font-bold focus:outline-none">
+                        <select id="override-type" data-on-change="onOverrideTypeChange" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-indigo-400 font-mono font-bold focus:outline-none">
                             <option value="A">A (IPv4)</option>
                             <option value="AAAA">AAAA (IPv6)</option>
                             <option value="CNAME">CNAME (Alias)</option>
@@ -949,7 +949,7 @@
                     <input id="override-desc" type="text" placeholder="e.g. Branch office VPN gateway" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 text-xs placeholder:text-slate-600 focus:outline-none focus:border-indigo-500">
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeAddHostOverrideModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeAddHostOverrideModal" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
                     <button type="submit" id="btn-save-host-override" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Save Override</button>
                 </div>
             </form>
@@ -963,9 +963,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-share-nodes text-emerald-400"></i> Add Conditional Domain Forwarder
                 </h3>
-                <button onclick="closeAddDomainForwarderModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeAddDomainForwarderModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="submitAddDomainForwarder(event)" class="space-y-3 text-xs">
+            <form data-on-submit="submitAddDomainForwarder" class="space-y-3 text-xs">
                 <div>
                     <label class="text-slate-400 block mb-1 font-medium">Domain / Zone Name</label>
                     <input id="domain-fwd-name" type="text" required placeholder="e.g. example.com or branch.net" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
@@ -988,7 +988,7 @@
                     <input id="domain-fwd-desc" type="text" placeholder="e.g. Remote branch primary DNS" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-slate-300 text-xs placeholder:text-slate-600 focus:outline-none focus:border-emerald-500">
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeAddDomainForwarderModal()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeAddDomainForwarderModal" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
                     <button type="submit" id="btn-save-domain-forwarder" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Save Domain Forwarder</button>
                 </div>
             </form>
@@ -1002,9 +1002,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-pen-to-square text-indigo-400"></i> Edit Server Identity & Hostname
                 </h3>
-                <button onclick="closeIdentityModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeIdentityModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="saveSystemIdentity(event)" class="space-y-3.5 text-xs">
+            <form data-on-submit="saveSystemIdentity" class="space-y-3.5 text-xs">
                 <div>
                     <label class="text-slate-300 block mb-1 font-medium">Server Description (smb.conf server string)</label>
                     <input id="ident-desc-input" type="text" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-sans focus:outline-none focus:border-indigo-500 transition" placeholder="ZclockID Active Directory Domain Controller">
@@ -1033,14 +1033,14 @@
                     <div class="grid grid-cols-2 gap-2.5">
                         <label id="ident-label-primary" class="relative flex flex-col p-3 rounded-lg border border-slate-800 bg-slate-900/60 hover:border-slate-700 cursor-pointer transition select-none">
                             <div class="flex items-center gap-2 mb-1">
-                                <input type="radio" name="ident-dc-type" value="primary" onchange="onIdentDcTypeRadioChange()" class="text-indigo-600 focus:ring-0">
+                                <input type="radio" name="ident-dc-type" value="primary" data-on-change="onIdentDcTypeRadioChange" class="text-indigo-600 focus:ring-0">
                                 <span class="font-bold text-white text-xs">Primary DC</span>
                             </div>
                             <span class="text-[10px] text-slate-400 leading-tight">Master & FSMO Leader</span>
                         </label>
                         <label id="ident-label-alternate" class="relative flex flex-col p-3 rounded-lg border border-slate-800 bg-slate-900/60 hover:border-slate-700 cursor-pointer transition select-none">
                             <div class="flex items-center gap-2 mb-1">
-                                <input type="radio" name="ident-dc-type" value="alternate" onchange="onIdentDcTypeRadioChange()" class="text-indigo-600 focus:ring-0">
+                                <input type="radio" name="ident-dc-type" value="alternate" data-on-change="onIdentDcTypeRadioChange" class="text-indigo-600 focus:ring-0">
                                 <span class="font-bold text-white text-xs">Alternate DC</span>
                             </div>
                             <span class="text-[10px] text-slate-400 leading-tight">Backup DRS Replica</span>
@@ -1088,7 +1088,7 @@
                     <p>The Forest Root realm (<code class="text-indigo-300" id="ident-realm-note">DOMAIN</code>) is permanently bound to the AD security database. To add additional domain names for user logins and email accounts (e.g. <span class="text-emerald-300">@organization.net</span>), use the <strong>Alternate Domain & UPN Suffixes</strong> manager.</p>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeIdentityModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeIdentityModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-save-ident" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
                         <i class="fa-solid fa-floppy-disk"></i> Save Changes
                     </button>
@@ -1104,9 +1104,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-arrow-up-right-dots text-indigo-400"></i> Raise Active Directory Functional Levels
                 </h3>
-                <button onclick="closeFunctionalLevelModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeFunctionalLevelModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="submitRaiseFunctionalLevels(event)" class="space-y-4 text-xs">
+            <form data-on-submit="submitRaiseFunctionalLevels" class="space-y-4 text-xs">
                 <!-- Current Levels Snapshot -->
                 <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5 text-xs">
                     <div class="flex justify-between items-center text-slate-400">
@@ -1149,7 +1149,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeFunctionalLevelModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeFunctionalLevelModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs transition">Cancel</button>
                     <button type="submit" id="btn-submit-fl" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition flex items-center gap-1.5 shadow-sm shadow-indigo-900/50">
                         <i class="fa-solid fa-arrow-up-right-dots"></i> Apply & Raise Level
                     </button>
@@ -1163,7 +1163,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-at text-emerald-400"></i> Add Alternate Domain UPN Suffix</h3>
-                <button onclick="closeUpnModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeUpnModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -1171,8 +1171,8 @@
                     <input id="upn-suffix-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-white font-mono" placeholder="example.com">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeUpnModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitAddUpn()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Add Suffix</button>
+                    <button type="button" data-action="closeUpnModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="submitAddUpn" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Add Suffix</button>
                 </div>
             </div>
         </div>
@@ -1184,13 +1184,13 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-plus text-indigo-400"></i> Add Active Directory DNS Record</h3>
-                <button onclick="closeDnsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeDnsModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <!-- Record Type (Moved to Top) -->
                 <div>
                     <label class="text-slate-400 block mb-1 font-medium">Record Type</label>
-                    <select id="dns-type-select" onchange="onDnsTypeChange()" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-indigo-300 font-mono font-bold focus:border-indigo-500 focus:outline-none">
+                    <select id="dns-type-select" data-on-change="onDnsTypeChange" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-indigo-300 font-mono font-bold focus:border-indigo-500 focus:outline-none">
                         <option value="A">A — Maps a domain name to an IPv4 address</option>
                         <option value="AAAA">AAAA — Maps a domain name to an IPv6 address</option>
                         <option value="CNAME">CNAME — Creates an alias to another canonical name</option>
@@ -1252,7 +1252,7 @@
                     <label class="text-slate-400 block mb-1 font-medium">Time To Live (TTL in seconds)</label>
                     <div class="flex items-center gap-2">
                         <input id="dns-ttl-input" type="number" value="900" min="60" max="604800" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono placeholder:text-slate-600 focus:border-indigo-500 focus:outline-none" placeholder="900">
-                        <select onchange="document.getElementById('dns-ttl-input').value = this.value" class="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 font-mono focus:outline-none">
+                        <select data-on-change="sync-input-value" data-target="dns-ttl-input" class="bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-300 font-mono focus:outline-none">
                             <option value="300">5m (300s)</option>
                             <option value="900" selected>15m (900s)</option>
                             <option value="1800">30m (1800s)</option>
@@ -1264,8 +1264,8 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeDnsModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
-                    <button type="button" onclick="submitAddDnsRecord()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Record</button>
+                    <button type="button" data-action="closeDnsModal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs transition">Cancel</button>
+                    <button type="button" data-action="submitAddDnsRecord" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Record</button>
                 </div>
             </div>
         </div>
@@ -1278,9 +1278,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-pen-to-square text-amber-400"></i> Edit Active Directory DNS Record
                 </h3>
-                <button onclick="closeEditDnsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeEditDnsModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="submitUpdateDnsRecord(event)" class="space-y-3 text-xs">
+            <form data-on-submit="submitUpdateDnsRecord" class="space-y-3 text-xs">
                 <input type="hidden" id="edit-dns-zone">
                 <input type="hidden" id="edit-dns-old-data">
 
@@ -1321,7 +1321,7 @@
                     <label class="text-slate-400 block mb-1 font-medium">Time To Live (TTL in seconds)</label>
                     <div class="flex items-center gap-2">
                         <input id="edit-dns-ttl-input" type="number" value="900" min="60" max="604800" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white font-mono focus:outline-none focus:border-amber-500" placeholder="900">
-                        <select onchange="document.getElementById('edit-dns-ttl-input').value = this.value" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 font-mono focus:outline-none">
+                        <select data-on-change="sync-input-value" data-target="edit-dns-ttl-input" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-300 font-mono focus:outline-none">
                             <option value="300">5m (300s)</option>
                             <option value="900">15m (900s)</option>
                             <option value="1800">30m (1800s)</option>
@@ -1333,7 +1333,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                    <button type="button" onclick="closeEditDnsModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">Cancel</button>
+                    <button type="button" data-action="closeEditDnsModal" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">Cancel</button>
                     <button type="submit" id="btn-save-edit-dns" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5 shadow-lg shadow-amber-600/30">
                         <i class="fa-solid fa-floppy-disk"></i> Update Record
                     </button>
@@ -1355,7 +1355,7 @@
                         <p class="text-xs text-slate-400">Configure RFC 8484 secure encrypted DNS on workstations and browsers</p>
                     </div>
                 </div>
-                <button onclick="closeDohClientGuideModal()" class="text-slate-400 hover:text-white p-1 transition">
+                <button data-action="closeDohClientGuideModal" class="text-slate-400 hover:text-white p-1 transition">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
             </div>
@@ -1459,7 +1459,7 @@
             </div>
 
             <div class="p-4 border-t border-slate-800 bg-slate-950 flex justify-end">
-                <button type="button" onclick="closeDohClientGuideModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
+                <button type="button" data-action="closeDohClientGuideModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">
                     Close Guide
                 </button>
             </div>
@@ -1471,7 +1471,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-tower-broadcast text-amber-400"></i> Add FreeRADIUS NAS Client (pfSense Style)</h3>
-                <button onclick="closeRadiusModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeRadiusModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -1496,20 +1496,20 @@
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-slate-400">Shared Secret (RADIUS Key)</label>
-                        <button type="button" onclick="generateSecretForModal()" class="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                        <button type="button" data-action="generateSecretForModal" class="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Strong Secret
                         </button>
                     </div>
                     <div class="relative">
                         <input id="rad-secret-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono pr-8" placeholder="StrongSharedSecret2026!">
-                        <button type="button" onclick="copyModalSecret()" class="absolute right-2 top-2 text-slate-500 hover:text-slate-300" title="Copy Secret">
+                        <button type="button" data-action="copyModalSecret" class="absolute right-2 top-2 text-slate-500 hover:text-slate-300" title="Copy Secret">
                             <i class="fa-solid fa-copy"></i>
                         </button>
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeRadiusModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitAddRadiusClient()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Save NAS Client</button>
+                    <button type="button" data-action="closeRadiusModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="submitAddRadiusClient" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Save NAS Client</button>
                 </div>
             </div>
         </div>
@@ -1521,7 +1521,7 @@
             <input type="hidden" id="rad-bw-id-input" value="">
             <div class="flex justify-between items-center">
                 <h3 id="rad-bw-modal-title" class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-gauge-high text-cyan-400"></i> Configure Captive Portal Bandwidth Profile</h3>
-                <button onclick="closeBandwidthModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeBandwidthModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -1563,8 +1563,8 @@
                     <div>• <code class="text-white">Session-Timeout</code> & <code class="text-white">Idle-Timeout</code></div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeBandwidthModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" id="btn-save-bw-profile" onclick="submitSaveBandwidthProfile()" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Save Bandwidth Tier</button>
+                    <button type="button" data-action="closeBandwidthModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" id="btn-save-bw-profile" data-action="submitSaveBandwidthProfile" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded text-xs transition">Save Bandwidth Tier</button>
                 </div>
             </div>
         </div>
@@ -1575,7 +1575,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-print text-indigo-400"></i> Register Headless Device for MAB Bypass</h3>
-                <button onclick="closeMabModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeMabModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -1601,8 +1601,8 @@
                     <input id="rad-mab-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="Shared Office MFP Printer">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeMabModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitSaveMabDevice()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Save MAB Device</button>
+                    <button type="button" data-action="closeMabModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="submitSaveMabDevice" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Save MAB Device</button>
                 </div>
             </div>
         </div>
@@ -1613,7 +1613,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-code-branch text-amber-400"></i> Add Custom RADIUS Vendor Attribute</h3>
-                <button onclick="closeCustomAttrModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeCustomAttrModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div class="grid grid-cols-2 gap-3">
@@ -1654,8 +1654,8 @@
                     <input id="rad-attr-desc-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="8-hour session timeout re-auth">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeCustomAttrModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitSaveCustomAttr()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Save Attribute</button>
+                    <button type="button" data-action="closeCustomAttrModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="submitSaveCustomAttr" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Save Attribute</button>
                 </div>
             </div>
         </div>
@@ -1668,7 +1668,7 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-folder-tree text-emerald-400"></i> Pair Sysvol Replication Partner DC
                 </h3>
-                <button onclick="closeSysvolPartnerModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeSysvolPartnerModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -1679,7 +1679,7 @@
                     <label class="text-slate-400 block mb-1">Partner DC IP Address / FQDN</label>
                     <div class="flex gap-2">
                         <input id="sysvol-p-ip-input" type="text" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="192.168.1.42">
-                        <button type="button" onclick="probeSysvolTls()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow" title="Probe TLS Certificate & Fingerprint">
+                        <button type="button" data-action="probeSysvolTls" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition shadow" title="Probe TLS Certificate & Fingerprint">
                             <i class="fa-solid fa-shield-halved"></i> Probe TLS
                         </button>
                     </div>
@@ -1694,13 +1694,13 @@
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-slate-400">Mutual Pairing Secret</label>
-                        <button type="button" onclick="showMySysvolSecret()" class="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
+                        <button type="button" data-action="showMySysvolSecret" class="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
                             <i class="fa-solid fa-key"></i> Show My Appliance Secret
                         </button>
                     </div>
                     <div class="relative">
                         <input id="sysvol-p-secret-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono pr-8" placeholder="Appliance Pairing Secret">
-                        <button type="button" onclick="generatePartnerSecret()" class="absolute right-2 top-2 text-slate-500 hover:text-emerald-400" title="Generate New Key">
+                        <button type="button" data-action="generatePartnerSecret" class="absolute right-2 top-2 text-slate-500 hover:text-emerald-400" title="Generate New Key">
                             <i class="fa-solid fa-wand-magic-sparkles"></i>
                         </button>
                     </div>
@@ -1722,8 +1722,8 @@
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeSysvolPartnerModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button id="sysvol-p-submit-btn" type="button" onclick="submitAddSysvolPartner()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Pair & Start Replication</button>
+                    <button type="button" data-action="closeSysvolPartnerModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button id="sysvol-p-submit-btn" type="button" data-action="submitAddSysvolPartner" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Pair & Start Replication</button>
                 </div>
             </div>
         </div>
@@ -1736,7 +1736,7 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-shield-halved text-amber-400"></i> Re-pin Partner TLS Certificate
                 </h3>
-                <button onclick="closeSysvolRepinModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeSysvolRepinModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-2">
@@ -1755,8 +1755,8 @@
                     Cross-check the new fingerprint against the partner DC's management console before confirming. This action requires <strong>fulladmin</strong> privilege.
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeSysvolRepinModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button id="repin-confirm-btn" type="button" onclick="confirmRepinSysvolPartner()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Confirm & Re-pin Certificate</button>
+                    <button type="button" data-action="closeSysvolRepinModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button id="repin-confirm-btn" type="button" data-action="confirmRepinSysvolPartner" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition">Confirm & Re-pin Certificate</button>
                 </div>
             </div>
         </div>
@@ -1770,7 +1770,7 @@
                     <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
                     <h3 class="text-sm font-bold text-white">Review Pending Sysvol Mass Deletions</h3>
                 </div>
-                <button onclick="closeMassDeleteReviewModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeMassDeleteReviewModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div class="p-3 bg-rose-950/40 rounded-lg border border-rose-800/40 text-[11px] text-rose-300 leading-relaxed">
@@ -1788,12 +1788,12 @@
                     </div>
                 </div>
                 <div class="flex justify-between items-center pt-2 border-t border-slate-800">
-                    <button type="button" onclick="rejectMassDelete()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-800 rounded text-xs font-semibold flex items-center gap-1.5">
+                    <button type="button" data-action="rejectMassDelete" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-800 rounded text-xs font-semibold flex items-center gap-1.5">
                         <i class="fa-solid fa-xmark"></i> Reject & Restore Files
                     </button>
                     <div class="flex gap-2">
-                        <button type="button" onclick="closeMassDeleteReviewModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Close</button>
-                        <button id="mass-del-approve-btn" type="button" onclick="approveMassDelete()" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                        <button type="button" data-action="closeMassDeleteReviewModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Close</button>
+                        <button id="mass-del-approve-btn" type="button" data-action="approveMassDelete" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
                             <i class="fa-solid fa-check"></i> Approve Deletions
                         </button>
                     </div>
@@ -1807,7 +1807,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-400"></i> New Domain User</h3>
-                <button onclick="closeUserModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeUserModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -1876,8 +1876,8 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitCreateUser()" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Create Account</button>
+                    <button type="button" data-action="closeUserModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="submitCreateUser" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition">Create Account</button>
                 </div>
             </div>
         </div>
@@ -1890,9 +1890,9 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-user-pen text-indigo-400"></i> Edit Active Directory User
                 </h3>
-                <button onclick="closeEditUserModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeEditUserModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form id="edit-user-form" onsubmit="submitEditUser(event)" class="space-y-3 text-xs">
+            <form id="edit-user-form" data-on-submit="submitEditUser" class="space-y-3 text-xs">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-slate-400 block mb-1">sAMAccountName (Username)</label>
@@ -2004,7 +2004,7 @@
                 </div>
 
                 <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                    <button type="button" onclick="closeEditUserModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs transition">Cancel</button>
+                    <button type="button" data-action="closeEditUserModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs transition">Cancel</button>
                     <button id="btn-submit-edit-user" type="submit" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
                         <i class="fa-solid fa-floppy-disk"></i> Save User Changes
                     </button>
@@ -2020,7 +2020,7 @@
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-clock text-amber-400"></i> Password Expiry Policy Management
                 </h3>
-                <button onclick="closeExpiryPolicyModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeExpiryPolicyModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <p class="text-slate-400">
@@ -2071,8 +2071,8 @@
                 <div class="flex justify-between items-center pt-3 border-t border-slate-800">
                     <span class="text-[11px] text-slate-500 italic">Bulk apply requires Full Administrator privileges.</span>
                     <div class="flex gap-2">
-                        <button type="button" onclick="closeExpiryPolicyModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs transition">Close</button>
-                        <button id="btn-apply-expiry-policy" type="button" onclick="submitApplyExpiryPolicy()" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                        <button type="button" data-action="closeExpiryPolicyModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs transition">Close</button>
+                        <button id="btn-apply-expiry-policy" type="button" data-action="submitApplyExpiryPolicy" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
                             <i class="fa-solid fa-play"></i> Apply Expiry Policy to Eligible Users
                         </button>
                     </div>
@@ -2089,7 +2089,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-indigo-400"></i> New Security Group</h3>
-                <button onclick="closeGroupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeGroupModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -2111,8 +2111,8 @@
                     <p class="text-[10px] text-slate-500 mt-1">Users in this group will automatically inherit this upload/download rate limit on captive portal login.</p>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeGroupModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitCreateGroup()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Group</button>
+                    <button type="button" data-action="closeGroupModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="submitCreateGroup" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Group</button>
                 </div>
             </div>
         </div>
@@ -2123,7 +2123,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users-gear text-indigo-400"></i> Edit Security Group & Gateway Policy</h3>
-                <button onclick="closeEditGroupModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeEditGroupModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -2145,8 +2145,8 @@
                     <p class="text-[10px] text-slate-500 mt-1">Replicates across AD DCs and applies to FreeRADIUS captive portal / dynamic gateway rate enforcement.</p>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeEditGroupModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" id="btn-save-group" onclick="submitEditGroup()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                    <button type="button" data-action="closeEditGroupModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" id="btn-save-group" data-action="submitEditGroup" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
                         <i class="fa-solid fa-floppy-disk"></i> Save Group Policy
                     </button>
                 </div>
@@ -2159,7 +2159,7 @@
         <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
             <div class="flex justify-between items-center">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-plus text-indigo-400"></i> Create Active Directory DNS Zone</h3>
-                <button onclick="closeNewZoneModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeNewZoneModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="space-y-3 text-xs">
                 <div>
@@ -2167,8 +2167,8 @@
                     <input id="new-zone-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="example.com">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeNewZoneModal()" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
-                    <button type="button" onclick="submitCreateZone()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Zone</button>
+                    <button type="button" data-action="closeNewZoneModal" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded text-xs">Cancel</button>
+                    <button type="button" data-action="submitCreateZone" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded text-xs transition">Create Zone</button>
                 </div>
             </div>
         </div>
@@ -2188,7 +2188,7 @@
                         <p class="text-[11px] text-slate-400 font-mono" id="profile-modal-subtitle">Current Session: admin</p>
                     </div>
                 </div>
-                <button onclick="closeProfileModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeProfileModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <div class="p-5 space-y-4 text-xs">
@@ -2208,7 +2208,7 @@
                 </div>
 
                 <!-- Password Change Form -->
-                <form onsubmit="handleChangePassword(event)" class="space-y-3">
+                <form data-on-submit="handleChangePassword" class="space-y-3">
                     <div>
                         <label class="block text-slate-300 font-medium mb-1">Current Password</label>
                         <input type="password" id="chg-current-pass" required placeholder="••••••••••••" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
@@ -2224,7 +2224,7 @@
                         </div>
                     </div>
                     <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                        <button type="button" onclick="closeProfileModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
+                        <button type="button" data-action="closeProfileModal" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
                         <button type="submit" id="chg-pass-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-lg shadow-indigo-600/30 flex items-center gap-1.5">
                             <i class="fa-solid fa-floppy-disk"></i> Update Password
                         </button>
@@ -2242,13 +2242,13 @@
                     <i class="fa-solid fa-user-shield text-amber-400"></i>
                     <h3 class="font-bold text-sm text-white" id="modal-rbac-title">Add Role Mapping</h3>
                 </div>
-                <button onclick="closeRbacMappingModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeRbacMappingModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="handleSaveRbacMapping(event)" class="p-5 space-y-4 text-xs">
+            <form data-on-submit="handleSaveRbacMapping" class="p-5 space-y-4 text-xs">
                 <input type="hidden" id="rbac-edit-id" value="">
                 <div>
                     <label class="block text-slate-300 font-medium mb-1">Principal Type</label>
-                    <select id="rbac-principal-type" onchange="onRbacPrincipalTypeChange()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
+                    <select id="rbac-principal-type" data-on-change="onRbacPrincipalTypeChange" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
                         <option value="group">Active Directory Security Group</option>
                         <option value="user">Specific User Account</option>
                     </select>
@@ -2258,12 +2258,12 @@
                         <label class="block text-slate-300 font-medium" id="rbac-principal-label">Select Active Directory Group</label>
                         <span id="rbac-principals-loading" class="text-[10px] text-slate-500 hidden"><i class="fa-solid fa-circle-notch animate-spin"></i> Discovered from AD</span>
                     </div>
-                    <select id="rbac-principal-select" onchange="onRbacPrincipalSelectChange()" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs">
+                    <select id="rbac-principal-select" data-on-change="onRbacPrincipalSelectChange" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white font-mono text-xs">
                         <option value="">-- Loading Active Directory Groups... --</option>
                     </select>
                     <div class="mt-1 flex items-center justify-between">
                         <p class="text-[10px] text-slate-500" id="rbac-principal-hint">Discovered live from Samba AD DC (sam.ldb).</p>
-                        <button type="button" onclick="toggleCustomPrincipalInput()" class="text-[10px] text-amber-400 hover:underline">
+                        <button type="button" data-action="toggleCustomPrincipalInput" class="text-[10px] text-amber-400 hover:underline">
                             <span id="rbac-custom-toggle-text">+ Enter custom name</span>
                         </button>
                     </div>
@@ -2283,7 +2283,7 @@
                     <input type="text" id="rbac-description" placeholder="e.g. Tier-2 Helpdesk Team" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeRbacMappingModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
+                    <button type="button" data-action="closeRbacMappingModal" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
                     <button type="submit" id="rbac-save-btn" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition shadow-lg shadow-amber-600/30">Save Role Mapping</button>
                 </div>
             </form>
@@ -2298,9 +2298,9 @@
                     <i class="fa-solid fa-key text-yellow-400"></i>
                     <h3 class="font-bold text-sm text-white">Generate Programmatic API Key</h3>
                 </div>
-                <button onclick="closeApiKeyCreateModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeApiKeyCreateModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form onsubmit="handleCreateApiKey(event)" class="p-5 space-y-4 text-xs">
+            <form data-on-submit="handleCreateApiKey" class="p-5 space-y-4 text-xs">
                 <div>
                     <label class="block text-slate-300 font-medium mb-1">Token Name / Integration Label</label>
                     <input type="text" id="apikey-name" required placeholder="e.g. CI/CD Deployment Script or Datadog Scraper" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-white">
@@ -2351,7 +2351,7 @@
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                    <button type="button" onclick="closeApiKeyCreateModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
+                    <button type="button" data-action="closeApiKeyCreateModal" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-medium">Cancel</button>
                     <button type="submit" id="apikey-submit-btn" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold rounded-lg transition shadow-lg shadow-yellow-600/30">Generate Token</button>
                 </div>
             </form>
@@ -2376,12 +2376,12 @@
             </div>
             <div class="relative">
                 <input type="text" id="reveal-token-input" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-yellow-400 select-all pr-24">
-                <button type="button" onclick="copyRevealedToken()" id="reveal-copy-btn" class="absolute right-2 top-2 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold rounded-lg text-xs transition flex items-center gap-1.5">
+                <button type="button" data-action="copyRevealedToken" id="reveal-copy-btn" class="absolute right-2 top-2 px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-slate-950 font-bold rounded-lg text-xs transition flex items-center gap-1.5">
                     <i class="fa-solid fa-copy"></i> Copy
                 </button>
             </div>
             <div class="flex justify-end pt-2">
-                <button type="button" onclick="closeApiKeyTokenRevealModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-semibold text-xs">Done & Close</button>
+                <button type="button" data-action="closeApiKeyTokenRevealModal" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-semibold text-xs">Done & Close</button>
             </div>
         </div>
     </div>
@@ -2394,17 +2394,17 @@
                     <i class="fa-solid fa-file-signature text-amber-400"></i>
                     <h3 class="font-bold text-sm text-white">Certificate Signing Request (CSR)</h3>
                 </div>
-                <button onclick="closeCsrModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                <button data-action="closeCsrModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <p class="text-xs text-slate-300">Copy the CSR PEM below and submit it to your CA. The private key has been safely generated and saved on the appliance.</p>
             <div class="relative">
                 <textarea id="csr-output-textarea" rows="8" readonly class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs text-emerald-400 select-all focus:outline-none"></textarea>
             </div>
             <div class="flex justify-end gap-2 pt-2">
-                <button type="button" onclick="copyCsrText()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5">
+                <button type="button" data-action="copyCsrText" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs transition flex items-center gap-1.5">
                     <i class="fa-solid fa-copy"></i> Copy CSR
                 </button>
-                <button type="button" onclick="closeCsrModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium">Close</button>
+                <button type="button" data-action="closeCsrModal" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium">Close</button>
             </div>
         </div>
     </div>

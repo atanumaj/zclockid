@@ -35,6 +35,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r api/requirements.txt
 
+      - name: Verify Tailwind CSS build
+        run: |
+          TAILWIND_CLI_VER="v3.4.17"
+          TAILWIND_BIN="/tmp/tailwindcss-linux-x64"
+          EXPECTED_SHA256="7d24f7fa191d2193b78cd5f5a42a6093e14409521908529f42d80b11fde1f1d4"
+          curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_CLI_VER}/tailwindcss-linux-x64" -o "${TAILWIND_BIN}"
+          chmod +x "${TAILWIND_BIN}"
+          ACTUAL_SHA256="$(sha256sum "${TAILWIND_BIN}" | awk '{print $1}')"
+          if [[ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]]; then
+            echo "ERROR: Tailwind standalone CLI SHA-256 verification failed!" >&2
+            exit 1
+          fi
+          "${TAILWIND_BIN}" -c tailwind.config.js -i web/css/tailwind-input.css -o web/css/tailwind.css --minify
+          git diff --exit-code web/css/tailwind.css
+
+      - name: Run Security and XSS Scans
+        run: |
+          chmod +x tests/xss_scan.sh
+          ./tests/xss_scan.sh
+
       - name: Run Authentication Coverage Tests
         run: |
           PYTHONPATH=. pytest tests/test_auth_coverage.py -v
