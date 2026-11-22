@@ -113,6 +113,11 @@ def update_security_baseline_settings(
             detail=f"Lockout Prevention Guard: Your current client IP ({client_ip}) would be immediately blocked from SSH access. Include your IP or subnet in the SSH allowed list."
         )
 
+    # 3.5. Validate SNMP settings against injection
+    from api.core.snmp_security import validate_snmp_community, validate_snmp_subnets
+    valid_snmp_community = validate_snmp_community(req.snmp_community)
+    valid_snmp_subnets = validate_snmp_subnets(req.allowed_subnets_snmp)
+
     # 4. Persist to SQLite
     now = time.time()
     conn = sqlite3.connect(DB_PATH)
@@ -136,8 +141,8 @@ def update_security_baseline_settings(
         req.session_max_lifetime_hours,
         req.allowed_subnets_gui.strip(),
         req.allowed_subnets_ssh.strip(),
-        req.allowed_subnets_snmp.strip(),
-        req.snmp_community.strip(),
+        ", ".join(valid_snmp_subnets),
+        valid_snmp_community,
         req.max_failed_logins,
         req.lockout_duration_min,
         req.ssh_permit_root,
@@ -151,7 +156,9 @@ def update_security_baseline_settings(
     ssh_ok, ssh_msg = apply_ssh_hardening(req.allowed_subnets_ssh, req.ssh_permit_root, req.ssh_password_auth)
 
     # 6. Apply SNMP access controls
-    snmp_ok, snmp_msg = apply_snmp_hardening(req.allowed_subnets_snmp, req.snmp_community)
+    snmp_ok, snmp_msg = apply_snmp_hardening(", ".join(valid_snmp_subnets), valid_snmp_community)
+    if not snmp_ok:
+        raise HTTPException(status_code=400, detail=f"SNMP configuration failed: {snmp_msg}")
 
     log_audit("SECURITY_BASELINE_UPDATED", user["username"], "system_security", "SUCCESS", {
         "idle_timeout_min": req.session_idle_timeout_min,

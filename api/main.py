@@ -65,14 +65,18 @@ app = FastAPI(
     openapi_url=None
 )
 
-# Global CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: UI is same-origin behind nginx. By default, CORSMiddleware is omitted (empty allowlist).
+# Explicit allowlist can be set via ZCLOCKID_CORS_ORIGINS environment variable.
+_cors_origins_env = os.environ.get("ZCLOCKID_CORS_ORIGINS", "").strip()
+_allowed_origins = [o.strip() for o in _cors_origins_env.split(",") if o.strip()]
+if _allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # Network Subnet CIDR Access Control Middleware
 @app.middleware("http")

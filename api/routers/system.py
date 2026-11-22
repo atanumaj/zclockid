@@ -43,6 +43,19 @@ from api.services.system_service import (
 )
 from api.services.samba_service import get_ad_creds
 from api.services.samdb_service import run_samba_tool_authenticated
+from api.core.snmp_security import (
+    validate_snmp_community,
+    validate_snmp_subnets,
+    validate_snmp_text_field,
+    validate_snmpv3_user,
+    write_snmp_config_atomic
+)
+from api.core.archive_security import (
+    safe_extract_tar,
+    safe_extract_zip,
+    validate_tar_archive,
+    validate_zip_archive
+)
 from api.schemas.system_schema import (
     ServiceActionRequest,
     SystemIdentityUpdateRequest,
@@ -309,6 +322,7 @@ def read_manifest_from_tar(tar_path: Path) -> Optional[dict]:
         return None
     try:
         with tarfile.open(tar_path, "r:gz") as tar:
+            validate_tar_archive(tar, tar_path.parent)
             for member in tar.getmembers():
                 if member.name.endswith("manifest.json") or member.name == "manifest.json":
                     f = tar.extractfile(member)
@@ -1134,14 +1148,18 @@ async def upload_backup(file: UploadFile = File(...)):
                 zip_members = zf.namelist()
                 tar_inside = [m for m in zip_members if m.endswith(".tar.gz") or m.endswith(".tgz")]
                 if tar_inside:
+                    validate_zip_archive(zf, BACKUP_DIR)
                     inner_name = Path(tar_inside[0]).name
                     final_name = inner_name if not (BACKUP_DIR / inner_name).exists() else f"uploaded_{inner_name}"
                     target_path = BACKUP_DIR / final_name
                     with zf.open(tar_inside[0]) as src, open(target_path, "wb") as dst:
                         shutil.copyfileobj(src, dst)
+                    if not is_backup_encrypted(target_path):
+                        with tarfile.open(target_path, "r:gz") as inner_tar:
+                            validate_tar_archive(inner_tar, BACKUP_DIR)
                 else:
                     extract_staging = Path("/tmp") / f"zip_stage_{int(time.time())}"
-                    zf.extractall(extract_staging)
+                    safe_extract_zip(zf, extract_staging)
 
                     extract_root = extract_staging
                     entries = [e for e in extract_staging.iterdir() if not e.name.startswith("__MACOSX") and not e.name.startswith(".")]
@@ -1171,10 +1189,12 @@ async def upload_backup(file: UploadFile = File(...)):
 
             final_name = f"{safe_name[:-4]}.tar.gz"
             target_path = BACKUP_DIR / final_name
-            with tarfile.open(temp_tar, "r:") as src_tar, tarfile.open(target_path, "w:gz") as dst_tar:
-                for member in src_tar.getmembers():
-                    f = src_tar.extractfile(member) if member.isreg() else None
-                    dst_tar.addfile(member, f)
+            with tarfile.open(temp_tar, "r:") as src_tar:
+                validate_tar_archive(src_tar, BACKUP_DIR)
+                with tarfile.open(target_path, "w:gz") as dst_tar:
+                    for member in src_tar.getmembers():
+                        f = src_tar.extractfile(member) if member.isreg() else None
+                        dst_tar.addfile(member, f)
 
             temp_tar.unlink(missing_ok=True)
             safe_name = target_path.name
@@ -1183,6 +1203,9 @@ async def upload_backup(file: UploadFile = File(...)):
             target_path = BACKUP_DIR / safe_name
             with open(target_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
+            if not is_backup_encrypted(target_path):
+                with tarfile.open(target_path, "r:gz") as tar:
+                    validate_tar_archive(tar, BACKUP_DIR)
 
         manifest = read_manifest_from_tar(target_path)
         if not manifest and not tarfile.is_tarfile(target_path):
@@ -1228,8 +1251,11 @@ def inspect_backup(req: BackupInspectRequest):
         contents = []
         try:
             with tarfile.open(inspect_path, "r:gz") as tar:
+                validate_tar_archive(tar, BACKUP_DIR)
                 for m in tar.getmembers()[:60]:
                     contents.append({"name": m.name, "size": m.size, "is_dir": m.isdir()})
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to read backup tar: {str(e)}")
 
@@ -1268,7 +1294,7 @@ def restore_backup(req: BackupRestoreRequest):
             tar_to_extract = decrypted_tmp
 
         with tarfile.open(tar_to_extract, "r:gz") as tar:
-            tar.extractall(path=restore_staging)
+            safe_extract_tar(tar, restore_staging)
 
         manifest_file = restore_staging / "manifest.json"
         manifest = {}
@@ -1524,6 +1550,14 @@ def update_snmp_config(req: SnmpConfigRequest):
         except Exception:
             pass
 
+    validate_snmp_community(req.community_string)
+    validate_snmp_subnets(req.allowed_subnets)
+    validate_snmp_text_field(req.sys_location, "sys_location")
+    validate_snmp_text_field(req.sys_contact, "sys_contact")
+    validate_snmp_text_field(req.agent_address, "agent_address")
+    if req.snmpv3_enabled and req.snmpv3_user:
+        validate_snmpv3_user(req.snmpv3_user)
+
     subnets = [s.strip() for s in req.allowed_subnets.split(",") if s.strip()]
     if not subnets:
         subnets = ["127.0.0.1"]
@@ -1566,7 +1600,7 @@ def update_snmp_config(req: SnmpConfigRequest):
     lines.append("")
 
     try:
-        conf_path.write_text("\n".join(lines))
+        write_snmp_config_atomic(conf_path, "\n".join(lines) + "\n", mode=0o600)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write snmpd.conf: {str(e)}")
 

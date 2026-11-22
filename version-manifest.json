@@ -1,12 +1,12 @@
 {
-  "version": "1.4.9.2",
-  "name": "ZclockID Enterprise v1.4.9.2",
+  "version": "1.5.0",
+  "name": "ZclockID Enterprise v1.5.0",
   "channel": "stable",
-  "release_type": "patch",
-  "published_at": "2026-11-18T14:15:00Z",
-  "summary": "Close privileged-group privilege escalation: block operators from adding or removing members of privileged groups, fail closed on ldbsearch lookups",
-  "notes": "### What's Changed in v1.4.9.2:\n* **Privileged Group Escalation Prevention:** Operators are prohibited from adding or removing members of privileged groups (`Domain Admins`, `Enterprise Admins`, `Schema Admins`, `Administrators`, groups with `adminCount=1`, or groups mapped to `fulladmin` in RBAC). Enforced across `POST /users`, `PUT /users/{username}`, and group-membership endpoints (`/groups/{group_name}/members`). Operator attempts receive HTTP 403 and are logged in audit events.\n* **Fail-Closed Privilege Lookups:** `is_privileged_ad_user()` and `is_privileged_ad_group()` fail closed—if directory queries error, accounts and groups are treated as privileged.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.4.9.2_all.deb",
-  "package_name": "zclockid_1.4.9.2_all.deb",
+  "release_type": "minor",
+  "published_at": "2026-11-22T19:50:00Z",
+  "summary": "SNMP config injection protection, archive extraction security hardening, and removal of permissive CORS",
+  "notes": "### What's Changed in v1.5.0:\n* **SNMP Injection Hardening:** Validates SNMP community strings with strict regex (`^[A-Za-z0-9._-]{8,64}$`) and source addresses/CIDRs with `ipaddress.ip_network`. Rejects newlines, carriage returns, spaces, and `#` characters across all SNMPv2 and SNMPv3 fields (`sysLocation`, `sysContact`, `agentAddress`, `rouser`). Writes configuration files atomically with mode `0600`.\n* **Archive Extraction Security:** Hardened archive processing against path traversal (`../`), absolute paths, device nodes, symlink/hardlink escapes, and uncompressed bomb limits. Tar extraction utilizes `filter='data'` (Python 3.12+) with rigorous member validation. Zip extraction resolves destinations strictly within temporary staging.\n* **Strict Origin Isolation (CORS):** Removed default wildcard `CORSMiddleware`. Starlette/FastAPI now emits zero `Access-Control-Allow-Origin` headers unless explicitly configured via `ZCLOCKID_CORS_ORIGINS`.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.5.0_all.deb",
+  "package_name": "zclockid_1.5.0_all.deb",
   "min_version_required": "1.0.0"
 }

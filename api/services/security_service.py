@@ -179,13 +179,22 @@ def apply_ssh_hardening(allowed_subnets: str, permit_root: int, password_auth: i
 def apply_snmp_hardening(allowed_subnets: str, community: str) -> Tuple[bool, str]:
     """
     Applies SNMP access restrictions to /etc/snmp/snmpd.conf.
-    Configures rocommunity per authorized CIDR block.
+    Validates community string and sources strictly against injection.
+    Writes configuration atomically with mode 0600.
     """
     snmp_conf = Path("/etc/snmp/snmpd.conf")
     if not snmp_conf.exists():
         return True, "SNMP configuration not present."
 
     try:
+        from api.core.snmp_security import (
+            validate_snmp_community,
+            validate_snmp_subnets,
+            write_snmp_config_atomic
+        )
+        val_community = validate_snmp_community(community)
+        val_subnets = validate_snmp_subnets(allowed_subnets)
+
         with open(snmp_conf, "r") as f:
             content = f.read()
 
@@ -196,21 +205,14 @@ def apply_snmp_hardening(allowed_subnets: str, community: str) -> Tuple[bool, st
                 continue
             new_lines.append(line)
 
-        clean_subnets = [s.strip() for s in allowed_subnets.split(",") if s.strip()]
-        is_open = any(s in ("0.0.0.0/0", "::/0", "*", "all") for s in clean_subnets) or not clean_subnets
+        new_lines.append("# ZclockID Managed SNMP Access Rules")
+        for s in val_subnets:
+            new_lines.append(f"rocommunity {val_community} {s}")
 
-        new_lines.append(f"# ZclockID Managed SNMP Access Rules")
-        if is_open:
-            new_lines.append(f"rocommunity {community} default")
-        else:
-            for s in clean_subnets:
-                new_lines.append(f"rocommunity {community} {s}")
-            new_lines.append(f"rocommunity {community} 127.0.0.1")
-
-        with open(snmp_conf, "w") as f:
-            f.write("\n".join(new_lines) + "\n")
+        write_snmp_config_atomic(snmp_conf, "\n".join(new_lines) + "\n", mode=0o600)
 
         run_cmd(["systemctl", "reload-or-restart", "snmpd"], timeout=10)
         return True, "SNMP access control and community updated successfully."
     except Exception as e:
-        return False, str(e)
+        detail = getattr(e, "detail", str(e))
+        return False, detail
