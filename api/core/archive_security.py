@@ -102,13 +102,11 @@ def safe_extract_tar(
     dest_dir.mkdir(parents=True, exist_ok=True)
     validate_tar_archive(tar, dest_dir, max_files=max_files, max_size=max_size)
 
-    # Use filter='data' on Python 3.12+
+    # Use filter='data' on Python 3.12+; if unavailable, fail closed and raise 400
     if hasattr(tarfile, "data_filter"):
         tar.extractall(path=dest_dir, filter="data")
     else:
-        # On older Python, members have been validated above
-        for member in tar.getmembers():
-            tar.extract(member, path=dest_dir)
+        raise ArchiveSecurityError("Archive extraction requires Python tarfile data_filter (Python 3.12+)")
 
 
 def validate_zip_archive(

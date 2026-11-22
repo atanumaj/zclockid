@@ -10,7 +10,8 @@ import re
 from api.core.config import DB_PATH
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
+    target_db = globals().get("DB_PATH", DB_PATH)
+    conn = sqlite3.connect(target_db)
     conn.row_factory = sqlite3.Row
     return conn
 

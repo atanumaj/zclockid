@@ -423,3 +423,44 @@ def test_rbac_and_admin_count_groups_protected_from_operator():
         headers={"Authorization": "Bearer op_tok_1492"}
     )
     assert r2.status_code == 403
+
+
+def test_nested_privileged_group_escalation_blocked():
+    """
+    Groups transitively nested inside privileged groups (e.g. Domain Admins -> Nested-Group)
+    are recognized as privileged groups and operator cannot add members to them.
+    """
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    db = _global_mock_samdb
+
+    # Create a nested group hierarchy:
+    # Domain Admins contains Nested-Admin-Group
+    db.groups["Nested-Admin-Group"] = {"description": "Child of Domain Admins", "members": set()}
+    if "Domain Admins" not in db.groups:
+        db.groups["Domain Admins"] = {"description": "Domain Admins", "members": set()}
+    db.groups["Domain Admins"]["members"].add("Nested-Admin-Group")
+
+    # Verify is_privileged_ad_group detects the transitive nesting
+    assert is_privileged_ad_group("Nested-Admin-Group") is True
+
+    # Operator attempting to create a user in Nested-Admin-Group must get 403
+    resp_create = client.post(
+        "/api/v1/users",
+        json={
+            "username": "nested_hacker",
+            "password": "SecurePassword!2026",
+            "groups": ["Nested-Admin-Group"]
+        },
+        headers={"Authorization": "Bearer op_tok_1492"}
+    )
+    assert resp_create.status_code == 403
+    assert "privileged" in resp_create.json()["detail"].lower()
+
+    # Operator attempting to add a user to Nested-Admin-Group via /groups endpoint must get 403
+    resp_add = client.post(
+        "/api/v1/groups/Nested-Admin-Group/members",
+        json={"username": "alice"},
+        headers={"Authorization": "Bearer op_tok_1492"}
+    )
+    assert resp_add.status_code == 403
+    assert "privileged" in resp_add.json()["detail"].lower()

@@ -98,6 +98,7 @@ def setup_test_env(tmp_path, monkeypatch):
     conn.close()
 
     monkeypatch.setattr("api.core.config.DB_PATH", test_db)
+    monkeypatch.setattr("api.db.init_db.DB_PATH", test_db)
     monkeypatch.setattr("api.routers.auth.DB_PATH", test_db)
     monkeypatch.setattr("api.routers.system.DB_PATH", test_db)
     monkeypatch.setattr("api.routers.security.DB_PATH", test_db)
@@ -263,6 +264,37 @@ class TestSnmpEndpointsHardening:
         }
         res = client.post("/api/v1/snmp/config", json=payload, headers=headers)
         assert res.status_code == 400
+
+    def test_update_snmp_config_audit_logging_and_masking(self, client):
+        """Verifies SNMP_CONFIG_UPDATED audit log masks community_string and records real actor."""
+        headers = {"Authorization": "Bearer admin-token-150"}
+        payload = {
+            "enabled": True,
+            "community_string": "SuperSecretComm999",
+            "allowed_subnets": "192.168.1.0/24",
+            "sys_location": "DC-Rack-01",
+            "sys_contact": "noc@example.com",
+            "agent_address": "udp:161",
+            "enable_extensions": False,
+            "snmpv3_enabled": False,
+            "snmpv3_user": ""
+        }
+        res = client.post("/api/v1/snmp/config", json=payload, headers=headers)
+        assert res.status_code == 200
+
+        # Query audit_events table
+        from api.core.config import DB_PATH
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT actor, details FROM audit_events WHERE event_type = 'SNMP_CONFIG_UPDATED' ORDER BY id DESC LIMIT 1")
+        row = c.fetchone()
+        conn.close()
+
+        assert row is not None, "Audit event for SNMP_CONFIG_UPDATED not found"
+        actor, details = row
+        assert actor == "admin"
+        assert "SuperSecretComm999" not in details
+        assert "********" in details
 
     def test_update_snmp_config_valid_writes_mode_0600(self, client, monkeypatch, tmp_path):
         headers = {"Authorization": "Bearer admin-token-150"}
@@ -447,6 +479,24 @@ class TestArchiveSecurity:
         res = client.post("/api/v1/backups/upload", files=files, headers=headers)
         assert res.status_code == 400
         assert "traversal" in res.json()["detail"].lower()
+
+    def test_safe_extract_tar_filter_unavailable_raises_400(self, tmp_path, monkeypatch):
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        tar_path = tmp_path / "valid.tar.gz"
+        with tarfile.open(tar_path, "w:gz") as tar:
+            data = b"hello"
+            ti = tarfile.TarInfo(name="hello.txt")
+            ti.size = len(data)
+            tar.addfile(ti, io.BytesIO(data))
+
+        monkeypatch.delattr(tarfile, "data_filter", raising=False)
+
+        with tarfile.open(tar_path, "r:gz") as tar:
+            with pytest.raises(ArchiveSecurityError) as exc:
+                safe_extract_tar(tar, staging)
+            assert exc.value.status_code == 400
+            assert "data_filter" in exc.value.detail.lower()
 
 
 # =========================================================================

@@ -1,12 +1,12 @@
 {
-  "version": "1.5.0",
-  "name": "ZclockID Enterprise v1.5.0",
+  "version": "1.5.1",
+  "name": "ZclockID Enterprise v1.5.1",
   "channel": "stable",
-  "release_type": "minor",
-  "published_at": "2026-11-22T19:50:00Z",
-  "summary": "SNMP config injection protection, archive extraction security hardening, and removal of permissive CORS",
-  "notes": "### What's Changed in v1.5.0:\n* **SNMP Injection Hardening:** Validates SNMP community strings with strict regex (`^[A-Za-z0-9._-]{8,64}$`) and source addresses/CIDRs with `ipaddress.ip_network`. Rejects newlines, carriage returns, spaces, and `#` characters across all SNMPv2 and SNMPv3 fields (`sysLocation`, `sysContact`, `agentAddress`, `rouser`). Writes configuration files atomically with mode `0600`.\n* **Archive Extraction Security:** Hardened archive processing against path traversal (`../`), absolute paths, device nodes, symlink/hardlink escapes, and uncompressed bomb limits. Tar extraction utilizes `filter='data'` (Python 3.12+) with rigorous member validation. Zip extraction resolves destinations strictly within temporary staging.\n* **Strict Origin Isolation (CORS):** Removed default wildcard `CORSMiddleware`. Starlette/FastAPI now emits zero `Access-Control-Allow-Origin` headers unless explicitly configured via `ZCLOCKID_CORS_ORIGINS`.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.5.0_all.deb",
-  "package_name": "zclockid_1.5.0_all.deb",
+  "release_type": "patch",
+  "published_at": "2026-11-22T20:50:00Z",
+  "summary": "Self-host all web assets (Tailwind, Font Awesome, Google Fonts, Chart.js), tighten Content Security Policy to 'self', transitive privileged group checks, and SNMP audit masking",
+  "notes": "### What's Changed in v1.5.1:\n* **Self-Hosted Web Assets:** Eliminated all external asset dependencies across all pages (`index.html`, `login.html`, `register.html`, `password-reset.html`, `setup.html`). Tailwind CSS is pre-compiled at build time via the pinned standalone CLI (SHA-256 verified) without Node.js on the appliance. Font Awesome 6.4.0, Google Fonts (Plus Jakarta Sans, JetBrains Mono, Inter), and Chart.js v4.6.1 are fully vendored under `web/vendor/` with cryptographic checksums recorded in `VENDOR.md`.\n* **Tightened Content Security Policy:** Enforces strict `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'` across Nginx and FastAPI portal handlers with zero external domains.\n* **Transitive Privileged Group Protection:** `is_privileged_ad_group()` recursively identifies nested groups in `Domain Admins`, `Enterprise Admins`, `Schema Admins`, and `Administrators` using LDAP matching rule `memberOf:1.2.840.113556.1.4.1941:=<DN>`, failing closed upon query error.\n* **Archive Security Guard:** `safe_extract_tar()` requires Python 3.12+ `tarfile.data_filter` and raises HTTP 400 if unavailable.\n* **SNMP Audit Masking:** Masks community strings and accurately logs the authenticated administrator actor in `SNMP_CONFIG_UPDATED` audit events.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.5.1_all.deb",
+  "package_name": "zclockid_1.5.1_all.deb",
   "min_version_required": "1.0.0"
 }

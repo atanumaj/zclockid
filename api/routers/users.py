@@ -108,13 +108,37 @@ def is_privileged_ad_group(group_name: str) -> bool:
                 if gname.strip().lower() == clean_name:
                     if str(gdata.get("adminCount", 0)) == "1":
                         return True
+
+            # Transitive group nesting check in MockSamDB
+            def _is_transitive_mock(target: str, visited=None) -> bool:
+                if visited is None:
+                    visited = set()
+                if target in visited:
                     return False
+                visited.add(target)
+                for pgroup, pdata in db.groups.items():
+                    pgroup_lower = pgroup.strip().lower()
+                    pmembers = {str(m).strip().lower() for m in pdata.get("members", set())}
+                    if target in pmembers:
+                        if (
+                            pgroup_lower in PRIVILEGED_GROUP_NAMES
+                            or pgroup_lower in rbac_groups
+                            or str(pdata.get("adminCount", 0)) == "1"
+                        ):
+                            return True
+                        if _is_transitive_mock(pgroup_lower, visited):
+                            return True
+                return False
+
+            if _is_transitive_mock(clean_name):
+                return True
+
             if not os.path.exists(str(SAMBA_LDB_PATH)):
                 return False
     except Exception:
         pass
 
-    # 4. Check live Active Directory sam.ldb for adminCount=1
+    # 4. Check live Active Directory sam.ldb for adminCount=1 and transitive membership
     try:
         clean_g = escape_ldap_filter_value(group_name)
         code, stdout, stderr = run_cmd([
@@ -131,6 +155,38 @@ def is_privileged_ad_group(group_name: str) -> bool:
             if line.startswith("adminCount:"):
                 val = line.split(":", 1)[1].strip()
                 if val == "1":
+                    return True
+
+        # Check transitive membership in privileged groups:
+        # memberOf:1.2.840.113556.1.4.1941:=<DN>
+        priv_filter = "(|(sAMAccountName=Domain Admins)(sAMAccountName=Enterprise Admins)(sAMAccountName=Schema Admins)(sAMAccountName=Administrators))"
+        c_priv, out_priv, err_priv = run_cmd([
+            "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+            f"(&(objectClass=group){priv_filter})",
+            "dn"
+        ], timeout=5)
+        if c_priv != 0:
+            logger.warning("ldbsearch query failed for privileged groups DNs, failing closed: %s", err_priv)
+            return True
+
+        priv_dns = []
+        for line in out_priv.splitlines():
+            line = line.strip()
+            if line.startswith("dn:"):
+                priv_dns.append(line.split(":", 1)[1].strip())
+
+        for pdn in priv_dns:
+            clean_pdn = escape_ldap_filter_value(pdn)
+            c_mem, out_mem, err_mem = run_cmd([
+                "ldbsearch", "-H", str(SAMBA_LDB_PATH),
+                f"(&(objectClass=group)(sAMAccountName={clean_g})(memberOf:1.2.840.113556.1.4.1941:={clean_pdn}))",
+                "dn"
+            ], timeout=5)
+            if c_mem != 0:
+                logger.warning("ldbsearch query failed checking transitive membership for %s, failing closed: %s", group_name, err_mem)
+                return True
+            for mline in out_mem.splitlines():
+                if mline.strip().startswith("dn:"):
                     return True
     except Exception as e:
         logger.warning("Error checking privileged group status for %s: %s, failing closed", group_name, e)

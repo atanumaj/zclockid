@@ -1535,7 +1535,7 @@ def get_snmp_config():
     return {"status": "success", "config": config}
 
 @router.post("/api/v1/snmp/config")
-def update_snmp_config(req: SnmpConfigRequest):
+def update_snmp_config(req: SnmpConfigRequest, user: dict = Depends(get_session_user)):
     """Updates /etc/snmp/snmpd.conf, manages snmpd service state, and writes audit log."""
     conf_path = SNMPD_CONF_FILE
     conf_dir = conf_path.parent
@@ -1614,9 +1614,10 @@ def update_snmp_config(req: SnmpConfigRequest):
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Failed to update snmpd service state: {str(e)}")
 
-    log_audit("SNMP_CONFIG_UPDATED", "admin", "appliance", "SUCCESS", {
+    actor = (user.get("username") if isinstance(user, dict) else None) or "admin"
+    log_audit("SNMP_CONFIG_UPDATED", actor, "appliance", "SUCCESS", {
         "enabled": req.enabled,
-        "community_string": req.community_string,
+        "community_string": "********",
         "allowed_subnets": req.allowed_subnets,
         "extensions": req.enable_extensions
     })

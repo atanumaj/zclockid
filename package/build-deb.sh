@@ -67,7 +67,41 @@ chmod 755 "${BUILD_ROOT}/opt/zclockid/scripts/"*
 # Write appliance VERSION file
 echo "${VERSION}" > "${BUILD_ROOT}/opt/zclockid/VERSION"
 
-# 4. Copy Web Console Assets
+# 4. Build Tailwind CSS with Pinned Standalone CLI (No Node runtime on appliance)
+TAILWIND_CLI_VER="v3.4.17"
+TAILWIND_BIN="/tmp/tailwindcss-linux-x64"
+EXPECTED_SHA256="7d24f7fa191d2193b78cd5f5a42a6093e14409521908529f42d80b11fde1f1d4"
+
+if [[ -f "${TAILWIND_BIN}" ]]; then
+    ACTUAL_SHA256="$(sha256sum "${TAILWIND_BIN}" 2>/dev/null | awk '{print $1}' || shasum -a 256 "${TAILWIND_BIN}" 2>/dev/null | awk '{print $1}')"
+    if [[ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]]; then
+        rm -f "${TAILWIND_BIN}"
+    fi
+fi
+
+if [[ ! -f "${TAILWIND_BIN}" ]]; then
+    echo "Downloading pinned standalone Tailwind CLI (${TAILWIND_CLI_VER})..."
+    curl -sL "https://github.com/tailwindlabs/tailwindcss/releases/download/${TAILWIND_CLI_VER}/tailwindcss-linux-x64" -o "${TAILWIND_BIN}" 2>/dev/null || true
+    chmod +x "${TAILWIND_BIN}" 2>/dev/null || true
+fi
+
+if [[ -x "${TAILWIND_BIN}" ]]; then
+    ACTUAL_SHA256="$(sha256sum "${TAILWIND_BIN}" 2>/dev/null | awk '{print $1}' || shasum -a 256 "${TAILWIND_BIN}" 2>/dev/null | awk '{print $1}')"
+    if [[ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]]; then
+        echo "ERROR: Tailwind CLI SHA-256 verification failed! Expected ${EXPECTED_SHA256}, got ${ACTUAL_SHA256}" >&2
+        exit 1
+    fi
+    echo "Verified Tailwind standalone CLI SHA-256 (${ACTUAL_SHA256})"
+    echo "Building web/css/tailwind.css with standalone CLI..."
+    (cd "${DIST_DIR}" && "${TAILWIND_BIN}" -c tailwind.config.js -i web/css/tailwind-input.css -o web/css/tailwind.css --minify)
+elif [[ -f "${DIST_DIR}/web/css/tailwind.css" ]]; then
+    echo "Using pre-built web/css/tailwind.css..."
+else
+    echo "ERROR: web/css/tailwind.css missing and standalone Tailwind CLI unavailable." >&2
+    exit 1
+fi
+
+# 5. Copy Web Console Assets
 cp -r "${DIST_DIR}/web/"* "${BUILD_ROOT}/opt/zclockid/web/"
 
 # 5. Copy Configuration Templates

@@ -132,15 +132,17 @@ def test_nginx_csp_and_security_headers():
 
         assert "Content-Security-Policy" in conf
         assert "default-src 'self'" in conf
-        assert "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net" in conf
-        assert "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com" in conf
-        assert "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com" in conf
+        assert "script-src 'self' 'unsafe-inline'" in conf
+        assert "style-src 'self' 'unsafe-inline'" in conf
+        assert "font-src 'self'" in conf
         assert "img-src 'self' data:" in conf
         assert "connect-src 'self'" in conf
         assert "object-src 'none'" in conf
         assert "frame-ancestors 'none'" in conf
         assert "base-uri 'self'" in conf
         assert "form-action 'self'" in conf
+        assert "cdn.tailwindcss.com" not in conf
+        assert "cdnjs.cloudflare.com" not in conf
         assert 'add_header X-Content-Type-Options "nosniff"' in conf or 'add_header X-Content-Type-Options nosniff' in conf
         assert 'add_header Referrer-Policy "same-origin"' in conf or 'add_header Referrer-Policy same-origin' in conf
 
