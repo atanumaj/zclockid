@@ -5,6 +5,7 @@ Provides administrative endpoints for session timeout, brute-force protection, C
 
 import time
 import sqlite3
+from api.db.connection import get_db
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, Header, Request, status
 
@@ -120,7 +121,7 @@ def update_security_baseline_settings(
 
     # 4. Persist to SQLite
     now = time.time()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE security_settings SET
@@ -186,7 +187,7 @@ def list_active_sessions(
     current_token = authorization.replace("Bearer ", "").strip() if authorization else ""
     now = time.time()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("""
@@ -225,7 +226,7 @@ def terminate_session(
     current_token = authorization.replace("Bearer ", "").strip() if authorization else ""
     prefix_clean = token_prefix.split("...")[0]
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT token, username FROM sessions WHERE token LIKE ?", (f"{prefix_clean}%",))
     row = cursor.fetchone()
@@ -255,7 +256,7 @@ def terminate_all_other_sessions(
     if not current_token:
         raise HTTPException(status_code=400, detail="Current token missing.")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM sessions WHERE token != ?", (current_token,))
     terminated_count = cursor.rowcount

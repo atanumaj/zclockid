@@ -8,6 +8,7 @@ import json
 import secrets
 import hashlib
 import sqlite3
+from api.db.connection import get_db
 import ipaddress
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, Request, status, Depends
@@ -25,7 +26,7 @@ from api.schemas.api_key_schema import (
 router = APIRouter(prefix="/api/v1/api-keys", tags=["API Key Management"], dependencies=[Depends(require_role("readonly"))])
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 

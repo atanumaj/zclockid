@@ -12,6 +12,7 @@ import time
 import json
 import secrets
 import sqlite3
+from api.db.connection import get_db
 import logging
 import hmac
 import hashlib
@@ -136,7 +137,7 @@ def is_privileged_account(account_name: str, admin_count: int = 0, member_of: Op
 def check_and_record_sspr_attempt(username: str, client_ip: str, action: str, max_daily_user: int, max_daily_ip: int):
     """Enforces max_daily_attempts per username and max_daily_attempts_per_ip per client IP across all SSPR actions."""
     cutoff = time.time() - 86400
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sspr_attempts (
@@ -182,7 +183,7 @@ def check_and_record_sspr_attempt(username: str, client_ip: str, action: str, ma
 
 def get_sspr_settings() -> Dict[str, Any]:
     """Retrieves Self Service Password Reset configuration."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM self_service_password_settings WHERE id = 1")
@@ -353,7 +354,7 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
 
     # Check if account is privileged
     if is_privileged_account(clean_user):
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO self_service_password_logs (
@@ -370,7 +371,7 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
     user_info = lookup_ad_user(clean_user)
     if user_info.get("found"):
         if user_info.get("is_privileged"):
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT INTO self_service_password_logs (
@@ -400,7 +401,7 @@ def change_password_with_old(req: PasswordChangeOldRequest, request: Request):
     input_data = f"{req.old_password}\n{req.new_password}\n{req.new_password}\n"
     code, stdout, stderr = run_cmd(cmd, timeout=15, input_data=input_data)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
 
     if code == 0:
@@ -513,7 +514,7 @@ def request_password_reset_otp(req: PasswordResetOtpRequest, request: Request):
                 eligible = False
                 ineligible_reason = f"No valid mobile phone registered for account '{clean_user}'."
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
 
     if not eligible:
@@ -640,7 +641,7 @@ def verify_otp_and_reset_password(req: PasswordResetVerifyRequest, request: Requ
 
     provided_token_hash = hash_reset_token(provided_token)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -779,7 +780,7 @@ def get_password_reset_settings():
 @router.post("/password/settings")
 def update_password_reset_settings(req: PasswordResetSettingsUpdate):
     """Updates administrator settings for Self Service Password Reset."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -847,7 +848,7 @@ def get_password_reset_logs(
     from api.services.log_retention_service import get_log_retention_settings
     if limit is None or limit <= 0:
         limit = int(get_log_retention_settings().get("self_service_ui_fetch_limit", 500) or 500)
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -912,7 +913,7 @@ def export_password_reset_logs_csv(
     search: Optional[str] = None
 ):
     """Generates a downloadable CSV export of all Self Service Password Reset logs."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -975,7 +976,7 @@ def export_registration_logs_csv(
     search: Optional[str] = None
 ):
     """Generates a downloadable CSV export of all Self-Registration requests."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -1100,7 +1101,7 @@ def get_portal_template_status(portal_type: str):
     PORTAL_DIR.mkdir(parents=True, exist_ok=True)
     custom_path = PORTAL_DIR / meta["filename"]
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute(f"SELECT use_custom_html, custom_html_updated_at FROM {meta['table']} WHERE id = 1")
@@ -1194,7 +1195,7 @@ async def upload_custom_portal_template(portal_type: str, file: UploadFile = Fil
     dest.write_text(decoded, encoding="utf-8")
 
     now_ts = time.time()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         f"UPDATE {meta['table']} SET use_custom_html = 1, custom_html_updated_at = ? WHERE id = 1",
@@ -1227,7 +1228,7 @@ def toggle_custom_portal_template(portal_type: str, payload: Dict[str, Any] = Bo
     if enable and not custom_path.exists():
         raise HTTPException(status_code=400, detail="No custom HTML file has been uploaded yet. Please upload an HTML file first.")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(f"UPDATE {meta['table']} SET use_custom_html = ? WHERE id = 1", (1 if enable else 0,))
     conn.commit()
@@ -1249,7 +1250,7 @@ def reset_custom_portal_template(portal_type: str):
     if custom_path.exists():
         custom_path.unlink()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(f"UPDATE {meta['table']} SET use_custom_html = 0, custom_html_updated_at = NULL WHERE id = 1")
     conn.commit()

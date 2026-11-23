@@ -148,13 +148,16 @@ EOFBIND
             systemctl restart nginx >/dev/null 2>&1 || true
         fi
 
-        # 7. Ensure FastAPI multipart support is verified
-        if ! python3 -c "import multipart" >/dev/null 2>&1; then
-            pip3 install --break-system-packages python-multipart >/dev/null 2>&1 || true
-        fi
-
-        # 8. Run database migrations and schema initialization
+        # 7. Run database migrations and schema initialization
         PYTHONPATH=/opt/zclockid python3 -m api.db.init_db >/dev/null 2>&1 || true
+
+        # 8. Migrate APT source from master branch to gh-pages branch (idempotent)
+        if [ -f /etc/apt/sources.list.d/zclockid.sources ]; then
+            sed -i 's|raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo|raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo|g' /etc/apt/sources.list.d/zclockid.sources
+        fi
+        if [ -f /etc/apt/sources.list.d/zclockid.list ]; then
+            sed -i 's|raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo|raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo|g' /etc/apt/sources.list.d/zclockid.list
+        fi
 
         # 9. Reload systemd units and restart services
         systemctl daemon-reload

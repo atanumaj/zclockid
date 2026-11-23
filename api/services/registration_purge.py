@@ -10,6 +10,7 @@ import os
 import time
 import fcntl
 import sqlite3
+from api.db.connection import get_db
 import logging
 import threading
 from pathlib import Path
@@ -23,7 +24,7 @@ PURGE_LOCK_FILE = DATA_DIR / "registration_purge.lock"
 
 
 def get_purge_db_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn = get_db(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout = 30000")
     conn.execute("PRAGMA secure_delete=ON")

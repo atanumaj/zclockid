@@ -33,7 +33,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r api/requirements.txt
+          pip install -r api/requirements.txt -r requirements-dev.txt
 
       - name: Verify Tailwind CSS build
         run: |
@@ -55,16 +55,37 @@ jobs:
           chmod +x tests/xss_scan.sh
           ./tests/xss_scan.sh
 
-      - name: Verify No Live Credentials Committed
+      - name: Run Pip Audit Vulnerability Scan
+        # Note: Appliance production runtime uses pre-packaged Ubuntu python3-* packages (e.g. python3-fastapi, python3-requests).
+        # We audit api/requirements.txt to prevent supply-chain vulnerabilities in bundled dependencies.
         run: |
-          if grep -rn --exclude="*.pyc" --exclude-dir="__pycache__" -F "P@ssw0rd@inet" tests/ scripts/ ; then
-            echo "ERROR: Live credential 'P@ssw0rd@inet' detected in tests/ or scripts/!" >&2
+          pip-audit -r api/requirements.txt
+
+      - name: Run Gitleaks Secrets Scan
+        run: |
+          GITLEAKS_VER="v8.21.2"
+          GITLEAKS_BIN="/tmp/gitleaks"
+          EXPECTED_GITLEAKS_SHA256="5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/${GITLEAKS_VER}/gitleaks_${GITLEAKS_VER#v}_linux_x64.tar.gz" -o /tmp/gitleaks.tar.gz
+          ACTUAL_GITLEAKS_SHA256="$(sha256sum /tmp/gitleaks.tar.gz | awk '{print $1}')"
+          if [[ "${ACTUAL_GITLEAKS_SHA256}" != "${EXPECTED_GITLEAKS_SHA256}" ]]; then
+            echo "ERROR: Gitleaks release tarball SHA-256 verification failed! Expected ${EXPECTED_GITLEAKS_SHA256}, got ${ACTUAL_GITLEAKS_SHA256}" >&2
+            exit 1
+          fi
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          chmod +x "${GITLEAKS_BIN}"
+          "${GITLEAKS_BIN}" detect --source . --config .gitleaks.toml --redact --verbose
+
+      - name: Verify No ZCLOCK_PASS Defaults
+        run: |
+          if grep -rnE 'os\.(environ\.get|getenv)\(["'\''"]ZCLOCK_PASS["'\''"],\s*[^)]+\)' tests/ scripts/ api/ .github/; then
+            echo "ERROR: Fallback default password found for ZCLOCK_PASS!" >&2
             exit 1
           fi
 
-      - name: Run Authentication Coverage Tests
+      - name: Run Full Test Suite
         run: |
-          PYTHONPATH=. pytest tests/test_auth_coverage.py -v
+          PYTHONPATH=. pytest tests -q
 
       - name: Build thin deb package
         run: |

@@ -17,6 +17,7 @@ for _p in [str(_ROOT_DIR), str(_BASE_DIR)]:
         sys.path.insert(0, _p)
 
 import sqlite3
+from api.db.connection import get_db
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -135,7 +136,7 @@ def _serve_portal_html(table_name: str, filename: str):
     custom_file = DATA_DIR / "portals" / filename
     try:
         if custom_file.exists() and custom_file.is_file():
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db(DB_PATH)
             cur = conn.cursor()
             cur.execute(f"SELECT use_custom_html FROM {table_name} WHERE id = 1")
             row = cur.fetchone()

@@ -85,7 +85,7 @@ if [[ ! -f "${TAILWIND_BIN}" ]]; then
     chmod +x "${TAILWIND_BIN}" 2>/dev/null || true
 fi
 
-if [[ -x "${TAILWIND_BIN}" ]]; then
+if [[ -x "${TAILWIND_BIN}" ]] && "${TAILWIND_BIN}" --help >/dev/null 2>&1; then
     ACTUAL_SHA256="$(sha256sum "${TAILWIND_BIN}" 2>/dev/null | awk '{print $1}' || shasum -a 256 "${TAILWIND_BIN}" 2>/dev/null | awk '{print $1}')"
     if [[ "${ACTUAL_SHA256}" != "${EXPECTED_SHA256}" ]]; then
         echo "ERROR: Tailwind CLI SHA-256 verification failed! Expected ${EXPECTED_SHA256}, got ${ACTUAL_SHA256}" >&2

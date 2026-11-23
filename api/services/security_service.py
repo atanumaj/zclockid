@@ -8,6 +8,7 @@ import re
 import time
 import ipaddress
 import sqlite3
+from api.db.connection import get_db
 from pathlib import Path
 from typing import Tuple, List, Optional, Dict, Any
 from fastapi import Request
@@ -90,7 +91,7 @@ def is_ip_allowed(client_ip: str, allowed_subnets_str: str) -> bool:
 def get_security_settings() -> Dict[str, Any]:
     """Fetches system-wide security settings from SQLite."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM security_settings WHERE id = 1")

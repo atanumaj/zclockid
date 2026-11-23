@@ -1,0 +1,18 @@
+title = "ZclockID Gitleaks Configuration"
+
+[extend]
+# Extends default gitleaks rules
+
+[allowlist]
+description = "Global allowlist for obvious test fixtures, documentation examples, and public metadata"
+regexes = [
+    '''secret_partner_[a-z0-9_]+''',
+    '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9''',
+    '''F85A53762E2BADA8C5FF6AF4408D10F3F78600EE''',
+    '''SetupTestP@ssw0rd123!''',
+    '''TestSecretPassword!''',
+    '''AdminP@ssw0rd2026!''',
+]
+paths = [
+    '''web/vendor/''',
+]

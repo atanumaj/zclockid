@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from api.db.connection import get_db
 import time
 from typing import Dict, Any
 
@@ -62,7 +63,7 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
 def get_log_retention_settings() -> Dict[str, Any]:
     """Returns current log retention and query limit settings with safe defaults."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         conn.row_factory = sqlite3.Row
         _ensure_table(conn)
         row = conn.execute("SELECT * FROM log_retention_settings WHERE id = 1").fetchone()
@@ -78,7 +79,7 @@ def get_log_retention_settings() -> Dict[str, Any]:
 
 def update_log_retention_settings(updates: Dict[str, Any]) -> Dict[str, Any]:
     """Persists updated log retention and query limit settings."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     _ensure_table(conn)
 
@@ -131,7 +132,7 @@ def get_log_table_counts() -> Dict[str, int]:
     ]
     counts: Dict[str, int] = {t: 0 for t in tables}
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         cur = conn.cursor()
         for t in tables:
             try:
@@ -187,7 +188,7 @@ def prune_logs_by_policy(force: bool = False) -> Dict[str, Any]:
     now_ts = time.time()
     deleted: Dict[str, int] = {}
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     _ensure_table(conn)
     cur = conn.cursor()
 

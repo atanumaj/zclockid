@@ -5,19 +5,20 @@ Note: Active Directory accounts are stored in Samba sam.ldb, NOT in SQLite (Zero
 """
 
 import sqlite3
+from api.db.connection import get_db
 import time
 import re
 from api.core.config import DB_PATH
 
 def get_db_connection():
     target_db = globals().get("DB_PATH", DB_PATH)
-    conn = sqlite3.connect(target_db)
+    conn = get_db(target_db)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db(db_path=None):
     target_db = db_path or globals().get("DB_PATH", DB_PATH)
-    conn = sqlite3.connect(target_db)
+    conn = get_db(target_db)
     cursor = conn.cursor()
 
     # Admin users for Web GUI authentication

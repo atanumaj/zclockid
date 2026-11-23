@@ -6,6 +6,7 @@ MAB devices for IoT, live accounting sessions, Disconnect-Message (PoD/CoA), and
 
 from fastapi import APIRouter, HTTPException, status, Depends
 import sqlite3
+from api.db.connection import get_db
 import time
 import re
 import secrets
@@ -152,7 +153,7 @@ def delete_radius_client(client_name: str):
 @router.get("/bandwidth-profiles")
 def list_radius_bandwidth_profiles():
     """Lists Captive Portal bandwidth management and rate limiting profiles."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM radius_bandwidth_profiles ORDER BY id ASC")
@@ -166,7 +167,7 @@ def save_radius_bandwidth_profile(req: RadiusBandwidthProfileRequest):
     if req.id:
         return update_radius_bandwidth_profile(req.id, req)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     now_ts = time.time()
 
@@ -189,7 +190,7 @@ def save_radius_bandwidth_profile(req: RadiusBandwidthProfileRequest):
 @router.put("/bandwidth-profiles/{profile_id}")
 def update_radius_bandwidth_profile(profile_id: int, req: RadiusBandwidthProfileRequest):
     """Updates an existing Captive Portal bandwidth profile and propagates changes to AD and FreeRADIUS."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (profile_id,))
@@ -236,7 +237,7 @@ def update_radius_bandwidth_profile(profile_id: int, req: RadiusBandwidthProfile
 @router.delete("/bandwidth-profiles/{profile_id}")
 def delete_radius_bandwidth_profile(profile_id: int):
     """Deletes a Captive Portal bandwidth profile."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM radius_bandwidth_profiles WHERE id = ?", (profile_id,))
     conn.commit()
@@ -249,7 +250,7 @@ def delete_radius_bandwidth_profile(profile_id: int):
 @router.get("/mab")
 def list_radius_mab_devices():
     """Lists registered MAC Authentication Bypass (MAB) devices."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM radius_mab_devices ORDER BY id DESC")
@@ -265,7 +266,7 @@ def save_radius_mab_device(req: RadiusMabDeviceRequest):
         raise HTTPException(status_code=400, detail="Invalid MAC address format. Expected 12 hexadecimal characters.")
     formatted_mac = ":".join(mac_clean[i:i+2] for i in range(0, 12, 2))
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     now_ts = time.time()
     if req.id:
@@ -289,7 +290,7 @@ def save_radius_mab_device(req: RadiusMabDeviceRequest):
 @router.delete("/mab/{device_id}")
 def delete_radius_mab_device(device_id: int):
     """Deletes a MAC Authentication Bypass device entry."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM radius_mab_devices WHERE id = ?", (device_id,))
     conn.commit()
@@ -302,7 +303,7 @@ def delete_radius_mab_device(device_id: int):
 @router.get("/custom-attributes")
 def list_radius_custom_attributes():
     """Lists vendor-specific attributes and custom RADIUS policies."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM radius_custom_attributes ORDER BY id ASC")
@@ -313,7 +314,7 @@ def list_radius_custom_attributes():
 @router.post("/custom-attributes")
 def save_radius_custom_attribute(req: RadiusCustomAttributeRequest):
     """Saves a custom RADIUS vendor attribute or session parameter."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     now_ts = time.time()
     if req.id:
@@ -337,7 +338,7 @@ def save_radius_custom_attribute(req: RadiusCustomAttributeRequest):
 @router.delete("/custom-attributes/{attr_id}")
 def delete_radius_custom_attribute(attr_id: int):
     """Deletes a custom RADIUS vendor attribute."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM radius_custom_attributes WHERE id = ?", (attr_id,))
     conn.commit()
@@ -350,7 +351,7 @@ def delete_radius_custom_attribute(attr_id: int):
 @router.get("/eap")
 def get_radius_eap_profile():
     """Returns EAP protocol status and bound 802.1X TLS certificates."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT eap_peap_enabled, eap_tls_enabled, eap_default_type FROM radius_settings WHERE id = 1")
@@ -417,7 +418,7 @@ def view_radius_config(file: str = "clients"):
 @router.get("/settings")
 def get_radius_settings():
     """Returns general and advanced RADIUS authentication and accounting options."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM radius_settings WHERE id = 1")
@@ -444,7 +445,7 @@ def get_radius_settings():
 @router.post("/settings")
 def update_radius_settings(req: RadiusSettingsRequest):
     """Updates RADIUS ports, interim interval, logging, and engine thread limits."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE radius_settings 
@@ -473,7 +474,7 @@ def get_radius_accounting_sessions(limit: Optional[int] = None):
     from api.services.log_retention_service import get_log_retention_settings
     if limit is None or limit <= 0:
         limit = int(get_log_retention_settings().get("radius_ui_fetch_limit", 200) or 200)
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM radius_accounting ORDER BY last_update DESC LIMIT ?", (limit,))
@@ -484,7 +485,7 @@ def get_radius_accounting_sessions(limit: Optional[int] = None):
 @router.post("/accounting/disconnect")
 def disconnect_radius_session(session_id: str):
     """Terminates a RADIUS session and marks status Closed in accounting log."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE radius_accounting 

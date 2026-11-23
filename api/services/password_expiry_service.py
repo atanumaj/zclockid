@@ -9,6 +9,7 @@ import os
 import time
 import fcntl
 import sqlite3
+from api.db.connection import get_db
 import logging
 import subprocess
 import threading
@@ -45,7 +46,7 @@ def is_service_account(username: str) -> bool:
 
 
 def get_db_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn = get_db(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout = 30000")
     return conn

@@ -7,6 +7,7 @@ import re
 import time
 import secrets
 import sqlite3
+from api.db.connection import get_db
 import logging
 from fastapi import APIRouter, HTTPException, status, Header, Request, Depends
 from fastapi.responses import JSONResponse
@@ -109,7 +110,7 @@ def get_session_user(authorization: Optional[str] = Header(None)) -> dict:
     if not authorization:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
     token = authorization.replace("Bearer ", "").strip()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT username, role, expires_at, last_active, created_at FROM sessions WHERE token = ?", (token,))
@@ -202,7 +203,7 @@ def get_setup_status():
     has_admin = False
     try:
         if DB_PATH.exists():
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM admin_users")
             count = cursor.fetchone()[0]
@@ -277,7 +278,7 @@ def execute_initial_provisioning(req: SetupProvisionRequest):
             run_cmd(["systemctl", "reload", "nginx"])
 
     # 2. Create Web Administrator User
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     hashed_pw, salt = hash_password(req.admin_password)
     cursor.execute("""
@@ -427,7 +428,7 @@ include "/var/lib/samba/bind-dns/named.conf";
 
     # Update default domain in self registration settings to match newly provisioned realm
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE self_registration_settings 
@@ -501,7 +502,7 @@ def login(req: LoginRequest, request: Request):
     lockout_min = settings.get("lockout_duration_min", 15)
     cutoff = time.time() - (lockout_min * 60)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT COUNT(*) FROM failed_login_attempts
@@ -607,7 +608,7 @@ def logout(authorization: Optional[str] = Header(None)):
         return {"status": "success"}
     token = authorization.replace("Bearer ", "").strip()
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("DELETE FROM sessions WHERE token = ?", (token,))
         conn.commit()
@@ -623,7 +624,7 @@ def get_user_profile(authorization: Optional[str] = Header(None)):
     username = session_user["username"]
     role = session_user["role"]
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT username, email, last_login, created_at FROM admin_users WHERE username = ?", (username,))
@@ -674,7 +675,7 @@ def change_password(req: ChangePasswordRequest, authorization: Optional[str] = H
     session_user = get_session_user(authorization)
     username = session_user["username"]
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT password_hash, salt FROM admin_users WHERE username = ?", (username,))
     local_row = cursor.fetchone()
@@ -726,7 +727,7 @@ def update_break_glass_admin(req: BreakGlassUpdateRequest, authorization: Option
     if session_user["role"] != "fulladmin":
         raise HTTPException(status_code=403, detail="Only Full Administrators can configure the break-glass account.")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
 
     updates = []

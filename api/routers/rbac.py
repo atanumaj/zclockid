@@ -5,6 +5,7 @@ Provides Hybrid Directory Mapping (Active Directory + Local Break-Glass)
 
 import time
 import sqlite3
+from api.db.connection import get_db
 import subprocess
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Header, status, Depends
@@ -50,7 +51,7 @@ ROLE_PERMISSIONS = {
 }
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 

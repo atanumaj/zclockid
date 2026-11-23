@@ -10,6 +10,7 @@ import time
 import re
 import os
 import sqlite3
+from api.db.connection import get_db
 import logging
 from typing import Dict, Any, List, Optional
 from api.core.config import SAMBA_LDB_PATH, DB_PATH
@@ -67,7 +68,7 @@ def get_rbac_fulladmin_groups() -> set:
     """Returns group names explicitly assigned fulladmin role in RBAC mappings."""
     groups = set()
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute("SELECT principal_name FROM rbac_mappings WHERE principal_type = 'group' AND LOWER(role) = 'fulladmin'")
@@ -309,7 +310,7 @@ def list_domain_users():
     profiles_by_name = {}
     all_profiles = []
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("""
@@ -598,7 +599,7 @@ def create_domain_user(
 
     if req.bandwidth_profile_id and req.bandwidth_profile_id > 0:
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db(DB_PATH)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
@@ -730,7 +731,7 @@ def update_domain_user(
     if req.bandwidth_profile_id is not None:
         if req.bandwidth_profile_id > 0:
             try:
-                conn_b = sqlite3.connect(DB_PATH)
+                conn_b = get_db(DB_PATH)
                 conn_b.row_factory = sqlite3.Row
                 c_b = conn_b.cursor()
                 c_b.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
@@ -802,7 +803,7 @@ def update_domain_user(
 
     if req.bandwidth_profile_id is not None:
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db(DB_PATH)
             cursor = conn.cursor()
             now_ts = time.time()
             if req.bandwidth_profile_id > 0:
@@ -1023,7 +1024,7 @@ def delete_domain_user(
         raise HTTPException(status_code=400, detail=f"Failed to delete user: {e}")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         c = conn.cursor()
         c.execute("DELETE FROM radius_user_bandwidth WHERE username = ?", (username,))
         conn.commit()
@@ -1047,7 +1048,7 @@ def list_domain_groups():
     group_bw_map = {}
     profiles_by_name = {}
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         c.execute("SELECT * FROM radius_bandwidth_profiles WHERE is_active = 1")
@@ -1152,7 +1153,7 @@ def create_domain_group(req: GroupCreateRequest):
 
     if req.bandwidth_profile_id and req.bandwidth_profile_id > 0:
         try:
-            conn = sqlite3.connect(DB_PATH)
+            conn = get_db(DB_PATH)
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
             c.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
@@ -1210,7 +1211,7 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
     if req.bandwidth_profile_id is not None:
         if req.bandwidth_profile_id > 0:
             try:
-                conn = sqlite3.connect(DB_PATH)
+                conn = get_db(DB_PATH)
                 conn.row_factory = sqlite3.Row
                 c = conn.cursor()
                 c.execute("SELECT * FROM radius_bandwidth_profiles WHERE id = ?", (req.bandwidth_profile_id,))
@@ -1227,7 +1228,7 @@ def update_domain_group(group_name: str, req: GroupUpdateRequest):
         else:
             bw_info_tag = ""
             try:
-                conn = sqlite3.connect(DB_PATH)
+                conn = get_db(DB_PATH)
                 c = conn.cursor()
                 c.execute("UPDATE radius_bandwidth_profiles SET ad_group = '', target_name = '' WHERE ad_group = ? OR target_name = ?", (group_name, group_name))
                 conn.commit()
@@ -1352,7 +1353,7 @@ def delete_domain_group(
         raise HTTPException(status_code=400, detail=f"Failed to delete group: {e}")
 
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         c = conn.cursor()
         c.execute("UPDATE radius_bandwidth_profiles SET ad_group = '' WHERE ad_group = ?", (group_name,))
         conn.commit()

@@ -6,6 +6,7 @@ Manages Linux Netfilter/UFW firewall rules, default drop policies, and custom po
 import time
 import ipaddress
 import sqlite3
+from api.db.connection import get_db
 import re
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -87,7 +88,7 @@ def get_live_ufw_status() -> str:
 
 def get_firewall_status() -> Dict[str, Any]:
     """Returns stored firewall configuration, unified rules list, and live kernel enforcement status."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -134,7 +135,7 @@ def get_firewall_status() -> Dict[str, Any]:
 
 def apply_firewall() -> Tuple[bool, str]:
     """Translates database rules to UFW and commits to the Linux kernel."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
@@ -196,7 +197,7 @@ def apply_firewall() -> Tuple[bool, str]:
 
 def reset_to_default_template() -> Tuple[bool, str]:
     """Wipes all current rules and resets to the recommended baseline template required for ZclockID functions."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM firewall_rules")
     now = time.time()
@@ -210,7 +211,7 @@ def reset_to_default_template() -> Tuple[bool, str]:
     return apply_firewall()
 
 def toggle_firewall_state(enable: bool) -> Tuple[bool, str]:
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("UPDATE firewall_settings SET is_enabled = ?, updated_at = ? WHERE id = 1", (1 if enable else 0, time.time()))
     conn.commit()
@@ -230,7 +231,7 @@ def add_custom_rule(action: str, protocol: str, port: str, source: str, comment:
     norm_source = normalize_source(source)
     now = time.time()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO firewall_rules (rule_type, action, protocol, port, source, comment, is_enabled, created_at, updated_at)
@@ -256,7 +257,7 @@ def update_rule(rule_id: int, action: str, protocol: str, port: str, source: str
     norm_source = normalize_source(source)
     now = time.time()
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE firewall_rules
@@ -272,7 +273,7 @@ def update_rule(rule_id: int, action: str, protocol: str, port: str, source: str
     return updated
 
 def delete_rule(rule_id: int) -> bool:
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM firewall_rules WHERE id = ?", (rule_id,))
     deleted = cursor.rowcount > 0
@@ -284,7 +285,7 @@ def delete_rule(rule_id: int) -> bool:
     return deleted
 
 def toggle_rule(rule_id: int, is_enabled: bool) -> bool:
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("UPDATE firewall_rules SET is_enabled = ?, updated_at = ? WHERE id = ?", (1 if is_enabled else 0, time.time(), rule_id))
     toggled = cursor.rowcount > 0

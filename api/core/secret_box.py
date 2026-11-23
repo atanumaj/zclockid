@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Tuple, Optional
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import api.core.config as config_mod
+from api.db.connection import get_db
 
 
 class DecryptionError(Exception):
@@ -170,10 +171,9 @@ def decrypt_registration_password(reg_id: int, username: str, enc_str: str) -> s
 def check_missing_registration_keys() -> int:
     """Returns the count of active pending registrations referencing missing encryption keys."""
     try:
-        import sqlite3
         if not config_mod.DB_PATH.exists():
             return 0
-        conn = sqlite3.connect(config_mod.DB_PATH)
+        conn = get_db(config_mod.DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT password_enc FROM self_registrations WHERE status IN ('PENDING_OTP', 'PENDING_APPROVAL') AND password_enc IS NOT NULL")
         rows = cursor.fetchall()

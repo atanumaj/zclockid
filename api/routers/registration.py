@@ -6,6 +6,7 @@ and administrator approval queue.
 
 from fastapi import APIRouter, HTTPException, status, Request, BackgroundTasks, Depends, Body
 import sqlite3
+from api.db.connection import get_db
 import time
 import re
 import secrets
@@ -43,7 +44,7 @@ logger = logging.getLogger("zclockid.registration")
 router = APIRouter(prefix="/api/v1", tags=["Self-Registration & Captive Portal"], dependencies=[Depends(require_role("readonly"))])
 
 def get_reg_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.execute("PRAGMA secure_delete=ON")
     return conn
 
@@ -67,7 +68,7 @@ def check_and_record_registration_attempt(mobile: str, client_ip: str, action: s
     Raises HTTP 429 when limits are exceeded.
     """
     cutoff = time.time() - 3600
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS registration_attempts (

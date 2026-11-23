@@ -460,6 +460,12 @@ def test_version_manifest_consistency():
     ver = manifest.get("version")
     assert ver, "version field is required in version-manifest.json"
 
+    version_file = repo_root / "VERSION"
+    assert version_file.exists(), f"VERSION file not found at {version_file}"
+    assert ver == version_file.read_text(encoding="utf-8").strip(), (
+        f"Manifest version '{ver}' does not match VERSION file '{version_file.read_text().strip()}'"
+    )
+
     # Version in name, download_url, and package_name
     assert ver in manifest.get("name", ""), f"name '{manifest.get('name')}' must contain version '{ver}'"
     assert ver in manifest.get("download_url", ""), f"download_url must contain version '{ver}'"

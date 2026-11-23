@@ -13,6 +13,7 @@ import zipfile
 import platform
 import datetime
 import sqlite3
+from api.db.connection import get_db
 import subprocess
 import requests
 from pathlib import Path
@@ -495,7 +496,7 @@ def get_auth_stats_24h():
     # 1. Query real DB audit records if available
     db_events = []
     try:
-        from api.core.database import get_db
+        from api.db.connection import get_db
         with get_db() as conn:
             cursor = conn.cursor()
             cursor.execute(
@@ -815,7 +816,7 @@ def reboot_appliance():
 
 @router.get("/api/v1/reports/summary")
 def get_reporting_summary():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT status, COUNT(*) FROM self_registrations GROUP BY status")
     reg_counts = dict(cursor.fetchall())
@@ -833,7 +834,7 @@ def get_audit_events_report(limit: Optional[int] = None, offset: int = 0):
     from api.services.log_retention_service import get_log_retention_settings
     if limit is None or limit <= 0:
         limit = int(get_log_retention_settings().get("audit_ui_fetch_limit", 500) or 500)
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM audit_events")
@@ -848,7 +849,7 @@ def export_audit_csv(limit: Optional[int] = None):
     from api.services.log_retention_service import get_log_retention_settings
     if limit is None or limit <= 0:
         limit = int(get_log_retention_settings().get("audit_ui_fetch_limit", 500) or 500)
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM audit_events ORDER BY timestamp DESC LIMIT ?", (limit,))
@@ -967,12 +968,10 @@ def create_backup(req: BackupCreateRequest):
         appliance_dir = staging_dir / "appliance"
         appliance_dir.mkdir(parents=True, exist_ok=True)
         if DB_PATH.exists():
-            src_conn = sqlite3.connect(DB_PATH)
-            dst_conn = sqlite3.connect(appliance_dir / "zclockid.db")
-            with dst_conn:
-                src_conn.backup(dst_conn)
-            dst_conn.close()
-            src_conn.close()
+            with get_db(DB_PATH) as src_conn:
+                src_conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+                with get_db(appliance_dir / "zclockid.db") as dst_conn:
+                    src_conn.backup(dst_conn)
 
         # Stage /zclockid/config directory
         cfg_backup_dir = appliance_dir / "config"
@@ -1305,8 +1304,8 @@ def restore_backup(req: BackupRestoreRequest):
         # 1. Restore Appliance Database (zclockid.db)
         db_backup = restore_staging / "appliance" / "zclockid.db"
         if db_backup.exists():
-            dst_conn = sqlite3.connect(DB_PATH)
-            src_conn = sqlite3.connect(db_backup)
+            dst_conn = get_db(DB_PATH)
+            src_conn = get_db(db_backup)
             with dst_conn:
                 src_conn.backup(dst_conn)
             src_conn.close()
@@ -1662,7 +1661,7 @@ def test_snmp_query(req: SnmpTestQueryRequest):
 @router.get("/api/v1/system/update/info")
 def get_update_info():
     """Returns appliance software version, update settings, and cached release information."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM update_settings WHERE id = 1")
@@ -1710,7 +1709,7 @@ def get_update_info():
 @router.post("/api/v1/system/update/settings")
 def update_update_settings(settings: UpdateSettingsModel):
     """Saves update preferences. Upstream channel is locked to official repository."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE update_settings
@@ -1725,7 +1724,7 @@ def update_update_settings(settings: UpdateSettingsModel):
 @router.post("/api/v1/system/update/check")
 def check_for_updates(req: Optional[UpdateCheckModel] = None):
     """Queries official upstream manifest or GitHub for newer versions of ZclockID."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM update_settings WHERE id = 1")
@@ -2005,7 +2004,7 @@ def install_update(req: Optional[UpdateInstallModel] = None, user: dict = Depend
     allow_downgrade = req.allow_downgrade if req and req.allow_downgrade else False
 
     if not download_url and not target_deb.exists():
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db(DB_PATH)
         cursor = conn.cursor()
         cursor.execute("SELECT latest_download_url FROM update_settings WHERE id = 1")
         row = cursor.fetchone()

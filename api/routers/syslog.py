@@ -6,6 +6,7 @@ Supports RFC5424 / RFC3164 remote forwarding configuration and categorized live 
 import time
 import socket
 import sqlite3
+from api.db.connection import get_db
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, status, Depends
 from pydantic import BaseModel, Field
@@ -27,7 +28,7 @@ from api.schemas.syslog_schema import (
 router = APIRouter(prefix="/api/v1/syslog", tags=["Syslog & Live Logs"], dependencies=[Depends(require_role("readonly"))])
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 

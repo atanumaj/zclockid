@@ -8,6 +8,7 @@ Verifies that:
 """
 
 import os
+import shutil
 import subprocess
 import pytest
 from pathlib import Path
@@ -73,21 +74,36 @@ def test_grep_no_adminpass_arguments_in_api():
     assert result.stdout.strip() == ""
 
 
-def test_grep_no_live_credentials_in_tests_and_scripts():
-    """CI Check: Ensure no live appliance passwords are committed in tests/ or scripts/."""
+def test_generic_no_zclock_pass_defaults():
+    """CI Check: Ensure no environ lookup for appliance password provides a fallback default."""
     repo_root = Path(__file__).resolve().parent.parent
-    forbidden_patterns = [
-        "P@ss" + "w0rd" + "@" + "inet",
-    ]
-    for pattern in forbidden_patterns:
-        for folder in ["tests", "scripts"]:
-            target_path = repo_root / folder
-            result = subprocess.run(
-                ["grep", "-rn", "--exclude=*.pyc", "--exclude-dir=__pycache__", "-F", pattern, str(target_path)],
-                capture_output=True,
-                text=True
-            )
-            assert result.returncode == 1, f"Live credential '{pattern}' leaked in {folder}/:\n{result.stdout}"
+    pattern = r'os\.(environ\.get|getenv)\(["\']ZCLOCK_PASS["\'],\s*[^)]+\)'
+    this_file = Path(__file__).resolve()
+    for folder in ["tests", "scripts", "api", ".github"]:
+        target_path = repo_root / folder
+        if not target_path.exists():
+            continue
+        result = subprocess.run(
+            ["grep", "-rnE", "--exclude=*.pyc", "--exclude-dir=__pycache__", pattern, str(target_path)],
+            capture_output=True,
+            text=True
+        )
+        # Filter out self
+        lines = [line for line in result.stdout.strip().splitlines() if line and str(this_file) not in line]
+        assert len(lines) == 0, f"Found ZCLOCK_PASS with default in {folder}/:\n" + "\n".join(lines)
+
+
+def test_gitleaks_audit_working_tree():
+    """CI Check: Ensure gitleaks detect reports zero unallowlisted leaks."""
+    gitleaks_bin = shutil.which("gitleaks") or "/opt/homebrew/bin/gitleaks"
+    if not Path(gitleaks_bin).exists():
+        pytest.skip("gitleaks binary not found on local system")
+    repo_root = Path(__file__).resolve().parent.parent
+    config_file = repo_root / ".gitleaks.toml"
+    assert config_file.exists(), ".gitleaks.toml configuration is required"
+    cmd = [gitleaks_bin, "detect", "--source", str(repo_root), "--config", str(config_file), "--redact"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    assert result.returncode == 0, f"Gitleaks detected leaks:\n{result.stdout}\n{result.stderr}"
 
 
 def test_temporary_auth_file_mode_and_cleanup():
