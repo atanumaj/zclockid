@@ -50,10 +50,7 @@ ROLE_PERMISSIONS = {
     ]
 }
 
-def get_db():
-    conn = get_db(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Handled by api.db.connection.get_db
 
 def get_user_ad_groups(username: str) -> List[str]:
     """Retrieves Active Directory group memberships for a user via samba-tool."""
@@ -69,7 +66,7 @@ def resolve_user_role(username: str, is_local_admin: bool = False) -> tuple:
     """
     clean_user = username.strip().lower()
 
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
 
     # 1. Check direct user mapping
@@ -112,7 +109,7 @@ def get_current_user_from_token(authorization: Optional[str] = Header(None)) -> 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header missing.")
     token = authorization.replace("Bearer ", "").strip()
 
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT username, role, expires_at FROM sessions WHERE token = ?", (token,))
     row = cursor.fetchone()
@@ -221,7 +218,7 @@ def list_ad_principals():
 @router.get("/mappings")
 def list_rbac_mappings():
     """Lists all configured Active Directory and user role mappings."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM rbac_mappings ORDER BY principal_type ASC, principal_name ASC")
     rows = [dict(r) for r in cursor.fetchall()]
@@ -231,7 +228,7 @@ def list_rbac_mappings():
 @router.post("/mappings")
 def create_rbac_mapping(req: RbacMappingCreateRequest):
     """Creates a new role mapping for an Active Directory group or user account."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     now = time.time()
     try:
@@ -256,7 +253,7 @@ def create_rbac_mapping(req: RbacMappingCreateRequest):
 @router.put("/mappings/{mapping_id}")
 def update_rbac_mapping(mapping_id: int, req: RbacMappingUpdateRequest):
     """Updates an existing role mapping."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM rbac_mappings WHERE id = ?", (mapping_id,))
     row = cursor.fetchone()
@@ -278,7 +275,7 @@ def update_rbac_mapping(mapping_id: int, req: RbacMappingUpdateRequest):
 @router.delete("/mappings/{mapping_id}")
 def delete_rbac_mapping(mapping_id: int):
     """Deletes a role mapping."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT principal_name, principal_type FROM rbac_mappings WHERE id = ?", (mapping_id,))
     row = cursor.fetchone()

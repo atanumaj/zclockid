@@ -8,7 +8,7 @@ from typing import Optional, List
 
 class UserCreateRequest(BaseModel):
     username: str = Field(..., example="john.doe")
-    password: str = Field(..., min_length=8, example="P@ssw0rd2026!")
+    password: str = Field(..., min_length=8, example="<choose-a-strong-password>")
     given_name: Optional[str] = Field(None, example="John")
     surname: Optional[str] = Field(None, example="Doe")
     email: Optional[str] = Field(None, example="john.doe@corp.example.com")

@@ -1,12 +1,12 @@
 {
-  "version": "1.5.4",
-  "name": "ZclockID Enterprise v1.5.4",
+  "version": "1.5.4.1",
+  "name": "ZclockID Enterprise v1.5.4.1",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-23T14:30:00Z",
-  "summary": "Transition release v1.5.4: APT repository migration to gh-pages branch, connection proxy attribute forwarding, and auth-stats DB events query fix",
-  "notes": "### What's Changed in v1.5.4:\n* **Package Distribution Migration:** Official APT repository and release manifests migrated to dedicated gh-pages hosting; postinst automatically updates host APT sources.\n* **Database Connection Proxy:** Added __setattr__ delegation to DBConnectionContext for seamless SQLite attribute configuration (e.g. isolation_level, row_factory).\n* **Auth Stats Event Telemetry:** Fixed import of get_db in system router auth stats endpoint to query live audit records.\n* **Tooling & Test Isolation:** Split development and test dependencies into requirements-dev.txt.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.4_all.deb",
-  "package_name": "zclockid_1.5.4_all.deb",
+  "published_at": "2026-11-23T18:55:00Z",
+  "summary": "Hotfix release v1.5.4.1: remove shadowed get_db definitions in rbac, syslog, and api_keys routers; add get_db definition hygiene and live authentication regression tests.",
+  "notes": "### What's Changed in v1.5.4.1:\n* **Database Connection Hygiene:** Removed shadowed get_db definitions across RBAC, Syslog, and API Keys routers, ensuring explicit DB_PATH invocation and test isolation.\n* **Regression Verification:** Added comprehensive test suite assertions ensuring no shadow get_db definitions exist outside connection manager and validating live login and subsystem router endpoints.\n* **Credential Sanitization:** Replaced sample password literals with strong placeholder templates across schemas.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.4.1_all.deb",
+  "package_name": "zclockid_1.5.4.1_all.deb",
   "min_version_required": "1.0.0"
 }

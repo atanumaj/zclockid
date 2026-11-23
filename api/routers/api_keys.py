@@ -25,10 +25,7 @@ from api.schemas.api_key_schema import (
 
 router = APIRouter(prefix="/api/v1/api-keys", tags=["API Key Management"], dependencies=[Depends(require_role("readonly"))])
 
-def get_db():
-    conn = get_db(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Handled by api.db.connection.get_db
 
 def hash_key(raw_token: str) -> str:
     return hashlib.sha256(raw_token.strip().encode("utf-8")).hexdigest()
@@ -54,7 +51,7 @@ def is_ip_in_cidr(client_ip: str, cidr_whitelist: str) -> bool:
 @router.get("", response_model=List[ApiKeyItemResponse])
 def list_api_keys():
     """Lists all configured API keys (tokens are redacted, only prefixes are shown)."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT id, name, key_prefix, scopes, cidr_whitelist, expires_at, last_used_at, is_active, created_at
@@ -121,7 +118,7 @@ def create_api_key(req: ApiKeyCreateRequest, request: Request):
     if req.expires_days and req.expires_days > 0:
         expires_at = now + (req.expires_days * 86400)
 
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO api_keys (name, key_prefix, key_hash, scopes, cidr_whitelist, expires_at, is_active, created_at)
@@ -151,7 +148,7 @@ def create_api_key(req: ApiKeyCreateRequest, request: Request):
 @router.delete("/{key_id}")
 def revoke_api_key(key_id: int):
     """Permanently revokes an API key."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT name, key_prefix FROM api_keys WHERE id = ?", (key_id,))
     row = cursor.fetchone()
@@ -169,7 +166,7 @@ def revoke_api_key(key_id: int):
 def validate_token_header(raw_token: str, client_ip: str, required_scope: Optional[str] = None) -> bool:
     """Internal validator for API key requests."""
     hashed = hash_key(raw_token)
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
         SELECT id, scopes, cidr_whitelist, expires_at, is_active

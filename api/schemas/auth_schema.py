@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 
 class SetupProvisionRequest(BaseModel):
     admin_username: str = Field("admin", example="admin")
-    admin_password: str = Field(..., min_length=8, example="AdminP@ssw0rd2026!")
+    admin_password: str = Field(..., min_length=8, example="<choose-a-strong-password>")
     admin_email: Optional[str] = Field("admin@corp.example.com", example="admin@corp.example.com")
     system_hostname: Optional[str] = Field(None, example="dc01", description="System hostname to configure before AD provisioning")
     mode: str = Field("new_domain", pattern="^(new_domain|join_domain)$")
     realm: str = Field(..., example="CORP.EXAMPLE.COM")
     domain_netbios: str = Field(..., example="CORP")
-    ad_admin_password: str = Field(..., min_length=8, example="DomainP@ssw0rd2026!")
+    ad_admin_password: str = Field(..., min_length=8, example="<choose-a-strong-password>")
     dns_forwarder: Optional[str] = Field("1.1.1.1 8.8.8.8", example="1.1.1.1 8.8.8.8")
     partner_dc_ip: Optional[str] = Field(None, example="192.168.1.23")
     ad_admin_user: Optional[str] = Field("Administrator", example="Administrator")

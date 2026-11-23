@@ -27,10 +27,7 @@ from api.schemas.syslog_schema import (
 
 router = APIRouter(prefix="/api/v1/syslog", tags=["Syslog & Live Logs"], dependencies=[Depends(require_role("readonly"))])
 
-def get_db():
-    conn = get_db(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Handled by api.db.connection.get_db
 
 def format_rfc5424(facility_code: int, severity: int, app_name: str, msg: str) -> str:
     """Formats a message according to RFC 5424."""
@@ -62,7 +59,7 @@ FACILITY_MAP = {
 @router.get("/settings")
 def get_syslog_settings():
     """Retrieves current remote Syslog forwarder configuration."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM syslog_settings WHERE id = 1")
     row = cursor.fetchone()
@@ -99,7 +96,7 @@ def get_syslog_settings():
 @router.put("/settings")
 def update_syslog_settings(req: SyslogConfigRequest):
     """Updates the remote Syslog forwarding configuration."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     now = time.time()
     cursor.execute("""
@@ -146,7 +143,7 @@ def update_syslog_settings(req: SyslogConfigRequest):
 @router.post("/test")
 def send_syslog_test_probe(req: SyslogTestEventRequest):
     """Sends a live test probe message to the configured remote Syslog collector."""
-    conn = get_db()
+    conn = get_db(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM syslog_settings WHERE id = 1")
     row = cursor.fetchone()
@@ -214,7 +211,7 @@ def get_categorized_logs(
     logs = []
 
     if category == "audit":
-        conn = get_db()
+        conn = get_db(DB_PATH)
         cursor = conn.cursor()
         query = "SELECT id, event_type, actor, target, status, details, timestamp FROM audit_events"
         params = []

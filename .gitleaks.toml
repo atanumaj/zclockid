@@ -11,7 +11,6 @@ regexes = [
     '''F85A53762E2BADA8C5FF6AF4408D10F3F78600EE''',
     '''SetupTestP@ssw0rd123!''',
     '''TestSecretPassword!''',
-    '''AdminP@ssw0rd2026!''',
 ]
 paths = [
     '''web/vendor/''',
