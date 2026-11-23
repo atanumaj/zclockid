@@ -290,3 +290,60 @@ def test_registration_carryover_24h_window(tmp_path):
         conn.close()
     finally:
         _restore_environment(orig)
+
+
+def test_action_registry_allowlist_covers_all_web_actions_and_blocks_unregistered():
+    """
+    v1.5.3.1: Verify core.js dispatcher allowlist:
+    1. Every data-action / data-on-* value across all web/ templates is registered in ActionRegistry.
+    2. Fallback to window[actionName]/window[camel] is removed.
+    3. go-to-page does not use dynamic window[el.dataset.pageFn].
+    4. An injected <button data-action="deleteUser" data-param="x"> is NOT registered and does nothing.
+    """
+    import json
+    repo_root = Path(__file__).resolve().parent.parent
+    web_dir = repo_root / "web"
+    core_js = web_dir / "js" / "core.js"
+    assert core_js.exists()
+
+    core_content = core_js.read_text(encoding="utf-8")
+
+    # 1. Assert no window[actionName] or window[camel] fallback in triggerAction
+    assert "window[actionName] || window[camel]" not in core_content, "Dynamic fallback to window[actionName] must be removed"
+    assert "window[el.dataset.pageFn]" not in core_content, "Dynamic page function lookup window[el.dataset.pageFn] must be removed"
+
+    # 2. Extract all registered keys from ActionRegistry and ALLOWLISTED_ACTIONS in core.js
+    registered_keys = set()
+
+    # Extract keys inside Object.assign(window.ActionRegistry, { ... })
+    assign_match = re.search(r"Object\.assign\(window\.ActionRegistry,\s*\{([\s\S]*?)\}\);", core_content)
+    assert assign_match, "Object.assign(window.ActionRegistry, ...) block not found in core.js"
+    for m in re.finditer(r"['\"]([a-zA-Z0-9_\-]+)['\"]\s*:", assign_match.group(1)):
+        registered_keys.add(m.group(1))
+
+    # Extract keys inside ALLOWLISTED_ACTIONS array
+    allowlist_match = re.search(r"const\s+ALLOWLISTED_ACTIONS\s*=\s*\[([\s\S]*?)\];", core_content)
+    assert allowlist_match, "ALLOWLISTED_ACTIONS array not found in core.js"
+    for m in re.finditer(r"['\"]([a-zA-Z0-9_\-]+)['\"]", allowlist_match.group(1)):
+        registered_keys.add(m.group(1))
+
+    # 3. Collect all data-action and data-on-* from web/
+    found_actions = set()
+    for root, _, files in os.walk(str(web_dir)):
+        for fname in files:
+            if not (fname.endswith(".html") or fname.endswith(".js")):
+                continue
+            if "vendor" in root:
+                continue
+            fpath = os.path.join(root, fname)
+            text = Path(fpath).read_text(encoding="utf-8", errors="ignore")
+            for m in re.finditer(r'data-(?:action|on-[a-z]+)=["\']([^"\']+)["\']', text):
+                found_actions.add(m.group(1))
+
+    # Assert all web actions are registered
+    missing = found_actions - registered_keys
+    assert not missing, f"The following actions in web/ are not registered in ActionRegistry/allowlist: {missing}"
+
+    # 4. Assert injected deleteUser is NOT registered
+    assert "deleteUser" not in registered_keys, "deleteUser must not be in registered actions (safe counterpart is delete-user)"
+

@@ -1,12 +1,12 @@
 {
-  "version": "1.5.3",
-  "name": "ZclockID Enterprise v1.5.3",
+  "version": "1.5.3.1",
+  "name": "ZclockID Enterprise v1.5.3.1",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-22T22:30:00Z",
-  "summary": "CSP Phase 2: Complete removal of 'unsafe-inline' from script-src and style-src, central event delegation, and external asset extraction",
-  "notes": "### What's Changed in v1.5.2:\n* **CSP Hardening Phase 2:** Completely removed `'unsafe-inline'` from `script-src` and `style-src` across Nginx reverse proxy configurations and FastAPI dynamic portal endpoints.\n* **Central Delegated Event Handling:** Eliminated all 499 inline `on*=` event handlers from HTML templates and JS string templates. Replaced with delegated `data-action`, `data-on-change`, `data-on-input`, `data-on-submit`, and `data-on-keydown` event listeners in `web/js/core.js` using `data-*` attributes without `eval()` or `new Function()`.\n* **Extracted Scripts and Styles:** Migrated inline `<script>` and `<style>` blocks across `index.html`, `login.html`, `register.html`, `password-reset.html`, and `setup.html` into dedicated external JavaScript and CSS files.\n* **Automated Security & CSP Smoke Testing:** Enhanced `tests/xss_scan.sh` and Playwright `tests/csp_smoke.py` validating 0 CSP violations, 0 page errors, and 0 console errors across all 19 web console tabs, all modals, and portal submissions.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.5.2_all.deb",
-  "package_name": "zclockid_1.5.2_all.deb",
+  "published_at": "2026-11-23T05:00:00Z",
+  "summary": "Release fixes: Credential sanitization, manifest consistency, core.js dispatcher allowlist enforcement, and delete_sysvol_partner fulladmin RBAC",
+  "notes": "### What's Changed in v1.5.3.1:\n* **Credential Sanitization:** Removed all hardcoded credentials from test suites and deployment scripts; live-VM tests require explicit environment variables.\n* **Distribution Manifest Consistency:** Unified version, package name, download URL, and release notes across version-manifest.json.\n* **Core.js Dispatcher Allowlist:** Removed window dynamic fallback and pageFn dynamic invocation in go-to-page; enforced strict allowlist for event delegation.\n* **Sysvol Partner RBAC:** Restricted delete_sysvol_partner to fulladmin.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/master/apt-repo/pool/main/zclockid_1.5.3.1_all.deb",
+  "package_name": "zclockid_1.5.3.1_all.deb",
   "min_version_required": "1.0.0"
 }

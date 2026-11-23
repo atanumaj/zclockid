@@ -33,6 +33,12 @@ os.environ.setdefault("ZCLOCKID_AUTH_DIR", _TEST_AUTH_DIR)
 os.environ.setdefault("ZCLOCKID_SAMDB_MOCK", "1")
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "live: marks tests that execute against a live appliance VM or external host"
+    )
+
+
 def _snapshot_etc_zclockid():
     p = Path("/etc/zclockid")
     if not p.exists():

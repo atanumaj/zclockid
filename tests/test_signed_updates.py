@@ -439,3 +439,42 @@ exit 0
     assert proc.returncode != 0, f"Expected non-zero exit when .sig is missing, got {proc.returncode}"
     output = proc.stdout + proc.stderr
     assert "Package signature missing" in output or "not found" in output
+
+
+def test_version_manifest_consistency():
+    """
+    Verifies that version-manifest.json maintains strict consistency across fields:
+    - 'version', 'name', 'summary', 'notes', 'download_url', 'package_name' describe the same release.
+    - download_url and package_name both contain the exact 'version' string.
+    - name contains the exact 'version' string.
+    - referenced .deb and .deb.sig files exist in apt-repo/pool/main.
+    """
+    import json
+    repo_root = Path(__file__).resolve().parent.parent
+    manifest_file = repo_root / "version-manifest.json"
+    assert manifest_file.exists(), f"version-manifest.json not found at {manifest_file}"
+
+    with open(manifest_file, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+
+    ver = manifest.get("version")
+    assert ver, "version field is required in version-manifest.json"
+
+    # Version in name, download_url, and package_name
+    assert ver in manifest.get("name", ""), f"name '{manifest.get('name')}' must contain version '{ver}'"
+    assert ver in manifest.get("download_url", ""), f"download_url must contain version '{ver}'"
+    assert ver in manifest.get("package_name", ""), f"package_name must contain version '{ver}'"
+
+    # Notes and summary must not be empty
+    assert manifest.get("summary"), "summary cannot be empty"
+    assert manifest.get("notes"), "notes cannot be empty"
+
+    # Referenced package and detached signature must exist in apt-repo/pool/main
+    pkg_name = manifest.get("package_name")
+    pool_dir = repo_root / "apt-repo" / "pool" / "main"
+    deb_file = pool_dir / pkg_name
+    sig_file = pool_dir / f"{pkg_name}.sig"
+
+    assert deb_file.exists(), f"Referenced package {deb_file} does not exist in apt-repo/pool/main"
+    assert sig_file.exists(), f"Referenced package signature {sig_file} does not exist in apt-repo/pool/main"
+

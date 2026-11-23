@@ -476,7 +476,7 @@ def repin_sysvol_partner(partner_ip: str, req: Optional[SysvolRepinRequest] = No
 
 
 @router.delete("/partners/{partner_ip}")
-def delete_sysvol_partner(partner_ip: str, user: dict = Depends(require_role("operator"))):
+def delete_sysvol_partner(partner_ip: str, user: dict = Depends(require_role("fulladmin"))):
     """Unregisters a Domain Controller from the Sysvol replication mesh."""
     if SYSVOL_PARTNERS_FILE.exists():
         try:

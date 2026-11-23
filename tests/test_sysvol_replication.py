@@ -388,6 +388,31 @@ def test_sysvol_partner_role_and_fingerprint_validation(client, sysvol_nodes, au
     assert "mismatch" in res_mismatch.json()["detail"].lower()
 
 
+def test_delete_sysvol_partner_requires_fulladmin(client, sysvol_nodes, auth_sessions_db, monkeypatch):
+    """v1.5.3.1: DELETE /partners/{partner_ip} requires fulladmin role; operator receives 403."""
+    partners_file = sysvol_nodes["partners_file"]
+    partners_file.write_text(json.dumps({
+        "partners": [{
+            "name": "DC-DeleteTest",
+            "ip_address": "192.168.180.99",
+            "shared_secret": "del_secret_1234",
+            "cert_fingerprint": "11:22:33:44:55"
+        }]
+    }))
+
+    # 1. Operator role gets 403
+    op_headers = {"Authorization": f"Bearer {auth_sessions_db['operator']}"}
+    res_op = client.delete("/api/v1/sysvol/partners/192.168.180.99", headers=op_headers)
+    assert res_op.status_code == 403, f"Expected 403 for operator deleting partner, got {res_op.status_code}"
+
+    # 2. Fulladmin role succeeds
+    admin_headers = {"Authorization": f"Bearer {auth_sessions_db['fulladmin']}"}
+    monkeypatch.setattr(sysvol_mod, "run_cmd", lambda cmd, **kwargs: (0, "", ""))
+    res_admin = client.delete("/api/v1/sysvol/partners/192.168.180.99", headers=admin_headers)
+    assert res_admin.status_code == 200, f"Expected 200 for fulladmin deleting partner, got {res_admin.status_code}"
+
+
+
 def test_invariant_8_get_partners_secret_is_masked(client, sysvol_nodes, auth_sessions_db):
     """8. GET /partners never contains full secret (masked as **** plus last 4 chars)."""
     raw_secret = "super_classified_shared_secret_8888"

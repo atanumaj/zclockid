@@ -73,6 +73,23 @@ def test_grep_no_adminpass_arguments_in_api():
     assert result.stdout.strip() == ""
 
 
+def test_grep_no_live_credentials_in_tests_and_scripts():
+    """CI Check: Ensure no live appliance passwords are committed in tests/ or scripts/."""
+    repo_root = Path(__file__).resolve().parent.parent
+    forbidden_patterns = [
+        "P@ss" + "w0rd" + "@" + "inet",
+    ]
+    for pattern in forbidden_patterns:
+        for folder in ["tests", "scripts"]:
+            target_path = repo_root / folder
+            result = subprocess.run(
+                ["grep", "-rn", "--exclude=*.pyc", "--exclude-dir=__pycache__", "-F", pattern, str(target_path)],
+                capture_output=True,
+                text=True
+            )
+            assert result.returncode == 1, f"Live credential '{pattern}' leaked in {folder}/:\n{result.stdout}"
+
+
 def test_temporary_auth_file_mode_and_cleanup():
     """Ensures temporary_auth_file creates a 0600 file and unlinks it in finally."""
     created_path = None

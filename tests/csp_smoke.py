@@ -36,17 +36,24 @@ SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def main():
-    target_host = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ZCLOCK_HOST", "192.168.1.41")
+    target_host = os.environ.get("ZCLOCK_HOST", sys.argv[1] if len(sys.argv) > 1 else None)
+    if not target_host:
+        print("SKIPPED: ZCLOCK_HOST environment variable not set. Example: export ZCLOCK_HOST=192.168.1.41")
+        sys.exit(0)
+
     if not target_host.startswith("http://") and not target_host.startswith("https://"):
         base_url = f"https://{target_host}"
     else:
         base_url = target_host.rstrip("/")
 
     user = os.environ.get("ZCLOCK_USER", "admin")
-    password = os.environ.get("ZCLOCK_PASS", "P@ssw0rd@inet")
+    password = os.environ.get("ZCLOCK_PASS")
+    if not password:
+        print("SKIPPED: ZCLOCK_PASS environment variable not set. Please set ZCLOCK_PASS to run live tests.")
+        sys.exit(0)
 
     print(f"=================================================================")
-    print(f" ZclockID Playwright Comprehensive CSP & Air-Gap Smoke Test (v1.5.2)")
+    print(f" ZclockID Playwright Comprehensive CSP & Air-Gap Smoke Test (v1.5.3.1)")
     print(f" Target Host: {base_url}")
     print(f" User:        {user}")
     print(f"=================================================================")
@@ -230,8 +237,8 @@ def main():
             print("  -> Submitting Setup Wizard Step 1...")
             p.fill("#admin_username", "admin")
             p.fill("#admin_email", "admin@corp.example.com")
-            p.fill("#admin_password", "P@ssw0rd@inet")
-            p.fill("#admin_password_confirm", "P@ssw0rd@inet")
+            p.fill("#admin_password", "SetupTestP@ssw0rd123!")
+            p.fill("#admin_password_confirm", "SetupTestP@ssw0rd123!")
             p.check("#accept_license")
             p.wait_for_timeout(400)
             p.click("#btn-step-1-next")

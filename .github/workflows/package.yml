@@ -55,6 +55,13 @@ jobs:
           chmod +x tests/xss_scan.sh
           ./tests/xss_scan.sh
 
+      - name: Verify No Live Credentials Committed
+        run: |
+          if grep -rn --exclude="*.pyc" --exclude-dir="__pycache__" -F "P@ssw0rd@inet" tests/ scripts/ ; then
+            echo "ERROR: Live credential 'P@ssw0rd@inet' detected in tests/ or scripts/!" >&2
+            exit 1
+          fi
+
       - name: Run Authentication Coverage Tests
         run: |
           PYTHONPATH=. pytest tests/test_auth_coverage.py -v

@@ -575,6 +575,73 @@
         // ==================== GLOBAL EVENT DELEGATION SYSTEM (CSP STRICT) ====================
         window.ActionRegistry = window.ActionRegistry || {};
 
+        function invokeAllowlistedAction(actionName, el, event, eventType) {
+            const fn = window[actionName];
+            if (typeof fn !== 'function') return;
+
+            if (eventType === 'submit') {
+                fn(event);
+            } else if (el && el.dataset.tab) {
+                fn(el.dataset.tab);
+                if (el.dataset.subtab && typeof window.switchLogsSubTab === 'function') {
+                    window.switchLogsSubTab(el.dataset.subtab);
+                }
+            } else if (el && el.dataset.step) {
+                fn(parseInt(el.dataset.step, 10));
+            } else if (el && el.dataset.theme) {
+                fn(el.dataset.theme);
+            } else if (el && el.dataset.method) {
+                fn(el.dataset.method);
+            } else if (el && el.dataset.subtab) {
+                fn(el.dataset.subtab);
+            } else if (el && el.dataset.mainTab) {
+                fn(el.dataset.mainTab);
+            } else if (el && el.dataset.logType) {
+                fn(el.dataset.logType);
+            } else if (el && el.dataset.status) {
+                fn(el.dataset.status);
+            } else if (el && el.dataset.col) {
+                fn(el.dataset.col);
+            } else if (el && el.dataset.type && (actionName.includes('Portal') || actionName.includes('Template') || actionName.includes('Security') || actionName.includes('Sms'))) {
+                fn(el.dataset.type);
+            } else if (el && el.dataset.fieldId && el.dataset.iconId) {
+                fn(el.dataset.fieldId, el.dataset.iconId);
+            } else if (el && el.dataset.service && el.dataset.op) {
+                fn(el.dataset.service, el.dataset.op);
+            } else if (el && el.dataset.service && el.dataset.title) {
+                fn(el.dataset.service, el.dataset.title);
+            } else if (el && el.dataset.service) {
+                fn(el.dataset.service);
+            } else if (el && el.dataset.actionName) {
+                fn(el.dataset.actionName);
+            } else if (el && el.dataset.param) {
+                fn(el.dataset.param);
+            } else if (el && el.dataset.fileType) {
+                fn(el.dataset.fileType);
+            } else if (el && el.dataset.text && el.dataset.msg) {
+                fn(el.dataset.text, el.dataset.msg);
+            } else if (el && el.dataset.p1 && el.dataset.p2 && el.dataset.rules) {
+                fn(el.dataset.p1, el.dataset.p2, el.dataset.rules);
+            } else if (el && el.dataset.cfg) {
+                fn(el.dataset.cfg);
+            } else if (el && el.dataset.cat) {
+                fn(el.dataset.cat);
+            } else if (el && el.dataset.direction) {
+                const delta = el.dataset.direction === 'prev' ? -1 : 1;
+                if (actionName.includes('Reg') && typeof window.regCurrentPage === 'number') {
+                    fn(window.regCurrentPage + delta);
+                } else if (typeof window.ssprCurrentPage === 'number') {
+                    fn(window.ssprCurrentPage + delta);
+                } else {
+                    fn(el.dataset.direction);
+                }
+            } else if (eventType === 'change' && (el.type === 'checkbox' || el.type === 'radio')) {
+                fn(el.checked);
+            } else {
+                fn(el, event);
+            }
+        }
+
         function triggerAction(actionName, el, event, eventType) {
             if (!actionName) return;
 
@@ -582,77 +649,9 @@
                 event.stopPropagation();
             }
 
-            // 1. Check registry
-            if (window.ActionRegistry[actionName]) {
-                window.ActionRegistry[actionName](el, event, eventType);
-                return;
-            }
-
-            // 2. Direct / camelCase on window
-            const camel = actionName.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
-            const fn = window[actionName] || window[camel];
-            if (typeof fn === 'function') {
-                if (eventType === 'submit') {
-                    fn(event);
-                } else if (el && el.dataset.tab) {
-                    fn(el.dataset.tab);
-                    if (el.dataset.subtab && typeof window.switchLogsSubTab === 'function') {
-                        window.switchLogsSubTab(el.dataset.subtab);
-                    }
-                } else if (el && el.dataset.step) {
-                    fn(parseInt(el.dataset.step, 10));
-                } else if (el && el.dataset.theme) {
-                    fn(el.dataset.theme);
-                } else if (el && el.dataset.method) {
-                    fn(el.dataset.method);
-                } else if (el && el.dataset.subtab) {
-                    fn(el.dataset.subtab);
-                } else if (el && el.dataset.mainTab) {
-                    fn(el.dataset.mainTab);
-                } else if (el && el.dataset.logType) {
-                    fn(el.dataset.logType);
-                } else if (el && el.dataset.status) {
-                    fn(el.dataset.status);
-                } else if (el && el.dataset.col) {
-                    fn(el.dataset.col);
-                } else if (el && el.dataset.type && (actionName.includes('Portal') || actionName.includes('Template') || actionName.includes('Security') || actionName.includes('Sms'))) {
-                    fn(el.dataset.type);
-                } else if (el && el.dataset.fieldId && el.dataset.iconId) {
-                    fn(el.dataset.fieldId, el.dataset.iconId);
-                } else if (el && el.dataset.service && el.dataset.op) {
-                    fn(el.dataset.service, el.dataset.op);
-                } else if (el && el.dataset.service && el.dataset.title) {
-                    fn(el.dataset.service, el.dataset.title);
-                } else if (el && el.dataset.service) {
-                    fn(el.dataset.service);
-                } else if (el && el.dataset.actionName) {
-                    fn(el.dataset.actionName);
-                } else if (el && el.dataset.param) {
-                    fn(el.dataset.param);
-                } else if (el && el.dataset.fileType) {
-                    fn(el.dataset.fileType);
-                } else if (el && el.dataset.text && el.dataset.msg) {
-                    fn(el.dataset.text, el.dataset.msg);
-                } else if (el && el.dataset.p1 && el.dataset.p2 && el.dataset.rules) {
-                    fn(el.dataset.p1, el.dataset.p2, el.dataset.rules);
-                } else if (el && el.dataset.cfg) {
-                    fn(el.dataset.cfg);
-                } else if (el && el.dataset.cat) {
-                    fn(el.dataset.cat);
-                } else if (el && el.dataset.direction) {
-                    const delta = el.dataset.direction === 'prev' ? -1 : 1;
-                    if (actionName.includes('Reg') && typeof window.regCurrentPage === 'number') {
-                        fn(window.regCurrentPage + delta);
-                    } else if (typeof window.ssprCurrentPage === 'number') {
-                        fn(window.ssprCurrentPage + delta);
-                    } else {
-                        fn(el.dataset.direction);
-                    }
-                } else if (eventType === 'change' && (el.type === 'checkbox' || el.type === 'radio')) {
-                    fn(el.checked);
-                } else {
-                    fn(el, event);
-                }
+            const handler = window.ActionRegistry[actionName];
+            if (typeof handler === 'function') {
+                handler(el, event, eventType);
                 return;
             }
 
@@ -690,7 +689,18 @@
             'go-to-page': (el) => {
                 const fnName = el.dataset.pageFn;
                 const page = parseInt(el.dataset.page, 10);
-                if (typeof window[fnName] === 'function') window[fnName](page);
+                const pageHandlers = {
+                    'goToUsersPage': (p) => typeof window.goToUsersPage === 'function' && window.goToUsersPage(p),
+                    'goToGroupsPage': (p) => typeof window.goToGroupsPage === 'function' && window.goToGroupsPage(p),
+                    'goToComputersPage': (p) => typeof window.goToComputersPage === 'function' && window.goToComputersPage(p),
+                    'goToRegPage': (p) => typeof window.goToRegPage === 'function' && window.goToRegPage(p),
+                    'goToSspprPage': (p) => typeof window.goToSspprPage === 'function' && window.goToSspprPage(p),
+                };
+                if (pageHandlers[fnName]) {
+                    pageHandlers[fnName](page);
+                } else {
+                    console.warn(`[ActionRegistry] Unhandled page function: ${fnName}`);
+                }
             },
             'download-backup': (el) => typeof window.downloadBackup === 'function' && window.downloadBackup(el.dataset.filename),
             'inspect-backup': (el) => typeof window.inspectBackup === 'function' && window.inspectBackup(el.dataset.filename),
@@ -742,8 +752,300 @@
                 const el = document.getElementById('doh-guide-curl-cmd');
                 const cmd = el?.textContent?.trim() || '';
                 if (typeof window.copyToClipboard === 'function') window.copyToClipboard(cmd, 'cURL command copied!');
-            }
+            },
+            'control-service': (el) => typeof window.controlService === 'function' && window.controlService(el.dataset.service, el.dataset.op),
+            'controlService': (el) => typeof window.controlService === 'function' && window.controlService(el.dataset.service, el.dataset.op)
         });
+
+        // Allowlisted web actions (strict allowlist registration, no arbitrary window function dispatch)
+        const ALLOWLISTED_ACTIONS = [
+            "acceptAndCloseLicenseModal",
+            "addRegistrationDepartment",
+            "applyFirewallChanges",
+            "approveMassDelete",
+            "backToDetailsStep",
+            "checkComplexity",
+            "checkForSystemUpdates",
+            "checkOsPackages",
+            "checkPasswordComplexity",
+            "clearComputersSearch",
+            "clearGroupsSearch",
+            "clearSelectedLicenseFile",
+            "clearUsersSearch",
+            "closeAddDomainForwarderModal",
+            "closeAddHostOverrideModal",
+            "closeApiKeyCreateModal",
+            "closeApiKeyTokenRevealModal",
+            "closeBandwidthModal",
+            "closeChangeUpnModal",
+            "closeCreateBackupModal",
+            "closeCsrModal",
+            "closeCustomAttrModal",
+            "closeDnsModal",
+            "closeDohClientGuideModal",
+            "closeEditDnsModal",
+            "closeEditGroupModal",
+            "closeEditUserModal",
+            "closeExpiryPolicyModal",
+            "closeFirewallRuleModal",
+            "closeForwardersModal",
+            "closeFunctionalLevelModal",
+            "closeGroupModal",
+            "closeIdentityModal",
+            "closeInspectBackupModal",
+            "closeLicenseModal",
+            "closeLogModal",
+            "closeMabModal",
+            "closeMassDeleteReviewModal",
+            "closeNewZoneModal",
+            "closeProfileModal",
+            "closeRadiusModal",
+            "closeRbacMappingModal",
+            "closeRegistrationSettingsModal",
+            "closeRestoreModal",
+            "closeServiceControlModal",
+            "closeSspprSettingsModal",
+            "closeSysvolPartnerModal",
+            "closeSysvolRepinModal",
+            "closeUploadBackupModal",
+            "closeUpnModal",
+            "closeUserModal",
+            "confirmAndRebootAppliance",
+            "confirmAndRemoveLicense",
+            "confirmAndRunOsUpgrade",
+            "confirmAndRunUpdate",
+            "confirmRepinSysvolPartner",
+            "copyBlueprintFile",
+            "copyCsrText",
+            "copyFedParam",
+            "copyLiveLogs",
+            "copyModalSecret",
+            "copyPasswordResetLink",
+            "copyRawConfigToClipboard",
+            "copyRegistrationLink",
+            "copyRevealedToken",
+            "copyToClipboard",
+            "copyUpdateLog",
+            "debounceFilterLogs",
+            "downloadActiveLicense",
+            "downloadExamplePortalTemplate",
+            "downloadKeytabFile",
+            "executeDohTestQuery",
+            "executeModalServiceAction",
+            "executeRestore",
+            "executeSnmpTestQuery",
+            "exportAuditCsv",
+            "exportRegistrationLogs",
+            "exportSspprLogs",
+            "fetchActiveCert",
+            "fetchActiveSessions",
+            "fetchApiKeys",
+            "fetchAuditEvents",
+            "fetchAuthStats24h",
+            "fetchAzureConfig",
+            "fetchBackups",
+            "fetchComputers",
+            "fetchCurrentUpdateLog",
+            "fetchDnsRecords",
+            "fetchDrsStatus",
+            "fetchKeycloakSettings",
+            "fetchLicenseStatus",
+            "fetchLiveSyslog",
+            "fetchNtpConfig",
+            "fetchNtpStatus",
+            "fetchRadiusSessions",
+            "fetchRbacMappings",
+            "fetchRegistrations",
+            "fetchSecuritySettings",
+            "fetchSspprLogs",
+            "fetchSystemStatus",
+            "fetchUsers",
+            "filterAuditEvents",
+            "filterDnsRecordsSearch",
+            "filterFirewallRules",
+            "filterOsPackagesTable",
+            "flushDnsCache",
+            "forceDrsSync",
+            "generatePartnerSecret",
+            "generateSecretForModal",
+            "goToRegPage",
+            "goToSspprPage",
+            "goToStep",
+            "handleChangePassword",
+            "handleCreateApiKey",
+            "handleDebFileSelected",
+            "handleFirewallRuleSubmit",
+            "handleGenerateCsr",
+            "handleGenerateKeytab",
+            "handleGenerateSelfSignedCert",
+            "handleInitialSubmit",
+            "handleLicenseFileSelect",
+            "handleLogin",
+            "handleOldPasswordSubmit",
+            "handleOtpVerify",
+            "handleRequestOtp",
+            "handleResendOtp",
+            "handleSaveLogRetention",
+            "handleSaveRbacMapping",
+            "handleSaveSyslogConfig",
+            "handleSigFileSelected",
+            "handleUploadCustomCert",
+            "handleVerifyOtpSubmit",
+            "insertCurrentClientIpIntoFirewall",
+            "loadRawRadiusConfig",
+            "logout",
+            "nextComputersPage",
+            "nextGroupsPage",
+            "nextUsersPage",
+            "onComputersPageSizeChange",
+            "onComputersSearchInput",
+            "onDnsTypeChange",
+            "onGroupsPageSizeChange",
+            "onGroupsSearchInput",
+            "onIdentDcTypeRadioChange",
+            "onOverrideTypeChange",
+            "onRbacPrincipalSelectChange",
+            "onRbacPrincipalTypeChange",
+            "onRegMonthChange",
+            "onRegPageSizeChange",
+            "onRegSearchInput",
+            "onSspprMonthChange",
+            "onSspprPageSizeChange",
+            "onSspprSearchInput",
+            "onSspprStatusChange",
+            "onUsersPageSizeChange",
+            "onUsersSearchInput",
+            "open-log-viewer",
+            "open-service-modal",
+            "openAddBandwidthModal",
+            "openAddDomainForwarderModal",
+            "openAddHostOverrideModal",
+            "openApiKeyCreateModal",
+            "openCreateBackupModal",
+            "openCustomAttrModal",
+            "openDnsModal",
+            "openDohClientGuideModal",
+            "openExpiryPolicyModal",
+            "openFirewallRuleModal",
+            "openForwardersModal",
+            "openFunctionalLevelModal",
+            "openGroupModal",
+            "openIdentityModal",
+            "openLicenseModal",
+            "openLogFromModal",
+            "openLogViewer",
+            "openMabModal",
+            "openMassDeleteReviewModal",
+            "openNewZoneModal",
+            "openProfileModal",
+            "openRadiusModal",
+            "openRbacMappingModal",
+            "openRegistrationSettingsModal",
+            "openServiceControlModal",
+            "openSspprSettingsModal",
+            "openSysvolPartnerModal",
+            "openUploadBackupModal",
+            "openUpnModal",
+            "openUserModal",
+            "prevComputersPage",
+            "prevGroupsPage",
+            "prevUsersPage",
+            "probeSysvolTls",
+            "refreshActiveLogs",
+            "refreshActiveLogsView",
+            "rejectMassDelete",
+            "renderGroupsTable",
+            "renderUsersTable",
+            "renewRadiusCert",
+            "resetCustomPortalHtml",
+            "resetDefaultRegistrationDepartments",
+            "resetFirewallTemplate",
+            "resetOtpFlow",
+            "resetSysvolNtacl",
+            "runDnsDiagnostics",
+            "runLdapProbeTest",
+            "runLogRetentionPruneNow",
+            "saveAzureConfig",
+            "saveForwarders",
+            "saveNtpConfig",
+            "saveRadiusSettings",
+            "saveRegistrationSettings",
+            "saveSecuritySettings",
+            "saveSnmpConfig",
+            "saveSspprSettings",
+            "saveSystemIdentity",
+            "saveUpdateAutoCheck",
+            "sendSyslogTestProbe",
+            "sendTestSms",
+            "setAppTheme",
+            "setLogCategory",
+            "setRegStatusFilter",
+            "setSspprMethodFilter",
+            "showMySysvolSecret",
+            "showTab",
+            "sortComputersBy",
+            "sortGroupsBy",
+            "sortUsersBy",
+            "startProvisioning",
+            "submitAddDnsRecord",
+            "submitAddDomainForwarder",
+            "submitAddHostOverride",
+            "submitAddRadiusClient",
+            "submitAddSysvolPartner",
+            "submitAddUpn",
+            "submitApplyExpiryPolicy",
+            "submitChangeUpn",
+            "submitCreateBackup",
+            "submitCreateGroup",
+            "submitCreateUser",
+            "submitCreateZone",
+            "submitDebUpload",
+            "submitEditGroup",
+            "submitEditUser",
+            "submitLicenseUpload",
+            "submitRaiseFunctionalLevels",
+            "submitSaveBandwidthProfile",
+            "submitSaveCustomAttr",
+            "submitSaveMabDevice",
+            "submitUpdateDnsRecord",
+            "submitUploadBackup",
+            "switchDirectorySubtab",
+            "switchFedSubTab",
+            "switchLogsSubTab",
+            "switchMethodTab",
+            "switchRadiusMainTab",
+            "switchRadiusSubTab",
+            "switchRbacSubTab",
+            "switchSelfServiceSubtab",
+            "switchUpdateLogType",
+            "switchUpdateSubTab",
+            "terminateAllOtherSessions",
+            "testAzureConnection",
+            "toggleAzureSecretVisibility",
+            "toggleBackupPassphraseWarning",
+            "toggleCustomPortal",
+            "toggleCustomPrincipalInput",
+            "toggleDohTester",
+            "toggleFirewallMaster",
+            "toggleLicenseAcceptance",
+            "togglePasswordVisibility",
+            "toggleRsatGuide",
+            "toggleSecurityNavGroup",
+            "toggleSmsProviderFields",
+            "toggleSmtpFields",
+            "toggleSspprSmsFields",
+            "toggleSspprSmtpFields",
+            "triggerAzureSync",
+            "triggerNtpSyncNow",
+            "triggerSysvolSyncNow",
+            "uploadCustomPortalHtml",
+            "uploadPortalAsset"
+];
+        for (const act of ALLOWLISTED_ACTIONS) {
+            if (!window.ActionRegistry[act]) {
+                window.ActionRegistry[act] = (el, ev, et) => invokeAllowlistedAction(act, el, ev, et);
+            }
+        }
 
         // 1. Click Listener (Delegated)
         document.addEventListener('click', function(e) {
