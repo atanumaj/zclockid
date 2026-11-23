@@ -1,0 +1,43 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: ZclockID Open Source
+Label: ZclockID APT Repository
+Suite: stable
+Codename: stable
+Architectures: amd64 all
+Components: main
+Description: Official Ubuntu APT Repository for ZclockID Active Directory & IAM appliance
+Date: Mon, 23 Nov 2026 05:18:17 UTC
+MD5Sum:
+ 14cefc377ab2c4d5eb801719e71f3acf 74351 main/binary-amd64/Packages
+ ff0282d4a2c4783a9242bd7dca596667 6959 main/binary-amd64/Packages.gz
+ 14cefc377ab2c4d5eb801719e71f3acf 74351 main/binary-all/Packages
+ ff0282d4a2c4783a9242bd7dca596667 6959 main/binary-all/Packages.gz
+SHA1:
+ a1ab1a9f9c53f328e66c5c042cda57da8d7aeb43 74351 main/binary-amd64/Packages
+ 46d6ba07ee6569d8f967073bd1b0e752e946405f 6959 main/binary-amd64/Packages.gz
+ a1ab1a9f9c53f328e66c5c042cda57da8d7aeb43 74351 main/binary-all/Packages
+ 46d6ba07ee6569d8f967073bd1b0e752e946405f 6959 main/binary-all/Packages.gz
+SHA256:
+ 3a45f142e9eb600b193ab43108882889f88124e53ac80d9bc97fff057a9283d7 74351 main/binary-amd64/Packages
+ c371f1d35b49d321afb7bffdd2ea451a16f1e4874ec920c101573bfbbeeab531 6959 main/binary-amd64/Packages.gz
+ 3a45f142e9eb600b193ab43108882889f88124e53ac80d9bc97fff057a9283d7 74351 main/binary-all/Packages
+ c371f1d35b49d321afb7bffdd2ea451a16f1e4874ec920c101573bfbbeeab531 6959 main/binary-all/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iQJPBAEBCAA5FiEEMpfTscaMhgGUF/DvT0QsNqOTdCkFAmsDzJkbFIAAAAAABAAO
+bWFudTIsMi41KzEuMTIsMCwzAAoJEE9ELDajk3QpLoAP/2yJu7AY5R7Sj/X7rFMq
+8hGBREjnV6or2uzdiZ9ivsvIrdQulf7ftZnC5h+S8cI+/yvPbXkqDXpVyPwYJ5VY
+1u9OAOy2woIs/ksgNA1rZEfXUOnDGCB7krcw9nyu5VYXGhf7Xhsjghn6eAvIHOz+
+q0ymRWs6uStfoNFR+5d2xoxIqaQGS9olscw6HSl/Dlo/bdp9F8yHufw48C05woz+
+5MUvmmUamh1Ip165se81Ut0aYWAnxlcgTZYotlcmehfHG0wao5v8gxjqiBsfEmLp
+aFHfQuu/q015cK3hpCk45CAtlWYaC/2fIWpENjf50ytMyN0+G568F8dbS2T3zgG7
+H0qMEa6Zxgy4ynp3pqbSuLTrlRGFTqIQ4VhPat2igNm0taOMDFkUlPw0Up1V3R0C
+Lqq+2N8If9WZU2/LodphnhHJwywPbozk3woHwhAE6UOKTrsO0qk+x3zS3OlygsaW
+3LvUHgfOD7UFaMRg0FcehytzlRdkB+xeSYrNZEYH2JXH5PiMgvBCszKiRVa6jhxX
+5OSeeMwG+yoBmSGOblk8NxtwpyLoWiEDaOGbWGZQEuSwyvE3sHDdK2ZsZbqtfsbT
+Fopg2RPAxeZKddZ+YBQWUbTAKmzJ7sn1LA+EinZO8OjKRufnTi8IHJzxZVMgJq0o
+USBJXf6eGDAX7mV/t+iHfpqq
+=IO+l
+-----END PGP SIGNATURE-----
