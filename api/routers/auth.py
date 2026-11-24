@@ -156,7 +156,11 @@ def require_role(*roles: str):
     ) -> Optional[dict]:
         path = request.url.path
         if is_public_path(path):
-            if path == "/api/v1/setup/provision" and SETUP_LOCK_FILE.exists():
+            if path == "/api/v1/setup/provision" and (
+                SETUP_LOCK_FILE.exists()
+                or Path("/etc/zclockid/setup.lock").exists()
+                or Path("/zclockid/config/setup.lock").exists()
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Setup has already been completed and appliance is locked."
@@ -198,21 +202,54 @@ router = APIRouter(prefix="/api/v1", tags=["Authentication & Setup"], dependenci
 
 @router.get("/setup/status")
 def get_setup_status():
-    is_locked = SETUP_LOCK_FILE.exists()
+    is_locked = (
+        SETUP_LOCK_FILE.exists()
+        or Path("/etc/zclockid/setup.lock").exists()
+        or Path("/zclockid/config/setup.lock").exists()
+        or Path("/var/lib/zclockid/.setup_locked").exists()
+    )
     has_smb = os.path.exists("/etc/samba/smb.conf")
     has_admin = False
-    try:
-        if DB_PATH.exists():
-            conn = get_db(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM admin_users")
-            count = cursor.fetchone()[0]
-            has_admin = (count > 0)
-            conn.close()
-    except Exception:
-        has_admin = False
 
-    is_configured = is_locked and has_smb and has_admin
+    # Check primary DB_PATH plus fallback paths for admin_users
+    target_dbs = [DB_PATH]
+    for alt in [Path("/var/lib/zclockid/zclockid.db"), Path("/zclockid/data/zclockid.db")]:
+        if alt not in target_dbs and alt.exists():
+            target_dbs.append(alt)
+
+    for db in target_dbs:
+        try:
+            if db.exists() and db.stat().st_size > 0:
+                conn = get_db(db)
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM admin_users")
+                count = cursor.fetchone()[0]
+                conn.close()
+                if count > 0:
+                    has_admin = True
+                    break
+        except Exception:
+            pass
+
+    # If Samba DC is active and admin exists, the appliance is configured!
+    # Auto-heal the setup.lock file so subsequent calls succeed immediately.
+    if has_smb and has_admin:
+        is_configured = True
+        if not is_locked:
+            try:
+                SETUP_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+                SETUP_LOCK_FILE.write_text(f"PROVISIONED_AT={time.time()}\nAUTO_HEALED=true\n")
+                is_locked = True
+            except Exception:
+                pass
+    elif is_locked and has_admin:
+        is_configured = True
+    elif has_smb:
+        # Node has an existing Samba AD domain configured; must not redirect to initial setup
+        is_configured = True
+    else:
+        is_configured = is_locked and has_admin
+
     return {
         "is_configured": is_configured,
         "setup_lock": is_locked,
@@ -223,7 +260,11 @@ def get_setup_status():
 
 @router.post("/setup/provision")
 def execute_initial_provisioning(req: SetupProvisionRequest):
-    if SETUP_LOCK_FILE.exists():
+    if (
+        SETUP_LOCK_FILE.exists()
+        or Path("/etc/zclockid/setup.lock").exists()
+        or Path("/zclockid/config/setup.lock").exists()
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Setup has already been completed and appliance is locked."

@@ -219,7 +219,7 @@
                 originalHtml = targetBtn.innerHTML;
                 targetBtn.disabled = true;
                 targetBtn.classList.add('opacity-70', 'cursor-not-allowed');
-                targetBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${action}...`;
+                targetBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${escapeHtml(action)}...`;
             }
 
             try {

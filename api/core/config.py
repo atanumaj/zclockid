@@ -10,12 +10,60 @@ from pathlib import Path
 # Base Appliance Root Directory
 ZCLOCKID_ROOT = Path(os.environ.get("ZCLOCKID_ROOT", "/zclockid"))
 
-# Primary Directories
-CONFIG_DIR = Path(os.environ.get("ZCLOCKID_CONFIG_DIR", ZCLOCKID_ROOT / "config" if ZCLOCKID_ROOT.exists() else "/etc/zclockid"))
-DATA_DIR = Path(os.environ.get("ZCLOCKID_DATA_DIR", ZCLOCKID_ROOT / "data" if ZCLOCKID_ROOT.exists() else "/var/lib/zclockid"))
-LOG_DIR = Path(os.environ.get("ZCLOCKID_LOG_DIR", ZCLOCKID_ROOT / "logs" if ZCLOCKID_ROOT.exists() else "/var/log/zclockid"))
-WEB_DIR = Path(os.environ.get("ZCLOCKID_WEB_DIR", ZCLOCKID_ROOT / "web" if ZCLOCKID_ROOT.exists() else "/opt/zclockid/web"))
-TEMPLATES_DIR = Path(os.environ.get("ZCLOCKID_TEMPLATES_DIR", ZCLOCKID_ROOT / "templates" if ZCLOCKID_ROOT.exists() else "/opt/zclockid/templates"))
+# Primary Directories Resolution
+def _resolve_data_dir() -> Path:
+    custom = os.environ.get("ZCLOCKID_DATA_DIR")
+    if custom:
+        return Path(custom)
+    z_db = Path("/zclockid/data/zclockid.db")
+    std_db = Path("/var/lib/zclockid/zclockid.db")
+    if z_db.exists() and (z_db.stat().st_size > 0 or not std_db.exists()):
+        return Path("/zclockid/data")
+    if std_db.exists():
+        return Path("/var/lib/zclockid")
+    if Path("/zclockid/data").exists():
+        return Path("/zclockid/data")
+    return Path("/var/lib/zclockid")
+
+def _resolve_config_dir() -> Path:
+    custom = os.environ.get("ZCLOCKID_CONFIG_DIR")
+    if custom:
+        return Path(custom)
+    if (Path("/zclockid/config/setup.lock")).exists() or (Path("/zclockid/config/ad_creds")).exists():
+        return Path("/zclockid/config")
+    if Path("/etc/zclockid").exists():
+        return Path("/etc/zclockid")
+    if Path("/zclockid/config").exists():
+        return Path("/zclockid/config")
+    return Path("/etc/zclockid")
+
+def _resolve_web_dir() -> Path:
+    custom = os.environ.get("ZCLOCKID_WEB_DIR")
+    if custom:
+        return Path(custom)
+    if Path("/opt/zclockid/web").exists():
+        return Path("/opt/zclockid/web")
+    if Path("/zclockid/web").exists():
+        return Path("/zclockid/web")
+    return Path("/opt/zclockid/web")
+
+def _resolve_templates_dir() -> Path:
+    custom = os.environ.get("ZCLOCKID_TEMPLATES_DIR")
+    if custom:
+        return Path(custom)
+    if Path("/etc/zclockid/templates").exists():
+        return Path("/etc/zclockid/templates")
+    if Path("/opt/zclockid/templates").exists():
+        return Path("/opt/zclockid/templates")
+    if Path("/zclockid/templates").exists():
+        return Path("/zclockid/templates")
+    return Path("/etc/zclockid/templates")
+
+CONFIG_DIR = _resolve_config_dir()
+DATA_DIR = _resolve_data_dir()
+LOG_DIR = Path(os.environ.get("ZCLOCKID_LOG_DIR", "/var/log/zclockid" if Path("/var/log/zclockid").exists() else (ZCLOCKID_ROOT / "logs" if (ZCLOCKID_ROOT / "logs").exists() else "/var/log/zclockid")))
+WEB_DIR = _resolve_web_dir()
+TEMPLATES_DIR = _resolve_templates_dir()
 BACKUP_DIR = Path(os.environ.get("ZCLOCKID_BACKUP_DIR", DATA_DIR / "backups"))
 
 def _resolve_updates_dir() -> Path:
@@ -48,10 +96,31 @@ for d in [DATA_DIR, LOG_DIR, BACKUP_DIR, UPDATES_DIR]:
         pass
 
 # Database & Key State Files
-DB_PATH = DATA_DIR / "zclockid.db"
-SETUP_LOCK_FILE = CONFIG_DIR / "setup.lock"
-AD_CREDS_FILE = CONFIG_DIR / "ad_creds"
-AZURE_CONFIG_FILE = CONFIG_DIR / "azure-sync.json"
+def _resolve_db_path() -> Path:
+    v_db = Path("/var/lib/zclockid/zclockid.db")
+    z_db = Path("/zclockid/data/zclockid.db")
+    if v_db.exists() and v_db.stat().st_size > 0:
+        return v_db
+    if z_db.exists() and z_db.stat().st_size > 0:
+        return z_db
+    return DATA_DIR / "zclockid.db"
+
+def _resolve_setup_lock_file() -> Path:
+    for candidate in [
+        CONFIG_DIR / "setup.lock",
+        Path("/etc/zclockid/setup.lock"),
+        Path("/zclockid/config/setup.lock"),
+        Path("/var/lib/zclockid/.setup_locked"),
+        Path("/etc/zclockid/.setup_locked"),
+    ]:
+        if candidate.exists():
+            return candidate
+    return CONFIG_DIR / "setup.lock"
+
+DB_PATH = _resolve_db_path()
+SETUP_LOCK_FILE = _resolve_setup_lock_file()
+AD_CREDS_FILE = Path("/zclockid/config/ad_creds") if Path("/zclockid/config/ad_creds").exists() else (Path("/etc/zclockid/ad_creds") if Path("/etc/zclockid/ad_creds").exists() else CONFIG_DIR / "ad_creds")
+AZURE_CONFIG_FILE = Path("/etc/zclockid/azure-sync.json") if Path("/etc/zclockid/azure-sync.json").exists() else (Path("/zclockid/config/azure-sync.json") if Path("/zclockid/config/azure-sync.json").exists() else CONFIG_DIR / "azure-sync.json")
 AZURE_STATUS_FILE = Path("/var/run/zclock-azuresync.status")
 SYSVOL_HEALTH_FILE = Path("/var/run/zclock-sysvol.health")
 
@@ -89,7 +158,7 @@ except Exception:
 
 # Product Metadata & Author Fingerprint
 APP_NAME = "ZclockID Enterprise Management Appliance"
-APP_VERSION = "1.5.6"
+APP_VERSION = "1.5.7"
 APP_AUTHOR = "Atanu Majumdar (@atanumaj)"
 APP_COPYRIGHT = "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved."
 APP_REPO = "atanumaj/zclockid"

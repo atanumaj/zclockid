@@ -1,12 +1,12 @@
 {
-  "version": "1.5.6",
-  "name": "ZclockID Enterprise v1.5.6",
+  "version": "1.5.7",
+  "name": "ZclockID Enterprise v1.5.7",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-24T14:35:00Z",
-  "summary": "Release v1.5.6: In-GUI service control integration, live journalctl terminal modal viewer, non-blocking toast notifications, and FreeRADIUS overrides self-healing.",
-  "notes": "### What's Changed in v1.5.6:\n* **In-GUI Service Lifecycle Controls:** Integrated start, stop, restart, reload, enable, and disable lifecycle actions directly with real-time UI button spinners and dynamic badge updates.\n* **Non-Blocking Toasts & Modals:** Replaced disruptive browser native dialogs with integrated dark-themed Tailwind in-GUI toasts and custom confirmation modals.\n* **Live Journalctl Modal Viewer:** Wired one-click log streaming with auto-scroll and live refresh for all managed subsystems.\n* **FreeRADIUS Self-Healing:** Added automatic creation and permission enforcement of /zclockid/config/overrides.d/ configuration drop-ins preventing radiusd crash on startup.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.6_all.deb",
-  "package_name": "zclockid_1.5.6_all.deb",
+  "published_at": "2026-11-24T15:10:00Z",
+  "summary": "Release v1.5.7: Resilient path resolution, bidirectional SQLite database and setup lock synchronization, setup redirection auto-healing, and CSP compliance.",
+  "notes": "### What's Changed in v1.5.7:\n* **Resilient Path Resolution:** Decoupled engine drop-in directory creation from database and config path resolution, preventing fallback to empty database state.\n* **Bidirectional State Synchronization:** Enhanced postinst to automatically preserve and synchronize /var/lib/zclockid/zclockid.db and setup.lock across legacy and unified paths.\n* **Setup Redirection Auto-Healing:** Ensured active Samba AD Domain Controllers automatically auto-heal setup locks and never redirect authenticated administrators to setup.html.\n* **CSP Compliance & Action Handlers:** Cleaned inline event handler patterns and integrated unified service action triggers in core.js.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.7_all.deb",
+  "package_name": "zclockid_1.5.7_all.deb",
   "min_version_required": "1.0.0"
 }

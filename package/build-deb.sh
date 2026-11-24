@@ -51,8 +51,8 @@ fi
 mkdir -p "${BUILD_ROOT}/opt/zclockid/bin"
 if [[ -d "${DIST_DIR}/daemons/go" ]] && command -v go >/dev/null 2>&1; then
     echo "Compiling native Go daemons (zclock-sysvold, zclock-exporter)..."
-    (cd "${DIST_DIR}/daemons/go" && go build -ldflags="-s -w" -o "${BUILD_ROOT}/opt/zclockid/bin/zclock-sysvold" ./cmd/zclock-sysvold)
-    (cd "${DIST_DIR}/daemons/go" && go build -ldflags="-s -w" -o "${BUILD_ROOT}/opt/zclockid/bin/zclock-exporter" ./cmd/zclock-exporter)
+    (cd "${DIST_DIR}/daemons/go" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "${BUILD_ROOT}/opt/zclockid/bin/zclock-sysvold" ./cmd/zclock-sysvold)
+    (cd "${DIST_DIR}/daemons/go" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "${BUILD_ROOT}/opt/zclockid/bin/zclock-exporter" ./cmd/zclock-exporter)
     chmod 755 "${BUILD_ROOT}/opt/zclockid/bin/"*
 fi
 

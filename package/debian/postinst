@@ -150,6 +150,50 @@ EOFBIND
             systemctl restart nginx >/dev/null 2>&1 || true
         fi
 
+        # 6b. Bi-directional database, state, and setup lock synchronization
+        mkdir -p /zclockid/data /zclockid/config /etc/zclockid /var/lib/zclockid
+
+        # Setup lock synchronization
+        if [ -f /etc/zclockid/setup.lock ] && [ ! -f /zclockid/config/setup.lock ]; then
+            cp -a /etc/zclockid/setup.lock /zclockid/config/setup.lock 2>/dev/null || true
+        elif [ -f /zclockid/config/setup.lock ] && [ ! -f /etc/zclockid/setup.lock ]; then
+            cp -a /zclockid/config/setup.lock /etc/zclockid/setup.lock 2>/dev/null || true
+        fi
+
+        # Auto-heal setup lock if Samba is already configured
+        if [ -f /etc/samba/smb.conf ] && [ ! -f /etc/zclockid/setup.lock ] && [ ! -f /zclockid/config/setup.lock ]; then
+            echo "PROVISIONED_AT=$(date +%s)" > /etc/zclockid/setup.lock
+            cp -a /etc/zclockid/setup.lock /zclockid/config/setup.lock 2>/dev/null || true
+        fi
+
+        # AD credentials synchronization
+        if [ -f /etc/zclockid/ad_creds ] && [ ! -f /zclockid/config/ad_creds ]; then
+            cp -a /etc/zclockid/ad_creds /zclockid/config/ad_creds 2>/dev/null || true
+        elif [ -f /zclockid/config/ad_creds ] && [ ! -f /etc/zclockid/ad_creds ]; then
+            cp -a /zclockid/config/ad_creds /etc/zclockid/ad_creds 2>/dev/null || true
+        fi
+
+        # SQLite Database preservation and symlink synchronization:
+        # Prevent empty database overwrites and maintain compatibility symlink
+        VAR_DB_SZ=0
+        Z_DB_SZ=0
+        if [ -f /var/lib/zclockid/zclockid.db ] && [ ! -L /var/lib/zclockid/zclockid.db ]; then
+            VAR_DB_SZ=$(wc -c < /var/lib/zclockid/zclockid.db 2>/dev/null || echo 0)
+        fi
+        if [ -f /zclockid/data/zclockid.db ]; then
+            Z_DB_SZ=$(wc -c < /zclockid/data/zclockid.db 2>/dev/null || echo 0)
+        fi
+
+        if [ "$VAR_DB_SZ" -gt "$Z_DB_SZ" ]; then
+            cp -a /var/lib/zclockid/zclockid.db* /zclockid/data/ 2>/dev/null || true
+            ln -sfn /zclockid/data/zclockid.db /var/lib/zclockid/zclockid.db 2>/dev/null || true
+        elif [ "$Z_DB_SZ" -gt 0 ] && [ ! -f /var/lib/zclockid/zclockid.db ] && [ ! -L /var/lib/zclockid/zclockid.db ]; then
+            ln -sfn /zclockid/data/zclockid.db /var/lib/zclockid/zclockid.db 2>/dev/null || true
+        elif [ "$VAR_DB_SZ" -gt 0 ] && [ ! -f /zclockid/data/zclockid.db ]; then
+            cp -a /var/lib/zclockid/zclockid.db* /zclockid/data/ 2>/dev/null || true
+            ln -sfn /zclockid/data/zclockid.db /var/lib/zclockid/zclockid.db 2>/dev/null || true
+        fi
+
         # 7. Run database migrations and schema initialization
         PYTHONPATH=/opt/zclockid python3 -m api.db.init_db >/dev/null 2>&1 || true
 

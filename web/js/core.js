@@ -47,10 +47,15 @@
             toast.innerHTML = `
                 <i class="${iconCls} text-sm mt-0.5 flex-shrink-0"></i>
                 <div class="flex-1 text-slate-200 font-sans leading-snug break-words">${escapeHtml(message)}</div>
-                <button class="text-slate-400 hover:text-white transition flex-shrink-0 ml-1" onclick="this.parentElement.remove()">
+                <button class="toast-close-btn text-slate-400 hover:text-white transition flex-shrink-0 ml-1">
                     <i class="fa-solid fa-xmark text-xs"></i>
                 </button>
             `;
+
+            const closeBtn = toast.querySelector('.toast-close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => toast.remove());
+            }
 
             container.appendChild(toast);
             requestAnimationFrame(() => {
@@ -66,7 +71,7 @@
         }
         window.showToast = showToast;
 
-        function showConfirmDialog({ title = 'Confirm Action', message, confirmText = 'Confirm', confirmStyle = 'danger', onConfirm, onCancel }) {
+        function showConfirmDialog({ title = 'Confirm Action', message, confirmText = 'Confirm', confirmStyle = 'danger', confirmCb, cancelCb }) {
             let modal = document.getElementById('zclock-confirm-modal');
             if (!modal) {
                 modal = document.createElement('div');
@@ -106,12 +111,15 @@
                 const cleanup = (result) => {
                     modal.classList.add('hidden');
                     resolve(result);
-                    if (result && typeof onConfirm === 'function') onConfirm();
-                    if (!result && typeof onCancel === 'function') onCancel();
+                    if (result && typeof confirmCb === 'function') confirmCb();
+                    if (!result && typeof cancelCb === 'function') cancelCb();
                 };
-                document.getElementById('zclock-confirm-close').onclick = () => cleanup(false);
-                document.getElementById('zclock-confirm-cancel').onclick = () => cleanup(false);
-                document.getElementById('zclock-confirm-ok').onclick = () => cleanup(true);
+                const closeBtn = document.getElementById('zclock-confirm-close');
+                const cancelBtn = document.getElementById('zclock-confirm-cancel');
+                const okBtn = document.getElementById('zclock-confirm-ok');
+                if (closeBtn) closeBtn.addEventListener('click', () => cleanup(false));
+                if (cancelBtn) cancelBtn.addEventListener('click', () => cleanup(false));
+                if (okBtn) okBtn.addEventListener('click', () => cleanup(true));
             });
         }
         window.showConfirmDialog = showConfirmDialog;
@@ -173,7 +181,7 @@
             fetch('/api/v1/setup/status')
                 .then(r => r.json())
                 .then(d => {
-                    if (!d.is_configured || !d.has_admin) {
+                    if (!d.is_configured) {
                         window.location.replace('/setup.html');
                     } else {
                         window.location.replace('/login.html');
@@ -1185,6 +1193,10 @@
                 const cmd = el?.textContent?.trim() || '';
                 if (typeof window.copyToClipboard === 'function') {
                     window.copyToClipboard(cmd, 'cURL command copied!');
+                }
+            } else if (action === 'control-service') {
+                if (typeof window.controlService === 'function') {
+                    window.controlService(btn.dataset.service, btn.dataset.op, btn);
                 }
             } else {
                 triggerAction(action, btn, e, 'click');

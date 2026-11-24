@@ -1,8 +1,8 @@
-// Auto-redirect to setup wizard on first run when unconfigured / no admin exists
+// Auto-redirect to setup wizard on first run when unconfigured
         fetch('/api/v1/setup/status')
             .then(r => r.json())
             .then(data => {
-                if (!data.is_configured || !data.has_admin) {
+                if (!data.is_configured) {
                     window.location.replace('/setup.html');
                 }
             })
