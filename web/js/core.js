@@ -11,6 +11,122 @@
         }
         window.escapeHtml = escapeHtml;
 
+        // ==================== IN-GUI TOAST NOTIFICATIONS & DIALOGS ====================
+        function getOrCreateToastContainer() {
+            let container = document.getElementById('zclock-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'zclock-toast-container';
+                container.className = 'fixed bottom-5 right-5 z-[9999] flex flex-col gap-2.5 pointer-events-none max-w-sm w-full px-4';
+                document.body.appendChild(container);
+            }
+            return container;
+        }
+
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = getOrCreateToastContainer();
+            const toast = document.createElement('div');
+            
+            const typeStyles = {
+                success: 'bg-slate-900/95 text-emerald-300 border-emerald-500/40 shadow-emerald-950/40',
+                error: 'bg-slate-900/95 text-rose-300 border-rose-500/40 shadow-rose-950/40',
+                warning: 'bg-slate-900/95 text-amber-300 border-amber-500/40 shadow-amber-950/40',
+                info: 'bg-slate-900/95 text-cyan-300 border-cyan-500/40 shadow-cyan-950/40'
+            };
+            const iconStyles = {
+                success: 'fa-solid fa-circle-check text-emerald-400',
+                error: 'fa-solid fa-circle-exclamation text-rose-400',
+                warning: 'fa-solid fa-triangle-exclamation text-amber-400',
+                info: 'fa-solid fa-circle-info text-cyan-400'
+            };
+            
+            const borderCls = typeStyles[type] || typeStyles.info;
+            const iconCls = iconStyles[type] || iconStyles.info;
+
+            toast.className = `pointer-events-auto transform transition-all duration-300 ease-out translate-y-2 opacity-0 flex items-start gap-3 p-3.5 rounded-xl border shadow-2xl backdrop-blur-md text-xs font-mono ${borderCls}`;
+            toast.innerHTML = `
+                <i class="${iconCls} text-sm mt-0.5 flex-shrink-0"></i>
+                <div class="flex-1 text-slate-200 font-sans leading-snug break-words">${escapeHtml(message)}</div>
+                <button class="text-slate-400 hover:text-white transition flex-shrink-0 ml-1" onclick="this.parentElement.remove()">
+                    <i class="fa-solid fa-xmark text-xs"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            if (duration > 0) {
+                setTimeout(() => {
+                    toast.classList.add('opacity-0', 'translate-y-2');
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            }
+        }
+        window.showToast = showToast;
+
+        function showConfirmDialog({ title = 'Confirm Action', message, confirmText = 'Confirm', confirmStyle = 'danger', onConfirm, onCancel }) {
+            let modal = document.getElementById('zclock-confirm-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'zclock-confirm-modal';
+                document.body.appendChild(modal);
+            }
+            const isDanger = confirmStyle === 'danger';
+            const confirmBtnClass = isDanger 
+                ? 'bg-rose-600 hover:bg-rose-500 text-white border-rose-500/40' 
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/40';
+
+            modal.className = 'fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[9998] backdrop-blur-sm';
+            modal.innerHTML = `
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+                        <div class="flex items-center gap-2.5">
+                            <div class="h-8 w-8 rounded-lg ${isDanger ? 'bg-rose-600/20 border border-rose-500/30 text-rose-400' : 'bg-indigo-600/20 border border-indigo-500/30 text-indigo-400'} flex items-center justify-center text-sm">
+                                <i class="fa-solid ${isDanger ? 'fa-triangle-exclamation' : 'fa-circle-question'}"></i>
+                            </div>
+                            <h3 class="text-sm font-bold text-white">${escapeHtml(title)}</h3>
+                        </div>
+                        <button id="zclock-confirm-close" class="text-slate-400 hover:text-white text-sm"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="p-5 text-xs text-slate-300 leading-relaxed space-y-3 font-sans">
+                        <p class="whitespace-pre-wrap">${escapeHtml(message)}</p>
+                    </div>
+                    <div class="p-3.5 bg-slate-950 border-t border-slate-800 flex justify-end gap-2">
+                        <button id="zclock-confirm-cancel" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition">Cancel</button>
+                        <button id="zclock-confirm-ok" class="px-4 py-1.5 ${confirmBtnClass} rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md border">
+                            ${escapeHtml(confirmText)}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            return new Promise((resolve) => {
+                const cleanup = (result) => {
+                    modal.classList.add('hidden');
+                    resolve(result);
+                    if (result && typeof onConfirm === 'function') onConfirm();
+                    if (!result && typeof onCancel === 'function') onCancel();
+                };
+                document.getElementById('zclock-confirm-close').onclick = () => cleanup(false);
+                document.getElementById('zclock-confirm-cancel').onclick = () => cleanup(false);
+                document.getElementById('zclock-confirm-ok').onclick = () => cleanup(true);
+            });
+        }
+        window.showConfirmDialog = showConfirmDialog;
+
+        // Non-intrusive in-GUI redirect for browser native window.alert
+        window.alert = function(msg) {
+            if (typeof msg === 'string') {
+                const isError = /fail|error|invalid|unauthorized|denied/i.test(msg);
+                const isSuccess = /success|successful|copied|saved|updated|created/i.test(msg);
+                showToast(msg, isError ? 'error' : (isSuccess ? 'success' : 'info'));
+            } else {
+                showToast(String(msg), 'info');
+            }
+        };
+
         // ==================== THEME CONTROLLER (DARK / SOFT LIGHT) ====================
         function setAppTheme(theme) {
             const isLight = theme === 'light';
@@ -341,7 +457,7 @@
 
         function copyToClipboard(val, msg) {
             navigator.clipboard.writeText(val);
-            alert(msg || 'Copied to clipboard!');
+            showToast(msg || 'Copied to clipboard!', 'info');
         }
 
         // ==================== ADMINISTRATOR PROFILE & PASSWORD ====================
@@ -753,8 +869,17 @@
                 const cmd = el?.textContent?.trim() || '';
                 if (typeof window.copyToClipboard === 'function') window.copyToClipboard(cmd, 'cURL command copied!');
             },
-            'control-service': (el) => typeof window.controlService === 'function' && window.controlService(el.dataset.service, el.dataset.op),
-            'controlService': (el) => typeof window.controlService === 'function' && window.controlService(el.dataset.service, el.dataset.op)
+            'control-service': (el) => typeof window.controlService === 'function' && window.controlService(el.dataset.service, el.dataset.op, el),
+            'controlService': (el) => typeof window.controlService === 'function' && window.controlService(el.dataset.service, el.dataset.op, el),
+            'open-service-modal': (el) => typeof window.openServiceControlModal === 'function' && window.openServiceControlModal(el.dataset.service),
+            'openServiceControlModal': (el) => typeof window.openServiceControlModal === 'function' && window.openServiceControlModal(el.dataset.service),
+            'open-log-viewer': (el) => typeof window.openLogViewer === 'function' && window.openLogViewer(el.dataset.service, el.dataset.title),
+            'openLogViewer': (el) => typeof window.openLogViewer === 'function' && window.openLogViewer(el.dataset.service, el.dataset.title),
+            'closeServiceControlModal': () => typeof window.closeServiceControlModal === 'function' && window.closeServiceControlModal(),
+            'closeLogModal': () => typeof window.closeLogModal === 'function' && window.closeLogModal(),
+            'openLogFromModal': () => typeof window.openLogFromModal === 'function' && window.openLogFromModal(),
+            'refreshActiveLogs': () => typeof window.refreshActiveLogs === 'function' && window.refreshActiveLogs(),
+            'executeModalServiceAction': (el) => typeof window.executeModalServiceAction === 'function' && window.executeModalServiceAction(el.dataset.actionName || el.dataset.op, el)
         });
 
         // Allowlisted web actions (strict allowlist registration, no arbitrary window function dispatch)
@@ -1055,11 +1180,7 @@
                 e.preventDefault();
             }
             const action = btn.dataset.action;
-            if (action === 'control-service') {
-                if (typeof window.controlService === 'function') {
-                    window.controlService(btn.dataset.service, btn.dataset.op);
-                }
-            } else if (action === 'copy-doh-curl') {
+            if (action === 'copy-doh-curl') {
                 const el = document.getElementById('doh-guide-curl-cmd');
                 const cmd = el?.textContent?.trim() || '';
                 if (typeof window.copyToClipboard === 'function') {

@@ -207,6 +207,17 @@ def background_radius_drs_poller():
 @app.on_event("startup")
 def on_startup():
     init_db()
+    # Ensure overrides directory and files exist for FreeRADIUS, Samba, and BIND9
+    overrides_dir = Path("/zclockid/config/overrides.d")
+    try:
+        overrides_dir.mkdir(parents=True, exist_ok=True)
+        for custom_file in ("smb-custom.conf", "radius-custom.conf", "bind-custom.conf"):
+            target_f = overrides_dir / custom_file
+            if not target_f.exists():
+                target_f.touch(mode=0o644, exist_ok=True)
+    except Exception as e:
+        logger.warning("Could not initialize /zclockid/config/overrides.d: %s", e)
+
     from api.services.samdb_service import cleanup_stale_auth_files
     stale_cleaned = cleanup_stale_auth_files()
     if stale_cleaned > 0:

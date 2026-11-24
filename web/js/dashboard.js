@@ -1,7 +1,9 @@
         // 1. System & Dashboard Status
         async function fetchSystemStatus() {
             try {
-                const res = await fetch(`${API_BASE}/system/status`);
+                const res = await fetch(`${API_BASE}/system/status`, {
+                    headers: typeof getAuthHeaders === 'function' ? getAuthHeaders() : {}
+                });
                 if (!res.ok) return;
                 const data = await res.json();
 
@@ -69,31 +71,31 @@
                             const safeTitle = escapeHtml(meta.title);
                             if (srv.status === 'active') {
                                 actionsEl.innerHTML = `
-                                    <button data-action="control-service" data-service="${safeKey}" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
+                                    <button data-action="controlService" data-service="${safeKey}" data-op="restart" class="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[11px] font-semibold transition flex items-center justify-center gap-1">
                                         <i class="fa-solid fa-arrows-rotate"></i> Restart
                                     </button>
-                                    <button data-action="control-service" data-service="${safeKey}" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
+                                    <button data-action="controlService" data-service="${safeKey}" data-op="stop" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-800 rounded text-[11px] font-semibold transition" title="Stop Service">
                                         <i class="fa-solid fa-stop"></i>
                                     </button>
-                                    <button data-action="open-service-modal" data-service="${safeKey}" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <button data-action="openServiceControlModal" data-service="${safeKey}" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                         <i class="fa-solid fa-sliders"></i>
                                     </button>
-                                    <button data-action="open-log-viewer" data-service="${safeKey}" data-title="${safeTitle}" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <button data-action="openLogViewer" data-service="${safeKey}" data-title="${safeTitle}" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                         <i class="fa-solid fa-terminal"></i>
                                     </button>
                                 `;
                             } else {
                                 actionsEl.innerHTML = `
-                                    <button data-action="control-service" data-service="${safeKey}" data-op="start" class="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/30">
+                                    <button data-action="controlService" data-service="${safeKey}" data-op="start" class="flex-1 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm shadow-emerald-600/30">
                                         <i class="fa-solid fa-play"></i> Start
                                     </button>
-                                    <button data-action="control-service" data-service="${safeKey}" data-op="restart" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-semibold transition" title="Restart Service">
+                                    <button data-action="controlService" data-service="${safeKey}" data-op="restart" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded text-[11px] font-semibold transition" title="Restart Service">
                                         <i class="fa-solid fa-arrows-rotate"></i>
                                     </button>
-                                    <button data-action="open-service-modal" data-service="${safeKey}" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
+                                    <button data-action="openServiceControlModal" data-service="${safeKey}" class="px-2 py-1 bg-slate-800 hover:bg-indigo-950 text-slate-400 hover:text-indigo-300 border border-slate-700 hover:border-indigo-800 rounded text-[11px] transition" title="Service Control Menu">
                                         <i class="fa-solid fa-sliders"></i>
                                     </button>
-                                    <button data-action="open-log-viewer" data-service="${safeKey}" data-title="${safeTitle}" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
+                                    <button data-action="openLogViewer" data-service="${safeKey}" data-title="${safeTitle}" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 rounded text-[11px] transition" title="Journalctl Logs">
                                         <i class="fa-solid fa-terminal"></i>
                                     </button>
                                 `;
@@ -122,21 +124,29 @@
         let currentModalServiceKey = 'samba-ad-dc';
         let latestSystemStatus = null;
 
-        function openServiceControlModal(serviceKey) {
+        async function openServiceControlModal(serviceKey) {
+            if (typeof loadModals === 'function') await loadModals();
             currentModalServiceKey = serviceKey;
             const meta = SERVICE_METADATA[serviceKey] || { title: serviceKey, unit: `${serviceKey}.service`, role: 'Appliance Subsystem', ports: '-' };
             
-            document.getElementById('modal-srv-title').innerText = meta.title;
-            document.getElementById('modal-srv-unit').innerText = meta.unit;
-            document.getElementById('modal-srv-role').innerText = meta.role;
-            document.getElementById('modal-srv-ports').innerText = meta.ports;
+            const titleEl = document.getElementById('modal-srv-title');
+            const unitEl = document.getElementById('modal-srv-unit');
+            const roleEl = document.getElementById('modal-srv-role');
+            const portsEl = document.getElementById('modal-srv-ports');
+            const modalEl = document.getElementById('modal-service-control');
+
+            if (titleEl) titleEl.innerText = meta.title;
+            if (unitEl) unitEl.innerText = meta.unit;
+            if (roleEl) roleEl.innerText = meta.role;
+            if (portsEl) portsEl.innerText = meta.ports;
 
             refreshModalServiceDetails();
-            document.getElementById('modal-service-control').classList.remove('hidden');
+            if (modalEl) modalEl.classList.remove('hidden');
         }
 
         function closeServiceControlModal() {
-            document.getElementById('modal-service-control').classList.add('hidden');
+            const modalEl = document.getElementById('modal-service-control');
+            if (modalEl) modalEl.classList.add('hidden');
         }
 
         function openLogFromModal() {
@@ -148,7 +158,7 @@
         function refreshModalServiceDetails() {
             if (!latestSystemStatus || !latestSystemStatus.services) return;
             const pyKey = currentModalServiceKey.replace(/-/g, '_');
-            const srv = latestSystemStatus.services[pyKey];
+            const srv = latestSystemStatus.services[pyKey] || latestSystemStatus.services[currentModalServiceKey];
             if (!srv) return;
 
             const isActive = srv.status === 'active';
@@ -157,78 +167,124 @@
             const stText = document.getElementById('modal-srv-status-text');
             const enText = document.getElementById('modal-srv-enabled-text');
 
-            if (isActive) {
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
-                stText.className = 'text-emerald-400 font-bold text-xs';
-                stText.innerText = 'ACTIVE (RUNNING)';
-            } else if (isFailed) {
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse';
-                stText.className = 'text-rose-400 font-bold text-xs';
-                stText.innerText = 'FAILED (CHECK LOGS)';
-            } else {
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
-                stText.className = 'text-slate-400 font-bold text-xs';
-                stText.innerText = 'INACTIVE (STOPPED)';
+            if (dot && stText) {
+                if (isActive) {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+                    stText.className = 'text-emerald-400 font-bold text-xs';
+                    stText.innerText = 'ACTIVE (RUNNING)';
+                } else if (isFailed) {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse';
+                    stText.className = 'text-rose-400 font-bold text-xs';
+                    stText.innerText = 'FAILED (CHECK LOGS)';
+                } else {
+                    dot.className = 'w-2.5 h-2.5 rounded-full bg-slate-500';
+                    stText.className = 'text-slate-400 font-bold text-xs';
+                    stText.innerText = 'INACTIVE (STOPPED)';
+                }
             }
 
-            const isEn = srv.enabled === 'enabled' || srv.enabled === 'alias';
-            enText.innerText = isEn ? 'BOOT: ON (ENABLED)' : `BOOT: OFF (${srv.enabled || 'DISABLED'})`;
-            enText.className = isEn ? 'text-cyan-400 font-bold text-xs' : 'text-amber-400 font-bold text-xs';
+            if (enText) {
+                const isEn = srv.enabled === 'enabled' || srv.enabled === 'alias';
+                enText.innerText = isEn ? 'BOOT: ON (ENABLED)' : `BOOT: OFF (${srv.enabled || 'DISABLED'})`;
+                enText.className = isEn ? 'text-cyan-400 font-bold text-xs' : 'text-amber-400 font-bold text-xs';
+            }
 
-            document.getElementById('modal-srv-pid').innerText = srv.pid ? `${srv.pid}` : '-';
-            document.getElementById('modal-srv-mem').innerText = srv.memory_mb ? `${srv.memory_mb} MB` : '-';
+            const pidEl = document.getElementById('modal-srv-pid');
+            const memEl = document.getElementById('modal-srv-mem');
+            if (pidEl) pidEl.innerText = srv.pid ? `${srv.pid}` : '-';
+            if (memEl) memEl.innerText = srv.memory_mb ? `${srv.memory_mb} MB` : '-';
         }
 
-        async function executeModalServiceAction(action) {
-            await controlService(currentModalServiceKey, action);
+        async function executeModalServiceAction(action, targetBtn = null) {
+            await controlService(currentModalServiceKey, action, targetBtn);
             await fetchSystemStatus();
             refreshModalServiceDetails();
         }
 
         // Comprehensive Service Control (Start / Stop / Restart / Reload / Enable / Disable)
-        async function controlService(serviceName, action) {
-            const confirmed = confirm(`Are you sure you want to execute '${action.toUpperCase()}' on ${serviceName}?`);
-            if (!confirmed) return;
+        async function controlService(serviceName, action, targetBtn = null) {
+            // For 'stop', show integrated in-GUI modal dialog instead of native browser popup
+            if (action === 'stop') {
+                const confirmed = await window.showConfirmDialog({
+                    title: `Stop ${serviceName}?`,
+                    message: `Are you sure you want to stop the '${serviceName}' service?\n\nSubsystem functionality will be temporarily unavailable until restarted.`,
+                    confirmText: 'Stop Service',
+                    confirmStyle: 'danger'
+                });
+                if (!confirmed) return;
+            }
+
+            let originalHtml = '';
+            if (targetBtn && targetBtn.innerHTML) {
+                originalHtml = targetBtn.innerHTML;
+                targetBtn.disabled = true;
+                targetBtn.classList.add('opacity-70', 'cursor-not-allowed');
+                targetBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${action}...`;
+            }
+
             try {
                 const res = await fetch(`${API_BASE}/services/${serviceName}/control`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: typeof getAuthHeaders === 'function' ? getAuthHeaders() : {'Content-Type': 'application/json'},
                     body: JSON.stringify({ action: action })
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    alert(`${serviceName} ${action} successful!`);
-                    fetchSystemStatus();
+                    window.showToast(`${serviceName} ${action} successful!`, 'success');
+                    await fetchSystemStatus();
+                    refreshModalServiceDetails();
                 } else {
-                    alert(`Action failed: ${data.detail || 'Service control error'}`);
+                    window.showToast(`Action failed: ${data.detail || 'Service control error'}`, 'error');
                 }
             } catch (err) {
-                alert(`Error executing control command: ${err}`);
+                window.showToast(`Error executing control command: ${err}`, 'error');
+            } finally {
+                if (targetBtn && originalHtml) {
+                    targetBtn.disabled = false;
+                    targetBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+                    targetBtn.innerHTML = originalHtml;
+                }
             }
         }
 
         // Live Log Viewer
         async function openLogViewer(serviceName, title) {
+            if (typeof loadModals === 'function') await loadModals();
             currentActiveLogService = serviceName;
-            document.getElementById('log-modal-title').innerText = `${title} (journalctl -u ${serviceName})`;
-            document.getElementById('log-modal-body').innerText = 'Streaming logs from journalctl...';
-            document.getElementById('log-modal').classList.remove('hidden');
-            refreshActiveLogs();
+            const titleEl = document.getElementById('log-modal-title');
+            const bodyEl = document.getElementById('log-modal-body');
+            const modalEl = document.getElementById('log-modal');
+            if (titleEl) titleEl.innerText = `${title || serviceName} (journalctl -u ${serviceName})`;
+            if (bodyEl) bodyEl.innerText = 'Streaming logs from journalctl...';
+            if (modalEl) modalEl.classList.remove('hidden');
+            await refreshActiveLogs();
         }
 
         async function refreshActiveLogs() {
             if (!currentActiveLogService) return;
+            const bodyEl = document.getElementById('log-modal-body');
             try {
-                const res = await fetch(`${API_BASE}/services/${currentActiveLogService}/logs?lines=60`);
+                const res = await fetch(`${API_BASE}/services/${currentActiveLogService}/logs?lines=100`, {
+                    headers: typeof getAuthHeaders === 'function' ? getAuthHeaders() : {}
+                });
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    if (bodyEl) bodyEl.innerText = `Failed to load logs (HTTP ${res.status}): ${errData.detail || 'Service log error'}`;
+                    return;
+                }
                 const data = await res.json();
-                document.getElementById('log-modal-body').innerText = data.logs || 'No logs found.';
+                if (bodyEl) {
+                    bodyEl.innerText = data.logs || 'No logs recorded for this service.';
+                    if (bodyEl.parentElement) bodyEl.parentElement.scrollTop = bodyEl.parentElement.scrollHeight;
+                }
             } catch (err) {
-                document.getElementById('log-modal-body').innerText = `Error retrieving logs: ${err}`;
+                if (bodyEl) bodyEl.innerText = `Error retrieving logs: ${err}`;
             }
         }
 
         function closeLogModal() {
-            document.getElementById('log-modal').classList.add('hidden');
+            const modalEl = document.getElementById('log-modal');
+            if (modalEl) modalEl.classList.add('hidden');
             currentActiveLogService = '';
         }
 
@@ -237,7 +293,9 @@
 
         async function fetchAuthStats24h() {
             try {
-                const res = await fetch(`${API_BASE}/system/auth-stats/24h`);
+                const res = await fetch(`${API_BASE}/system/auth-stats/24h`, {
+                    headers: typeof getAuthHeaders === 'function' ? getAuthHeaders() : {}
+                });
                 if (!res.ok) return;
                 const data = await res.json();
 
@@ -398,4 +456,16 @@
                 console.error('Error fetching auth stats 24h:', err);
             }
         }
+
+        // Window exports for declarative data-action and inter-module callers
+        window.fetchSystemStatus = fetchSystemStatus;
+        window.fetchAuthStats24h = fetchAuthStats24h;
+        window.controlService = controlService;
+        window.openServiceControlModal = openServiceControlModal;
+        window.closeServiceControlModal = closeServiceControlModal;
+        window.openLogViewer = openLogViewer;
+        window.closeLogModal = closeLogModal;
+        window.openLogFromModal = openLogFromModal;
+        window.refreshActiveLogs = refreshActiveLogs;
+        window.executeModalServiceAction = executeModalServiceAction;
 

@@ -93,11 +93,13 @@ EOFBIND
             fi
         fi
 
-        # Ensure FreeRADIUS and custom overrides directory permissions
-        if [ -d /zclockid/config/overrides.d ]; then
-            chmod 755 /zclockid /zclockid/config /zclockid/config/overrides.d 2>/dev/null || true
-            chmod 644 /zclockid/config/overrides.d/* 2>/dev/null || true
-        fi
+        # Ensure FreeRADIUS, Samba, and BIND9 custom overrides directory and files exist
+        mkdir -p /zclockid/config/overrides.d
+        touch /zclockid/config/overrides.d/smb-custom.conf \
+              /zclockid/config/overrides.d/radius-custom.conf \
+              /zclockid/config/overrides.d/bind-custom.conf 2>/dev/null || true
+        chmod 755 /zclockid /zclockid/config /zclockid/config/overrides.d 2>/dev/null || true
+        chmod 644 /zclockid/config/overrides.d/* 2>/dev/null || true
 
         # SNMP Telemetry helper executable
         if [ -f /opt/zclockid/scripts/zclock-telemetry.sh ]; then
