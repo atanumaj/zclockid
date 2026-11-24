@@ -156,15 +156,18 @@ def require_role(*roles: str):
     ) -> Optional[dict]:
         path = request.url.path
         if is_public_path(path):
-            if path == "/api/v1/setup/provision" and (
-                SETUP_LOCK_FILE.exists()
-                or Path("/etc/zclockid/setup.lock").exists()
-                or Path("/zclockid/config/setup.lock").exists()
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Setup has already been completed and appliance is locked."
-                )
+            if path == "/api/v1/setup/provision":
+                if (
+                    SETUP_LOCK_FILE.exists()
+                    or Path("/etc/zclockid/setup.lock").exists()
+                    or Path("/zclockid/config/setup.lock").exists()
+                    or Path("/var/lib/zclockid/.setup_locked").exists()
+                    or os.path.exists("/etc/samba/smb.conf")
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Setup has already been completed and appliance is locked."
+                    )
             return None
 
         user = get_session_user(authorization)
@@ -260,14 +263,19 @@ def get_setup_status():
 
 @router.post("/setup/provision")
 def execute_initial_provisioning(req: SetupProvisionRequest):
+    status_info = get_setup_status()
     if (
-        SETUP_LOCK_FILE.exists()
+        status_info.get("is_configured")
+        or status_info.get("setup_lock")
+        or SETUP_LOCK_FILE.exists()
         or Path("/etc/zclockid/setup.lock").exists()
         or Path("/zclockid/config/setup.lock").exists()
+        or Path("/var/lib/zclockid/.setup_locked").exists()
+        or os.path.exists("/etc/samba/smb.conf")
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Setup has already been completed and appliance is locked."
+            detail="Setup has already been completed and appliance is locked. Re-provisioning is strictly forbidden."
         )
     realm = req.realm.upper()
     domain = req.domain_netbios.upper()

@@ -81,8 +81,14 @@ def _resolve_updates_dir() -> Path:
         default_p.mkdir(parents=True, exist_ok=True)
         os.chmod(default_p, 0o700)
         return default_p
-    except (PermissionError, OSError) as e:
-        raise RuntimeError(f"Cannot access or initialize secure updates directory at {default_p}: {e}")
+    except (PermissionError, OSError):
+        fb = Path(tempfile.gettempdir()) / "zclockid_updates"
+        try:
+            fb.mkdir(parents=True, exist_ok=True)
+            os.chmod(fb, 0o700)
+        except Exception:
+            pass
+        return fb
 
 UPDATES_DIR = _resolve_updates_dir()
 
@@ -158,7 +164,7 @@ except Exception:
 
 # Product Metadata & Author Fingerprint
 APP_NAME = "ZclockID Enterprise Management Appliance"
-APP_VERSION = "1.5.7"
+APP_VERSION = "1.5.8"
 APP_AUTHOR = "Atanu Majumdar (@atanumaj)"
 APP_COPYRIGHT = "Copyright (c) 2026 Atanu Majumdar. All Rights Reserved."
 APP_REPO = "atanumaj/zclockid"

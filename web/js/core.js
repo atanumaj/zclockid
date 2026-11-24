@@ -177,7 +177,22 @@
                              window.location.pathname.endsWith('/setup.html');
 
         const initialAuthToken = localStorage.getItem('zclockid_token');
-        if (!isPublicPage && !initialAuthToken) {
+        if (window.location.pathname.endsWith('/setup.html')) {
+            if (initialAuthToken) {
+                window.location.replace('/index.html');
+            } else {
+                fetch('/api/v1/setup/status')
+                    .then(r => r.json())
+                    .then(d => {
+                        if (d.is_configured || d.setup_lock) {
+                            window.location.replace('/login.html');
+                        }
+                    })
+                    .catch(() => {
+                        window.location.replace('/login.html');
+                    });
+            }
+        } else if (!isPublicPage && !initialAuthToken) {
             fetch('/api/v1/setup/status')
                 .then(r => r.json())
                 .then(d => {

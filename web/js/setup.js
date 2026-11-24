@@ -1,17 +1,34 @@
-// Auto-redirect to login if appliance is already provisioned and admin exists, or populate hostname
-        fetch('/api/v1/setup/status')
-            .then(r => r.json())
-            .then(data => {
-                if (data.is_configured && data.has_admin) {
-                    window.location.replace('/login.html');
-                } else if (data.hostname) {
-                    const hnInput = document.getElementById('system_hostname');
-                    if (hnInput && !hnInput.value) {
-                        hnInput.value = data.hostname.toLowerCase();
-                    }
+// Verify appliance setup state and prevent re-initialization of configured systems
+fetch('/api/v1/setup/status')
+    .then(r => r.json())
+    .then(data => {
+        const spinner = document.getElementById('setup-loading-spinner');
+        if (spinner) spinner.remove();
+
+        if (data.is_configured || data.setup_lock) {
+            // Already configured - immediately redirect to login.html
+            window.location.replace('/login.html');
+            // If browser prevents redirect, display locked card and destroy wizard form
+            const wizardCard = document.getElementById('setup-wizard-card');
+            if (wizardCard) wizardCard.remove();
+            const lockedBanner = document.getElementById('setup-locked-banner');
+            if (lockedBanner) lockedBanner.classList.remove('hidden');
+        } else {
+            // Fresh, unconfigured appliance: reveal wizard
+            const wizardCard = document.getElementById('setup-wizard-card');
+            if (wizardCard) wizardCard.classList.remove('hidden');
+            if (data.hostname) {
+                const hnInput = document.getElementById('system_hostname');
+                if (hnInput && !hnInput.value) {
+                    hnInput.value = data.hostname.toLowerCase();
                 }
-            })
-            .catch(() => {});
+            }
+        }
+    })
+    .catch(() => {
+        // Fail closed on error: redirect to login
+        window.location.replace('/login.html');
+    });
 
         function goToStep(step) {
             // Validation
