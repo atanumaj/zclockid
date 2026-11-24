@@ -1,12 +1,12 @@
 {
-  "version": "1.5.7",
-  "name": "ZclockID Enterprise v1.5.7",
+  "version": "1.5.8",
+  "name": "ZclockID Enterprise v1.5.8",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-24T15:10:00Z",
-  "summary": "Release v1.5.7: Resilient path resolution, bidirectional SQLite database and setup lock synchronization, setup redirection auto-healing, and CSP compliance.",
-  "notes": "### What's Changed in v1.5.7:\n* **Resilient Path Resolution:** Decoupled engine drop-in directory creation from database and config path resolution, preventing fallback to empty database state.\n* **Bidirectional State Synchronization:** Enhanced postinst to automatically preserve and synchronize /var/lib/zclockid/zclockid.db and setup.lock across legacy and unified paths.\n* **Setup Redirection Auto-Healing:** Ensured active Samba AD Domain Controllers automatically auto-heal setup locks and never redirect authenticated administrators to setup.html.\n* **CSP Compliance & Action Handlers:** Cleaned inline event handler patterns and integrated unified service action triggers in core.js.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.7_all.deb",
-  "package_name": "zclockid_1.5.7_all.deb",
+  "published_at": "2026-11-24T15:35:00Z",
+  "summary": "Release v1.5.8: Hardened setup wizard lockout, defense-in-depth re-initialization blocking, locked banner protection, and auto-redirect guards.",
+  "notes": "### What's Changed in v1.5.8:\n* **Setup Wizard Lockout:** Default-hidden wizard interface and locked banner to prevent unauthorized users from viewing or triggering setup on operational appliances.\n* **Defense-in-Depth Provisioning Rejection:** Enforced multi-layered 403 Forbidden rejection on POST /api/v1/setup/provision if Samba AD DC is configured or appliance is locked.\n* **Client Navigation Redirection:** Added proactive client-side redirection in core.js and setup.js routing visitors of setup.html directly to index.html (when authenticated) or login.html.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.8_all.deb",
+  "package_name": "zclockid_1.5.8_all.deb",
   "min_version_required": "1.0.0"
 }
