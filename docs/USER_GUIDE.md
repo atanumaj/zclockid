@@ -1,6 +1,6 @@
 # ZclockID Appliance Administrator & User Guide
 
-**Document Version:** 1.3.0  
+**Document Version:** 1.5.5  
 **Target Platform:** ZclockID Enterprise Appliance (Ubuntu 24.04 LTS / Samba 4.19+ / FreeRADIUS 3.0+ / BIND 9.18+)  
 **Target Audience:** Systems Engineers, Network Administrators, and IT Infrastructure Operations  
 
@@ -456,5 +456,6 @@ Active Directory backups must preserve both the directory database and the Sysvo
 
 ### Diagnostic REST Endpoints
 * **REST API Documentation:** See [API Specification](API_DOCUMENTATION.md)
+* **Troubleshooting Guide:** For in-depth CLI triage, emergency password resets, service recovery, and common issues, see the [Troubleshooting Guide](TROUBLESHOOTING.md).
 * **Raw Configuration Inspector:** Available directly in the Web UI under **FreeRADIUS -> Raw Config Viewer**, allowing you to inspect `/etc/freeradius/3.0/users`, `clients.conf`, and `mschap` live.
 

@@ -20,6 +20,7 @@ After installation completes, navigate to:
 * **User Self-Registration:** `https://<server-ip>/register.html`
 * **Self-Service Password Portal:** `https://<server-ip>/password-reset.html`
 * **REST API Documentation:** See [API Specification](docs/API_DOCUMENTATION.md)
+* **Troubleshooting Guide:** See [Troubleshooting & Recovery](docs/TROUBLESHOOTING.md)
 
 For complete details and uninstallation instructions, see the [Installation Guide](docs/INSTALLATION.md).
 
@@ -65,6 +66,9 @@ zclockid/
 ├── docs/                               # Comprehensive Technical & Operations Guides
 │   ├── API_DOCUMENTATION.md            # REST API Specification & Examples
 │   ├── INSTALLATION.md                 # 1-Line Installer & APT Repository Guide
+│   ├── KEY_ROTATION.md                 # Dual-Key Keyring & Cryptographic Rotation
+│   ├── SYSVOL_REPLICATION.md           # Multi-DC Sysvol Sync & NTACL Self-Healing
+│   ├── TROUBLESHOOTING.md              # CLI Triage, Emergency Resets & Recovery Runbook
 │   └── USER_GUIDE.md                   # Administrator & Operations Manual
 ├── installer/                          # Automated install & uninstall shell scripts
 ├── package/                            # Debian packaging scripts & systemd definitions
