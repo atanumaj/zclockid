@@ -166,13 +166,29 @@ def parse_semver(v_str: str) -> tuple:
             parts.append(int(digits[0]))
         else:
             parts.append(0)
-    while len(parts) < 3:
+    while len(parts) < 4:
         parts.append(0)
-    return tuple(parts[:3])
+    return tuple(parts)
 
 def is_newer_version(candidate: str, baseline: str) -> bool:
     try:
-        return parse_semver(candidate) > parse_semver(baseline)
+        c_parts = parse_semver(candidate)
+        b_parts = parse_semver(baseline)
+        max_len = max(len(c_parts), len(b_parts))
+        c_norm = c_parts + (0,) * (max_len - len(c_parts))
+        b_norm = b_parts + (0,) * (max_len - len(b_parts))
+        return c_norm > b_norm
+    except Exception:
+        return False
+
+def is_downgrade_version(candidate: str, baseline: str) -> bool:
+    try:
+        c_parts = parse_semver(candidate)
+        b_parts = parse_semver(baseline)
+        max_len = max(len(c_parts), len(b_parts))
+        c_norm = c_parts + (0,) * (max_len - len(c_parts))
+        b_norm = b_parts + (0,) * (max_len - len(b_parts))
+        return c_norm < b_norm
     except Exception:
         return False
 

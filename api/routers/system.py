@@ -40,7 +40,10 @@ from api.services.system_service import (
     check_systemd_service,
     check_systemd_services_batch,
     log_audit,
-    get_appliance_version
+    get_appliance_version,
+    parse_semver,
+    is_newer_version,
+    is_downgrade_version
 )
 from api.services.samba_service import get_ad_creds
 from api.services.samdb_service import run_samba_tool_authenticated
@@ -84,31 +87,6 @@ ALL_MANAGED_SERVICES = [
     "nginx",
     "snmpd"
 ]
-
-def parse_semver(v_str: str) -> tuple:
-    v_clean = re.sub(r'^[vV]', '', str(v_str).strip())
-    parts = []
-    for piece in v_clean.split('.'):
-        digits = re.findall(r'^\d+', piece)
-        if digits:
-            parts.append(int(digits[0]))
-        else:
-            parts.append(0)
-    while len(parts) < 3:
-        parts.append(0)
-    return tuple(parts[:3])
-
-def is_newer_version(candidate: str, baseline: str) -> bool:
-    try:
-        return parse_semver(candidate) > parse_semver(baseline)
-    except Exception:
-        return False
-
-def is_downgrade_version(candidate: str, baseline: str) -> bool:
-    try:
-        return parse_semver(candidate) < parse_semver(baseline)
-    except Exception:
-        return False
 
 def get_archive_keyring_path() -> Path:
     """Returns the trusted GPG keyring for verifying ZclockID packages and updates."""

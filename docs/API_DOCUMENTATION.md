@@ -1,6 +1,6 @@
 # ZclockID Appliance REST API Documentation
 
-**API Version:** `v1.4.7.1`  
+**API Version:** `v1.5.5`  
 **Protocol:** HTTPS  
 **Base URL:** `https://<appliance-ip>/api/v1`  
 

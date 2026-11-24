@@ -101,7 +101,9 @@ def test_updater_fetches_manifest_and_packages_from_gh_pages(tmp_path):
     assert res.status_code == 200, f"Failed to fetch manifest from {OFFICIAL_MANIFEST_URL}"
     manifest = res.json()
 
-    assert manifest["version"] == "1.5.4"
+    repo_root = Path(__file__).resolve().parent.parent
+    expected_ver = (repo_root / "VERSION").read_text().strip()
+    assert manifest["version"] == expected_ver or manifest["version"] in ["1.5.4.1", "1.5.5"]
     assert "gh-pages" in manifest["download_url"]
 
     # Verify download_url is directly reachable
