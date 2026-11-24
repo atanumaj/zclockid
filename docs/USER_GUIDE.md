@@ -1,6 +1,6 @@
 # ZclockID Appliance Administrator & User Guide
 
-**Document Version:** 1.5.5  
+**Document Version:** 1.5.6  
 **Target Platform:** ZclockID Enterprise Appliance (Ubuntu 24.04 LTS / Samba 4.19+ / FreeRADIUS 3.0+ / BIND 9.18+)  
 **Target Audience:** Systems Engineers, Network Administrators, and IT Infrastructure Operations  
 

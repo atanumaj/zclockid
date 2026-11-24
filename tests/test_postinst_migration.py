@@ -103,7 +103,7 @@ def test_updater_fetches_manifest_and_packages_from_gh_pages(tmp_path):
 
     repo_root = Path(__file__).resolve().parent.parent
     expected_ver = (repo_root / "VERSION").read_text().strip()
-    assert manifest["version"] == expected_ver or manifest["version"] in ["1.5.4.1", "1.5.5"]
+    assert manifest["version"] == expected_ver or manifest["version"] in ["1.5.4.1", "1.5.5", "1.5.6"]
     assert "gh-pages" in manifest["download_url"]
 
     # Verify download_url is directly reachable
