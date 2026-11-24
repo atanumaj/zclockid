@@ -1,12 +1,12 @@
 {
-  "version": "1.5.4.1",
-  "name": "ZclockID Enterprise v1.5.4.1",
+  "version": "1.5.5",
+  "name": "ZclockID Enterprise v1.5.5",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-23T18:55:00Z",
-  "summary": "Hotfix release v1.5.4.1: remove shadowed get_db definitions in rbac, syslog, and api_keys routers; add get_db definition hygiene and live authentication regression tests.",
-  "notes": "### What's Changed in v1.5.4.1:\n* **Database Connection Hygiene:** Removed shadowed get_db definitions across RBAC, Syslog, and API Keys routers, ensuring explicit DB_PATH invocation and test isolation.\n* **Regression Verification:** Added comprehensive test suite assertions ensuring no shadow get_db definitions exist outside connection manager and validating live login and subsystem router endpoints.\n* **Credential Sanitization:** Replaced sample password literals with strong placeholder templates across schemas.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.4.1_all.deb",
-  "package_name": "zclockid_1.5.4.1_all.deb",
+  "published_at": "2026-11-24T12:20:00Z",
+  "summary": "Release v1.5.5: multi-segment semver comparison support, database connection hygiene, and automated release pipeline updates.",
+  "notes": "### What's Changed in v1.5.5:\n* **Semver Comparison Engine:** Fixed 3-digit slice truncation in parse_semver to accurately support 4-digit hotfixes and multi-part releases across upstream manifests.\n* **Database Connection Hygiene:** Fully decoupled get_db invocation across RBAC, Syslog, and API Keys routers, ensuring strict connection context delegation and test isolation.\n* **Regression Verification:** Added comprehensive test suite assertions covering arbitrary semver comparisons, no-shadow AST validation, and live login workflows.\n* **Credential Sanitization:** Replaced sample password literals with strong placeholder templates across schemas.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.5_all.deb",
+  "package_name": "zclockid_1.5.5_all.deb",
   "min_version_required": "1.0.0"
 }
