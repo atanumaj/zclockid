@@ -166,12 +166,21 @@ EOFBIND
             cp -a /etc/zclockid/setup.lock /zclockid/config/setup.lock 2>/dev/null || true
         fi
 
-        # AD credentials synchronization
-        if [ -f /etc/zclockid/ad_creds ] && [ ! -f /zclockid/config/ad_creds ]; then
-            cp -a /etc/zclockid/ad_creds /zclockid/config/ad_creds 2>/dev/null || true
-        elif [ -f /zclockid/config/ad_creds ] && [ ! -f /etc/zclockid/ad_creds ]; then
-            cp -a /zclockid/config/ad_creds /etc/zclockid/ad_creds 2>/dev/null || true
+        # AD credentials & config secrets synchronization (/etc/zclockid <-> /zclockid/config)
+        for cfg_name in ad_creds sysvol_partners.json sysvol_secret otp_secret keycloak.keytab; do
+            if [ -f "/etc/zclockid/${cfg_name}" ] && [ ! -f "/zclockid/config/${cfg_name}" ]; then
+                cp -a "/etc/zclockid/${cfg_name}" "/zclockid/config/${cfg_name}" 2>/dev/null || true
+            elif [ -f "/zclockid/config/${cfg_name}" ] && [ ! -f "/etc/zclockid/${cfg_name}" ]; then
+                cp -a "/zclockid/config/${cfg_name}" "/etc/zclockid/${cfg_name}" 2>/dev/null || true
+            fi
+        done
+        if [ -d /etc/zclockid/registration_keys ] && [ ! -d /zclockid/config/registration_keys ]; then
+            cp -a /etc/zclockid/registration_keys /zclockid/config/ 2>/dev/null || true
+        elif [ -d /zclockid/config/registration_keys ] && [ ! -d /etc/zclockid/registration_keys ]; then
+            cp -a /zclockid/config/registration_keys /etc/zclockid/ 2>/dev/null || true
         fi
+        chmod 600 /zclockid/config/sysvol_partners.json /zclockid/config/sysvol_secret /zclockid/config/otp_secret 2>/dev/null || true
+        chown root:root /zclockid/config/sysvol_partners.json /zclockid/config/sysvol_secret /zclockid/config/otp_secret 2>/dev/null || true
 
         # SQLite Database preservation and symlink synchronization:
         # Prevent empty database overwrites and maintain compatibility symlink

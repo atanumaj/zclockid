@@ -1,12 +1,12 @@
 {
-  "version": "1.5.8",
-  "name": "ZclockID Enterprise v1.5.8",
+  "version": "1.5.9",
+  "name": "ZclockID Enterprise v1.5.9",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-24T15:35:00Z",
-  "summary": "Release v1.5.8: Hardened setup wizard lockout, defense-in-depth re-initialization blocking, locked banner protection, and auto-redirect guards.",
-  "notes": "### What's Changed in v1.5.8:\n* **Setup Wizard Lockout:** Default-hidden wizard interface and locked banner to prevent unauthorized users from viewing or triggering setup on operational appliances.\n* **Defense-in-Depth Provisioning Rejection:** Enforced multi-layered 403 Forbidden rejection on POST /api/v1/setup/provision if Samba AD DC is configured or appliance is locked.\n* **Client Navigation Redirection:** Added proactive client-side redirection in core.js and setup.js routing visitors of setup.html directly to index.html (when authenticated) or login.html.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.8_all.deb",
-  "package_name": "zclockid_1.5.8_all.deb",
+  "published_at": "2026-11-25T06:00:00Z",
+  "summary": "Release v1.5.9: Unified Sysvol config path resolution and sync, plus accurate 24h authentication telemetry without synthetic or non-auth noise.",
+  "notes": "### What's Changed in v1.5.9:\n* **Sysvol Config Synchronization & Fallback:** Synchronized sysvol_partners.json, sysvol_secret, otp_secret, keycloak.keytab, and registration_keys between /etc/zclockid and /zclockid/config in postinst, and added fallback/mirroring in api/routers/sysvol.py to eliminate peer DC HTTP 401 rejections.\n* **Accurate 24h Auth Stats:** Removed synthetic baseline numbers in /api/v1/system/auth-stats/24h and filtered audit_events strictly to authentication events.",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.9_all.deb",
+  "package_name": "zclockid_1.5.9_all.deb",
   "min_version_required": "1.0.0"
 }

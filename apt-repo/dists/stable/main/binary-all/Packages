@@ -1,8 +1,8 @@
 Package: zclockid
 Version: 1.0.0
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
-Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
+Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle
 Filename: pool/main/zclockid_1.0.0_all.deb
 Size: 182930
 MD5sum: b12407918eec147313f2103415febf1c
@@ -14,13 +14,13 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
  engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
  FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
- automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
+ automatic Windows NTACL preservation, SNMP telemetry, and a headless REST API.
 
 Package: zclockid
 Version: 1.0.1
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
-Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
+Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle
 Filename: pool/main/zclockid_1.0.1_all.deb
 Size: 183348
 MD5sum: ce32972879e71c59dba7f2d06fcdcb32
@@ -32,13 +32,13 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
  engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
  FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
- automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
+ automatic Windows NTACL preservation, SNMP telemetry, and a headless REST API.
 
 Package: zclockid
 Version: 1.0.2
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
-Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
+Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle
 Filename: pool/main/zclockid_1.0.2_all.deb
 Size: 188402
 MD5sum: 9ef7837f66400ef34b4c4d9bf9a7c936
@@ -50,12 +50,12 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
  engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
  FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
- automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
+ automatic Windows NTACL preservation, SNMP telemetry, and a headless REST API.
 
 Package: zclockid
 Version: 1.0.3
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.0.3_all.deb
 Size: 194756
@@ -73,7 +73,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.0.4
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.0.4_all.deb
 Size: 194764
@@ -91,7 +91,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.0.5
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.0.5_all.deb
 Size: 194758
@@ -109,7 +109,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.0.6
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.0.6_all.deb
 Size: 194972
@@ -127,7 +127,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.0.7
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.0.7_all.deb
 Size: 194694
@@ -145,7 +145,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.0.8
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.0.8_all.deb
 Size: 194522
@@ -163,7 +163,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.0.9
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.0.9_all.deb
 Size: 194550
@@ -181,7 +181,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.0
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.0_all.deb
 Size: 194688
@@ -199,7 +199,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.1
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.1_all.deb
 Size: 195384
@@ -217,7 +217,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.2
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.2_all.deb
 Size: 195738
@@ -235,7 +235,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.3
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.3_all.deb
 Size: 195882
@@ -253,7 +253,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.4
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.4_all.deb
 Size: 196402
@@ -271,7 +271,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.5
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.5_all.deb
 Size: 196588
@@ -289,7 +289,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.6
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.6_all.deb
 Size: 199280
@@ -307,7 +307,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.7
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.7_all.deb
 Size: 199260
@@ -325,7 +325,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.1.8
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.1.8_all.deb
 Size: 199292
@@ -343,7 +343,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.2.0
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.2.0_all.deb
 Size: 200038
@@ -361,7 +361,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.2.1
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.2.1_all.deb
 Size: 207026
@@ -379,7 +379,7 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
 Package: zclockid
 Version: 1.2.2
 Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Maintainer: Inet Secure Labs <noc@inetcsc.com>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
 Filename: pool/main/zclockid_1.2.2_all.deb
 Size: 207254
@@ -827,6 +827,24 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
 
 Package: zclockid
+Version: 1.4.7
+Architecture: all
+Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
+Filename: pool/main/zclockid_1.4.7_all.deb
+Size: 3239566
+MD5sum: 792cc08fdb0421def576e416afba3ceb
+SHA1: 7f09ec692e013c53c22b82ce55d8c63fe09627e0
+SHA256: 3276744b5fb8524c85be021e3d981ecc2b1935f1dc87cdd2cd51b0bc26b32d6b
+Section: admin
+Priority: optional
+Description: Purpose-built Active Directory Domain Controller and IAM appliance
+ ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
+ engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
+ FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
+ automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
+
+Package: zclockid
 Version: 1.4.7.1
 Architecture: all
 Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
@@ -845,15 +863,15 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
 
 Package: zclockid
-Version: 1.4.7
+Version: 1.4.8
 Architecture: all
 Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
-Filename: pool/main/zclockid_1.4.7_all.deb
-Size: 3239566
-MD5sum: 792cc08fdb0421def576e416afba3ceb
-SHA1: 7f09ec692e013c53c22b82ce55d8c63fe09627e0
-SHA256: 3276744b5fb8524c85be021e3d981ecc2b1935f1dc87cdd2cd51b0bc26b32d6b
+Filename: pool/main/zclockid_1.4.8_all.deb
+Size: 3245874
+MD5sum: f9375c15b0d30d2ad97cb31dcecccc02
+SHA1: 50ed13bde270d12a1b7ca6b501d11805da46abe8
+SHA256: dc363700b58d123deeaf47c0380c1abc2fc643f877fba11d2f22dd2024a94784
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance
@@ -881,15 +899,15 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
 
 Package: zclockid
-Version: 1.4.8
+Version: 1.4.9
 Architecture: all
 Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
-Filename: pool/main/zclockid_1.4.8_all.deb
-Size: 3245874
-MD5sum: f9375c15b0d30d2ad97cb31dcecccc02
-SHA1: 50ed13bde270d12a1b7ca6b501d11805da46abe8
-SHA256: dc363700b58d123deeaf47c0380c1abc2fc643f877fba11d2f22dd2024a94784
+Filename: pool/main/zclockid_1.4.9_all.deb
+Size: 3248696
+MD5sum: 02a3505ce0eb67fc6c30b2c66724af61
+SHA1: 28679a3b595325f9883ad72e66c3bf54e20419ce
+SHA256: 1fa7a821a0989fe22c4f4762d0b1aabdcbac59e5724012c482abae99bafbe5e9
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance
@@ -926,24 +944,6 @@ Size: 3253142
 MD5sum: 7f38f67ac19171d242f6080cfda28e69
 SHA1: 68bdac546cc06e1a783f4ae69362af7f43c6a0b2
 SHA256: fd4fa017b668e8335ca7f43cfac328f6a1d25e20e1a97c37cdecfada8a878d03
-Section: admin
-Priority: optional
-Description: Purpose-built Active Directory Domain Controller and IAM appliance
- ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
- engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
- FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
- automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
-
-Package: zclockid
-Version: 1.4.9
-Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
-Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
-Filename: pool/main/zclockid_1.4.9_all.deb
-Size: 3248696
-MD5sum: 02a3505ce0eb67fc6c30b2c66724af61
-SHA1: 28679a3b595325f9883ad72e66c3bf54e20419ce
-SHA256: 1fa7a821a0989fe22c4f4762d0b1aabdcbac59e5724012c482abae99bafbe5e9
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance
@@ -1007,24 +1007,6 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
 
 Package: zclockid
-Version: 1.5.3.1
-Architecture: all
-Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
-Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
-Filename: pool/main/zclockid_1.5.3.1_all.deb
-Size: 4287442
-MD5sum: 21125184ce0952c5280323c42a2d3d88
-SHA1: 5d7f895eeb1f4ce9435c362ab084b4668cf46bb9
-SHA256: 5e8348d101b845af59dddd3f26c7af0731ad67788315e69c5db40625b11a6155
-Section: admin
-Priority: optional
-Description: Purpose-built Active Directory Domain Controller and IAM appliance
- ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
- engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
- FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
- automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
-
-Package: zclockid
 Version: 1.5.3
 Architecture: all
 Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
@@ -1043,15 +1025,15 @@ Description: Purpose-built Active Directory Domain Controller and IAM appliance
  automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
 
 Package: zclockid
-Version: 1.5.4.1
+Version: 1.5.3.1
 Architecture: all
 Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
 Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
-Filename: pool/main/zclockid_1.5.4.1_all.deb
-Size: 4240260
-MD5sum: 6c97d1039eaac7ed44288f8608ea57dd
-SHA1: 7be2874fb424eeb8b13135aafd6f7b26c99e1eee
-SHA256: 5c0d73ec04fb0eb5c70039a3720cd5e73f6586f84d44958d0e01e15273800203
+Filename: pool/main/zclockid_1.5.3.1_all.deb
+Size: 4287442
+MD5sum: 21125184ce0952c5280323c42a2d3d88
+SHA1: 5d7f895eeb1f4ce9435c362ab084b4668cf46bb9
+SHA256: 5e8348d101b845af59dddd3f26c7af0731ad67788315e69c5db40625b11a6155
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance
@@ -1070,6 +1052,24 @@ Size: 4239312
 MD5sum: f3ee41a7f8d8f1fb76b460845633b87b
 SHA1: c3b13cfd0265109c7221ed084d7a69370446b9ed
 SHA256: 04b25fdbf838739dce1ee6ade0620076bb60a3105de091c2a766c6bcfbebe57e
+Section: admin
+Priority: optional
+Description: Purpose-built Active Directory Domain Controller and IAM appliance
+ ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
+ engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
+ FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
+ automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
+
+Package: zclockid
+Version: 1.5.4.1
+Architecture: all
+Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
+Filename: pool/main/zclockid_1.5.4.1_all.deb
+Size: 4240260
+MD5sum: 6c97d1039eaac7ed44288f8608ea57dd
+SHA1: 7be2874fb424eeb8b13135aafd6f7b26c99e1eee
+SHA256: 5c0d73ec04fb0eb5c70039a3720cd5e73f6586f84d44958d0e01e15273800203
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance
@@ -1142,6 +1142,24 @@ Size: 4492304
 MD5sum: 84317d17de45f30027aaafc7bc3ca223
 SHA1: 811197fbcd27cd846011edbbbad41f194ba982c0
 SHA256: 4d07cfd1ff3537138fdffe969d0e13952e9644f7747c5fe4335c58933090a7bd
+Section: admin
+Priority: optional
+Description: Purpose-built Active Directory Domain Controller and IAM appliance
+ ZclockID is a modern, lightweight Active Directory Domain Controller and IAM appliance
+ engineered for Ubuntu Linux. Features native BIND9 DLZ with DNS-over-HTTPS (DoH),
+ FreeRADIUS 802.1X transparent authentication, bi-directional Sysvol replication with
+ automatic Windows NTACL preservation, SNMP telemetry, host firewall port security, and a headless REST API.
+
+Package: zclockid
+Version: 1.5.9
+Architecture: all
+Maintainer: Atanu Majumdar (@atanumaj) <https://github.com/atanumaj/zclockid>
+Depends: samba (>= 2:4.19.0), samba-ad-dc, samba-ad-provision, samba-dsdb-modules, samba-vfs-modules, smbclient, winbind, libpam-winbind, libnss-winbind, krb5-user, ldb-tools, bind9 (>= 1:9.18.0), bind9utils, bind9-dnsutils, freeradius, freeradius-utils, freeradius-ldap, snmpd, chrony, acl, attr, nginx, python3, python3-pip, python3-uvicorn, python3-fastapi, python3-psutil, python3-multipart, python3-requests, python3-yaml, python3-setproctitle, ufw
+Filename: pool/main/zclockid_1.5.9_all.deb
+Size: 4492336
+MD5sum: 6415f86897065ac801461c78b3c6c9d3
+SHA1: dbe14c6cad1ed39f92e11b88e516ca10e544b668
+SHA256: dc3bdfca0a55384e8650b0257cae92c192970e793251bb8932b2d839aba976be
 Section: admin
 Priority: optional
 Description: Purpose-built Active Directory Domain Controller and IAM appliance

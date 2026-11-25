@@ -471,7 +471,8 @@ def get_auth_stats_24h():
     now = time.time()
     one_day_ago = now - 86400
 
-    # 1. Query real DB audit records if available
+    # 1. Query real DB audit records for authentication events
+    auth_prefixes = ("AUTH_", "LOGIN_", "ADMIN_LOGIN", "USER_LOGIN", "SSPR_", "RADIUS_", "KERBEROS_", "LDAP_")
     db_events = []
     try:
         from api.db.connection import get_db
@@ -481,7 +482,10 @@ def get_auth_stats_24h():
                 "SELECT event_type, status, timestamp FROM audit_events WHERE timestamp >= ?",
                 (one_day_ago,)
             )
-            db_events = cursor.fetchall()
+            db_events = [
+                ev for ev in cursor.fetchall()
+                if ev[0] and any(str(ev[0]).startswith(p) for p in auth_prefixes)
+            ]
     except Exception:
         pass
 
@@ -495,7 +499,7 @@ def get_auth_stats_24h():
     except Exception:
         pass
 
-    # 3. Build 24 hourly buckets
+    # 3. Build 24 hourly buckets from real recorded authentication events
     hourly = []
     total_success = 0
     total_failed = 0
@@ -509,27 +513,24 @@ def get_auth_stats_24h():
         dt = datetime.datetime.fromtimestamp(bucket_time)
         hour_label = dt.strftime("%H:00")
 
-        # Diurnal enterprise pattern: peak during working hours (08:00 - 19:00)
-        hour_int = dt.hour
-        is_business_hours = 8 <= hour_int <= 19
-        base_multiplier = 3.6 if is_business_hours else 1.0
-
-        seed_val = int((bucket_time // 3600) % 100)
-        variance = (seed_val * 7) % 15
-
-        kerb_auths = int((12 * base_multiplier) + (variance * 2))
-        ldap_auths = int((5 * base_multiplier) + (variance % 6))
-        radius_auths = int((8 * base_multiplier) + (variance % 8))
-        admin_auths = int(1 + (variance % 3)) if is_business_hours else (1 if variance % 4 == 0 else 0)
-
-        # Minor failure rate
-        failed = 1 if (seed_val % 7 == 0) else (2 if (seed_val % 19 == 0) else 0)
+        kerb_auths = 0
+        ldap_auths = 0
+        radius_auths = 0
+        admin_auths = 0
+        failed = 0
 
         for ev in db_events:
-            ev_status, ev_ts = ev[1], ev[2]
-            if bucket_time <= ev_ts < bucket_time + 3600:
+            ev_type, ev_status, ev_ts = str(ev[0] or ""), str(ev[1] or ""), ev[2]
+            if ev_ts is not None and bucket_time <= ev_ts < bucket_time + 3600:
                 if ev_status == "SUCCESS":
-                    admin_auths += 1
+                    if ev_type.startswith("RADIUS_"):
+                        radius_auths += 1
+                    elif ev_type.startswith("KERBEROS_"):
+                        kerb_auths += 1
+                    elif ev_type.startswith("LDAP_"):
+                        ldap_auths += 1
+                    else:
+                        admin_auths += 1
                 else:
                     failed += 1
 
@@ -566,7 +567,7 @@ def get_auth_stats_24h():
         "success_rate_percent": rate,
         "peak_hour": peak_hour,
         "peak_count": peak_count,
-        "active_sessions_now": max(active_smb, 3),
+        "active_sessions_now": active_smb,
         "breakdown": {
             "kerberos": sum(h["kerberos"] for h in hourly),
             "ldap": sum(h["ldap"] for h in hourly),

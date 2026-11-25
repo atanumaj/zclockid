@@ -36,11 +36,45 @@ router = APIRouter(prefix="/api/v1/sysvol", tags=["Sysvol Replication & NTACL"])
 
 SYSVOL_PARTNERS_FILE = CONFIG_DIR / "sysvol_partners.json"
 SYSVOL_LOCAL_SECRET_FILE = CONFIG_DIR / "sysvol_secret"
+_DEFAULT_PARTNERS_FILE = SYSVOL_PARTNERS_FILE
+_DEFAULT_LOCAL_SECRET_FILE = SYSVOL_LOCAL_SECRET_FILE
 SYSVOL_SYNC_STATUS_FILE = Path("/var/run/zclock-sysvol-sync.json")
 SYSVOL_CERTS_DIR = Path("/etc/zclockid/certs")
 SYSVOL_STATE_FILE = Path("/var/lib/zclockid/sysvol_state.json")
 
 MAX_SYSVOL_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB upload limit
+
+
+def _resolve_partners_file() -> Path:
+    """Returns SYSVOL_PARTNERS_FILE, falling back to /etc/zclockid/sysvol_partners.json if not monkeypatched."""
+    if SYSVOL_PARTNERS_FILE.exists():
+        return SYSVOL_PARTNERS_FILE
+    legacy = Path("/etc/zclockid/sysvol_partners.json")
+    if SYSVOL_PARTNERS_FILE == _DEFAULT_PARTNERS_FILE and legacy.exists():
+        return legacy
+    return SYSVOL_PARTNERS_FILE
+
+
+def _resolve_local_secret_file() -> Path:
+    """Returns SYSVOL_LOCAL_SECRET_FILE, falling back to /etc/zclockid/sysvol_secret if not monkeypatched."""
+    if SYSVOL_LOCAL_SECRET_FILE.exists():
+        return SYSVOL_LOCAL_SECRET_FILE
+    legacy = Path("/etc/zclockid/sysvol_secret")
+    if SYSVOL_LOCAL_SECRET_FILE == _DEFAULT_LOCAL_SECRET_FILE and legacy.exists():
+        return legacy
+    return SYSVOL_LOCAL_SECRET_FILE
+
+
+def _load_partners_list() -> List[dict]:
+    """Loads registered Sysvol partner DCs from the resolved partners JSON file."""
+    pfile = _resolve_partners_file()
+    if pfile.exists():
+        try:
+            with open(pfile) as f:
+                return json.load(f).get("partners", [])
+        except Exception:
+            pass
+    return []
 
 
 def mask_secret(sec: str) -> str:
@@ -67,14 +101,20 @@ def get_local_cert_fingerprint() -> str:
 
 
 def write_partners_file_atomic(data: dict):
-    """Writes sysvol_partners.json atomically with mode 0600."""
-    SYSVOL_PARTNERS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp_file = SYSVOL_PARTNERS_FILE.with_suffix(".tmp")
-    fd = os.open(str(tmp_file), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        json.dump(data, f, indent=2)
-    os.chmod(str(tmp_file), 0o600)
-    os.replace(str(tmp_file), str(SYSVOL_PARTNERS_FILE))
+    """Writes sysvol_partners.json atomically with mode 0600 (and mirrors to /etc/zclockid if on unified config)."""
+    targets = [SYSVOL_PARTNERS_FILE]
+    legacy = Path("/etc/zclockid/sysvol_partners.json")
+    if SYSVOL_PARTNERS_FILE == _DEFAULT_PARTNERS_FILE and legacy.parent.exists() and SYSVOL_PARTNERS_FILE != legacy:
+        targets.append(legacy)
+
+    for dest in targets:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        tmp_file = dest.with_suffix(".tmp")
+        fd = os.open(str(tmp_file), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+        os.chmod(str(tmp_file), 0o600)
+        os.replace(str(tmp_file), str(dest))
 
 
 @contextmanager
@@ -195,16 +235,10 @@ def verify_sysvol_sync_access(
 
     # Look up partner matching client_ip in sysvol_partners.json
     partner = None
-    if SYSVOL_PARTNERS_FILE.exists():
-        try:
-            with open(SYSVOL_PARTNERS_FILE) as f:
-                partners = json.load(f).get("partners", [])
-                for p in partners:
-                    if p.get("ip_address") == client_ip:
-                        partner = p
-                        break
-        except Exception as e:
-            pass
+    for p in _load_partners_list():
+        if p.get("ip_address") == client_ip:
+            partner = p
+            break
 
     if not partner:
         log_audit("SYSVOL_SYNC_AUTH_REJECTED", "peer", client_ip, "FAILED", {"reason": f"Peer IP {client_ip} is not a registered partner DC"})
@@ -252,13 +286,7 @@ def get_sysvol_status():
                     k, v = line.strip().split("=", 1)
                     state[k] = v
 
-    partner_count = 0
-    if SYSVOL_PARTNERS_FILE.exists():
-        try:
-            with open(SYSVOL_PARTNERS_FILE) as f:
-                partner_count = len(json.load(f).get("partners", []))
-        except Exception:
-            pass
+    partner_count = len(_load_partners_list())
 
     sys_state = load_sysvol_state()
     mass_tripped = sys_state.get("mass_delete_tripped", False)
@@ -287,25 +315,20 @@ def probe_sysvol_tls(ip: str):
 @router.get("/local-secret", dependencies=[Depends(require_role("operator"))])
 def get_sysvol_local_secret():
     """Returns the local appliance pairing secret used to authorize incoming replication."""
-    if not SYSVOL_LOCAL_SECRET_FILE.exists():
-        SYSVOL_LOCAL_SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(SYSVOL_LOCAL_SECRET_FILE, "w") as f:
+    secret_file = _resolve_local_secret_file()
+    if not secret_file.exists():
+        secret_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(secret_file, "w") as f:
             f.write(secrets.token_hex(24) + "\n")
-        os.chmod(SYSVOL_LOCAL_SECRET_FILE, 0o600)
-    with open(SYSVOL_LOCAL_SECRET_FILE) as f:
+        os.chmod(secret_file, 0o600)
+    with open(secret_file) as f:
         return {"secret": f.read().strip()}
 
 
 @router.get("/partners", dependencies=[Depends(require_role("readonly"))])
 def list_sysvol_partners():
     """Returns list of configured partner Domain Controllers with live synchronization health."""
-    partners = []
-    if SYSVOL_PARTNERS_FILE.exists():
-        try:
-            with open(SYSVOL_PARTNERS_FILE) as f:
-                partners = json.load(f).get("partners", [])
-        except Exception:
-            pass
+    partners = _load_partners_list()
 
     sync_telemetry = {}
     if SYSVOL_SYNC_STATUS_FILE.exists():
@@ -392,15 +415,7 @@ def add_sysvol_partner(req: SysvolPartnerRequest, user: dict = Depends(require_r
         except Exception:
             pass
 
-    current = {"partners": []}
-    if SYSVOL_PARTNERS_FILE.exists():
-        try:
-            with open(SYSVOL_PARTNERS_FILE) as f:
-                current = json.load(f)
-        except Exception:
-            pass
-
-    existing = [p for p in current.get("partners", []) if p["ip_address"] != req.ip_address]
+    existing = [p for p in _load_partners_list() if p["ip_address"] != req.ip_address]
     existing.append(partner_dict)
     write_partners_file_atomic({"partners": existing})
 
@@ -423,13 +438,7 @@ def repin_sysvol_partner(partner_ip: str, req: Optional[SysvolRepinRequest] = No
     if req is None:
         req = SysvolRepinRequest(confirm=False)
 
-    partners = []
-    if SYSVOL_PARTNERS_FILE.exists():
-        try:
-            with open(SYSVOL_PARTNERS_FILE) as f:
-                partners = json.load(f).get("partners", [])
-        except Exception:
-            pass
+    partners = _load_partners_list()
 
     partner = next((p for p in partners if p.get("ip_address") == partner_ip), None)
     if not partner:
@@ -478,11 +487,10 @@ def repin_sysvol_partner(partner_ip: str, req: Optional[SysvolRepinRequest] = No
 @router.delete("/partners/{partner_ip}")
 def delete_sysvol_partner(partner_ip: str, user: dict = Depends(require_role("fulladmin"))):
     """Unregisters a Domain Controller from the Sysvol replication mesh."""
-    if SYSVOL_PARTNERS_FILE.exists():
+    partners_list = _load_partners_list()
+    if partners_list:
         try:
-            with open(SYSVOL_PARTNERS_FILE) as f:
-                current = json.load(f)
-            filtered = [p for p in current.get("partners", []) if p["ip_address"] != partner_ip]
+            filtered = [p for p in partners_list if p["ip_address"] != partner_ip]
             write_partners_file_atomic({"partners": filtered})
 
             cert_file = SYSVOL_CERTS_DIR / f"partner_{partner_ip}.crt"

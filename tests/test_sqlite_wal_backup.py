@@ -219,3 +219,33 @@ def test_get_auth_stats_24h_returns_db_events(tmp_path, monkeypatch):
     matching_failed_hours = [b for b in stats["hourly"] if b["failed"] > 0]
     assert len(matching_failed_hours) > 0, "DB failed auth event not reflected in hourly"
 
+
+def test_get_auth_stats_24h_excludes_non_auth_events_and_synthetic_data(tmp_path, monkeypatch):
+    """
+    Verifies that get_auth_stats_24h does not inject synthetic counts and ignores
+    non-authentication audit events such as SYSVOL_SYNC_AUTH_REJECTED or UPDATE_CHECKED.
+    """
+    test_db = tmp_path / "auth_stats_clean.db"
+    monkeypatch.setattr(config, "DB_PATH", test_db)
+    init_db(test_db)
+
+    now = time.time()
+    with get_db(test_db) as conn:
+        conn.execute(
+            "INSERT INTO audit_events (event_type, actor, target, status, details, timestamp) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("SYSVOL_SYNC_AUTH_REJECTED", "peer", "192.168.180.44", "FAILED", "{}", now - 600)
+        )
+        conn.execute(
+            "INSERT INTO audit_events (event_type, actor, target, status, details, timestamp) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            ("UPDATE_CHECKED", "admin", "appliance", "SUCCESS", "{}", now - 300)
+        )
+        conn.commit()
+
+    stats = sys_mod.get_auth_stats_24h()
+    assert stats["total_24h"] == 0
+    assert stats["failed_count"] == 0
+    assert stats["success_count"] == 0
+
+
