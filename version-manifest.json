@@ -1,12 +1,12 @@
 {
-  "version": "1.5.9",
-  "name": "ZclockID Enterprise v1.5.9",
+  "version": "1.5.10",
+  "name": "ZclockID Enterprise v1.5.10",
   "channel": "stable",
   "release_type": "patch",
-  "published_at": "2026-11-25T06:00:00Z",
-  "summary": "Release v1.5.9: Unified Sysvol config path resolution and sync, plus accurate 24h authentication telemetry without synthetic or non-auth noise.",
-  "notes": "### What's Changed in v1.5.9:\n* **Sysvol Config Synchronization & Fallback:** Synchronized sysvol_partners.json, sysvol_secret, otp_secret, keycloak.keytab, and registration_keys between /etc/zclockid and /zclockid/config in postinst, and added fallback/mirroring in api/routers/sysvol.py to eliminate peer DC HTTP 401 rejections.\n* **Accurate 24h Auth Stats:** Removed synthetic baseline numbers in /api/v1/system/auth-stats/24h and filtered audit_events strictly to authentication events.",
-  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.9_all.deb",
-  "package_name": "zclockid_1.5.9_all.deb",
+  "published_at": "2026-11-27T09:55:00Z",
+  "summary": "Release v1.5.10: Viewport-safe modal scrolling across all console dialogs and sticky header/scrollable body for User Create/Edit modals.",
+  "notes": "### What's Changed in v1.5.10:\n* **Global Modal Scroll Safeguard:** Added viewport-bounded `max-height: calc(100vh - 2rem)` and `overflow-y: auto` in `web/css/app.css` so all console popups remain scrollable and never clip action/save buttons on low-resolution or non-fullscreen browser windows.\n* **User Create & Edit Modals:** Updated `#user-modal` and `#edit-user-modal` to use a fixed header and scrollable form body (`max-h-[90vh] flex flex-col`, `flex-1 overflow-y-auto custom-scroll`).",
+  "download_url": "https://raw.githubusercontent.com/atanumaj/zclockid/gh-pages/apt-repo/pool/main/zclockid_1.5.10_all.deb",
+  "package_name": "zclockid_1.5.10_all.deb",
   "min_version_required": "1.0.0"
 }

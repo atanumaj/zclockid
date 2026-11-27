@@ -1804,12 +1804,12 @@
 
     <!-- Create User Modal -->
     <div id="user-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
-        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-5 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-5 pb-3 border-b border-slate-800 flex justify-between items-center shrink-0">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-400"></i> New Domain User</h3>
                 <button data-action="closeUserModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="space-y-3 text-xs">
+            <div class="p-5 pt-4 flex-1 overflow-y-auto custom-scroll space-y-3 text-xs">
                 <div>
                     <label class="text-slate-400 block mb-1">sAMAccountName (Username)</label>
                     <input id="usr-name-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-white font-mono" placeholder="john.doe">
@@ -1885,14 +1885,14 @@
 
     <!-- Edit User Modal -->
     <div id="edit-user-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 hidden backdrop-blur-sm">
-        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg p-5 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="p-5 pb-3 flex justify-between items-center border-b border-slate-800 shrink-0">
                 <h3 class="text-sm font-bold text-white flex items-center gap-2">
                     <i class="fa-solid fa-user-pen text-indigo-400"></i> Edit Active Directory User
                 </h3>
                 <button data-action="closeEditUserModal" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <form id="edit-user-form" data-on-submit="submitEditUser" class="space-y-3 text-xs">
+            <form id="edit-user-form" data-on-submit="submitEditUser" class="p-5 pt-4 flex-1 overflow-y-auto custom-scroll space-y-3 text-xs">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-slate-400 block mb-1">sAMAccountName (Username)</label>

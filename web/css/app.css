@@ -454,6 +454,19 @@
         }
 
         /* Modal Overlays & Dialogs */
+        .fixed.inset-0 > div {
+            max-height: calc(100vh - 2rem);
+        }
+        .fixed.inset-0 > div:not(.flex-col) {
+            overflow-y: auto;
+        }
+        .fixed.inset-0 > div:not(.flex-col)::-webkit-scrollbar { width: 5px; height: 5px; }
+        .fixed.inset-0 > div:not(.flex-col)::-webkit-scrollbar-track { background: #0f172a; }
+        .fixed.inset-0 > div:not(.flex-col)::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .fixed.inset-0 > div:not(.flex-col)::-webkit-scrollbar-thumb:hover { background: #475569; }
+        html.light-theme .fixed.inset-0 > div:not(.flex-col)::-webkit-scrollbar-track { background: #1a2233; }
+        html.light-theme .fixed.inset-0 > div:not(.flex-col)::-webkit-scrollbar-thumb { background: #36445d; }
+        html.light-theme .fixed.inset-0 > div:not(.flex-col)::-webkit-scrollbar-thumb:hover { background: #4f5f7a; }
         html.light-theme .fixed.inset-0.bg-black\/80,
         html.light-theme .fixed.inset-0.bg-black\/70,
         html.light-theme .fixed.inset-0.bg-black\/60,
